@@ -10,6 +10,9 @@ wheels/
 .*_cache
 .cache
 
+*.mxo
+*.mxe64
+
 # Virtual environments
 .venv
 
