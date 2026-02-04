@@ -1,1 +1,1 @@
-"""Tests for gen_ext package."""
+"""Tests for gen_dsp package."""

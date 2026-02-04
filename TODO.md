@@ -1,11 +1,11 @@
-# gen_ext TODO
+# gen_dsp TODO
 
 ## Backends
 
 ### Implemented
 
 - **PureData** - Primary target. Full support.
-- **Max/MSP** - Full support. See `src/gen_ext/templates/max/`.
+- **Max/MSP** - Full support. See `src/gen_dsp/templates/max/`.
 
 ### To Implement
 

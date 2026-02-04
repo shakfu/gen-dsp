@@ -1,4 +1,4 @@
-"""Tests for gen_ext.cli module."""
+"""Tests for gen_dsp.cli module."""
 
 import json
 from pathlib import Path
@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from gen_ext.cli import main, create_parser
+from gen_dsp.cli import main, create_parser
 
 
 class TestCreateParser:
@@ -207,4 +207,4 @@ class TestMainNoCommand:
         result = main([])
         assert result == 0
         captured = capsys.readouterr()
-        assert "usage:" in captured.out.lower() or "gen-ext" in captured.out
+        assert "usage:" in captured.out.lower() or "gen-dsp" in captured.out

@@ -1,5 +1,5 @@
 """
-Platform implementations for gen_ext.
+Platform implementations for gen_dsp.
 
 Each platform (PureData, Max/MSP, etc.) has its own implementation
 of the build and project generation logic.
@@ -10,9 +10,9 @@ making it easy to add new backends without modifying multiple files.
 
 from typing import Type
 
-from gen_ext.platforms.base import Platform
-from gen_ext.platforms.puredata import PureDataPlatform
-from gen_ext.platforms.max import MaxPlatform
+from gen_dsp.platforms.base import Platform
+from gen_dsp.platforms.puredata import PureDataPlatform
+from gen_dsp.platforms.max import MaxPlatform
 
 
 # Registry mapping platform names to their implementation classes.

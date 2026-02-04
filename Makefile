@@ -1,4 +1,4 @@
-# Development Makefile for gen_ext Python package
+# Development Makefile for gen_dsp Python package
 
 .PHONY: all install install-dev test test-cov lint clean help venv
 
@@ -23,7 +23,7 @@ test:
 
 # Run tests with coverage
 test-cov:
-	pytest tests/ -v --cov=src/gen_ext --cov-report=term-missing --cov-report=html
+	pytest tests/ -v --cov=src/gen_dsp --cov-report=term-missing --cov-report=html
 
 # Clean build artifacts
 clean:

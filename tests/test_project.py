@@ -1,12 +1,12 @@
-"""Tests for gen_ext.core.project module."""
+"""Tests for gen_dsp.core.project module."""
 
 from pathlib import Path
 
 import pytest
 
-from gen_ext.core.parser import GenExportParser
-from gen_ext.core.project import ProjectGenerator, ProjectConfig
-from gen_ext.errors import ValidationError
+from gen_dsp.core.parser import GenExportParser
+from gen_dsp.core.project import ProjectGenerator, ProjectConfig
+from gen_dsp.errors import ValidationError
 
 
 class TestProjectConfig:
@@ -86,7 +86,7 @@ class TestProjectGenerator:
 
         # Check required files exist
         assert (project_dir / "Makefile").is_file()
-        assert (project_dir / "gen_ext.cpp").is_file()
+        assert (project_dir / "gen_dsp.cpp").is_file()
         assert (project_dir / "gen_ext_common.h").is_file()
         assert (project_dir / "_ext.cpp").is_file()
         assert (project_dir / "_ext.h").is_file()

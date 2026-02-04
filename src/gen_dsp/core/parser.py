@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from gen_ext.errors import ParseError
+from gen_dsp.errors import ParseError
 
 
 @dataclass

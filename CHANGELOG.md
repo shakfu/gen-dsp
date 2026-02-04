@@ -30,11 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Python package with CLI (`gen-ext`) for automated project generation
-- `gen-ext init` command to create projects from gen~ exports
-- `gen-ext build` command to compile externals
-- `gen-ext detect` command to analyze gen~ exports (buffers, I/O, parameters)
-- `gen-ext patch` command to apply platform-specific fixes
+- Python package with CLI (`gen-dsp`) for automated project generation
+- `gen-dsp init` command to create projects from gen~ exports
+- `gen-dsp build` command to compile externals
+- `gen-dsp detect` command to analyze gen~ exports (buffers, I/O, parameters)
+- `gen-dsp patch` command to apply platform-specific fixes
 - Automatic buffer detection from gen~ export code
 - Automatic exp2f -> exp2 patch for macOS compatibility
 - JSON output option for `detect` command

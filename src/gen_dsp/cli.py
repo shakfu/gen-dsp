@@ -1,11 +1,11 @@
 """
-Command-line interface for gen_ext.
+Command-line interface for gen_dsp.
 
 Usage:
-    gen-ext init <export-path> -n <name> [-p <platform>] [-o <output>]
-    gen-ext build [project-path] [-p <platform>] [--clean]
-    gen-ext detect <export-path> [--json]
-    gen-ext patch <target-path> [--dry-run]
+    gen-dsp init <export-path> -n <name> [-p <platform>] [-o <output>]
+    gen-dsp build [project-path] [-p <platform>] [--clean]
+    gen-dsp detect <export-path> [--json]
+    gen-dsp patch <target-path> [--dry-run]
 """
 
 import argparse
@@ -14,41 +14,41 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from gen_ext import __version__
-from gen_ext.core.parser import GenExportParser, ExportInfo
-from gen_ext.core.project import ProjectGenerator, ProjectConfig
-from gen_ext.core.patcher import Patcher
-from gen_ext.core.builder import Builder
-from gen_ext.errors import GenExtError
-from gen_ext.platforms import list_platforms, get_platform
+from gen_dsp import __version__
+from gen_dsp.core.parser import GenExportParser, ExportInfo
+from gen_dsp.core.project import ProjectGenerator, ProjectConfig
+from gen_dsp.core.patcher import Patcher
+from gen_dsp.core.builder import Builder
+from gen_dsp.errors import GenExtError
+from gen_dsp.platforms import list_platforms, get_platform
 
 
 def create_parser() -> argparse.ArgumentParser:
     """Create the argument parser."""
     parser = argparse.ArgumentParser(
-        prog="gen-ext",
+        prog="gen-dsp",
         description="Generate PureData and Max/MSP externals from Max gen~ exports",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   # Initialize a new project from a gen~ export
-  gen-ext init ./my_export -n myeffect -p pd -o ./myeffect_project
+  gen-dsp init ./my_export -n myeffect -p pd -o ./myeffect_project
 
   # Detect buffers and I/O in a gen~ export
-  gen-ext detect ./my_export
+  gen-dsp detect ./my_export
 
   # Build an existing project
-  gen-ext build ./myeffect_project
+  gen-dsp build ./myeffect_project
 
   # Apply platform patches (exp2f fix)
-  gen-ext patch ./myeffect_project
+  gen-dsp patch ./myeffect_project
 """,
     )
 
     parser.add_argument(
         "-V", "--version",
         action="version",
-        version=f"gen-ext {__version__}",
+        version=f"gen-dsp {__version__}",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -57,7 +57,7 @@ Examples:
     init_parser = subparsers.add_parser(
         "init",
         help="Create a new project from a gen~ export",
-        description="Initialize a new gen_ext project from exported gen~ code.",
+        description="Initialize a new gen_dsp project from exported gen~ code.",
     )
     init_parser.add_argument(
         "export_path",

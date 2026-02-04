@@ -1,11 +1,11 @@
-"""Tests for gen_ext.core.patcher module."""
+"""Tests for gen_dsp.core.patcher module."""
 
 import shutil
 from pathlib import Path
 
 import pytest
 
-from gen_ext.core.patcher import Patcher, PatchResult
+from gen_dsp.core.patcher import Patcher, PatchResult
 
 
 class TestPatcher:

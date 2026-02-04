@@ -1,5 +1,5 @@
 """
-Build orchestration for gen_ext projects.
+Build orchestration for gen_dsp projects.
 
 Uses the platform registry to dynamically select the appropriate
 build system for each platform.
@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from gen_ext.errors import BuildError
+from gen_dsp.errors import BuildError
 
 
 @dataclass
@@ -32,14 +32,14 @@ class BuildResult:
 
 
 class Builder:
-    """Build gen_ext projects."""
+    """Build gen_dsp projects."""
 
     def __init__(self, project_dir: Path | str):
         """
         Initialize builder with project directory.
 
         Args:
-            project_dir: Path to the gen_ext project directory.
+            project_dir: Path to the gen_dsp project directory.
         """
         self.project_dir = Path(project_dir).resolve()
 
@@ -67,7 +67,7 @@ class Builder:
             BuildError: If build fails and cannot be recovered.
             ValueError: If platform is not recognized.
         """
-        from gen_ext.platforms import get_platform
+        from gen_dsp.platforms import get_platform
 
         try:
             platform_impl = get_platform(target_platform)
@@ -83,7 +83,7 @@ class Builder:
         Args:
             target_platform: Platform name (e.g., 'pd', 'max').
         """
-        from gen_ext.platforms import get_platform
+        from gen_dsp.platforms import get_platform
 
         try:
             platform_impl = get_platform(target_platform)

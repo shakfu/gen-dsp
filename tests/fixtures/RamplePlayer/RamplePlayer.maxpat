@@ -46,7 +46,7 @@
 					"numinlets" : 1,
 					"numoutlets" : 0,
 					"patching_rect" : [ 270.0, 292.0, 150.0, 167.0 ],
-					"text" : "Note when exporting: \"Buffer is not supported...\" will be printed to the console. You can ignore this warning. Your code will be exported. See the gen_ext readme file for details on how to enable buffer access in your PureData external so that the gen_code can read a PureData array."
+					"text" : "Note when exporting: \"Buffer is not supported...\" will be printed to the console. You can ignore this warning. Your code will be exported. See the gen_dsp readme file for details on how to enable buffer access in your PureData external so that the gen_code can read a PureData array."
 				}
 
 			}

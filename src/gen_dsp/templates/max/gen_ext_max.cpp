@@ -267,7 +267,7 @@ void WRAPPER_ASSIST(WRAPPER_TYPE *x, void *b, long io, long idx, char *s)
 
 void WRAPPER_BANG(WRAPPER_TYPE *x)
 {
-    object_post((t_object *)x, "gen-ext wrapper v%s (Max)", STR(GEN_EXT_VERSION));
+    object_post((t_object *)x, "gen-dsp wrapper v%s (Max)", STR(GEN_EXT_VERSION));
     object_post((t_object *)x, "%s~ samplerate: %g, blocksize: %ld",
                 STR(MAX_EXT_NAME), x->x_sr, x->x_bs);
     object_post((t_object *)x, "signal inputs: %d", x->x_num_inputs);

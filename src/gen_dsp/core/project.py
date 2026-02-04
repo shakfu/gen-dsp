@@ -1,5 +1,5 @@
 """
-Project generator for gen_ext.
+Project generator for gen_dsp.
 
 Creates new project structures from gen~ exports using templates.
 Uses the platform registry for platform-specific project generation.
@@ -11,8 +11,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from gen_ext.core.parser import ExportInfo
-from gen_ext.errors import ProjectError, ValidationError
+from gen_dsp.core.parser import ExportInfo
+from gen_dsp.errors import ProjectError, ValidationError
 
 
 @dataclass
@@ -41,7 +41,7 @@ class ProjectConfig:
         Returns:
             List of validation error messages (empty if valid).
         """
-        from gen_ext.platforms import list_platforms
+        from gen_dsp.platforms import list_platforms
 
         errors = []
 
@@ -106,7 +106,7 @@ class ProjectGenerator:
             ProjectError: If project cannot be generated.
             ValidationError: If configuration is invalid.
         """
-        from gen_ext.platforms import get_platform, list_platforms
+        from gen_dsp.platforms import get_platform, list_platforms
 
         # Validate configuration
         errors = self.config.validate()
@@ -156,7 +156,7 @@ class ProjectGenerator:
 
         # Apply patches if requested
         if self.config.apply_patches and self.export_info.has_exp2f_issue:
-            from gen_ext.core.patcher import Patcher
+            from gen_dsp.core.patcher import Patcher
 
             patcher = Patcher(output_dir)
             patcher.apply_exp2f_fix()

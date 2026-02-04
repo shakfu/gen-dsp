@@ -1,5 +1,5 @@
 """
-Template access utilities for gen_ext.
+Template access utilities for gen_dsp.
 
 Templates are bundled with the package and accessed via these utilities.
 """

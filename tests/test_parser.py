@@ -1,11 +1,11 @@
-"""Tests for gen_ext.core.parser module."""
+"""Tests for gen_dsp.core.parser module."""
 
 from pathlib import Path
 
 import pytest
 
-from gen_ext.core.parser import GenExportParser, ExportInfo
-from gen_ext.errors import ParseError
+from gen_dsp.core.parser import GenExportParser, ExportInfo
+from gen_dsp.errors import ParseError
 
 
 class TestGenExportParser:

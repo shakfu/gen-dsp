@@ -6,10 +6,10 @@ gen.name = $gen_name
 # Name of the external to generate (do not add ~ suffix)
 lib.name = $lib_name
 
-genext.version = $genext_version
+gendsp.version = $genext_version
 
-$$(lib.name)~.class.sources = gen_ext.cpp _ext.cpp ./gen/gen_dsp/genlib.cpp
-cflags = -I ./gen -I./gen/gen_dsp -DGEN_EXT_VERSION=$$(genext.version) -DPD_EXT_NAME=$$(lib.name) -DGEN_EXPORTED_NAME=$$(gen.name) -DGEN_EXPORTED_HEADER=\"$$(gen.name).h\" -DGEN_EXPORTED_CPP=\"$$(gen.name).cpp\"
+$$(lib.name)~.class.sources = gen_dsp.cpp _ext.cpp ./gen/gen_dsp/genlib.cpp
+cflags = -I ./gen -I./gen/gen_dsp -DGEN_EXT_VERSION=$$(gendsp.version) -DPD_EXT_NAME=$$(lib.name) -DGEN_EXPORTED_NAME=$$(gen.name) -DGEN_EXPORTED_HEADER=\"$$(gen.name).h\" -DGEN_EXPORTED_CPP=\"$$(gen.name).cpp\"
 suppress-wunused = yes
 
 define forDarwin

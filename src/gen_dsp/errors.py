@@ -1,10 +1,10 @@
 """
-Custom exceptions for gen_ext.
+Custom exceptions for gen_dsp.
 """
 
 
 class GenExtError(Exception):
-    """Base exception for gen_ext errors."""
+    """Base exception for gen_dsp errors."""
 
     pass
 

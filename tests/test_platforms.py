@@ -2,7 +2,7 @@
 
 import pytest
 
-from gen_ext.platforms import (
+from gen_dsp.platforms import (
     PLATFORM_REGISTRY,
     Platform,
     PureDataPlatform,

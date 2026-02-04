@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "gen-ext"
+name = "gen-dsp"
 version = "0.8.0"
 description = "Generate PureData and Max/MSP externals from Max gen~ exports"
 readme = "README.md"
@@ -41,17 +41,17 @@ dev = [
 ]
 
 [project.scripts]
-gen-ext = "gen_ext.cli:main"
+gen-dsp = "gen_dsp.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/samesimilar/gen_ext"
-Repository = "https://github.com/samesimilar/gen_ext"
+Homepage = "https://github.com/samesimilar/gen_dsp"
+Repository = "https://github.com/samesimilar/gen_dsp"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-"gen_ext.templates" = ["**/*"]
+"gen_dsp.templates" = ["**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -60,7 +60,7 @@ python_functions = ["test_*"]
 addopts = "-v"
 
 [tool.coverage.run]
-source = ["src/gen_ext"]
+source = ["src/gen_dsp"]
 branch = true
 
 [tool.coverage.report]

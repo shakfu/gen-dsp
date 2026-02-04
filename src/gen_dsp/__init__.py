@@ -1,5 +1,5 @@
 """
-gen_ext - Generate PureData and Max/MSP externals from Max gen~ exports.
+gen_dsp - Generate PureData and Max/MSP externals from Max gen~ exports.
 
 This package provides tools to:
 - Parse gen~ exports and detect buffers, I/O counts, and platform issues
@@ -10,11 +10,11 @@ This package provides tools to:
 
 __version__ = "0.8.0"
 
-from gen_ext.core.parser import GenExportParser
-from gen_ext.core.project import ProjectGenerator
-from gen_ext.core.patcher import Patcher
-from gen_ext.core.builder import Builder
-from gen_ext.errors import GenExtError
+from gen_dsp.core.parser import GenExportParser
+from gen_dsp.core.project import ProjectGenerator
+from gen_dsp.core.patcher import Patcher
+from gen_dsp.core.builder import Builder
+from gen_dsp.errors import GenExtError
 
 __all__ = [
     "__version__",

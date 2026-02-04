@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 from typing import Optional
 
-from gen_ext.errors import PatchError
+from gen_dsp.errors import PatchError
 
 
 class PatchResult:

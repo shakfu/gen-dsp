@@ -8,11 +8,11 @@ from pathlib import Path
 from string import Template
 from typing import Optional
 
-from gen_ext.core.builder import BuildResult
-from gen_ext.core.parser import ExportInfo
-from gen_ext.errors import BuildError, ProjectError
-from gen_ext.platforms.base import Platform
-from gen_ext.templates import get_pd_templates_dir
+from gen_dsp.core.builder import BuildResult
+from gen_dsp.core.parser import ExportInfo
+from gen_dsp.errors import BuildError, ProjectError
+from gen_dsp.platforms.base import Platform
+from gen_dsp.templates import get_pd_templates_dir
 
 
 class PureDataPlatform(Platform):
@@ -50,7 +50,7 @@ class PureDataPlatform(Platform):
 
         # Copy static files
         static_files = [
-            "gen_ext.cpp",
+            "gen_dsp.cpp",
             "gen_ext_common.h",
             "_ext.cpp",
             "_ext.h",
@@ -111,10 +111,10 @@ gen.name = {gen_name}
 # Name of the external to generate (do not add ~ suffix)
 lib.name = {lib_name}
 
-genext.version = {self.GENEXT_VERSION}
+gendsp.version = {self.GENEXT_VERSION}
 
-$(lib.name)~.class.sources = gen_ext.cpp _ext.cpp ./gen/gen_dsp/genlib.cpp
-cflags = -I ./gen -I./gen/gen_dsp -DGEN_EXT_VERSION=$(genext.version) -DPD_EXT_NAME=$(lib.name) -DGEN_EXPORTED_NAME=$(gen.name) -DGEN_EXPORTED_HEADER=\\"$(gen.name).h\\" -DGEN_EXPORTED_CPP=\\"$(gen.name).cpp\\"
+$(lib.name)~.class.sources = gen_dsp.cpp _ext.cpp ./gen/gen_dsp/genlib.cpp
+cflags = -I ./gen -I./gen/gen_dsp -DGEN_EXT_VERSION=$(gendsp.version) -DPD_EXT_NAME=$(lib.name) -DGEN_EXPORTED_NAME=$(gen.name) -DGEN_EXPORTED_HEADER=\\"$(gen.name).h\\" -DGEN_EXPORTED_CPP=\\"$(gen.name).cpp\\"
 suppress-wunused = yes
 
 define forDarwin

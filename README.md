@@ -1,20 +1,20 @@
-# gen_ext
+# gen_dsp
 
 Generate PureData and Max/MSP externals from Max gen~ exports.
 
-gen_ext compiles code exported from Max gen~ objects into external objects for PureData and Max/MSP. It automates project setup, buffer detection, and platform-specific patches.
+gen_dsp compiles code exported from Max gen~ objects into external objects for PureData and Max/MSP. It automates project setup, buffer detection, and platform-specific patches.
 
 ## Installation
 
 ```bash
-pip install gen-ext
+pip install gen-dsp
 ```
 
 Or install from source:
 
 ```bash
-git clone https://github.com/samesimilar/gen_ext.git
-cd gen_ext
+git clone https://github.com/samesimilar/gen_dsp.git
+cd gen_dsp
 pip install -e .
 ```
 
@@ -24,7 +24,7 @@ pip install -e .
 # 1. Export your gen~ code in Max (send 'exportcode' to gen~ object)
 
 # 2. Create a project from the export
-gen-ext init ./path/to/export -n myeffect -o ./myeffect
+gen-dsp init ./path/to/export -n myeffect -o ./myeffect
 
 # 3. Build the external
 cd myeffect
@@ -40,7 +40,7 @@ make all
 Create a new project from a gen~ export:
 
 ```bash
-gen-ext init <export-path> -n <name> [-p <platform>] [-o <output>]
+gen-dsp init <export-path> -n <name> [-p <platform>] [-o <output>]
 ```
 
 Options:
@@ -56,7 +56,7 @@ Options:
 Build an existing project:
 
 ```bash
-gen-ext build [project-path] [-p <platform>] [--clean] [-v]
+gen-dsp build [project-path] [-p <platform>] [--clean] [-v]
 ```
 
 ### detect
@@ -64,7 +64,7 @@ gen-ext build [project-path] [-p <platform>] [--clean] [-v]
 Analyze a gen~ export:
 
 ```bash
-gen-ext detect <export-path> [--json]
+gen-dsp detect <export-path> [--json]
 ```
 
 Shows: export name, signal I/O counts, parameters, detected buffers, and needed patches.
@@ -74,7 +74,7 @@ Shows: export name, signal I/O counts, parameters, detected buffers, and needed 
 Apply platform-specific fixes:
 
 ```bash
-gen-ext patch <target-path> [--dry-run]
+gen-dsp patch <target-path> [--dry-run]
 ```
 
 Currently applies the exp2f -> exp2 fix for macOS compatibility with Max 9 exports.
@@ -83,10 +83,10 @@ Currently applies the exp2f -> exp2 fix for macOS compatibility with Max 9 expor
 
 ### Automatic Buffer Detection
 
-gen_ext scans your gen~ export for buffer usage patterns and configures them automatically:
+gen_dsp scans your gen~ export for buffer usage patterns and configures them automatically:
 
 ```bash
-$ gen-ext detect ./my_sampler_export
+$ gen-dsp detect ./my_sampler_export
 Gen~ Export: my_sampler
   Signal inputs: 1
   Signal outputs: 2
@@ -98,11 +98,11 @@ Buffer names must be valid C identifiers (alphanumeric, starting with a letter).
 
 ### Platform Patches
 
-Max 9 exports include `exp2f` which fails on macOS. gen_ext automatically patches this to `exp2` during project creation, or you can apply it manually:
+Max 9 exports include `exp2f` which fails on macOS. gen_dsp automatically patches this to `exp2` during project creation, or you can apply it manually:
 
 ```bash
-gen-ext patch ./my_project --dry-run  # Preview
-gen-ext patch ./my_project            # Apply
+gen-dsp patch ./my_project --dry-run  # Preview
+gen-dsp patch ./my_project            # Apply
 ```
 
 ## Using the External in PureData
@@ -142,16 +142,16 @@ For subpatches with custom block sizes (e.g., spectral processing):
 
 ## Max/MSP Support
 
-gen_ext supports generating Max/MSP externals using CMake and the max-sdk-base submodule.
+gen_dsp supports generating Max/MSP externals using CMake and the max-sdk-base submodule.
 
 ### Quick Start (Max)
 
 ```bash
 # Create a Max project
-gen-ext init ./my_export -n myeffect -p max -o ./myeffect_max
+gen-dsp init ./my_export -n myeffect -p max -o ./myeffect_max
 
 # Build (automatically clones max-sdk-base if needed)
-gen-ext build ./myeffect_max -p max
+gen-dsp build ./myeffect_max -p max
 
 # Output: myeffect_max/externals/myeffect~.mxo (macOS) or myeffect~.mxe64 (Windows)
 ```
@@ -218,8 +218,8 @@ make all
 ## Development
 
 ```bash
-git clone https://github.com/samesimilar/gen_ext.git
-cd gen_ext
+git clone https://github.com/samesimilar/gen_dsp.git
+cd gen_dsp
 uv venv && uv pip install -e ".[dev]"
 source .venv/bin/activate
 make test
@@ -227,7 +227,7 @@ make test
 
 ### Adding New Backends
 
-gen_ext uses a platform registry system that makes it straightforward to add support for new audio platforms (SuperCollider, VCV Rack, LV2, etc.). See [ADDING_NEW_BACKENDS.md](ADDING_NEW_BACKENDS.md) for a complete guide.
+gen_dsp uses a platform registry system that makes it straightforward to add support for new audio platforms (SuperCollider, VCV Rack, LV2, etc.). See [ADDING_NEW_BACKENDS.md](ADDING_NEW_BACKENDS.md) for a complete guide.
 
 ## Attribution
 

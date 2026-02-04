@@ -9,10 +9,10 @@ lib.name = RamplePlayer
 
 # Don't forget to edit gen_buffer.h if your gen~ object references buffers in max.
 
-genext.version = 0.7.0
+gendsp.version = 0.7.0
 
-$(lib.name)~.class.sources = gen_ext.cpp _ext.cpp ./gen/gen_dsp/genlib.cpp 
-cflags = -I ./gen -I./gen/gen_dsp -DGEN_EXT_VERSION=$(genext.version) -DPD_EXT_NAME=$(lib.name) -DGEN_EXPORTED_NAME=$(gen.name) -DGEN_EXPORTED_HEADER=\"$(gen.name).h\" -DGEN_EXPORTED_CPP=\"$(gen.name).cpp\"
+$(lib.name)~.class.sources = gen_dsp.cpp _ext.cpp ./gen/gen_dsp/genlib.cpp 
+cflags = -I ./gen -I./gen/gen_dsp -DGEN_EXT_VERSION=$(gendsp.version) -DPD_EXT_NAME=$(lib.name) -DGEN_EXPORTED_NAME=$(gen.name) -DGEN_EXPORTED_HEADER=\"$(gen.name).h\" -DGEN_EXPORTED_CPP=\"$(gen.name).cpp\"
 suppress-wunused = yes
 
 define forDarwin

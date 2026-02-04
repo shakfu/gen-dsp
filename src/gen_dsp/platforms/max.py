@@ -11,11 +11,11 @@ from pathlib import Path
 from string import Template
 from typing import Optional
 
-from gen_ext.core.builder import BuildResult
-from gen_ext.core.parser import ExportInfo
-from gen_ext.errors import BuildError, ProjectError
-from gen_ext.platforms.base import Platform
-from gen_ext.templates import get_max_templates_dir
+from gen_dsp.core.builder import BuildResult
+from gen_dsp.core.parser import ExportInfo
+from gen_dsp.errors import BuildError, ProjectError
+from gen_dsp.platforms.base import Platform
+from gen_dsp.templates import get_max_templates_dir
 
 
 class MaxPlatform(Platform):
@@ -82,7 +82,7 @@ class MaxPlatform(Platform):
             templates_dir / "gen_buffer.h.template",
             output_dir / "gen_buffer.h",
             buffers,
-            header_comment="Buffer configuration for gen_ext Max/MSP wrapper",
+            header_comment="Buffer configuration for gen_dsp Max/MSP wrapper",
         )
 
         # Create build directory

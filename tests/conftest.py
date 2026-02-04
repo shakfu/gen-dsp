@@ -1,4 +1,4 @@
-"""Pytest configuration and fixtures for gen_ext tests."""
+"""Pytest configuration and fixtures for gen_dsp tests."""
 
 from pathlib import Path
 
