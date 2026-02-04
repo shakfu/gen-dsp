@@ -1,16 +1,25 @@
 # gen_dsp
 
-Generate PureData and Max/MSP externals from Max gen~ exports.
+This project is a friendly fork of Michael Spears' [gen_ext](https://github.com/samesimilar/gen_ext) which was originally created to "compile code exported from a Max gen~ object into an "external" object that can be loaded into a PureData patch."
+
+This fork has taken this excellent original idea and implementation and extended it to include Max/MSP externals and possibly other dsp architectures (see TODO.md).
 
 gen_dsp compiles code exported from Max gen~ objects into external objects for PureData and Max/MSP. It automates project setup, buffer detection, and platform-specific patches.
 
+### Key Improvements
+
+- **Python package**: gen-dsp is a pip installable zero-dependency python package with a cli which embeds all templates and related code.
+- **Automated project scaffolding**: `gen-dsp init` creates a complete, buildable project from a gen~ export in one command, versus manually copying files and editing Makefiles.
+- **Automatic buffer detection**: Scans exported code for buffer usage patterns and configures them without manual intervention.
+- **Max/MSP support**: Generates CMake-based Max externals with proper 64-bit signal handling and buffer lock/unlock API.
+- **Platform-specific patches**: Automatically fixes compatibility issues like the exp2f -> exp2 problem in Max 9 exports on macOS.
+- **Analysis tools**: `gen-dsp detect` inspects exports to show I/O counts, parameters, and buffers before committing to a build.
+- **Dry-run mode**: Preview what changes will be made before applying them.
+- **Platform registry**: To make it easy to discover new backends
+
 ## Installation
 
-```bash
-pip install gen-dsp
-```
-
-Or install from source:
+install from source:
 
 ```bash
 git clone https://github.com/samesimilar/gen_dsp.git

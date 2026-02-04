@@ -1,18 +1,12 @@
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "gen-dsp"
-version = "0.8.0"
+version = "0.1.0"
 description = "Generate PureData and Max/MSP externals from Max gen~ exports"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Michael Spears"},
-]
-maintainers = [
-    {name = "Michael Spears"},
+    { name = "Michael Spears" },
+    { name = "Shakeeb Alireza", email = "shakfu@users.noreply.github.com" }
 ]
 keywords = ["puredata", "pd", "max", "msp", "gen~", "dsp", "audio", "external"]
 classifiers = [
@@ -47,11 +41,9 @@ gen-dsp = "gen_dsp.cli:main"
 Homepage = "https://github.com/samesimilar/gen_dsp"
 Repository = "https://github.com/samesimilar/gen_dsp"
 
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.setuptools.package-data]
-"gen_dsp.templates" = ["**/*"]
+[build-system]
+requires = ["uv_build>=0.9.29,<0.10.0"]
+build-backend = "uv_build"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

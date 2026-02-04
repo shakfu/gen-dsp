@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ADDING_NEW_BACKENDS.md` - comprehensive guide for implementing new platform backends
 - `tests/test_platforms.py` - 18 new tests for platform registry and implementations
 
-## [0.8.0] - 2025-02-03
+## [0.1.0]
 
 ### Added
 
@@ -58,7 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Manual `template/` directory (now bundled in package)
 - Manual `example/` directory (moved to `tests/fixtures/`)
 
-## [0.7.0] - 2022-xx-xx
+## [0.0.9]
 
 ### Added
 
