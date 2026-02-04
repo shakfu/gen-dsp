@@ -20,6 +20,7 @@ from gen_ext.core.project import ProjectGenerator, ProjectConfig
 from gen_ext.core.patcher import Patcher
 from gen_ext.core.builder import Builder
 from gen_ext.errors import GenExtError
+from gen_ext.platforms import list_platforms, get_platform
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -70,9 +71,9 @@ Examples:
     )
     init_parser.add_argument(
         "-p", "--platform",
-        choices=["pd", "max", "both"],
+        choices=list_platforms() + ["both"],
         default="pd",
-        help="Target platform (default: pd)",
+        help=f"Target platform: {', '.join(list_platforms())}, or 'both' (default: pd)",
     )
     init_parser.add_argument(
         "-o", "--output",
@@ -110,9 +111,9 @@ Examples:
     )
     build_parser.add_argument(
         "-p", "--platform",
-        choices=["pd", "max"],
+        choices=list_platforms(),
         default="pd",
-        help="Target platform (default: pd)",
+        help=f"Target platform: {', '.join(list_platforms())} (default: pd)",
     )
     build_parser.add_argument(
         "--clean",
@@ -228,17 +229,18 @@ def cmd_init(args: argparse.Namespace) -> int:
         print()
         print("Next steps:")
         print(f"  cd {project_dir}")
-        if args.platform == "pd":
-            print("  make all")
-        elif args.platform == "max":
-            print("  git clone --depth 1 https://github.com/Cycling74/max-sdk-base.git")
-            print("  mkdir -p build && cd build && cmake .. && cmake --build .")
-        else:  # both
-            print("  # For PureData:")
-            print("  make all")
-            print("  # For Max/MSP:")
-            print("  git clone --depth 1 https://github.com/Cycling74/max-sdk-base.git")
-            print("  mkdir -p build && cd build && cmake .. && cmake --build .")
+        if args.platform == "both":
+            # Show instructions for all platforms
+            for platform_name in list_platforms():
+                platform_impl = get_platform(platform_name)
+                print(f"  # For {platform_name}:")
+                for instruction in platform_impl.get_build_instructions():
+                    print(f"  {instruction}")
+        else:
+            # Show instructions for specific platform
+            platform_impl = get_platform(args.platform)
+            for instruction in platform_impl.get_build_instructions():
+                print(f"  {instruction}")
     except GenExtError as e:
         print(f"Error creating project: {e}", file=sys.stderr)
         return 1

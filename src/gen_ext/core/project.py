@@ -2,13 +2,13 @@
 Project generator for gen_ext.
 
 Creates new project structures from gen~ exports using templates.
+Uses the platform registry for platform-specific project generation.
 """
 
 import re
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
-from string import Template
 from typing import Optional
 
 from gen_ext.core.parser import ExportInfo
@@ -22,7 +22,7 @@ class ProjectConfig:
     # Name for the external (used as lib.name in Makefile)
     name: str
 
-    # Target platform: 'pd', 'max', or 'both'
+    # Target platform: 'pd', 'max', 'both', or any registered platform
     platform: str = "pd"
 
     # Buffer names (if empty, use auto-detected from export)
@@ -41,6 +41,8 @@ class ProjectConfig:
         Returns:
             List of validation error messages (empty if valid).
         """
+        from gen_ext.platforms import list_platforms
+
         errors = []
 
         # Validate name is a valid C identifier
@@ -52,8 +54,11 @@ class ProjectConfig:
             )
 
         # Validate platform
-        if self.platform not in ("pd", "max", "both"):
-            errors.append(f"Platform must be 'pd', 'max', or 'both', got '{self.platform}'")
+        valid_platforms = list_platforms() + ["both"]
+        if self.platform not in valid_platforms:
+            errors.append(
+                f"Platform must be one of {valid_platforms}, got '{self.platform}'"
+            )
 
         # Validate buffer count
         if len(self.buffers) > 5:
@@ -85,17 +90,6 @@ class ProjectGenerator:
         """
         self.export_info = export_info
         self.config = config
-        self._templates_dir: Optional[Path] = None
-
-    @property
-    def templates_dir(self) -> Path:
-        """Get the templates directory from the package."""
-        if self._templates_dir is None:
-            # Import here to avoid circular imports
-            from gen_ext.templates import get_templates_dir
-
-            self._templates_dir = get_templates_dir()
-        return self._templates_dir
 
     def generate(self, output_dir: Optional[Path] = None) -> Path:
         """
@@ -112,10 +106,14 @@ class ProjectGenerator:
             ProjectError: If project cannot be generated.
             ValidationError: If configuration is invalid.
         """
+        from gen_ext.platforms import get_platform, list_platforms
+
         # Validate configuration
         errors = self.config.validate()
         if errors:
-            raise ValidationError("Configuration errors:\n" + "\n".join(f"  - {e}" for e in errors))
+            raise ValidationError(
+                "Configuration errors:\n" + "\n".join(f"  - {e}" for e in errors)
+            )
 
         # Determine output directory
         if output_dir is None:
@@ -128,14 +126,30 @@ class ProjectGenerator:
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # Determine buffers to use
-        buffers = self.config.buffers if self.config.buffers else self.export_info.buffers
+        buffers = (
+            self.config.buffers if self.config.buffers else self.export_info.buffers
+        )
 
-        # Generate for each platform
-        if self.config.platform in ("pd", "both"):
-            self._generate_pd(output_dir, buffers)
-
-        if self.config.platform in ("max", "both"):
-            self._generate_max(output_dir, buffers)
+        # Generate for each platform using the registry
+        if self.config.platform == "both":
+            # Generate for all registered platforms
+            for platform_name in list_platforms():
+                platform_impl = get_platform(platform_name)
+                platform_impl.generate_project(
+                    self.export_info,
+                    output_dir,
+                    self.config.name,
+                    buffers,
+                )
+        else:
+            # Generate for specific platform
+            platform_impl = get_platform(self.config.platform)
+            platform_impl.generate_project(
+                self.export_info,
+                output_dir,
+                self.config.name,
+                buffers,
+            )
 
         # Copy gen~ export
         self._copy_export(output_dir)
@@ -149,62 +163,6 @@ class ProjectGenerator:
 
         return output_dir
 
-    def _generate_pd(self, output_dir: Path, buffers: list[str]) -> None:
-        """Generate PureData project files."""
-        pd_templates = self.templates_dir / "pd"
-        if not pd_templates.is_dir():
-            raise ProjectError(f"PureData templates not found at {pd_templates}")
-
-        # Copy static files
-        static_files = [
-            "gen_ext.cpp",
-            "gen_ext_common.h",
-            "_ext.cpp",
-            "_ext.h",
-            "pd_buffer.h",
-        ]
-
-        for filename in static_files:
-            src = pd_templates / filename
-            if src.exists():
-                shutil.copy2(src, output_dir / filename)
-
-        # Copy pd-lib-builder
-        pd_lib_builder_src = pd_templates / "pd-lib-builder"
-        pd_lib_builder_dst = output_dir / "pd-lib-builder"
-        if pd_lib_builder_src.is_dir():
-            if pd_lib_builder_dst.exists():
-                shutil.rmtree(pd_lib_builder_dst)
-            shutil.copytree(pd_lib_builder_src, pd_lib_builder_dst)
-
-        # Generate Makefile from template
-        makefile_template = pd_templates / "Makefile.template"
-        if makefile_template.exists():
-            self._generate_makefile(makefile_template, output_dir / "Makefile")
-        else:
-            # Fallback: generate Makefile directly
-            self._generate_makefile_direct(output_dir / "Makefile")
-
-        # Generate gen_buffer.h from template
-        buffer_template = pd_templates / "gen_buffer.h.template"
-        if buffer_template.exists():
-            self._generate_buffer_header(buffer_template, output_dir / "gen_buffer.h", buffers)
-        else:
-            # Fallback: generate gen_buffer.h directly
-            self._generate_buffer_header_direct(output_dir / "gen_buffer.h", buffers)
-
-    def _generate_max(self, output_dir: Path, buffers: list[str]) -> None:
-        """Generate Max/MSP project files."""
-        from gen_ext.platforms.max import MaxPlatform
-
-        platform = MaxPlatform()
-        platform.generate_project(
-            self.export_info,
-            output_dir,
-            self.config.name,
-            buffers,
-        )
-
     def _copy_export(self, output_dir: Path) -> None:
         """Copy the gen~ export to the project's gen/ directory."""
         gen_dir = output_dir / "gen"
@@ -215,90 +173,3 @@ class ProjectGenerator:
 
         # Copy the export
         shutil.copytree(self.export_info.path, gen_dir)
-
-    def _generate_makefile(self, template_path: Path, output_path: Path) -> None:
-        """Generate Makefile from template."""
-        template_content = template_path.read_text()
-        template = Template(template_content)
-
-        content = template.safe_substitute(
-            gen_name=self.export_info.name,
-            lib_name=self.config.name,
-            genext_version=self.GENEXT_VERSION,
-        )
-
-        output_path.write_text(content)
-
-    def _generate_makefile_direct(self, output_path: Path) -> None:
-        """Generate Makefile directly (fallback)."""
-        content = f"""# Makefile for {self.config.name}
-
-# Name of the exported .cpp/.h file from gen~
-gen.name = {self.export_info.name}
-
-# Name of the external to generate (do not add ~ suffix)
-lib.name = {self.config.name}
-
-genext.version = {self.GENEXT_VERSION}
-
-$(lib.name)~.class.sources = gen_ext.cpp _ext.cpp ./gen/gen_dsp/genlib.cpp
-cflags = -I ./gen -I./gen/gen_dsp -DGEN_EXT_VERSION=$(genext.version) -DPD_EXT_NAME=$(lib.name) -DGEN_EXPORTED_NAME=$(gen.name) -DGEN_EXPORTED_HEADER=\\"$(gen.name).h\\" -DGEN_EXPORTED_CPP=\\"$(gen.name).cpp\\"
-suppress-wunused = yes
-
-define forDarwin
-  cflags += -DMSP_ON_CLANG -DGENLIB_USE_FLOAT32 -mmacosx-version-min=10.9
-endef
-
-define forLinux
-  $(lib.name)~.class.sources += ./gen/gen_dsp/json.c ./gen/gen_dsp/json_builder.c
-endef
-
-include ./pd-lib-builder/Makefile.pdlibbuilder
-"""
-        output_path.write_text(content)
-
-    def _generate_buffer_header(
-        self, template_path: Path, output_path: Path, buffers: list[str]
-    ) -> None:
-        """Generate gen_buffer.h from template."""
-        template_content = template_path.read_text()
-        template = Template(template_content)
-
-        # Build buffer definitions
-        buffer_count = len(buffers)
-        buffer_defs = []
-        for i, buf_name in enumerate(buffers):
-            buffer_defs.append(f"#define WRAPPER_BUFFER_NAME_{i} {buf_name}")
-
-        # Pad with commented-out placeholders
-        for i in range(len(buffers), 5):
-            buffer_defs.append(f"// #define WRAPPER_BUFFER_NAME_{i} array{i + 1}")
-
-        content = template.safe_substitute(
-            buffer_count=buffer_count,
-            buffer_definitions="\n".join(buffer_defs),
-        )
-
-        output_path.write_text(content)
-
-    def _generate_buffer_header_direct(
-        self, output_path: Path, buffers: list[str]
-    ) -> None:
-        """Generate gen_buffer.h directly (fallback)."""
-        buffer_count = len(buffers)
-
-        lines = [
-            "// Buffer configuration for gen_ext wrapper",
-            "// Auto-generated by gen-ext",
-            "",
-            f"#define WRAPPER_BUFFER_COUNT {buffer_count}",
-            "",
-        ]
-
-        for i in range(5):
-            if i < len(buffers):
-                lines.append(f"#define WRAPPER_BUFFER_NAME_{i} {buffers[i]}")
-            else:
-                lines.append(f"// #define WRAPPER_BUFFER_NAME_{i} array{i + 1}")
-
-        output_path.write_text("\n".join(lines) + "\n")

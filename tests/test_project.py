@@ -41,7 +41,8 @@ class TestProjectConfig:
         config = ProjectConfig(name="valid", platform="invalid")
         errors = config.validate()
         assert len(errors) == 1
-        assert "must be 'pd', 'max', or 'both'" in errors[0]
+        assert "Platform must be one of" in errors[0]
+        assert "'invalid'" in errors[0]
 
     def test_too_many_buffers(self):
         """Test validation rejects more than 5 buffers."""

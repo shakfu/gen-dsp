@@ -1,14 +1,12 @@
 """
 Build orchestration for gen_ext projects.
 
-Invokes the appropriate build system for each platform:
-- PureData: make via pd-lib-builder
-- Max/MSP: CMake (future)
+Uses the platform registry to dynamically select the appropriate
+build system for each platform.
 """
 
-import os
 import platform
-import subprocess
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -58,7 +56,7 @@ class Builder:
         Build the project for the specified platform.
 
         Args:
-            target_platform: 'pd' or 'max'.
+            target_platform: Platform name (e.g., 'pd', 'max').
             clean: If True, clean before building.
             verbose: If True, print build output in real-time.
 
@@ -67,137 +65,32 @@ class Builder:
 
         Raises:
             BuildError: If build fails and cannot be recovered.
+            ValueError: If platform is not recognized.
         """
-        if target_platform == "pd":
-            return self._build_pd(clean=clean, verbose=verbose)
-        elif target_platform == "max":
-            return self._build_max(clean=clean, verbose=verbose)
-        else:
-            raise BuildError(f"Unknown platform: {target_platform}")
+        from gen_ext.platforms import get_platform
+
+        try:
+            platform_impl = get_platform(target_platform)
+        except ValueError as e:
+            raise BuildError(str(e)) from e
+
+        return platform_impl.build(self.project_dir, clean=clean, verbose=verbose)
 
     def clean(self, target_platform: str = "pd") -> None:
         """
         Clean build artifacts.
 
         Args:
-            target_platform: 'pd' or 'max'.
+            target_platform: Platform name (e.g., 'pd', 'max').
         """
-        if target_platform == "pd":
-            self._run_make(["clean"])
-        elif target_platform == "max":
-            # CMake clean (future)
-            build_dir = self.project_dir / "build"
-            if build_dir.exists():
-                import shutil
+        from gen_ext.platforms import get_platform
 
-                shutil.rmtree(build_dir)
+        try:
+            platform_impl = get_platform(target_platform)
+        except ValueError as e:
+            raise BuildError(str(e)) from e
 
-    def _build_pd(self, clean: bool = False, verbose: bool = False) -> BuildResult:
-        """Build PureData external using make."""
-        # Check for Makefile
-        makefile = self.project_dir / "Makefile"
-        if not makefile.exists():
-            raise BuildError(f"Makefile not found in {self.project_dir}")
-
-        # Clean if requested
-        if clean:
-            self._run_make(["clean"])
-
-        # Build
-        result = self._run_make(["all"], verbose=verbose)
-
-        # Find output file
-        output_file = self._find_pd_output()
-
-        return BuildResult(
-            success=result.returncode == 0,
-            platform="pd",
-            output_file=output_file,
-            stdout=result.stdout,
-            stderr=result.stderr,
-            return_code=result.returncode,
-        )
-
-    def _build_max(self, clean: bool = False, verbose: bool = False) -> BuildResult:
-        """Build Max/MSP external using CMake."""
-        from gen_ext.platforms.max import MaxPlatform
-
-        platform = MaxPlatform()
-        return platform.build(self.project_dir, clean=clean, verbose=verbose)
-
-    def _run_make(
-        self, args: list[str], verbose: bool = False
-    ) -> subprocess.CompletedProcess:
-        """
-        Run make with the given arguments.
-
-        Args:
-            args: Arguments to pass to make.
-            verbose: If True, print output in real-time.
-
-        Returns:
-            CompletedProcess result.
-        """
-        cmd = ["make"] + args
-
-        if verbose:
-            # Run with output streaming
-            process = subprocess.Popen(
-                cmd,
-                cwd=self.project_dir,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-            )
-
-            output_lines = []
-            for line in process.stdout:
-                print(line, end="")
-                output_lines.append(line)
-
-            process.wait()
-
-            return subprocess.CompletedProcess(
-                args=cmd,
-                returncode=process.returncode,
-                stdout="".join(output_lines),
-                stderr="",
-            )
-        else:
-            return subprocess.run(
-                cmd,
-                cwd=self.project_dir,
-                capture_output=True,
-                text=True,
-            )
-
-    def _find_pd_output(self) -> Optional[Path]:
-        """Find the built PureData external file."""
-        # Determine expected extension based on platform
-        system = platform.system().lower()
-        if system == "darwin":
-            ext = ".pd_darwin"
-        elif system == "linux":
-            ext = ".pd_linux"
-        elif system == "windows":
-            ext = ".dll"
-        else:
-            ext = ".pd_linux"  # Default
-
-        # Look for files with the extension
-        for f in self.project_dir.glob(f"*{ext}"):
-            return f
-
-        # Also check for .d_* variants (older naming)
-        if system == "darwin":
-            for f in self.project_dir.glob("*.d_fat"):
-                return f
-            for f in self.project_dir.glob("*.d_amd64"):
-                return f
-            for f in self.project_dir.glob("*.d_arm64"):
-                return f
-
-        return None
+        platform_impl.clean(self.project_dir)
 
     def get_lib_name(self) -> Optional[str]:
         """
@@ -211,7 +104,6 @@ class Builder:
             return None
 
         content = makefile.read_text()
-        import re
 
         match = re.search(r"lib\.name\s*=\s*(\S+)", content)
         if match:

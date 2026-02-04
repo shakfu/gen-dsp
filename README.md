@@ -225,6 +225,10 @@ source .venv/bin/activate
 make test
 ```
 
+### Adding New Backends
+
+gen_ext uses a platform registry system that makes it straightforward to add support for new audio platforms (SuperCollider, VCV Rack, LV2, etc.). See [ADDING_NEW_BACKENDS.md](ADDING_NEW_BACKENDS.md) for a complete guide.
+
 ## Attribution
 
 Test fixtures include code exported from examples bundled with Max:
