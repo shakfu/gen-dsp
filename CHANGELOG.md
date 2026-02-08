@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **ChucK chugin platform support** with make-based build system
+  - Generates ChucK chugins (.chug) from gen~ exports
+  - 32-bit float signal processing (matches ChucK's `SAMPLE = float`)
+  - Multi-channel I/O via `CK_DLL_TICKF` with per-frame deinterleave/interleave
+  - Generic `param(string, float)` setter and `param(string)` getter for runtime parameter control
+  - `info()` and `reset()` methods on the chugin class
+  - Buffer support via `ChuckBuffer` class (allocated, zero-filled)
+  - Bundled `chugin.h` header -- no external ChucK SDK dependency needed
+  - Platform-specific makefiles for macOS (`makefile.mac`) and Linux (`makefile.linux`)
+  - Workaround for genlib `exp2`/`trunc` redefinition conflicts with modern C++ stdlib
+  - Capitalized class name follows ChucK convention (e.g. `Gigaverb`, not `gigaverb`)
+- Integration tests for ChucK: build compilation and ChucK runtime load verification
+- Makefile targets for generating example plugins: `example-pd`, `example-max`, `example-chuck`, `examples`
+  - Configurable via `FIXTURE`, `NAME`, and `BUFFERS` variables
+
+### Fixed
+
+- **Parser bug**: `_find_main_files()` filtered by absolute path (`"gen_dsp" not in str(f)`), which excluded all `.cpp` files when the project directory contained "gen_dsp". Fixed to check only the file's parent directory name (`f.parent.name != "gen_dsp"`)
+- **PD template filename mismatch**: template file `gen_ext.cpp` was renamed to `gen_dsp.cpp` to match what `puredata.py` and the Makefile template expect
+
 ### Changed
 
 - **Platform registry refactor** for easier addition of new backends

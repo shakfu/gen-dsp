@@ -2,16 +2,17 @@
 
 This project is a friendly fork of Michael Spears' [gen_ext](https://github.com/samesimilar/gen_ext) which was originally created to "compile code exported from a Max gen~ object into an "external" object that can be loaded into a PureData patch."
 
-This fork has taken this excellent original idea and implementation and extended it to include Max/MSP externals and possibly other dsp architectures (see TODO.md).
+This fork has taken this excellent original idea and implementation and extended it to include Max/MSP externals, ChucK chugins, and possibly other DSP architectures (see TODO.md).
 
-gen_dsp compiles code exported from Max gen~ objects into external objects for PureData and Max/MSP. It automates project setup, buffer detection, and platform-specific patches.
+gen_dsp compiles code exported from Max gen~ objects into external objects for PureData, Max/MSP, and ChucK. It automates project setup, buffer detection, and platform-specific patches.
 
-### Key Improvements
+## Key Improvements
 
 - **Python package**: gen-dsp is a pip installable zero-dependency python package with a cli which embeds all templates and related code.
 - **Automated project scaffolding**: `gen-dsp init` creates a complete, buildable project from a gen~ export in one command, versus manually copying files and editing Makefiles.
 - **Automatic buffer detection**: Scans exported code for buffer usage patterns and configures them without manual intervention.
 - **Max/MSP support**: Generates CMake-based Max externals with proper 64-bit signal handling and buffer lock/unlock API.
+- **ChucK support**: Generates chugins (.chug) with multi-channel I/O and runtime parameter control.
 - **Platform-specific patches**: Automatically fixes compatibility issues like the exp2f -> exp2 problem in Max 9 exports on macOS.
 - **Analysis tools**: `gen-dsp detect` inspects exports to show I/O counts, parameters, and buffers before committing to a build.
 - **Dry-run mode**: Preview what changes will be made before applying them.
@@ -53,8 +54,9 @@ gen-dsp init <export-path> -n <name> [-p <platform>] [-o <output>]
 ```
 
 Options:
+
 - `-n, --name` - Name for the external (required)
-- `-p, --platform` - Target platform: `pd` (default), `max`, or `both`
+- `-p, --platform` - Target platform: `pd` (default), `max`, `chuck`, or `both`
 - `-o, --output` - Output directory (default: `./<name>`)
 - `--buffers` - Explicit buffer names (overrides auto-detection)
 - `--no-patch` - Skip automatic exp2f fix
@@ -120,7 +122,7 @@ gen-dsp patch ./my_project            # Apply
 
 Send `<parameter-name> <value>` messages to the first inlet:
 
-```
+```text
 [frequency 440(
 |
 [mysynth~]
@@ -132,7 +134,7 @@ Send `bang` to print all available parameters.
 
 Buffers connect to PureData arrays with matching names. To remap a buffer to a different array:
 
-```
+```text
 [pdset original_buffer new_array(
 |
 [mysampler~]
@@ -142,7 +144,7 @@ Buffers connect to PureData arrays with matching names. To remap a buffer to a d
 
 For subpatches with custom block sizes (e.g., spectral processing):
 
-```
+```text
 [pdsr 96000(  <- Set sample rate
 [pdbs 2048(   <- Set block size
 |
@@ -174,7 +176,63 @@ mkdir -p build && cd build
 cmake .. && cmake --build .
 ```
 
+## ChucK Support
+
+gen_dsp supports generating ChucK chugins (.chug files) using make and a bundled `chugin.h` header.
+
+### Quick Start (ChucK)
+
+```bash
+# Create a ChucK project
+gen-dsp init ./my_export -n myeffect -p chuck -o ./myeffect_chuck
+
+# Build
+cd myeffect_chuck
+make mac    # macOS
+make linux  # Linux
+
+# Use in ChucK
+# @import "Myeffect"
+# Myeffect eff => dac;
+```
+
+### ChucK API
+
+The generated chugin extends `UGen` and provides:
+
+```chuck
+// Import and instantiate (connects as UGen)
+@import "Myeffect"
+Myeffect eff => dac;
+
+// Set a parameter by name
+eff.param("frequency", 440.0);
+
+// Get a parameter by name
+eff.param("frequency") => float freq;
+
+// Query parameters
+eff.numParams() => int n;
+eff.paramName(0) => string name;
+
+// Print info (parameters, I/O, buffers)
+eff.info();
+
+// Reset internal state
+eff.reset();
+```
+
 ### Key Differences from PureData
+
+| Aspect | ChucK | PureData |
+|--------|-------|----------|
+| Signal type | float (32-bit) | float (32-bit) |
+| Build system | make (chugin pattern) | make (pd-lib-builder) |
+| Output format | .chug | .pd_darwin / .pd_linux |
+| Parameter access | `param(string, float)` | message to first inlet |
+| Multi-channel | `CK_DLL_TICKF` (interleaved) | per-signal inlets/outlets |
+
+### PureData vs Max/MSP
 
 | Aspect | PureData | Max/MSP |
 |--------|----------|---------|
@@ -195,24 +253,36 @@ For PureData, gen~ is compiled with 32-bit float signals. For Max, gen~ uses nat
 ## Requirements
 
 ### Runtime
+
 - Python >= 3.9
 - C/C++ compiler (gcc, clang)
 
 ### PureData builds
+
 - make
 - PureData headers (typically installed with PureData)
 
 ### Max/MSP builds
+
 - CMake >= 3.19
 - git (for cloning max-sdk-base)
 
+### ChucK builds
+
+- make
+- C/C++ compiler (clang on macOS, gcc on Linux)
+- ChucK (for running the chugin)
+
 ### macOS
+
 Install Xcode or Command Line Tools:
+
 ```bash
 xcode-select --install
 ```
 
 ### Linux / Organelle
+
 Standard build tools (gcc, make) are typically pre-installed.
 
 ## Cross-Compilation Note
@@ -234,6 +304,27 @@ source .venv/bin/activate
 make test
 ```
 
+### Building Example Plugins
+
+The Makefile includes targets for generating and building example plugins from the test fixtures:
+
+```bash
+make example-pd       # PureData external
+make example-max      # Max/MSP external
+make example-chuck    # ChucK chugin
+make examples         # All three
+```
+
+Override the fixture, name, or buffers:
+
+```bash
+make example-chuck FIXTURE=RamplePlayer NAME=rampleplayer BUFFERS="--buffers sample"
+```
+
+Available fixtures: `gigaverb` (default, no buffers), `RamplePlayer` (has buffers), `spectraldelayfb`.
+
+Output goes to `build/examples/`.
+
 ### Adding New Backends
 
 gen_dsp uses a platform registry system that makes it straightforward to add support for new audio platforms (SuperCollider, VCV Rack, LV2, etc.). See [ADDING_NEW_BACKENDS.md](ADDING_NEW_BACKENDS.md) for a complete guide.
@@ -241,6 +332,7 @@ gen_dsp uses a platform registry system that makes it straightforward to add sup
 ## Attribution
 
 Test fixtures include code exported from examples bundled with Max:
+
 - gigaverb: ported from Juhana Sadeharju's implementation
 - spectraldelayfb: from gen~.spectraldelay_feedback
 

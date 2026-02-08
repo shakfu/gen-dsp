@@ -145,11 +145,11 @@ class GenExportParser:
         Raises:
             ParseError: If files cannot be found.
         """
-        # Look for .cpp files in the export directory (not in gen_dsp)
+        # Look for .cpp files in the export directory (not genlib files)
         cpp_files = [
             f
             for f in self.export_path.glob("*.cpp")
-            if f.name != "genlib.cpp" and "gen_dsp" not in str(f)
+            if f.name != "genlib.cpp" and f.parent.name != "gen_dsp"
         ]
 
         if not cpp_files:

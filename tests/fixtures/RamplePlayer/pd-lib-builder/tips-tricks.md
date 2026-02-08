@@ -1,28 +1,35 @@
-pd-lib-builder cheatsheet
+# pd-lib-builder cheatsheet
+
+## =========================
+
 =========================
 
-# Creating special builds
+## Creating special builds
 
 ## cross-compiling on linux x86_64 for other platforms
 
-Using pd-lib-builder >=0.6.0 we can define variable `PLATFORM` to specify a 
-target triplet for cross-compilation. Example to build W32 binaries (assuming 
-package `mingw-w64` is installed and a W32 package for Pd is unzipped into a 
+Using pd-lib-builder >=0.6.0 we can define variable `PLATFORM` to specify a
+target triplet for cross-compilation. Example to build W32 binaries (assuming
+package `mingw-w64` is installed and a W32 package for Pd is unzipped into a
 path `${PDWIN32}`:
 
-    make PLATFORM=x86_64-w64-mingw32 PDDIR="${PDWIN32}"
+~~~text
+make PLATFORM=x86_64-w64-mingw32 PDDIR="${PDWIN32}"
+~~~
 
-#### older pd-lib-builder versions
+### older pd-lib-builder versions
 
 Using pd-lib-builder < 0.6.0, in the absence of variable `PLATFORM`, you would
 instead override variables `system`, `target.arch`, `CC` and / or `CXX`,
 `STRIP`. Example:
 
-    make system=Windows target.arch=i686 CC=i686-w64-mingw32-gcc STRIP=i686-w64-mingw32-strip PDDIR="${PDWIN32}"
+~~~text
+make system=Windows target.arch=i686 CC=i686-w64-mingw32-gcc STRIP=i686-w64-mingw32-strip PDDIR="${PDWIN32}"
+~~~
 
 #### toolchains
 
-Cross toolchains for relevant platforms in Debian Buster (install g++ 
+Cross toolchains for relevant platforms in Debian Buster (install g++
 with dependencies for a given platform to get the whole tool chain):
 
 - `arm-linux-gnueabihf`
@@ -30,7 +37,7 @@ with dependencies for a given platform to get the whole tool chain):
 - `i686-linux-gnu`
 - `i686-w64-mingw32` and `x86_64-w64-mingw32` (install `mingw-w64`)
 
-OSX/MacOS cross tool chains are not distributed by Debian. Use project 
+OSX/MacOS cross tool chains are not distributed by Debian. Use project
 `osxcross` from Thomas Poechtraeger to create the tools.
 
 ## building double-precision externals
@@ -51,16 +58,13 @@ easily build your externals for this environment with
 
    make CPPFLAGS="-DPD_LONGINTTYPE=__int64" CC=x86_64-w64-mingw32-gcc
 
-
 To build a double-precision external for W64, use something like:
 
    make CPPFLAGS="-DPD_LONGINTTYPE=__int64 -DPD_FLOATSIZE=64" CC=x86_64-w64-mingw32-gcc
 
-
 ## TODO universal binaries on OSX
 
-
-# Project management
+## Project management
 
 In general it is advised to put the `Makefile.pdlibbuilder` into a separate
 subdirectory (e.g. `pd-lib-builder/`).
@@ -97,6 +101,7 @@ In short, `git subtree` is the better `git submodule`.
 So here's how to do it:
 
 #### Initial setup/check-out
+
 This will create a `pd-lib-builder/` directory containing the full history of
 the pd-lib-builder repository up to its release `v0.5.0`
 
@@ -108,6 +113,7 @@ This will automatically merge the `pd-lib-builder/` history into your current
 branch, so everything is ready to go.
 
 #### Cloning your repository with the subtree
+
 Nothing special, really.
 Just clone your repository as always:
 
@@ -116,6 +122,7 @@ git clone https://git.example.org/pd/superbonk~.git
 ~~~
 
 #### Updating the subtree
+
 Time passes and sooner or later you will find, that there is a shiny new
 pd-lib-builder with plenty of bugfixes and new features.
 To update your local copy to pd-lib-builder's current `master`, simply run:
@@ -125,6 +132,7 @@ git subtree pull --prefix pd-lib-builder/ https://github.com/pure-data/pd-lib-bu
 ~~~
 
 #### Pulling the updated subtree into existing clones
+
 Again, nothing special.
 Just pull as always:
 
@@ -132,17 +140,18 @@ Just pull as always:
 git pull
 ~~~
 
-
 #### Further reading
+
 More on the power of `git subtree` can be found online
-- https://medium.com/@v/git-subtrees-a-tutorial-6ff568381844
-- https://www.atlassian.com/blog/git/alternatives-to-git-submodule-git-subtree
+
+- <https://medium.com/@v/git-subtrees-a-tutorial-6ff568381844>
+- <https://www.atlassian.com/blog/git/alternatives-to-git-submodule-git-subtree>
 - ...
 
 ### ~~`git submodule`~~ [DISCOURAGED]
 
-
 #### Initial setup/check-out
+
 To add a new submodule to your repository, just run `git submodule add` and
 commit the changes:
 
@@ -169,6 +178,7 @@ git submodule update
 ~~~
 
 #### Updating the submodule
+
 Submodules are usually fixed to a given commit in their repository.
 To update the `pd-lib-builder` submodule to the current `master` do something
 like:
@@ -183,6 +193,7 @@ git commit pd-lib-builder -m "Updated pd-lib-builder to current master"
 ~~~
 
 #### Pulling the updated submodule into existing clones
+
 After you have pushed the submodule updates in your repository, other clones of
 the repository can be updated as follows:
 
@@ -212,7 +223,9 @@ git submodule update
 ~~~
 
 #### Drawbacks
+
 `git submodule` has a number of drawbacks:
+
 - it requires special commands to synchronize the submodules, in addition to
   synching your repository.
 - you must make sure to use an URL for the submodule that is accessible to your
@@ -227,4 +240,3 @@ git submodule update
 
 In general, I would suggest to **avoid** `git submodule`, and instead use the
 better `git subtree` (above).
-

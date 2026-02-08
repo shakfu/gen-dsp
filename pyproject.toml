@@ -1,7 +1,7 @@
 [project]
 name = "gen-dsp"
 version = "0.1.0"
-description = "Generate PureData and Max/MSP externals from Max gen~ exports"
+description = "Generate PureData / Max/MSP externals and Chuck chugins from Max gen~ exports"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [

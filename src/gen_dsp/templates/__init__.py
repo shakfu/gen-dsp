@@ -64,3 +64,26 @@ def list_max_templates() -> list[Path]:
     if not max_dir.is_dir():
         return []
     return list(max_dir.glob("*"))
+
+
+def get_chuck_templates_dir() -> Path:
+    """
+    Get the path to ChucK chugin templates.
+
+    Returns:
+        Path to the chuck/ templates directory.
+    """
+    return get_templates_dir() / "chuck"
+
+
+def list_chuck_templates() -> list[Path]:
+    """
+    List all ChucK chugin template files.
+
+    Returns:
+        List of paths to template files.
+    """
+    chuck_dir = get_chuck_templates_dir()
+    if not chuck_dir.is_dir():
+        return []
+    return list(chuck_dir.glob("*"))
