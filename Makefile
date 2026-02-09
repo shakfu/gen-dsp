@@ -1,7 +1,7 @@
 # Development Makefile for gen_dsp Python package
 
 .PHONY: all install install-dev test test-cov clean dist help venv \
-       example-pd example-max example-chuck example-au examples
+       example-pd example-max example-chuck example-au example-clap examples
 
 VENV := .venv
 UV := uv
@@ -77,8 +77,14 @@ example-au:
 	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p au -o $(EXAMPLES_DIR)/$(NAME)_au $(BUFFERS)
 	cd $(EXAMPLES_DIR)/$(NAME)_au/build && cmake .. && cmake --build .
 
+# Generate and build a CLAP plugin from a test fixture
+example-clap:
+	rm -rf $(EXAMPLES_DIR)/$(NAME)_clap
+	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p clap -o $(EXAMPLES_DIR)/$(NAME)_clap $(BUFFERS)
+	cd $(EXAMPLES_DIR)/$(NAME)_clap/build && cmake .. && cmake --build .
+
 # Build all example plugins
-examples: example-pd example-max example-chuck example-au
+examples: example-pd example-max example-chuck example-au example-clap
 
 # Build distribution
 dist: clean
@@ -99,6 +105,7 @@ help:
 	@echo "  example-max   - Generate and build a Max/MSP external"
 	@echo "  example-chuck - Generate and build a ChucK chugin"
 	@echo "  example-au    - Generate and build an AudioUnit plugin (macOS only)"
+	@echo "  example-clap  - Generate and build a CLAP plugin"
 	@echo "  examples      - Build all example plugins"
 	@echo "  clean         - Remove build artifacts"
 	@echo "  dist          - Build distribution packages"

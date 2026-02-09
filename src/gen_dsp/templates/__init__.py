@@ -110,3 +110,26 @@ def list_au_templates() -> list[Path]:
     if not au_dir.is_dir():
         return []
     return list(au_dir.glob("*"))
+
+
+def get_clap_templates_dir() -> Path:
+    """
+    Get the path to CLAP plugin templates.
+
+    Returns:
+        Path to the clap/ templates directory.
+    """
+    return get_templates_dir() / "clap"
+
+
+def list_clap_templates() -> list[Path]:
+    """
+    List all CLAP plugin template files.
+
+    Returns:
+        List of paths to template files.
+    """
+    clap_dir = get_clap_templates_dir()
+    if not clap_dir.is_dir():
+        return []
+    return list(clap_dir.glob("*"))

@@ -336,6 +336,7 @@ PLATFORM_REGISTRY: dict[str, Type[Platform]] = {
     "max": MaxPlatform,
     "chuck": ChuckPlatform,
     "au": AudioUnitPlatform,
+    "clap": ClapPlatform,
     "yourplatform": YourPlatform,  # Add this line
 }
 
@@ -422,10 +423,65 @@ class BuildResult:
 | Max/MSP | CMake (max-sdk-base) | float64 | Header isolation, CMake bundle |
 | ChucK | make | float32 | Header isolation, frame-by-frame deinterleave |
 | AudioUnit | CMake | float32 | Header isolation, `AudioComponentPlugInInterface` Lookup dispatch |
+| CLAP | CMake + FetchContent | float32 | Header isolation, zero-copy process, cross-platform |
 
-The **ChucK** and **AudioUnit** backends are the best templates for new backends since they use the cleanest header isolation pattern and are the most recently written.
+The **CLAP** backend is the recommended reference implementation for new backends. It demonstrates the cleanest version of the header isolation pattern, CMake-based builds with external dependency fetching via FetchContent, and a zero-copy audio process path. Start here when adding a new platform.
+
+### CLAP as a Reference Implementation
+
+The CLAP backend (`platforms/clap.py` + `templates/clap/`) is a good starting point because:
+
+**Simple structure** -- 7 template files with clear separation of concerns:
+
+| File | Role |
+|------|------|
+| `gen_ext_common_clap.h` | Shared macros (`WRAPPER_NAMESPACE`, `STR()`, includes `gen_buffer.h`) |
+| `_ext_clap.h` | Bridge header: opaque `GenState*`, wrapper function declarations |
+| `_ext_clap.cpp` | Genlib-side: `WIN32`/`GENLIB_NO_DENORM_TEST` workaround, buffer instances, wrapper implementations |
+| `clap_buffer.h` | Buffer class extending `DataInterface<t_sample>` |
+| `gen_buffer.h.template` | Buffer config template (`$buffer_count`, `$buffer_definitions`) |
+| `gen_ext_clap.cpp` | Platform-side: plugin state, extensions, process, factory, entry point |
+| `CMakeLists.txt.template` | Build config with FetchContent for external headers |
+
+**Zero-copy process** -- CLAP's non-interleaved `data32[channel][sample]` layout matches gen~'s `float**` exactly. The process function passes CLAP audio buffers directly to `wrapper_perform()` with no intermediate allocation:
+
+```cpp
+// From gen_ext_clap.cpp -- entire audio path
+float** ins = (plug->numInputs > 0 && process->audio_inputs_count > 0)
+    ? process->audio_inputs[0].data32 : nullptr;
+float** outs = process->audio_outputs[0].data32;
+wrapper_perform(plug->genState, ins, plug->numInputs,
+                outs, plug->numOutputs, (long)nframes);
+```
+
+If your target platform also uses non-interleaved `float**`, you can achieve the same zero-copy path. If it uses interleaved audio, see the ChucK backend for a deinterleave approach.
+
+**FetchContent for external dependencies** -- instead of vendoring headers, the CMake template uses `FetchContent_Declare` to download them at configure time. This pattern is useful when the target SDK is too large to vendor or has its own CMake build system (e.g., VST3):
+
+```cmake
+FetchContent_Declare(
+    clap
+    GIT_REPOSITORY https://github.com/free-audio/clap.git
+    GIT_TAG 1.2.2
+)
+FetchContent_MakeAvailable(clap)
+target_link_libraries(${PROJECT_NAME} PRIVATE clap)
+```
+
+**Auto-detection of plugin type** -- uses `#if CLAP_NUM_INPUTS > 0` in the C++ template to choose between effect and instrument features at compile time, avoiding runtime branching.
+
+**C++ gotcha to be aware of** -- `static const` struct forward declarations are definitions in C++, not just declarations. If you forward-declare `static const SomeStruct s_foo;` and later define `static const SomeStruct s_foo = { ... };`, you get a redefinition error. The CLAP backend avoids this by placing struct definitions (e.g., extension vtables) before the functions that reference them, eliminating the need for forward declarations.
+
+**Platform class** -- `ClapPlatform` in `platforms/clap.py` is a minimal ~170-line class. The `generate_project()` method copies static files, runs template substitution on `CMakeLists.txt.template`, generates `gen_buffer.h`, and creates the build directory. Copy this file and adjust for your platform.
 
 ## Platform-Specific Considerations
+
+### VST3
+
+- Uses CMake with FetchContent for the VST3 SDK (too large to vendor)
+- Follow the CLAP backend's FetchContent pattern for dependency management
+- Steinberg's SDK has its own CMake build system
+- GPL3/proprietary dual license -- check compatibility
 
 ### SuperCollider UGens
 
@@ -451,7 +507,7 @@ The **ChucK** and **AudioUnit** backends are the best templates for new backends
 - Uses CMake or Projucer
 - Most complex but broadest reach
 - Consider as a "meta-platform" generating multiple formats
-- Note: the AU backend already covers AUv2 natively without JUCE
+- Note: the AU and CLAP backends already cover AUv2 and CLAP natively without JUCE
 
 ### Embedded (Bela, Daisy)
 

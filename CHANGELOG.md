@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CLAP plugin platform support** with CMake-based build system
+  - Generates cross-platform `.clap` plugin files from gen~ exports
+  - Header-only CLAP C API (MIT licensed), fetched via CMake FetchContent (pinned to v1.2.2)
+  - Zero-copy audio processing: CLAP's non-interleaved `data32[channel][sample]` matches gen~'s `float**` exactly
+  - 32-bit float signal processing (`GENLIB_USE_FLOAT32`)
+  - Auto-detects `audio_effect` vs `instrument` from input count
+  - Extensions: `audio-ports` (I/O port info), `params` (full parameter interface with automation)
+  - Plugin ID: `com.gen-dsp.<lib_name>`
+  - Ad-hoc code signing on macOS; cross-platform install targets (macOS + Linux)
+  - No vendored dependencies -- first configure requires network access, cached afterward
 - **AudioUnit (AUv2) platform support** with CMake-based build system
   - Generates macOS `.component` bundles from gen~ exports
   - Raw AUv2 C API (`AudioComponentPlugInInterface`) -- no Apple AudioUnitSDK dependency
@@ -32,7 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Workaround for genlib `exp2`/`trunc` redefinition conflicts with modern C++ stdlib
   - Capitalized class name follows ChucK convention (e.g. `Gigaverb`, not `gigaverb`)
 - Integration tests for ChucK: build compilation and ChucK runtime load verification
-- Makefile targets for generating example plugins: `example-pd`, `example-max`, `example-chuck`, `examples`
+- Makefile targets for generating example plugins: `example-pd`, `example-max`, `example-chuck`, `example-au`, `example-clap`, `examples`
   - Configurable via `FIXTURE`, `NAME`, and `BUFFERS` variables
 
 ### Fixed

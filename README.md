@@ -2,9 +2,9 @@
 
 This project is a friendly fork of Michael Spears' [gen_ext](https://github.com/samesimilar/gen_ext) which was originally created to "compile code exported from a Max gen~ object into an "external" object that can be loaded into a PureData patch."
 
-This fork has taken this excellent original idea and implementation and extended it to include Max/MSP externals, ChucK chugins, AudioUnit (AUv2) plugins, and possibly other DSP architectures (see TODO.md).
+This fork has taken this excellent original idea and implementation and extended it to include Max/MSP externals, ChucK chugins, AudioUnit (AUv2) plugins, CLAP plugins, and possibly other DSP architectures (see TODO.md).
 
-gen_dsp compiles code exported from Max gen~ objects into external objects for PureData, Max/MSP, ChucK, and AudioUnit (AUv2). It automates project setup, buffer detection, and platform-specific patches.
+gen_dsp compiles code exported from Max gen~ objects into external objects for PureData, Max/MSP, ChucK, AudioUnit (AUv2), and CLAP. It automates project setup, buffer detection, and platform-specific patches.
 
 ## Key Improvements
 
@@ -14,6 +14,7 @@ gen_dsp compiles code exported from Max gen~ objects into external objects for P
 - **Max/MSP support**: Generates CMake-based Max externals with proper 64-bit signal handling and buffer lock/unlock API.
 - **ChucK support**: Generates chugins (.chug) with multi-channel I/O and runtime parameter control.
 - **AudioUnit support**: Generates macOS AUv2 plugins (.component) using the raw C API -- no Apple SDK dependency, just system frameworks.
+- **CLAP support**: Generates cross-platform CLAP plugins (.clap) with zero-copy audio processing -- CLAP headers fetched via CMake FetchContent.
 - **Platform-specific patches**: Automatically fixes compatibility issues like the exp2f -> exp2 problem in Max 9 exports on macOS.
 - **Analysis tools**: `gen-dsp detect` inspects exports to show I/O counts, parameters, and buffers before committing to a build.
 - **Dry-run mode**: Preview what changes will be made before applying them.
@@ -57,7 +58,7 @@ gen-dsp init <export-path> -n <name> [-p <platform>] [-o <output>]
 Options:
 
 - `-n, --name` - Name for the external (required)
-- `-p, --platform` - Target platform: `pd` (default), `max`, `chuck`, `au`, or `both`
+- `-p, --platform` - Target platform: `pd` (default), `max`, `chuck`, `au`, `clap`, or `both`
 - `-o, --output` - Output directory (default: `./<name>`)
 - `--buffers` - Explicit buffer names (overrides auto-detection)
 - `--no-patch` - Skip automatic exp2f fix
@@ -264,15 +265,50 @@ The plugin is automatically detected as an effect (`aufx`) if the gen~ export ha
 - **Parameters**: all gen~ parameters are exposed as AU parameters with name, min, max
 - **Audio format**: Float32, non-interleaved (standard AU format)
 
+## CLAP Support
+
+gen_dsp supports generating cross-platform CLAP plugins (.clap files) using CMake and the CLAP C API (header-only, MIT licensed). CLAP headers are fetched automatically at configure time via CMake FetchContent.
+
+### Quick Start (CLAP)
+
+```bash
+# Create a CLAP project
+gen-dsp init ./my_export -n myeffect -p clap -o ./myeffect_clap
+
+# Build
+cd myeffect_clap
+mkdir -p build && cd build
+cmake .. && cmake --build .
+
+# Output: build/myeffect.clap
+
+# Install (optional)
+# macOS:
+cp myeffect.clap ~/Library/Audio/Plug-Ins/CLAP/
+# Linux:
+cp myeffect.clap ~/.clap/
+```
+
+The plugin is automatically detected as an audio effect if the gen~ export has inputs, or an instrument if it has no inputs. On macOS, the .clap file is ad-hoc code signed during build.
+
+### CLAP Plugin Details
+
+- **Plugin type**: `audio_effect` or `instrument`, auto-detected from I/O
+- **Plugin ID**: `com.gen-dsp.<lib_name>`
+- **Parameters**: all gen~ parameters exposed via the CLAP params extension (automatable)
+- **Audio format**: Float32, non-interleaved (zero-copy -- CLAP's `data32` layout matches gen~'s `float**` exactly)
+- **Cross-platform**: macOS and Linux (unlike AudioUnit)
+- **Extensions**: `audio-ports`, `params`
+
 ### Platform Comparison
 
-| Aspect | AudioUnit | ChucK | PureData | Max/MSP |
-|--------|-----------|-------|----------|---------|
-| Signal type | float (32-bit) | float (32-bit) | float (32-bit) | double (64-bit) |
-| Build system | CMake | make | make (pd-lib-builder) | CMake (max-sdk-base) |
-| Output format | .component | .chug | .pd_darwin / .pd_linux | .mxo / .mxe64 |
-| macOS only | yes | no | no | no |
-| External deps | none (system frameworks) | none (bundled chugin.h) | PureData headers | max-sdk-base (git) |
+| Aspect | CLAP | AudioUnit | ChucK | PureData | Max/MSP |
+|--------|------|-----------|-------|----------|---------|
+| Signal type | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | double (64-bit) |
+| Build system | CMake (FetchContent) | CMake | make | make (pd-lib-builder) | CMake (max-sdk-base) |
+| Output format | .clap | .component | .chug | .pd_darwin / .pd_linux | .mxo / .mxe64 |
+| macOS only | no | yes | no | no | no |
+| External deps | CLAP headers (fetched) | none (system frameworks) | none (bundled chugin.h) | PureData headers | max-sdk-base (git) |
 
 ### PureData vs Max/MSP
 
@@ -292,6 +328,7 @@ For PureData, gen~ is compiled with 32-bit float signals. For Max, gen~ uses nat
 - Buffers are single-channel only. Use multiple buffers for multi-channel audio.
 - Max/MSP: Windows builds require Visual Studio or equivalent MSVC toolchain
 - AudioUnit: macOS only; initial implementation may not pass all `auval` checks
+- CLAP: first CMake configure requires network access to fetch CLAP headers (cached afterward)
 
 ## Requirements
 
@@ -321,6 +358,12 @@ For PureData, gen~ is compiled with 32-bit float signals. For Max, gen~ uses nat
 - macOS (AudioUnit is macOS-only)
 - CMake >= 3.19
 - C/C++ compiler (clang via Xcode or Command Line Tools)
+
+### CLAP builds
+
+- CMake >= 3.19
+- C/C++ compiler (clang, gcc)
+- Network access on first configure (to fetch CLAP headers)
 
 ### macOS
 
@@ -362,6 +405,7 @@ make example-pd       # PureData external
 make example-max      # Max/MSP external
 make example-chuck    # ChucK chugin
 make example-au       # AudioUnit plugin (macOS only)
+make example-clap     # CLAP plugin
 make examples         # All platforms
 ```
 
