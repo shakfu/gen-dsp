@@ -191,7 +191,7 @@ def cmd_init(args: argparse.Namespace) -> int:
         return 1
 
     # Warn if --shared-cache used with non-CMake platform
-    cmake_platforms = {"clap", "vst3"}
+    cmake_platforms = {"clap", "vst3", "lv2"}
     if args.shared_cache and args.platform not in cmake_platforms and args.platform != "both":
         print(
             f"Warning: --shared-cache has no effect for platform '{args.platform}' "

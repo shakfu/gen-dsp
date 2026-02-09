@@ -9,13 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Shared FetchContent cache** for CLAP and VST3 backends
+- **LV2 plugin platform support** with CMake-based build system
+  - Generates cross-platform `.lv2` plugin bundles from gen~ exports
+  - Header-only LV2 C API (ISC licensed), fetched via CMake FetchContent (pinned to v1.18.10)
+  - Uses `FetchContent_Populate` (not `MakeAvailable`) since LV2 uses Meson, not CMake
+  - Port-based I/O model: individual `float*` per port, collected into arrays and passed to `wrapper_perform()`
+  - TTL metadata files (`manifest.ttl`, `<name>.ttl`) generated in Python at project-gen time with real parameter names and ranges parsed from gen~ export code
+  - 32-bit float signal processing (`GENLIB_USE_FLOAT32`)
+  - Auto-detects `EffectPlugin` vs `GeneratorPlugin` from input count
+  - Plugin URI: `http://gen-dsp.com/plugins/<lib_name>`
+  - Port layout: control params first (indices 0..N-1), then audio inputs, then audio outputs
+  - `.lv2` bundle directory assembled via CMake post-build commands (binary + 2 TTL files)
+  - Ad-hoc code signing on macOS; cross-platform install targets (macOS + Linux)
+  - `_sanitize_symbol()` ensures parameter names are valid LV2 symbols (C identifiers)
+  - No vendored dependencies -- first configure requires network access, cached afterward
+- **Shared FetchContent cache** for CLAP, VST3, and LV2 backends
   - `--shared-cache` flag on `gen-dsp init` bakes an OS-appropriate cache path into CMakeLists.txt so multiple projects share one SDK download
   - `GEN_DSP_CACHE_DIR` environment variable support in all generated CMakeLists.txt for build-time override (highest priority, no init flag needed)
   - Cache paths: `~/Library/Caches/gen-dsp/fetchcontent/` (macOS), `$XDG_CACHE_HOME/gen-dsp/fetchcontent/` (Linux), `%LOCALAPPDATA%/gen-dsp/fetchcontent/` (Windows)
   - Both mechanisms are opt-in; default behavior (project-local downloads) is unchanged
   - Warning emitted when `--shared-cache` is used with non-CMake platforms (pd, max, chuck, au)
-  - Development Makefile exports `GEN_DSP_CACHE_DIR` so `make example-clap`/`example-vst3` share the test fixture cache automatically
+  - Development Makefile exports `GEN_DSP_CACHE_DIR` so `make example-clap`/`example-vst3`/`example-lv2` share the test fixture cache automatically
 - **VST3 plugin platform support** with CMake-based build system
   - Generates cross-platform `.vst3` plugin bundles from gen~ exports
   - Steinberg VST3 SDK (`SingleComponentEffect`) fetched via CMake FetchContent (pinned to `v3.7.9_build_61`)
@@ -61,7 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Workaround for genlib `exp2`/`trunc` redefinition conflicts with modern C++ stdlib
   - Capitalized class name follows ChucK convention (e.g. `Gigaverb`, not `gigaverb`)
 - Integration tests for ChucK: build compilation and ChucK runtime load verification
-- Makefile targets for generating example plugins: `example-pd`, `example-max`, `example-chuck`, `example-au`, `example-clap`, `example-vst3`, `examples`
+- Makefile targets for generating example plugins: `example-pd`, `example-max`, `example-chuck`, `example-au`, `example-clap`, `example-vst3`, `example-lv2`, `examples`
   - Configurable via `FIXTURE`, `NAME`, and `BUFFERS` variables
 
 ### Fixed

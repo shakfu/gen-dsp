@@ -156,3 +156,26 @@ def list_vst3_templates() -> list[Path]:
     if not vst3_dir.is_dir():
         return []
     return list(vst3_dir.glob("*"))
+
+
+def get_lv2_templates_dir() -> Path:
+    """
+    Get the path to LV2 plugin templates.
+
+    Returns:
+        Path to the lv2/ templates directory.
+    """
+    return get_templates_dir() / "lv2"
+
+
+def list_lv2_templates() -> list[Path]:
+    """
+    List all LV2 plugin template files.
+
+    Returns:
+        List of paths to template files.
+    """
+    lv2_dir = get_lv2_templates_dir()
+    if not lv2_dir.is_dir():
+        return []
+    return list(lv2_dir.glob("*"))

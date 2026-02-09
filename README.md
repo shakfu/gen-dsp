@@ -2,9 +2,9 @@
 
 This project is a friendly fork of Michael Spears' [gen_ext](https://github.com/samesimilar/gen_ext) which was originally created to "compile code exported from a Max gen~ object into an "external" object that can be loaded into a PureData patch."
 
-This fork has taken this excellent original idea and implementation and extended it to include Max/MSP externals, ChucK chugins, AudioUnit (AUv2) plugins, CLAP plugins, VST3 plugins, and possibly other DSP architectures (see TODO.md).
+This fork has taken this excellent original idea and implementation and extended it to include Max/MSP externals, ChucK chugins, AudioUnit (AUv2) plugins, CLAP plugins, VST3 plugins, LV2 plugins, and possibly other DSP architectures (see TODO.md).
 
-gen_dsp compiles code exported from Max gen~ objects into external objects for PureData, Max/MSP, ChucK, AudioUnit (AUv2), CLAP, and VST3. It automates project setup, buffer detection, and platform-specific patches.
+gen_dsp compiles code exported from Max gen~ objects into external objects for PureData, Max/MSP, ChucK, AudioUnit (AUv2), CLAP, VST3, and LV2. It automates project setup, buffer detection, and platform-specific patches.
 
 ## Key Improvements
 
@@ -16,6 +16,7 @@ gen_dsp compiles code exported from Max gen~ objects into external objects for P
 - **AudioUnit support**: Generates macOS AUv2 plugins (.component) using the raw C API -- no Apple SDK dependency, just system frameworks.
 - **CLAP support**: Generates cross-platform CLAP plugins (.clap) with zero-copy audio processing -- CLAP headers fetched via CMake FetchContent.
 - **VST3 support**: Generates cross-platform VST3 plugins (.vst3) with zero-copy audio processing -- Steinberg VST3 SDK fetched via CMake FetchContent.
+- **LV2 support**: Generates cross-platform LV2 plugins (.lv2 bundles) with TTL metadata containing real parameter names/ranges parsed from gen~ exports -- LV2 headers fetched via CMake FetchContent.
 - **Platform-specific patches**: Automatically fixes compatibility issues like the exp2f -> exp2 problem in Max 9 exports on macOS.
 - **Analysis tools**: `gen-dsp detect` inspects exports to show I/O counts, parameters, and buffers before committing to a build.
 - **Dry-run mode**: Preview what changes will be made before applying them.
@@ -59,10 +60,10 @@ gen-dsp init <export-path> -n <name> [-p <platform>] [-o <output>]
 Options:
 
 - `-n, --name` - Name for the external (required)
-- `-p, --platform` - Target platform: `pd` (default), `max`, `chuck`, `au`, `clap`, `vst3`, or `both`
+- `-p, --platform` - Target platform: `pd` (default), `max`, `chuck`, `au`, `clap`, `vst3`, `lv2`, or `both`
 - `-o, --output` - Output directory (default: `./<name>`)
 - `--buffers` - Explicit buffer names (overrides auto-detection)
-- `--shared-cache` - Use a shared OS cache for FetchContent downloads (clap, vst3 only)
+- `--shared-cache` - Use a shared OS cache for FetchContent downloads (clap, vst3, lv2 only)
 - `--no-patch` - Skip automatic exp2f fix
 - `--dry-run` - Preview without creating files
 
@@ -338,15 +339,51 @@ The plugin is automatically detected as an effect (`Fx`) if the gen~ export has 
 - **SDK**: `SingleComponentEffect` (combined processor+controller) -- simplest VST3 plugin structure
 - **License**: VST3 SDK is GPL3/proprietary dual licensed -- users needing a proprietary license must obtain one from Steinberg
 
+## LV2 Support
+
+gen_dsp supports generating cross-platform LV2 plugins (.lv2 bundle directories) using CMake and the LV2 C API (header-only, ISC licensed). LV2 headers are fetched automatically at configure time via CMake FetchContent.
+
+### Quick Start (LV2)
+
+```bash
+# Create an LV2 project
+gen-dsp init ./my_export -n myeffect -p lv2 -o ./myeffect_lv2
+
+# Build
+cd myeffect_lv2
+mkdir -p build && cd build
+cmake .. && cmake --build .
+
+# Output: build/myeffect.lv2/
+
+# Install (optional)
+# macOS:
+cp -r myeffect.lv2 ~/Library/Audio/Plug-Ins/LV2/
+# Linux:
+cp -r myeffect.lv2 ~/.lv2/
+```
+
+The plugin is automatically detected as an effect (`EffectPlugin`) if the gen~ export has inputs, or a generator (`GeneratorPlugin`) if it has no inputs. On macOS, the binary is ad-hoc code signed during build.
+
+### LV2 Plugin Details
+
+- **Plugin type**: `EffectPlugin` or `GeneratorPlugin`, auto-detected from I/O
+- **Plugin URI**: `http://gen-dsp.com/plugins/<lib_name>`
+- **Parameters**: all gen~ parameters exposed as LV2 control ports with real names and ranges parsed from the gen~ export
+- **Audio format**: Float32, port-based (individual `float*` per audio channel, collected into arrays for `wrapper_perform()`)
+- **Cross-platform**: macOS and Linux
+- **TTL metadata**: `manifest.ttl` (discovery) and `<name>.ttl` (ports, parameters) generated at project creation time
+- **Bundle output**: `.lv2` directory containing shared library + 2 TTL files
+
 ### Platform Comparison
 
-| Aspect | VST3 | CLAP | AudioUnit | ChucK | PureData | Max/MSP |
-|--------|------|------|-----------|-------|----------|---------|
-| Signal type | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | double (64-bit) |
-| Build system | CMake (FetchContent) | CMake (FetchContent) | CMake | make | make (pd-lib-builder) | CMake (max-sdk-base) |
-| Output format | .vst3 | .clap | .component | .chug | .pd_darwin / .pd_linux | .mxo / .mxe64 |
-| macOS only | no | no | yes | no | no | no |
-| External deps | VST3 SDK (fetched) | CLAP headers (fetched) | none (system frameworks) | none (bundled chugin.h) | PureData headers | max-sdk-base (git) |
+| Aspect | LV2 | VST3 | CLAP | AudioUnit | ChucK | PureData | Max/MSP |
+|--------|-----|------|------|-----------|-------|----------|---------|
+| Signal type | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | double (64-bit) |
+| Build system | CMake (FetchContent) | CMake (FetchContent) | CMake (FetchContent) | CMake | make | make (pd-lib-builder) | CMake (max-sdk-base) |
+| Output format | .lv2 | .vst3 | .clap | .component | .chug | .pd_darwin / .pd_linux | .mxo / .mxe64 |
+| macOS only | no | no | no | yes | no | no | no |
+| External deps | LV2 headers (fetched) | VST3 SDK (fetched) | CLAP headers (fetched) | none (system frameworks) | none (bundled chugin.h) | PureData headers | max-sdk-base (git) |
 
 ### PureData vs Max/MSP
 
@@ -362,7 +399,7 @@ For PureData, gen~ is compiled with 32-bit float signals. For Max, gen~ uses nat
 
 ## Shared FetchContent Cache
 
-CLAP and VST3 backends use CMake FetchContent to download their SDKs at configure time. By default each project downloads its own copy. Two opt-in mechanisms allow sharing a single download across projects:
+CLAP, VST3, and LV2 backends use CMake FetchContent to download their SDKs/headers at configure time. By default each project downloads its own copy. Two opt-in mechanisms allow sharing a single download across projects:
 
 ### `--shared-cache` flag
 
@@ -390,7 +427,7 @@ GEN_DSP_CACHE_DIR=/path/to/cache cmake ..
 
 The env var takes highest priority, followed by the `--shared-cache` path, followed by CMake's default (project-local `build/_deps/`).
 
-The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` automatically, so `make example-clap` and `make example-vst3` share the same SDK cache used by tests.
+The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` automatically, so `make example-clap`, `make example-vst3`, and `make example-lv2` share the same SDK cache used by tests.
 
 ## Limitations
 
@@ -400,6 +437,7 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 - AudioUnit: macOS only; initial implementation may not pass all `auval` checks
 - CLAP: first CMake configure requires network access to fetch CLAP headers (cached afterward)
 - VST3: first CMake configure requires network access to fetch VST3 SDK (~50MB, cached afterward); GPL3/proprietary dual license
+- LV2: first CMake configure requires network access to fetch LV2 headers (cached afterward)
 
 ## Requirements
 
@@ -441,6 +479,12 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 - CMake >= 3.19
 - C/C++ compiler (clang, gcc, MSVC)
 - Network access on first configure (to fetch VST3 SDK, ~50MB)
+
+### LV2 builds
+
+- CMake >= 3.19
+- C/C++ compiler (clang, gcc)
+- Network access on first configure (to fetch LV2 headers)
 
 ### macOS
 

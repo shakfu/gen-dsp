@@ -17,6 +17,7 @@ from gen_dsp.platforms.chuck import ChuckPlatform
 from gen_dsp.platforms.audiounit import AudioUnitPlatform
 from gen_dsp.platforms.clap import ClapPlatform
 from gen_dsp.platforms.vst3 import Vst3Platform
+from gen_dsp.platforms.lv2 import Lv2Platform
 
 
 # Registry mapping platform names to their implementation classes.
@@ -31,6 +32,7 @@ PLATFORM_REGISTRY: dict[str, Type[Platform]] = {
     "au": AudioUnitPlatform,
     "clap": ClapPlatform,
     "vst3": Vst3Platform,
+    "lv2": Lv2Platform,
 }
 
 
@@ -103,6 +105,7 @@ __all__ = [
     "AudioUnitPlatform",
     "ClapPlatform",
     "Vst3Platform",
+    "Lv2Platform",
     "PLATFORM_REGISTRY",
     "get_platform",
     "get_platform_class",

@@ -10,6 +10,7 @@
 - [x] **AudioUnit (AUv2)** - Full support. Generates macOS .component bundles using raw AUv2 C API (no SDK dependency). Auto-detects effect vs generator from I/O. See `src/gen_dsp/templates/au/`.
 - [x] **CLAP** - Full support. Generates cross-platform .clap plugins using the CLAP C API (header-only, MIT licensed, fetched via CMake FetchContent). Zero-copy audio processing. Auto-detects effect vs instrument from I/O. See `src/gen_dsp/templates/clap/`.
 - [x] **VST3** - Full support. Generates cross-platform .vst3 bundles using the Steinberg VST3 SDK (fetched via CMake FetchContent). Zero-copy audio processing. Auto-detects effect vs instrument from I/O. Deterministic FUID generation. See `src/gen_dsp/templates/vst3/`.
+- [x] **LV2** - Full support. Generates cross-platform .lv2 bundles using the LV2 C API (header-only, ISC licensed, fetched via CMake FetchContent). TTL metadata generated with real parameter names/ranges parsed from gen~ exports. Auto-detects effect vs generator from I/O. See `src/gen_dsp/templates/lv2/`.
 
 ### To Implement
 
@@ -20,9 +21,6 @@
 
 - [ ] **VCV Rack modules** - Virtual Eurorack with growing community. Sample-by-sample C++ API. Visual/modular paradigm aligns with gen~ patching approach.
   - Docs: <https://vcvrack.com/manual/PluginDevelopmentTutorial>
-
-- [ ] **LV2 plugins** - Open standard for Linux audio. Important for open-source DAWs (Ardour, REAPER on Linux, Bitwig). Supports buffers.
-  - Docs: <https://lv2plug.in/>
 
 - [ ] **JUCE (VST/AU/AAX)** - Broadest commercial reach. Abstracts plugin formats. Significant effort but high payoff. Note: AU, CLAP, and VST3 are already covered natively without JUCE.
   - Docs: <https://juce.com/>
