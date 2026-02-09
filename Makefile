@@ -1,7 +1,7 @@
 # Development Makefile for gen_dsp Python package
 
-.PHONY: all install install-dev test test-cov clean dist help venv \
-       example-pd example-max example-chuck example-au example-clap \
+.PHONY: all install install-dev test test-cov clean dist publish-test publish \
+       help venv example-pd example-max example-chuck example-au example-clap \
        example-vst3 examples lint format typecheck qa
 
 VENV := .venv
@@ -107,8 +107,16 @@ examples: example-pd example-max example-chuck example-au example-clap example-v
 
 # Build distribution
 dist: clean
-	$(UV) pip install build
-	$(UV) run python -m build
+	$(UV) build
+	$(UV) run twine check dist/*
+
+# Upload to TestPyPI
+publish-test: dist
+	$(UV) run twine upload --repository testpypi dist/*
+
+# Upload to PyPI
+publish: dist
+	$(UV) run twine upload dist/*
 
 # Help
 help:
@@ -129,6 +137,8 @@ help:
 	@echo "  examples      - Build all example plugins"
 	@echo "  clean         - Remove build artifacts"
 	@echo "  dist          - Build distribution packages"
+	@echo "  publish-test  - Upload to TestPyPI"
+	@echo "  publish       - Upload to PyPI"
 	@echo "  help          - Show this help message"
 	@echo ""
 	@echo "Example targets accept: FIXTURE=<name> NAME=<name> BUFFERS='--buffers buf1 buf2'"

@@ -43,8 +43,10 @@ dev = [
 gen-dsp = "gen_dsp.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/shakfu/gen_dsp"
-Repository = "https://github.com/shakfu/gen_dsp"
+Homepage = "https://github.com/shakfu/gen-dsp"
+Repository = "https://github.com/shakfu/gen-dsp"
+Changelog = "https://github.com/shakfu/gen-dsp/blob/master/CHANGELOG.md"
+Issues = "https://github.com/shakfu/gen-dsp/issues"
 
 [build-system]
 requires = ["uv_build>=0.9.29,<0.10.0"]
