@@ -390,6 +390,8 @@ GEN_DSP_CACHE_DIR=/path/to/cache cmake ..
 
 The env var takes highest priority, followed by the `--shared-cache` path, followed by CMake's default (project-local `build/_deps/`).
 
+The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` automatically, so `make example-clap` and `make example-vst3` share the same SDK cache used by tests.
+
 ## Limitations
 
 - Maximum of 5 buffers per external

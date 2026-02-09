@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Cache paths: `~/Library/Caches/gen-dsp/fetchcontent/` (macOS), `$XDG_CACHE_HOME/gen-dsp/fetchcontent/` (Linux), `%LOCALAPPDATA%/gen-dsp/fetchcontent/` (Windows)
   - Both mechanisms are opt-in; default behavior (project-local downloads) is unchanged
   - Warning emitted when `--shared-cache` is used with non-CMake platforms (pd, max, chuck, au)
+  - Development Makefile exports `GEN_DSP_CACHE_DIR` so `make example-clap`/`example-vst3` share the test fixture cache automatically
 - **VST3 plugin platform support** with CMake-based build system
   - Generates cross-platform `.vst3` plugin bundles from gen~ exports
   - Steinberg VST3 SDK (`SingleComponentEffect`) fetched via CMake FetchContent (pinned to `v3.7.9_build_61`)
