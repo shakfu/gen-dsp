@@ -528,6 +528,7 @@ make example-chuck    # ChucK chugin
 make example-au       # AudioUnit plugin (macOS only)
 make example-clap     # CLAP plugin
 make example-vst3     # VST3 plugin
+make example-lv2      # LV2 plugin
 make examples         # All platforms
 ```
 
@@ -543,7 +544,7 @@ Output goes to `build/examples/`.
 
 ### Adding New Backends
 
-gen_dsp uses a platform registry system that makes it straightforward to add support for new audio platforms (SuperCollider, VCV Rack, LV2, etc.). See [NEW_BACKENDS.md](NEW_BACKENDS.md) for a complete guide.
+gen_dsp uses a platform registry system that makes it straightforward to add support for new audio platforms (SuperCollider, VCV Rack, etc.). See [NEW_BACKENDS.md](NEW_BACKENDS.md) for a complete guide.
 
 ## Attribution
 
