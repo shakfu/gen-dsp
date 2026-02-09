@@ -87,3 +87,26 @@ def list_chuck_templates() -> list[Path]:
     if not chuck_dir.is_dir():
         return []
     return list(chuck_dir.glob("*"))
+
+
+def get_au_templates_dir() -> Path:
+    """
+    Get the path to AudioUnit templates.
+
+    Returns:
+        Path to the au/ templates directory.
+    """
+    return get_templates_dir() / "au"
+
+
+def list_au_templates() -> list[Path]:
+    """
+    List all AudioUnit template files.
+
+    Returns:
+        List of paths to template files.
+    """
+    au_dir = get_au_templates_dir()
+    if not au_dir.is_dir():
+        return []
+    return list(au_dir.glob("*"))

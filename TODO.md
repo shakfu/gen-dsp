@@ -6,6 +6,8 @@
 
 - **PureData** - Primary target. Full support.
 - **Max/MSP** - Full support. See `src/gen_dsp/templates/max/`.
+- **ChucK** - Full support. Generates chugins (.chug) with multi-channel I/O and runtime parameter control. See `src/gen_dsp/templates/chuck/`.
+- **AudioUnit (AUv2)** - Full support. Generates macOS .component bundles using raw AUv2 C API (no SDK dependency). Auto-detects effect vs generator from I/O. See `src/gen_dsp/templates/au/`.
 
 ### To Implement
 
@@ -35,9 +37,6 @@
   - Docs: <https://www.pjrc.com/teensy/td_libs_Audio.html>
 
 #### Other
-
-- **ChucK Chugins** - Academic/experimental. Sample-synchronous programming model.
-  - Docs: <https://github.com/ccrma/chugins>
 
 - **Web Audio (AudioWorklet + WASM)** - Compile gen~ to WebAssembly for browser. Growing interest in web-based audio.
   - Docs: <https://developer.mozilla.org/en-US/docs/Web/API/AudioWorklet>

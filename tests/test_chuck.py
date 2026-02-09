@@ -241,6 +241,37 @@ class TestChuckBuildIntegration:
         assert chug_files[0].name == "Rampleplayer.chug"
 
     @_skip_no_toolchain
+    def test_build_chugin_spectraldelayfb(
+        self, spectraldelayfb_export: Path, tmp_path: Path
+    ):
+        """Generate and compile a chugin from spectraldelayfb (3in/2out, no buffers)."""
+        project_dir = tmp_path / "spectraldelayfb_chuck"
+        parser = GenExportParser(spectraldelayfb_export)
+        export_info = parser.parse()
+
+        config = ProjectConfig(name="spectraldelayfb", platform="chuck")
+        generator = ProjectGenerator(export_info, config)
+        generator.generate(project_dir)
+
+        target = "mac" if sys_platform.system().lower() == "darwin" else "linux"
+
+        result = subprocess.run(
+            ["make", target],
+            cwd=project_dir,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        assert result.returncode == 0, (
+            f"make {target} failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
+        )
+
+        chug_files = list(project_dir.glob("*.chug"))
+        assert len(chug_files) == 1
+        assert chug_files[0].name == "Spectraldelayfb.chug"
+        assert chug_files[0].stat().st_size > 0
+
+    @_skip_no_toolchain
     def test_build_clean_rebuild(
         self, gigaverb_export: Path, tmp_path: Path
     ):

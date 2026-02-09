@@ -2,9 +2,9 @@
 
 This project is a friendly fork of Michael Spears' [gen_ext](https://github.com/samesimilar/gen_ext) which was originally created to "compile code exported from a Max gen~ object into an "external" object that can be loaded into a PureData patch."
 
-This fork has taken this excellent original idea and implementation and extended it to include Max/MSP externals, ChucK chugins, and possibly other DSP architectures (see TODO.md).
+This fork has taken this excellent original idea and implementation and extended it to include Max/MSP externals, ChucK chugins, AudioUnit (AUv2) plugins, and possibly other DSP architectures (see TODO.md).
 
-gen_dsp compiles code exported from Max gen~ objects into external objects for PureData, Max/MSP, and ChucK. It automates project setup, buffer detection, and platform-specific patches.
+gen_dsp compiles code exported from Max gen~ objects into external objects for PureData, Max/MSP, ChucK, and AudioUnit (AUv2). It automates project setup, buffer detection, and platform-specific patches.
 
 ## Key Improvements
 
@@ -13,6 +13,7 @@ gen_dsp compiles code exported from Max gen~ objects into external objects for P
 - **Automatic buffer detection**: Scans exported code for buffer usage patterns and configures them without manual intervention.
 - **Max/MSP support**: Generates CMake-based Max externals with proper 64-bit signal handling and buffer lock/unlock API.
 - **ChucK support**: Generates chugins (.chug) with multi-channel I/O and runtime parameter control.
+- **AudioUnit support**: Generates macOS AUv2 plugins (.component) using the raw C API -- no Apple SDK dependency, just system frameworks.
 - **Platform-specific patches**: Automatically fixes compatibility issues like the exp2f -> exp2 problem in Max 9 exports on macOS.
 - **Analysis tools**: `gen-dsp detect` inspects exports to show I/O counts, parameters, and buffers before committing to a build.
 - **Dry-run mode**: Preview what changes will be made before applying them.
@@ -56,7 +57,7 @@ gen-dsp init <export-path> -n <name> [-p <platform>] [-o <output>]
 Options:
 
 - `-n, --name` - Name for the external (required)
-- `-p, --platform` - Target platform: `pd` (default), `max`, `chuck`, or `both`
+- `-p, --platform` - Target platform: `pd` (default), `max`, `chuck`, `au`, or `both`
 - `-o, --output` - Output directory (default: `./<name>`)
 - `--buffers` - Explicit buffer names (overrides auto-detection)
 - `--no-patch` - Skip automatic exp2f fix
@@ -232,6 +233,47 @@ eff.reset();
 | Parameter access | `param(string, float)` | message to first inlet |
 | Multi-channel | `CK_DLL_TICKF` (interleaved) | per-signal inlets/outlets |
 
+## AudioUnit (AUv2) Support
+
+gen_dsp supports generating macOS AudioUnit v2 plugins (.component bundles) using CMake and the raw AUv2 C API. No Apple AudioUnitSDK is needed -- only system frameworks (AudioToolbox, CoreFoundation, CoreAudio).
+
+### Quick Start (AudioUnit)
+
+```bash
+# Create an AudioUnit project
+gen-dsp init ./my_export -n myeffect -p au -o ./myeffect_au
+
+# Build
+cd myeffect_au
+mkdir -p build && cd build
+cmake .. && cmake --build .
+
+# Output: build/myeffect.component
+
+# Install (optional)
+cp -r myeffect.component ~/Library/Audio/Plug-Ins/Components/
+```
+
+The plugin is automatically detected as an effect (`aufx`) if the gen~ export has inputs, or a generator (`augn`) if it has no inputs. The .component bundle is ad-hoc code signed during build.
+
+### AU Plugin Details
+
+- **Component type**: `aufx` (effect) or `augn` (generator), auto-detected from I/O
+- **Subtype**: first 4 characters of the library name (lowercased)
+- **Manufacturer**: `gdsp`
+- **Parameters**: all gen~ parameters are exposed as AU parameters with name, min, max
+- **Audio format**: Float32, non-interleaved (standard AU format)
+
+### Platform Comparison
+
+| Aspect | AudioUnit | ChucK | PureData | Max/MSP |
+|--------|-----------|-------|----------|---------|
+| Signal type | float (32-bit) | float (32-bit) | float (32-bit) | double (64-bit) |
+| Build system | CMake | make | make (pd-lib-builder) | CMake (max-sdk-base) |
+| Output format | .component | .chug | .pd_darwin / .pd_linux | .mxo / .mxe64 |
+| macOS only | yes | no | no | no |
+| External deps | none (system frameworks) | none (bundled chugin.h) | PureData headers | max-sdk-base (git) |
+
 ### PureData vs Max/MSP
 
 | Aspect | PureData | Max/MSP |
@@ -249,6 +291,7 @@ For PureData, gen~ is compiled with 32-bit float signals. For Max, gen~ uses nat
 - Maximum of 5 buffers per external
 - Buffers are single-channel only. Use multiple buffers for multi-channel audio.
 - Max/MSP: Windows builds require Visual Studio or equivalent MSVC toolchain
+- AudioUnit: macOS only; initial implementation may not pass all `auval` checks
 
 ## Requirements
 
@@ -272,6 +315,12 @@ For PureData, gen~ is compiled with 32-bit float signals. For Max, gen~ uses nat
 - make
 - C/C++ compiler (clang on macOS, gcc on Linux)
 - ChucK (for running the chugin)
+
+### AudioUnit builds
+
+- macOS (AudioUnit is macOS-only)
+- CMake >= 3.19
+- C/C++ compiler (clang via Xcode or Command Line Tools)
 
 ### macOS
 
@@ -312,7 +361,8 @@ The Makefile includes targets for generating and building example plugins from t
 make example-pd       # PureData external
 make example-max      # Max/MSP external
 make example-chuck    # ChucK chugin
-make examples         # All three
+make example-au       # AudioUnit plugin (macOS only)
+make examples         # All platforms
 ```
 
 Override the fixture, name, or buffers:
@@ -327,7 +377,7 @@ Output goes to `build/examples/`.
 
 ### Adding New Backends
 
-gen_dsp uses a platform registry system that makes it straightforward to add support for new audio platforms (SuperCollider, VCV Rack, LV2, etc.). See [ADDING_NEW_BACKENDS.md](ADDING_NEW_BACKENDS.md) for a complete guide.
+gen_dsp uses a platform registry system that makes it straightforward to add support for new audio platforms (SuperCollider, VCV Rack, LV2, etc.). See [NEW_BACKENDS.md](NEW_BACKENDS.md) for a complete guide.
 
 ## Attribution
 

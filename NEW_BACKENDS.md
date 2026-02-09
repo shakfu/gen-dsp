@@ -210,17 +210,14 @@ Create directory `src/gen_dsp/templates/yourplatform/` with:
 
 ### Required Files
 
-1. **gen_ext_yourplatform.cpp** - Main wrapper implementation
-   - Object creation/destruction
-   - DSP setup and perform routine
-   - Parameter handling
-   - Buffer management
+The ChucK and AudioUnit backends use a **header isolation pattern** that prevents genlib headers from conflicting with platform headers. This is the recommended approach. You need these files:
 
-2. **gen_ext_common_yourplatform.h** - Macro definitions
-   - Name mangling macros
-   - Platform-specific type definitions
-
-3. **gen_buffer.h.template** - Buffer configuration template
+1. **`_ext_yourplatform.h`** - Bridge header declaring wrapper functions via an opaque `GenState*`
+2. **`_ext_yourplatform.cpp`** - Genlib-side implementation (includes genlib headers, **NOT** platform headers)
+3. **`gen_ext_yourplatform.cpp`** - Platform-side implementation (includes platform headers, **NOT** genlib headers)
+4. **`gen_ext_common_yourplatform.h`** - Shared macros (WRAPPER_NAMESPACE, STR, buffer config)
+5. **`yourplatform_buffer.h`** - Buffer class extending `DataInterface<t_sample>` (genlib-side)
+6. **`gen_buffer.h.template`** - Buffer configuration template:
 
    ```c
    // Buffer configuration for gen_dsp wrapper
@@ -231,83 +228,91 @@ Create directory `src/gen_dsp/templates/yourplatform/` with:
    $buffer_definitions
    ```
 
-4. **Build configuration template** (e.g., `Makefile.template` or `CMakeLists.txt.template`)
+7. **Build configuration template** (e.g., `Makefile.template` or `CMakeLists.txt.template`)
 
-   ```makefile
-   # Makefile for $lib_name
+### Header Isolation Pattern
 
-   gen.name = $gen_name
-   lib.name = $lib_name
-   gendsp.version = $genext_version
+genlib headers (`genlib_ops.h` in particular) define inline `exp2(float)` and `trunc(float)` that conflict with `<cmath>` on modern compilers. The solution is to split the wrapper into two compilation units:
 
-   # ... platform-specific build rules
-   ```
+- **`_ext_yourplatform.cpp`** (genlib side) -- includes genlib headers, defines `WIN32` and `GENLIB_NO_DENORM_TEST` to suppress conflicts, includes the gen~ exported `.cpp`, implements wrapper functions
+- **`gen_ext_yourplatform.cpp`** (platform side) -- includes only platform headers and `_ext_yourplatform.h`, calls wrapper functions through the opaque `GenState*` interface
 
-### C++ Wrapper Structure
-
-Your wrapper needs to:
-
-1. **Include gen~ export**: The exported code lives in `./gen/` directory
-2. **Implement platform's plugin API**: Create the object type your platform expects
-3. **Map gen~ I/O**: Connect platform's audio buffers to gen~'s perform function
-4. **Handle parameters**: Route parameter messages to gen~'s `setparameter()` function
-5. **Manage buffers**: If the platform supports audio buffers/tables, implement the `DataInterface<t_sample>` that gen~ expects
-
-Example structure:
+The bridge header (`_ext_yourplatform.h`) declares all wrapper functions in a namespace without including any genlib types:
 
 ```cpp
-#include "gen_ext_common_yourplatform.h"
-#include "gen_buffer.h"
+typedef void GenState;  // opaque handle for CommonState
 
-// Include the gen~ export (namespace setup done in _ext files)
-#include "./gen/your_gen_export.cpp"
+namespace WRAPPER_NAMESPACE {
+    GenState* wrapper_create(float sr, long bs);
+    void wrapper_destroy(GenState* state);
+    void wrapper_reset(GenState* state);
+    void wrapper_perform(GenState* state, float** ins, long numins,
+                         float** outs, long numouts, long n);
+    int wrapper_num_inputs();
+    int wrapper_num_outputs();
+    int wrapper_num_params();
+    const char* wrapper_param_name(GenState* state, int index);
+    void wrapper_set_param(GenState* state, int index, float value);
+    float wrapper_get_param(GenState* state, int index);
+    // ... etc
+}
+```
+
+See `templates/chuck/` or `templates/au/` for complete working examples.
+
+### Platform-Side Structure
+
+Your platform-side file (`gen_ext_yourplatform.cpp`) uses the wrapper functions:
+
+```cpp
+#include "your_platform_sdk.h"    // platform headers only
+#include "gen_ext_common_yourplatform.h"
+#include "_ext_yourplatform.h"
+
+using namespace WRAPPER_NAMESPACE;
 
 // Platform-specific object structure
-typedef struct {
-    // Platform's base object type
-    YourPlatformObject base;
-
-    // gen~ state
-    CommonState* m_genObject;
-
-    // I/O buffers for gen~
-    t_sample** m_inputs;
-    t_sample** m_outputs;
-
-    // Buffer instances (if using buffers)
-    // ...
-} YourWrapper;
+struct YourWrapper {
+    GenState* gen_state;
+    float** in_buffers;
+    float** out_buffers;
+    int num_inputs;
+    int num_outputs;
+};
 
 // Object creation
-YourWrapper* yourwrapper_new(...) {
+YourWrapper* yourwrapper_new(float samplerate) {
     YourWrapper* x = /* allocate */;
-
-    // Initialize gen~ object
-    x->m_genObject = (CommonState*)create(
-        /* samplerate */, /* blocksize */);
-
+    x->num_inputs = wrapper_num_inputs();
+    x->num_outputs = wrapper_num_outputs();
+    x->gen_state = wrapper_create(samplerate, /* blocksize */);
+    // allocate in_buffers, out_buffers ...
     return x;
 }
 
 // DSP perform routine
-void yourwrapper_perform(YourWrapper* x, /* platform args */) {
-    // Get audio buffers from platform
-    // Call gen~'s perform function
-    perform(x->m_genObject, x->m_inputs, num_inputs,
-            x->m_outputs, num_outputs, blocksize);
+void yourwrapper_perform(YourWrapper* x, long nframes) {
+    // Copy platform audio into x->in_buffers
+    wrapper_perform(x->gen_state, x->in_buffers, x->num_inputs,
+                    x->out_buffers, x->num_outputs, nframes);
+    // Copy x->out_buffers back to platform audio
 }
 
 // Parameter handling
 void yourwrapper_param(YourWrapper* x, const char* name, float value) {
-    // Find parameter index and set it
-    for (int i = 0; i < num_params(); i++) {
-        if (strcmp(getparametername(x->m_genObject, i), name) == 0) {
-            setparameter(x->m_genObject, i, value, NULL);
+    int n = wrapper_num_params();
+    for (int i = 0; i < n; i++) {
+        if (strcmp(wrapper_param_name(x->gen_state, i), name) == 0) {
+            wrapper_set_param(x->gen_state, i, value);
             break;
         }
     }
 }
 ```
+
+### Float32 vs Float64
+
+If your platform uses 32-bit float audio (most do), define `GENLIB_USE_FLOAT32` so that `t_sample = float`. This is what ChucK and AudioUnit do. Only Max/MSP uses 64-bit double (no `GENLIB_USE_FLOAT32`).
 
 ## Step 4: Add Template Accessor
 
@@ -329,6 +334,8 @@ from gen_dsp.platforms.yourplatform import YourPlatform
 PLATFORM_REGISTRY: dict[str, Type[Platform]] = {
     "pd": PureDataPlatform,
     "max": MaxPlatform,
+    "chuck": ChuckPlatform,
+    "au": AudioUnitPlatform,
     "yourplatform": YourPlatform,  # Add this line
 }
 
@@ -407,6 +414,17 @@ class BuildResult:
     return_code: int        # Process return code
 ```
 
+## Existing Backends as Reference
+
+| Backend | Build system | Signal type | Key pattern |
+|---------|-------------|-------------|-------------|
+| PureData | make (pd-lib-builder) | float32 | Direct genlib include (no isolation) |
+| Max/MSP | CMake (max-sdk-base) | float64 | Header isolation, CMake bundle |
+| ChucK | make | float32 | Header isolation, frame-by-frame deinterleave |
+| AudioUnit | CMake | float32 | Header isolation, `AudioComponentPlugInInterface` Lookup dispatch |
+
+The **ChucK** and **AudioUnit** backends are the best templates for new backends since they use the cleanest header isolation pattern and are the most recently written.
+
 ## Platform-Specific Considerations
 
 ### SuperCollider UGens
@@ -433,6 +451,7 @@ class BuildResult:
 - Uses CMake or Projucer
 - Most complex but broadest reach
 - Consider as a "meta-platform" generating multiple formats
+- Note: the AU backend already covers AUv2 natively without JUCE
 
 ### Embedded (Bela, Daisy)
 

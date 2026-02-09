@@ -14,6 +14,7 @@ from gen_dsp.platforms.base import Platform
 from gen_dsp.platforms.puredata import PureDataPlatform
 from gen_dsp.platforms.max import MaxPlatform
 from gen_dsp.platforms.chuck import ChuckPlatform
+from gen_dsp.platforms.audiounit import AudioUnitPlatform
 
 
 # Registry mapping platform names to their implementation classes.
@@ -25,6 +26,7 @@ PLATFORM_REGISTRY: dict[str, Type[Platform]] = {
     "pd": PureDataPlatform,
     "max": MaxPlatform,
     "chuck": ChuckPlatform,
+    "au": AudioUnitPlatform,
 }
 
 
@@ -94,6 +96,7 @@ __all__ = [
     "PureDataPlatform",
     "MaxPlatform",
     "ChuckPlatform",
+    "AudioUnitPlatform",
     "PLATFORM_REGISTRY",
     "get_platform",
     "get_platform_class",

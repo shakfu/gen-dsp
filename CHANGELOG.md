@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **AudioUnit (AUv2) platform support** with CMake-based build system
+  - Generates macOS `.component` bundles from gen~ exports
+  - Raw AUv2 C API (`AudioComponentPlugInInterface`) -- no Apple AudioUnitSDK dependency
+  - Only requires system frameworks: AudioToolbox, CoreFoundation, CoreAudio
+  - 32-bit float signal processing (`GENLIB_USE_FLOAT32`)
+  - Auto-detects `aufx` (effect) vs `augn` (generator) from input count
+  - Full AU property dispatch: StreamFormat, ParameterList/Info, MaxFramesPerSlice, ElementCount, Latency, TailTime, SupportedNumChannels, FactoryPresets
+  - Render callback input pull for effects; direct output for generators
+  - Ad-hoc code signing via CMake post-build step
+  - 4-char subtype derived from lib name; manufacturer code `gdsp`
+  - Buffer support via `AuBuffer` class (same pattern as ChucK)
 - **ChucK chugin platform support** with make-based build system
   - Generates ChucK chugins (.chug) from gen~ exports
   - 32-bit float signal processing (matches ChucK's `SAMPLE = float`)

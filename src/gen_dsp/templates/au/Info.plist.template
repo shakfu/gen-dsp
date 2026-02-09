@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>English</string>
+    <key>CFBundleExecutable</key>
+    <string>$lib_name</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.gen-dsp.$lib_name</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>$lib_name</string>
+    <key>CFBundlePackageType</key>
+    <string>BNDL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>$genext_version</string>
+    <key>CFBundleVersion</key>
+    <string>$genext_version</string>
+    <key>AudioComponents</key>
+    <array>
+        <dict>
+            <key>type</key>
+            <string>$au_type</string>
+            <key>subtype</key>
+            <string>$au_subtype</string>
+            <key>manufacturer</key>
+            <string>$au_manufacturer</string>
+            <key>name</key>
+            <string>gen-dsp: $lib_name</string>
+            <key>description</key>
+            <string>$lib_name AudioUnit (gen-dsp)</string>
+            <key>factoryFunction</key>
+            <string>AUGenFactory</string>
+            <key>sandboxSafe</key>
+            <true/>
+        </dict>
+    </array>
+</dict>
+</plist>
