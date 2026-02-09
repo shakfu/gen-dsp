@@ -1,10 +1,10 @@
-# gen_dsp
+# gen-dsp
 
 This project is a friendly fork of Michael Spears' [gen_ext](https://github.com/samesimilar/gen_ext) which was originally created to "compile code exported from a Max gen~ object into an "external" object that can be loaded into a PureData patch."
 
 This fork has taken this excellent original idea and implementation and extended it to include Max/MSP externals, ChucK chugins, AudioUnit (AUv2) plugins, CLAP plugins, VST3 plugins, LV2 plugins, and possibly other DSP architectures (see [TODO.md](TODO.md)).
 
-gen_dsp compiles code exported from Max gen~ objects into external objects for PureData, Max/MSP, ChucK, AudioUnit (AUv2), CLAP, VST3, and LV2. It automates project setup, buffer detection, and platform-specific patches.
+gen-dsp compiles code exported from Max gen~ objects into external objects for PureData, Max/MSP, ChucK, AudioUnit (AUv2), CLAP, VST3, and LV2. It automates project setup, buffer detection, and platform-specific patches.
 
 ## Key Improvements
 
@@ -39,8 +39,8 @@ gen_dsp compiles code exported from Max gen~ objects into external objects for P
 install from source:
 
 ```bash
-git clone https://github.com/samesimilar/gen_dsp.git
-cd gen_dsp
+git clone https://github.com/shakfu/gen-dsp.git
+cd gen-dsp
 pip install -e .
 ```
 
@@ -111,7 +111,7 @@ Currently applies the exp2f -> exp2 fix for macOS compatibility with Max 9 expor
 
 ### Automatic Buffer Detection
 
-gen_dsp scans your gen~ export for buffer usage patterns and configures them automatically:
+gen-dsp scans your gen~ export for buffer usage patterns and configures them automatically:
 
 ```bash
 $ gen-dsp detect ./my_sampler_export
@@ -126,7 +126,7 @@ Buffer names must be valid C identifiers (alphanumeric, starting with a letter).
 
 ### Platform Patches
 
-Max 9 exports include `exp2f` which fails on macOS. gen_dsp automatically patches this to `exp2` during project creation, or you can apply it manually:
+Max 9 exports include `exp2f` which fails on macOS. gen-dsp automatically patches this to `exp2` during project creation, or you can apply it manually:
 
 ```bash
 gen-dsp patch ./my_project --dry-run  # Preview
@@ -170,7 +170,7 @@ For subpatches with custom block sizes (e.g., spectral processing):
 
 ## Max/MSP Support
 
-gen_dsp supports generating Max/MSP externals using CMake and the max-sdk-base submodule.
+gen-dsp supports generating Max/MSP externals using CMake and the max-sdk-base submodule.
 
 ### Quick Start (Max)
 
@@ -195,7 +195,7 @@ cmake .. && cmake --build .
 
 ## ChucK Support
 
-gen_dsp supports generating ChucK chugins (.chug files) using make and a bundled `chugin.h` header.
+gen-dsp supports generating ChucK chugins (.chug files) using make and a bundled `chugin.h` header.
 
 ### Quick Start (ChucK)
 
@@ -251,7 +251,7 @@ eff.reset();
 
 ## AudioUnit (AUv2) Support
 
-gen_dsp supports generating macOS AudioUnit v2 plugins (.component bundles) using CMake and the raw AUv2 C API. No Apple AudioUnitSDK is needed -- only system frameworks (AudioToolbox, CoreFoundation, CoreAudio).
+gen-dsp supports generating macOS AudioUnit v2 plugins (.component bundles) using CMake and the raw AUv2 C API. No Apple AudioUnitSDK is needed -- only system frameworks (AudioToolbox, CoreFoundation, CoreAudio).
 
 ### Quick Start (AudioUnit)
 
@@ -282,7 +282,7 @@ The plugin is automatically detected as an effect (`aufx`) if the gen~ export ha
 
 ## CLAP Support
 
-gen_dsp supports generating cross-platform CLAP plugins (.clap files) using CMake and the CLAP C API (header-only, MIT licensed). CLAP headers are fetched automatically at configure time via CMake FetchContent.
+gen-dsp supports generating cross-platform CLAP plugins (.clap files) using CMake and the CLAP C API (header-only, MIT licensed). CLAP headers are fetched automatically at configure time via CMake FetchContent.
 
 ### Quick Start (CLAP)
 
@@ -317,7 +317,7 @@ The plugin is automatically detected as an audio effect if the gen~ export has i
 
 ## VST3 Support
 
-gen_dsp supports generating cross-platform VST3 plugins (.vst3 bundles) using CMake and the Steinberg VST3 SDK. The SDK is fetched automatically at configure time via CMake FetchContent.
+gen-dsp supports generating cross-platform VST3 plugins (.vst3 bundles) using CMake and the Steinberg VST3 SDK. The SDK is fetched automatically at configure time via CMake FetchContent.
 
 ### Quick Start (VST3)
 
@@ -353,7 +353,7 @@ The plugin is automatically detected as an effect (`Fx`) if the gen~ export has 
 
 ## LV2 Support
 
-gen_dsp supports generating cross-platform LV2 plugins (.lv2 bundle directories) using CMake and the LV2 C API (header-only, ISC licensed). LV2 headers are fetched automatically at configure time via CMake FetchContent.
+gen-dsp supports generating cross-platform LV2 plugins (.lv2 bundle directories) using CMake and the LV2 C API (header-only, ISC licensed). LV2 headers are fetched automatically at configure time via CMake FetchContent.
 
 ### Quick Start (LV2)
 
@@ -522,8 +522,8 @@ make all
 ## Development
 
 ```bash
-git clone https://github.com/samesimilar/gen_dsp.git
-cd gen_dsp
+git clone https://github.com/samesimilar/gen-dsp.git
+cd gen-dsp
 uv venv && uv pip install -e ".[dev]"
 source .venv/bin/activate
 make test
@@ -556,7 +556,7 @@ Output goes to `build/examples/`.
 
 ### Adding New Backends
 
-gen_dsp uses a platform registry system that makes it straightforward to add support for new audio platforms (SuperCollider, VCV Rack, etc.). See [NEW_BACKENDS.md](NEW_BACKENDS.md) for a complete guide.
+gen-dsp uses a platform registry system that makes it straightforward to add support for new audio platforms (SuperCollider, VCV Rack, etc.). See [NEW_BACKENDS.md](NEW_BACKENDS.md) for a complete guide.
 
 ## Attribution
 
