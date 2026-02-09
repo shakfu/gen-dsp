@@ -36,7 +36,11 @@ gen-dsp compiles code exported from Max gen~ objects into external objects for P
 
 ## Installation
 
-install from source:
+```bash
+pip install gen-dsp
+```
+
+Or install from source:
 
 ```bash
 git clone https://github.com/shakfu/gen-dsp.git
