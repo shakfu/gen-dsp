@@ -33,3 +33,23 @@ def spectraldelayfb_export(fixtures_dir: Path) -> Path:
 def tmp_project(tmp_path: Path) -> Path:
     """Temporary directory for project generation tests."""
     return tmp_path / "test_project"
+
+
+# -- Shared FetchContent cache for CMake-based build integration tests --------
+
+# Fixed path under build/ (gitignored) so SDK downloads persist across
+# pytest sessions.  Both CLAP and VST3 build tests use this.
+_FETCHCONTENT_CACHE = Path(__file__).resolve().parent.parent / "build" / ".fetchcontent_cache"
+
+
+@pytest.fixture(scope="session")
+def fetchcontent_cache() -> Path:
+    """Fixed-path FetchContent cache shared across all build tests.
+
+    Persists across pytest sessions so large SDKs (e.g. VST3 ~50 MB)
+    are only downloaded once.
+    """
+    _FETCHCONTENT_CACHE.mkdir(parents=True, exist_ok=True)
+    return _FETCHCONTENT_CACHE
+
+

@@ -49,6 +49,7 @@ class MaxPlatform(Platform):
         output_dir: Path,
         lib_name: str,
         buffers: list[str],
+        config=None,
     ) -> None:
         """Generate Max/MSP project files."""
         templates_dir = get_max_templates_dir()

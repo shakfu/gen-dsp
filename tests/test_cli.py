@@ -88,6 +88,57 @@ class TestInitCommand:
         assert "WRAPPER_BUFFER_NAME_0 buf1" in buffer_h
         assert "WRAPPER_BUFFER_NAME_1 buf2" in buffer_h
 
+    def test_init_shared_cache_flag_parsed(self):
+        """Test that --shared-cache flag is parsed."""
+        parser = create_parser()
+        args = parser.parse_args([
+            "init", ".", "-n", "test", "-p", "clap", "--shared-cache",
+        ])
+        assert args.shared_cache is True
+
+    def test_init_shared_cache_default_off(self):
+        """Test that --shared-cache defaults to False."""
+        parser = create_parser()
+        args = parser.parse_args(["init", ".", "-n", "test"])
+        assert args.shared_cache is False
+
+    def test_init_shared_cache_creates_project(
+        self, gigaverb_export: Path, tmp_path: Path
+    ):
+        """Test init with --shared-cache creates project with cache enabled."""
+        output_dir = tmp_path / "testverb"
+        result = main([
+            "init",
+            str(gigaverb_export),
+            "-n", "testverb",
+            "-p", "clap",
+            "-o", str(output_dir),
+            "--shared-cache",
+        ])
+
+        assert result == 0
+        cmake = (output_dir / "CMakeLists.txt").read_text()
+        assert "elseif(ON)" in cmake
+
+    def test_init_shared_cache_warns_non_cmake(
+        self, gigaverb_export: Path, tmp_path: Path, capsys
+    ):
+        """Test --shared-cache warns for non-CMake platforms."""
+        output_dir = tmp_path / "testverb"
+        result = main([
+            "init",
+            str(gigaverb_export),
+            "-n", "testverb",
+            "-p", "pd",
+            "-o", str(output_dir),
+            "--shared-cache",
+        ])
+
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "Warning" in captured.err
+        assert "no effect" in captured.err
+
     def test_init_invalid_name(self, gigaverb_export: Path, tmp_path: Path, capsys):
         """Test init command with invalid name."""
         result = main([

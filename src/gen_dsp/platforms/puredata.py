@@ -42,6 +42,7 @@ class PureDataPlatform(Platform):
         output_dir: Path,
         lib_name: str,
         buffers: list[str],
+        config=None,
     ) -> None:
         """Generate PureData project files."""
         templates_dir = get_pd_templates_dir()

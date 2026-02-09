@@ -91,6 +91,11 @@ Examples:
         help="Don't apply platform patches (exp2f fix)",
     )
     init_parser.add_argument(
+        "--shared-cache",
+        action="store_true",
+        help="Use shared OS cache for FetchContent downloads (clap, vst3)",
+    )
+    init_parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Show what would be done without creating files",
@@ -185,6 +190,15 @@ def cmd_init(args: argparse.Namespace) -> int:
         print("Buffer names must be valid C identifiers.", file=sys.stderr)
         return 1
 
+    # Warn if --shared-cache used with non-CMake platform
+    cmake_platforms = {"clap", "vst3"}
+    if args.shared_cache and args.platform not in cmake_platforms and args.platform != "both":
+        print(
+            f"Warning: --shared-cache has no effect for platform '{args.platform}' "
+            f"(only {', '.join(sorted(cmake_platforms))})",
+            file=sys.stderr,
+        )
+
     # Create config
     config = ProjectConfig(
         name=args.name,
@@ -192,6 +206,7 @@ def cmd_init(args: argparse.Namespace) -> int:
         buffers=buffers,
         apply_patches=not args.no_patch,
         output_dir=args.output,
+        shared_cache=args.shared_cache,
     )
 
     # Validate

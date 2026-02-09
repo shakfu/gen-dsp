@@ -2,9 +2,9 @@
 
 This project is a friendly fork of Michael Spears' [gen_ext](https://github.com/samesimilar/gen_ext) which was originally created to "compile code exported from a Max gen~ object into an "external" object that can be loaded into a PureData patch."
 
-This fork has taken this excellent original idea and implementation and extended it to include Max/MSP externals, ChucK chugins, AudioUnit (AUv2) plugins, CLAP plugins, and possibly other DSP architectures (see TODO.md).
+This fork has taken this excellent original idea and implementation and extended it to include Max/MSP externals, ChucK chugins, AudioUnit (AUv2) plugins, CLAP plugins, VST3 plugins, and possibly other DSP architectures (see TODO.md).
 
-gen_dsp compiles code exported from Max gen~ objects into external objects for PureData, Max/MSP, ChucK, AudioUnit (AUv2), and CLAP. It automates project setup, buffer detection, and platform-specific patches.
+gen_dsp compiles code exported from Max gen~ objects into external objects for PureData, Max/MSP, ChucK, AudioUnit (AUv2), CLAP, and VST3. It automates project setup, buffer detection, and platform-specific patches.
 
 ## Key Improvements
 
@@ -15,6 +15,7 @@ gen_dsp compiles code exported from Max gen~ objects into external objects for P
 - **ChucK support**: Generates chugins (.chug) with multi-channel I/O and runtime parameter control.
 - **AudioUnit support**: Generates macOS AUv2 plugins (.component) using the raw C API -- no Apple SDK dependency, just system frameworks.
 - **CLAP support**: Generates cross-platform CLAP plugins (.clap) with zero-copy audio processing -- CLAP headers fetched via CMake FetchContent.
+- **VST3 support**: Generates cross-platform VST3 plugins (.vst3) with zero-copy audio processing -- Steinberg VST3 SDK fetched via CMake FetchContent.
 - **Platform-specific patches**: Automatically fixes compatibility issues like the exp2f -> exp2 problem in Max 9 exports on macOS.
 - **Analysis tools**: `gen-dsp detect` inspects exports to show I/O counts, parameters, and buffers before committing to a build.
 - **Dry-run mode**: Preview what changes will be made before applying them.
@@ -58,9 +59,10 @@ gen-dsp init <export-path> -n <name> [-p <platform>] [-o <output>]
 Options:
 
 - `-n, --name` - Name for the external (required)
-- `-p, --platform` - Target platform: `pd` (default), `max`, `chuck`, `au`, `clap`, or `both`
+- `-p, --platform` - Target platform: `pd` (default), `max`, `chuck`, `au`, `clap`, `vst3`, or `both`
 - `-o, --output` - Output directory (default: `./<name>`)
 - `--buffers` - Explicit buffer names (overrides auto-detection)
+- `--shared-cache` - Use a shared OS cache for FetchContent downloads (clap, vst3 only)
 - `--no-patch` - Skip automatic exp2f fix
 - `--dry-run` - Preview without creating files
 
@@ -300,15 +302,51 @@ The plugin is automatically detected as an audio effect if the gen~ export has i
 - **Cross-platform**: macOS and Linux (unlike AudioUnit)
 - **Extensions**: `audio-ports`, `params`
 
+## VST3 Support
+
+gen_dsp supports generating cross-platform VST3 plugins (.vst3 bundles) using CMake and the Steinberg VST3 SDK. The SDK is fetched automatically at configure time via CMake FetchContent.
+
+### Quick Start (VST3)
+
+```bash
+# Create a VST3 project
+gen-dsp init ./my_export -n myeffect -p vst3 -o ./myeffect_vst3
+
+# Build
+cd myeffect_vst3
+mkdir -p build && cd build
+cmake .. && cmake --build .
+
+# Output: build/VST3/Release/myeffect.vst3/
+
+# Install (optional)
+# macOS:
+cp -r VST3/Release/myeffect.vst3 ~/Library/Audio/Plug-Ins/VST3/
+# Linux:
+cp -r VST3/Release/myeffect.vst3 ~/.vst3/
+```
+
+The plugin is automatically detected as an effect (`Fx`) if the gen~ export has inputs, or an instrument (`Instrument|Synth`) if it has no inputs. On macOS, the .vst3 bundle is ad-hoc code signed during build.
+
+### VST3 Plugin Details
+
+- **Plugin type**: `Fx` or `Instrument|Synth`, auto-detected from I/O
+- **Plugin FUID**: deterministic 128-bit ID from MD5 of `com.gen-dsp.vst3.<lib_name>`
+- **Parameters**: all gen~ parameters exposed as `RangeParameter` with real min/max/default (automatable)
+- **Audio format**: Float32, non-interleaved (zero-copy -- VST3's `channelBuffers32` layout matches gen~'s `float**` exactly)
+- **Cross-platform**: macOS, Linux, and Windows
+- **SDK**: `SingleComponentEffect` (combined processor+controller) -- simplest VST3 plugin structure
+- **License**: VST3 SDK is GPL3/proprietary dual licensed -- users needing a proprietary license must obtain one from Steinberg
+
 ### Platform Comparison
 
-| Aspect | CLAP | AudioUnit | ChucK | PureData | Max/MSP |
-|--------|------|-----------|-------|----------|---------|
-| Signal type | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | double (64-bit) |
-| Build system | CMake (FetchContent) | CMake | make | make (pd-lib-builder) | CMake (max-sdk-base) |
-| Output format | .clap | .component | .chug | .pd_darwin / .pd_linux | .mxo / .mxe64 |
-| macOS only | no | yes | no | no | no |
-| External deps | CLAP headers (fetched) | none (system frameworks) | none (bundled chugin.h) | PureData headers | max-sdk-base (git) |
+| Aspect | VST3 | CLAP | AudioUnit | ChucK | PureData | Max/MSP |
+|--------|------|------|-----------|-------|----------|---------|
+| Signal type | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | double (64-bit) |
+| Build system | CMake (FetchContent) | CMake (FetchContent) | CMake | make | make (pd-lib-builder) | CMake (max-sdk-base) |
+| Output format | .vst3 | .clap | .component | .chug | .pd_darwin / .pd_linux | .mxo / .mxe64 |
+| macOS only | no | no | yes | no | no | no |
+| External deps | VST3 SDK (fetched) | CLAP headers (fetched) | none (system frameworks) | none (bundled chugin.h) | PureData headers | max-sdk-base (git) |
 
 ### PureData vs Max/MSP
 
@@ -322,6 +360,36 @@ The plugin is automatically detected as an audio effect if the gen~ export has i
 
 For PureData, gen~ is compiled with 32-bit float signals. For Max, gen~ uses native 64-bit double signals, with automatic float conversion for buffer access (Max buffers are always 32-bit).
 
+## Shared FetchContent Cache
+
+CLAP and VST3 backends use CMake FetchContent to download their SDKs at configure time. By default each project downloads its own copy. Two opt-in mechanisms allow sharing a single download across projects:
+
+### `--shared-cache` flag
+
+Pass `--shared-cache` to `gen-dsp init` to bake an OS-appropriate cache path into the generated CMakeLists.txt:
+
+```bash
+gen-dsp init ./my_export -n myeffect -p vst3 --shared-cache
+```
+
+This resolves to:
+
+| OS | Cache path |
+|----|------------|
+| macOS | `~/Library/Caches/gen-dsp/fetchcontent/` |
+| Linux | `$XDG_CACHE_HOME/gen-dsp/fetchcontent/` (defaults to `~/.cache/`) |
+| Windows | `%LOCALAPPDATA%/gen-dsp/fetchcontent/` |
+
+### `GEN_DSP_CACHE_DIR` environment variable
+
+Set this at cmake configure time to override any baked-in path (or use it without `--shared-cache`):
+
+```bash
+GEN_DSP_CACHE_DIR=/path/to/cache cmake ..
+```
+
+The env var takes highest priority, followed by the `--shared-cache` path, followed by CMake's default (project-local `build/_deps/`).
+
 ## Limitations
 
 - Maximum of 5 buffers per external
@@ -329,6 +397,7 @@ For PureData, gen~ is compiled with 32-bit float signals. For Max, gen~ uses nat
 - Max/MSP: Windows builds require Visual Studio or equivalent MSVC toolchain
 - AudioUnit: macOS only; initial implementation may not pass all `auval` checks
 - CLAP: first CMake configure requires network access to fetch CLAP headers (cached afterward)
+- VST3: first CMake configure requires network access to fetch VST3 SDK (~50MB, cached afterward); GPL3/proprietary dual license
 
 ## Requirements
 
@@ -364,6 +433,12 @@ For PureData, gen~ is compiled with 32-bit float signals. For Max, gen~ uses nat
 - CMake >= 3.19
 - C/C++ compiler (clang, gcc)
 - Network access on first configure (to fetch CLAP headers)
+
+### VST3 builds
+
+- CMake >= 3.19
+- C/C++ compiler (clang, gcc, MSVC)
+- Network access on first configure (to fetch VST3 SDK, ~50MB)
 
 ### macOS
 
@@ -406,6 +481,7 @@ make example-max      # Max/MSP external
 make example-chuck    # ChucK chugin
 make example-au       # AudioUnit plugin (macOS only)
 make example-clap     # CLAP plugin
+make example-vst3     # VST3 plugin
 make examples         # All platforms
 ```
 

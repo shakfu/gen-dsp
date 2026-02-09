@@ -1,7 +1,7 @@
 # Development Makefile for gen_dsp Python package
 
 .PHONY: all install install-dev test test-cov clean dist help venv \
-       example-pd example-max example-chuck example-au example-clap examples
+       example-pd example-max example-chuck example-au example-clap example-vst3 examples
 
 VENV := .venv
 UV := uv
@@ -13,6 +13,7 @@ FIXTURE ?= gigaverb
 NAME ?= $(FIXTURE)
 BUFFERS ?=
 EXAMPLES_DIR := build/examples
+export GEN_DSP_CACHE_DIR := $(CURDIR)/build/.fetchcontent_cache
 
 # Default target
 all: install-dev test
@@ -83,8 +84,14 @@ example-clap:
 	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p clap -o $(EXAMPLES_DIR)/$(NAME)_clap $(BUFFERS)
 	cd $(EXAMPLES_DIR)/$(NAME)_clap/build && cmake .. && cmake --build .
 
+# Generate and build a VST3 plugin from a test fixture
+example-vst3:
+	rm -rf $(EXAMPLES_DIR)/$(NAME)_vst3
+	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p vst3 -o $(EXAMPLES_DIR)/$(NAME)_vst3 $(BUFFERS)
+	cd $(EXAMPLES_DIR)/$(NAME)_vst3/build && cmake .. && cmake --build .
+
 # Build all example plugins
-examples: example-pd example-max example-chuck example-au example-clap
+examples: example-pd example-max example-chuck example-au example-clap example-vst3
 
 # Build distribution
 dist: clean
@@ -106,6 +113,7 @@ help:
 	@echo "  example-chuck - Generate and build a ChucK chugin"
 	@echo "  example-au    - Generate and build an AudioUnit plugin (macOS only)"
 	@echo "  example-clap  - Generate and build a CLAP plugin"
+	@echo "  example-vst3  - Generate and build a VST3 plugin"
 	@echo "  examples      - Build all example plugins"
 	@echo "  clean         - Remove build artifacts"
 	@echo "  dist          - Build distribution packages"

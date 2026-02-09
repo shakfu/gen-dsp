@@ -10,6 +10,13 @@ project($${PROJECT_NAME})
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Shared FetchContent cache (optional -- gen-dsp --shared-cache)
+if(DEFINED ENV{GEN_DSP_CACHE_DIR})
+    set(FETCHCONTENT_BASE_DIR "$ENV{GEN_DSP_CACHE_DIR}")
+elseif($use_shared_cache)
+    set(FETCHCONTENT_BASE_DIR "$cache_dir")
+endif()
+
 # Fetch CLAP headers (header-only, MIT licensed)
 include(FetchContent)
 FetchContent_Declare(

@@ -337,6 +337,7 @@ PLATFORM_REGISTRY: dict[str, Type[Platform]] = {
     "chuck": ChuckPlatform,
     "au": AudioUnitPlatform,
     "clap": ClapPlatform,
+    "vst3": Vst3Platform,
     "yourplatform": YourPlatform,  # Add this line
 }
 
@@ -424,6 +425,7 @@ class BuildResult:
 | ChucK | make | float32 | Header isolation, frame-by-frame deinterleave |
 | AudioUnit | CMake | float32 | Header isolation, `AudioComponentPlugInInterface` Lookup dispatch |
 | CLAP | CMake + FetchContent | float32 | Header isolation, zero-copy process, cross-platform |
+| VST3 | CMake + FetchContent | float32 | Header isolation, zero-copy process, `SingleComponentEffect`, FUID |
 
 The **CLAP** backend is the recommended reference implementation for new backends. It demonstrates the cleanest version of the header isolation pattern, CMake-based builds with external dependency fetching via FetchContent, and a zero-copy audio process path. Start here when adding a new platform.
 
@@ -476,12 +478,16 @@ target_link_libraries(${PROJECT_NAME} PRIVATE clap)
 
 ## Platform-Specific Considerations
 
-### VST3
+### VST3 (implemented)
 
-- Uses CMake with FetchContent for the VST3 SDK (too large to vendor)
-- Follow the CLAP backend's FetchContent pattern for dependency management
-- Steinberg's SDK has its own CMake build system
+- Uses CMake with FetchContent for the VST3 SDK (pinned to `v3.7.9_build_61`)
+- `SingleComponentEffect` (combined processor+controller) -- simplest VST3 plugin structure
+- `smtg_add_vst3plugin()` macro handles `.vst3` bundle directory structure
+- Must compile `vstsinglecomponenteffect.cpp` and platform entry points explicitly
+- Deterministic FUID from MD5 of `"com.gen-dsp.vst3.<lib_name>"`
+- Uses `GSTR()` macro instead of `STR()` to avoid SDK `STR16` collision
 - GPL3/proprietary dual license -- check compatibility
+- See `src/gen_dsp/templates/vst3/` and `src/gen_dsp/platforms/vst3.py`
 
 ### SuperCollider UGens
 

@@ -4,39 +4,41 @@
 
 ### Implemented
 
-- **PureData** - Primary target. Full support.
-- **Max/MSP** - Full support. See `src/gen_dsp/templates/max/`.
-- **ChucK** - Full support. Generates chugins (.chug) with multi-channel I/O and runtime parameter control. See `src/gen_dsp/templates/chuck/`.
-- **AudioUnit (AUv2)** - Full support. Generates macOS .component bundles using raw AUv2 C API (no SDK dependency). Auto-detects effect vs generator from I/O. See `src/gen_dsp/templates/au/`.
+- [x] **PureData** - Primary target. Full support.
+- [x] **Max/MSP** - Full support. See `src/gen_dsp/templates/max/`.
+- [x] **ChucK** - Full support. Generates chugins (.chug) with multi-channel I/O and runtime parameter control. See `src/gen_dsp/templates/chuck/`.
+- [x] **AudioUnit (AUv2)** - Full support. Generates macOS .component bundles using raw AUv2 C API (no SDK dependency). Auto-detects effect vs generator from I/O. See `src/gen_dsp/templates/au/`.
+- [x] **CLAP** - Full support. Generates cross-platform .clap plugins using the CLAP C API (header-only, MIT licensed, fetched via CMake FetchContent). Zero-copy audio processing. Auto-detects effect vs instrument from I/O. See `src/gen_dsp/templates/clap/`.
+- [x] **VST3** - Full support. Generates cross-platform .vst3 bundles using the Steinberg VST3 SDK (fetched via CMake FetchContent). Zero-copy audio processing. Auto-detects effect vs instrument from I/O. Deterministic FUID generation. See `src/gen_dsp/templates/vst3/`.
 
 ### To Implement
 
 #### High Priority
 
-- **SuperCollider UGens** - Large academic/experimental community. C++ plugin API, block-based processing, buffer support via SndBuf. Well-documented UGen interface.
+- [ ] **SuperCollider UGens** - Large academic/experimental community. C++ plugin API, block-based processing, buffer support via SndBuf. Well-documented UGen interface.
   - Docs: <https://doc.sccode.org/Guides/WritingUGens.html>
 
-- **VCV Rack modules** - Virtual Eurorack with growing community. Sample-by-sample C++ API. Visual/modular paradigm aligns with gen~ patching approach.
+- [ ] **VCV Rack modules** - Virtual Eurorack with growing community. Sample-by-sample C++ API. Visual/modular paradigm aligns with gen~ patching approach.
   - Docs: <https://vcvrack.com/manual/PluginDevelopmentTutorial>
 
-- **LV2 plugins** - Open standard for Linux audio. Important for open-source DAWs (Ardour, REAPER on Linux, Bitwig). Supports buffers.
+- [ ] **LV2 plugins** - Open standard for Linux audio. Important for open-source DAWs (Ardour, REAPER on Linux, Bitwig). Supports buffers.
   - Docs: <https://lv2plug.in/>
 
-- **JUCE (VST/AU/AAX)** - Broadest commercial reach. Abstracts plugin formats. Significant effort but high payoff.
+- [ ] **JUCE (VST/AU/AAX)** - Broadest commercial reach. Abstracts plugin formats. Significant effort but high payoff. Note: AU, CLAP, and VST3 are already covered natively without JUCE.
   - Docs: <https://juce.com/>
 
 #### Embedded/Hardware Targets
 
-- **Bela** - BeagleBone-based real-time audio platform. C++ API, ultra-low latency. Similar audience to Organelle.
+- [ ] **Bela** - BeagleBone-based real-time audio platform. C++ API, ultra-low latency. Similar audience to Organelle.
   - Docs: <https://learn.bela.io/>
 
-- **Daisy (Electrosmith)** - STM32-based embedded audio. Powers commercial Eurorack modules and DIY projects.
+- [ ] **Daisy (Electrosmith)** - STM32-based embedded audio. Powers commercial Eurorack modules and DIY projects.
   - Docs: <https://github.com/electro-smith/DaisySP>
 
-- **Teensy Audio Library** - Arduino-compatible, popular for DIY synths.
+- [ ] **Teensy Audio Library** - Arduino-compatible, popular for DIY synths.
   - Docs: <https://www.pjrc.com/teensy/td_libs_Audio.html>
 
 #### Other
 
-- **Web Audio (AudioWorklet + WASM)** - Compile gen~ to WebAssembly for browser. Growing interest in web-based audio.
+- [ ] **Web Audio (AudioWorklet + WASM)** - Compile gen~ to WebAssembly for browser. Growing interest in web-based audio.
   - Docs: <https://developer.mozilla.org/en-US/docs/Web/API/AudioWorklet>

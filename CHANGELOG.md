@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Shared FetchContent cache** for CLAP and VST3 backends
+  - `--shared-cache` flag on `gen-dsp init` bakes an OS-appropriate cache path into CMakeLists.txt so multiple projects share one SDK download
+  - `GEN_DSP_CACHE_DIR` environment variable support in all generated CMakeLists.txt for build-time override (highest priority, no init flag needed)
+  - Cache paths: `~/Library/Caches/gen-dsp/fetchcontent/` (macOS), `$XDG_CACHE_HOME/gen-dsp/fetchcontent/` (Linux), `%LOCALAPPDATA%/gen-dsp/fetchcontent/` (Windows)
+  - Both mechanisms are opt-in; default behavior (project-local downloads) is unchanged
+  - Warning emitted when `--shared-cache` is used with non-CMake platforms (pd, max, chuck, au)
+- **VST3 plugin platform support** with CMake-based build system
+  - Generates cross-platform `.vst3` plugin bundles from gen~ exports
+  - Steinberg VST3 SDK (`SingleComponentEffect`) fetched via CMake FetchContent (pinned to `v3.7.9_build_61`)
+  - Zero-copy audio processing: VST3's non-interleaved `channelBuffers32[channel][sample]` matches gen~'s `float**` exactly
+  - 32-bit float signal processing (`GENLIB_USE_FLOAT32`)
+  - Auto-detects `Fx` (effect) vs `Instrument|Synth` from input count
+  - Deterministic 128-bit FUID from MD5 of `com.gen-dsp.vst3.<lib_name>`
+  - Parameters exposed as `RangeParameter` with real min/max/default; normalized-to-plain conversion in process
+  - State save/restore via `IBStreamer` binary serialization
+  - Platform entry points: `macmain.cpp` (macOS), `linuxmain.cpp` (Linux), `dllmain.cpp` (Windows)
+  - Ad-hoc code signing on macOS; cross-platform support (macOS + Linux + Windows)
+  - GPL3/proprietary dual license (users needing proprietary license must obtain from Steinberg)
 - **CLAP plugin platform support** with CMake-based build system
   - Generates cross-platform `.clap` plugin files from gen~ exports
   - Header-only CLAP C API (MIT licensed), fetched via CMake FetchContent (pinned to v1.2.2)
@@ -42,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Workaround for genlib `exp2`/`trunc` redefinition conflicts with modern C++ stdlib
   - Capitalized class name follows ChucK convention (e.g. `Gigaverb`, not `gigaverb`)
 - Integration tests for ChucK: build compilation and ChucK runtime load verification
-- Makefile targets for generating example plugins: `example-pd`, `example-max`, `example-chuck`, `example-au`, `example-clap`, `examples`
+- Makefile targets for generating example plugins: `example-pd`, `example-max`, `example-chuck`, `example-au`, `example-clap`, `example-vst3`, `examples`
   - Configurable via `FIXTURE`, `NAME`, and `BUFFERS` variables
 
 ### Fixed

@@ -33,6 +33,7 @@ class Platform(ABC):
         output_dir: Path,
         lib_name: str,
         buffers: list[str],
+        config=None,
     ) -> None:
         """
         Generate project files for this platform.
@@ -42,6 +43,7 @@ class Platform(ABC):
             output_dir: Directory to generate project in.
             lib_name: Name for the external library.
             buffers: List of buffer names to configure.
+            config: Optional ProjectConfig for platform-specific options.
         """
         pass
 

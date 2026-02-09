@@ -42,6 +42,7 @@ class ChuckPlatform(Platform):
         output_dir: Path,
         lib_name: str,
         buffers: list[str],
+        config=None,
     ) -> None:
         """Generate ChucK chugin project files."""
         templates_dir = get_chuck_templates_dir()

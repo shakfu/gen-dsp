@@ -34,6 +34,9 @@ class ProjectConfig:
     # Output directory (if None, use current directory)
     output_dir: Optional[Path] = None
 
+    # Use shared FetchContent cache for CMake-based platforms (clap, vst3)
+    shared_cache: bool = False
+
     def validate(self) -> list[str]:
         """
         Validate the configuration.
@@ -140,6 +143,7 @@ class ProjectGenerator:
                     output_dir,
                     self.config.name,
                     buffers,
+                    config=self.config,
                 )
         else:
             # Generate for specific platform
@@ -149,6 +153,7 @@ class ProjectGenerator:
                 output_dir,
                 self.config.name,
                 buffers,
+                config=self.config,
             )
 
         # Copy gen~ export

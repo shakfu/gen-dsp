@@ -133,3 +133,26 @@ def list_clap_templates() -> list[Path]:
     if not clap_dir.is_dir():
         return []
     return list(clap_dir.glob("*"))
+
+
+def get_vst3_templates_dir() -> Path:
+    """
+    Get the path to VST3 plugin templates.
+
+    Returns:
+        Path to the vst3/ templates directory.
+    """
+    return get_templates_dir() / "vst3"
+
+
+def list_vst3_templates() -> list[Path]:
+    """
+    List all VST3 plugin template files.
+
+    Returns:
+        List of paths to template files.
+    """
+    vst3_dir = get_vst3_templates_dir()
+    if not vst3_dir.is_dir():
+        return []
+    return list(vst3_dir.glob("*"))

@@ -1,11 +1,13 @@
 """
-CLAP plugin platform implementation.
+VST3 plugin platform implementation.
 
-Generates cross-platform CLAP plugins (.clap files) using CMake and
-the CLAP C API (header-only, MIT licensed). CLAP headers are fetched
-at configure time via CMake FetchContent -- no vendoring required.
+Generates cross-platform VST3 plugins (.vst3 bundles) using CMake and
+the Steinberg VST3 SDK. The SDK is fetched at configure time via CMake
+FetchContent -- no vendoring required.
 """
 
+import hashlib
+import struct
 import shutil
 from pathlib import Path
 from string import Template
@@ -15,21 +17,21 @@ from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.parser import ExportInfo
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform
-from gen_dsp.templates import get_clap_templates_dir
+from gen_dsp.templates import get_vst3_templates_dir
 
 
-class ClapPlatform(Platform):
-    """CLAP plugin platform implementation using CMake."""
+class Vst3Platform(Platform):
+    """VST3 plugin platform implementation using CMake."""
 
-    name = "clap"
+    name = "vst3"
 
     @property
     def extension(self) -> str:
-        """Get the file extension for CLAP plugins."""
-        return ".clap"
+        """Get the file extension for VST3 plugins."""
+        return ".vst3"
 
     def get_build_instructions(self) -> list[str]:
-        """Get build instructions for CLAP."""
+        """Get build instructions for VST3."""
         return [
             "mkdir -p build && cd build && cmake .. && cmake --build .",
         ]
@@ -42,18 +44,18 @@ class ClapPlatform(Platform):
         buffers: list[str],
         config=None,
     ) -> None:
-        """Generate CLAP project files."""
-        templates_dir = get_clap_templates_dir()
+        """Generate VST3 project files."""
+        templates_dir = get_vst3_templates_dir()
         if not templates_dir.is_dir():
-            raise ProjectError(f"CLAP templates not found at {templates_dir}")
+            raise ProjectError(f"VST3 templates not found at {templates_dir}")
 
         # Copy static files
         static_files = [
-            "gen_ext_clap.cpp",
-            "gen_ext_common_clap.h",
-            "_ext_clap.cpp",
-            "_ext_clap.h",
-            "clap_buffer.h",
+            "gen_ext_vst3.cpp",
+            "gen_ext_common_vst3.h",
+            "_ext_vst3.cpp",
+            "_ext_vst3.h",
+            "vst3_buffer.h",
         ]
 
         for filename in static_files:
@@ -61,8 +63,8 @@ class ClapPlatform(Platform):
             if src.exists():
                 shutil.copy2(src, output_dir / filename)
 
-        # Detect plugin type from I/O configuration
-        plugin_type = self._detect_plugin_type(export_info.num_inputs)
+        # Generate FUID from lib_name
+        fuid = self._generate_fuid(lib_name)
 
         # Resolve shared cache settings
         shared_cache = config is not None and config.shared_cache
@@ -80,6 +82,7 @@ class ClapPlatform(Platform):
             lib_name,
             export_info.num_inputs,
             export_info.num_outputs,
+            fuid,
             use_shared_cache="ON" if shared_cache else "OFF",
             cache_dir=cache_dir,
         )
@@ -89,14 +92,25 @@ class ClapPlatform(Platform):
             templates_dir / "gen_buffer.h.template",
             output_dir / "gen_buffer.h",
             buffers,
-            header_comment="Buffer configuration for gen_dsp CLAP wrapper",
+            header_comment="Buffer configuration for gen_dsp VST3 wrapper",
         )
 
         # Create build directory
         (output_dir / "build").mkdir(exist_ok=True)
 
+    def _generate_fuid(self, lib_name: str) -> tuple[int, int, int, int]:
+        """Generate a deterministic 128-bit FUID from the library name.
+
+        Uses MD5 of 'com.gen-dsp.vst3.<lib_name>' split into 4 x uint32.
+        Returns tuple of 4 integers.
+        """
+        digest = hashlib.md5(
+            f"com.gen-dsp.vst3.{lib_name}".encode()
+        ).digest()
+        return struct.unpack(">IIII", digest)
+
     def _detect_plugin_type(self, num_inputs: int) -> str:
-        """Detect CLAP plugin type from number of inputs.
+        """Detect VST3 plugin type from number of inputs.
 
         Returns 'effect' if inputs > 0, 'instrument' if inputs == 0.
         """
@@ -110,6 +124,7 @@ class ClapPlatform(Platform):
         lib_name: str,
         num_inputs: int,
         num_outputs: int,
+        fuid: tuple[int, int, int, int],
         use_shared_cache: str = "OFF",
         cache_dir: str = "",
     ) -> None:
@@ -127,6 +142,10 @@ class ClapPlatform(Platform):
             genext_version=self.GENEXT_VERSION,
             num_inputs=num_inputs,
             num_outputs=num_outputs,
+            fuid_0=f"0x{fuid[0]:08X}",
+            fuid_1=f"0x{fuid[1]:08X}",
+            fuid_2=f"0x{fuid[2]:08X}",
+            fuid_3=f"0x{fuid[3]:08X}",
             use_shared_cache=use_shared_cache,
             cache_dir=cache_dir,
         )
@@ -138,7 +157,7 @@ class ClapPlatform(Platform):
         clean: bool = False,
         verbose: bool = False,
     ) -> BuildResult:
-        """Build CLAP plugin using CMake."""
+        """Build VST3 plugin using CMake."""
         cmakelists = project_dir / "CMakeLists.txt"
         if not cmakelists.exists():
             raise BuildError(f"CMakeLists.txt not found in {project_dir}")
@@ -158,7 +177,7 @@ class ClapPlatform(Platform):
         if configure_result.returncode != 0:
             return BuildResult(
                 success=False,
-                platform="clap",
+                platform="vst3",
                 output_file=None,
                 stdout=configure_result.stdout,
                 stderr=configure_result.stderr,
@@ -175,7 +194,7 @@ class ClapPlatform(Platform):
 
         return BuildResult(
             success=build_result.returncode == 0,
-            platform="clap",
+            platform="vst3",
             output_file=output_file,
             stdout=build_result.stdout,
             stderr=build_result.stderr,
@@ -189,9 +208,10 @@ class ClapPlatform(Platform):
             shutil.rmtree(build_dir)
 
     def find_output(self, project_dir: Path) -> Optional[Path]:
-        """Find the built CLAP plugin file."""
+        """Find the built VST3 plugin bundle."""
         build_dir = project_dir / "build"
         if build_dir.is_dir():
-            for f in build_dir.glob("**/*.clap"):
-                return f
+            for f in build_dir.glob("**/*.vst3"):
+                if f.is_dir():
+                    return f
         return None
