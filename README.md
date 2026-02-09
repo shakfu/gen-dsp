@@ -2,24 +2,36 @@
 
 This project is a friendly fork of Michael Spears' [gen_ext](https://github.com/samesimilar/gen_ext) which was originally created to "compile code exported from a Max gen~ object into an "external" object that can be loaded into a PureData patch."
 
-This fork has taken this excellent original idea and implementation and extended it to include Max/MSP externals, ChucK chugins, AudioUnit (AUv2) plugins, CLAP plugins, VST3 plugins, LV2 plugins, and possibly other DSP architectures (see TODO.md).
+This fork has taken this excellent original idea and implementation and extended it to include Max/MSP externals, ChucK chugins, AudioUnit (AUv2) plugins, CLAP plugins, VST3 plugins, LV2 plugins, and possibly other DSP architectures (see [TODO.md](TODO.md)).
 
 gen_dsp compiles code exported from Max gen~ objects into external objects for PureData, Max/MSP, ChucK, AudioUnit (AUv2), CLAP, VST3, and LV2. It automates project setup, buffer detection, and platform-specific patches.
 
 ## Key Improvements
 
 - **Python package**: gen-dsp is a pip installable zero-dependency python package with a cli which embeds all templates and related code.
+
 - **Automated project scaffolding**: `gen-dsp init` creates a complete, buildable project from a gen~ export in one command, versus manually copying files and editing Makefiles.
+
 - **Automatic buffer detection**: Scans exported code for buffer usage patterns and configures them without manual intervention.
+
 - **Max/MSP support**: Generates CMake-based Max externals with proper 64-bit signal handling and buffer lock/unlock API.
+
 - **ChucK support**: Generates chugins (.chug) with multi-channel I/O and runtime parameter control.
+
 - **AudioUnit support**: Generates macOS AUv2 plugins (.component) using the raw C API -- no Apple SDK dependency, just system frameworks.
+
 - **CLAP support**: Generates cross-platform CLAP plugins (.clap) with zero-copy audio processing -- CLAP headers fetched via CMake FetchContent.
+
 - **VST3 support**: Generates cross-platform VST3 plugins (.vst3) with zero-copy audio processing -- Steinberg VST3 SDK fetched via CMake FetchContent.
+
 - **LV2 support**: Generates cross-platform LV2 plugins (.lv2 bundles) with TTL metadata containing real parameter names/ranges parsed from gen~ exports -- LV2 headers fetched via CMake FetchContent.
+
 - **Platform-specific patches**: Automatically fixes compatibility issues like the exp2f -> exp2 problem in Max 9 exports on macOS.
+
 - **Analysis tools**: `gen-dsp detect` inspects exports to show I/O counts, parameters, and buffers before committing to a build.
+
 - **Dry-run mode**: Preview what changes will be made before applying them.
+
 - **Platform registry**: To make it easy to discover new backends
 
 ## Installation

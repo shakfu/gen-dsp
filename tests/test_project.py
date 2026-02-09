@@ -158,9 +158,7 @@ class TestProjectGenerator:
         with pytest.raises(ValidationError):
             generator.generate(tmp_project)
 
-    def test_generate_copies_gen_export(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_generate_copies_gen_export(self, gigaverb_export: Path, tmp_project: Path):
         """Test that gen~ export is copied to project."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()

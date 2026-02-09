@@ -24,6 +24,7 @@ def _build_env():
     env["GIT_TERMINAL_PROMPT"] = "0"
     return env
 
+
 # Skip conditions
 _has_cmake = shutil.which("cmake") is not None
 _has_cxx = shutil.which("clang++") is not None or shutil.which("g++") is not None
@@ -179,9 +180,7 @@ class TestVst3ProjectGeneration:
         assert "WRAPPER_BUFFER_NAME_1 buf2" in buffer_h
         assert "WRAPPER_BUFFER_NAME_2 buf3" in buffer_h
 
-    def test_cmakelists_content(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_cmakelists_content(self, gigaverb_export: Path, tmp_project: Path):
         """Test that CMakeLists.txt has correct template substitutions."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
@@ -199,9 +198,7 @@ class TestVst3ProjectGeneration:
         assert "steinbergmedia/vst3sdk" in cmake
         assert "smtg_add_vst3plugin" in cmake
 
-    def test_cmakelists_fuid(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_cmakelists_fuid(self, gigaverb_export: Path, tmp_project: Path):
         """Test that CMakeLists.txt has FUID defines."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
@@ -216,9 +213,7 @@ class TestVst3ProjectGeneration:
         assert "VST3_FUID_2=0x" in cmake
         assert "VST3_FUID_3=0x" in cmake
 
-    def test_cmakelists_num_io(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_cmakelists_num_io(self, gigaverb_export: Path, tmp_project: Path):
         """Test that CMakeLists.txt has correct I/O counts."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
@@ -231,9 +226,7 @@ class TestVst3ProjectGeneration:
         assert f"VST3_NUM_INPUTS={export_info.num_inputs}" in cmake
         assert f"VST3_NUM_OUTPUTS={export_info.num_outputs}" in cmake
 
-    def test_generate_copies_gen_export(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_generate_copies_gen_export(self, gigaverb_export: Path, tmp_project: Path):
         """Test that gen~ export is copied to project."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
@@ -264,16 +257,12 @@ class TestVst3ProjectGeneration:
         assert "elseif(OFF)" in cmake
         assert "GEN_DSP_CACHE_DIR" in cmake
 
-    def test_cmakelists_shared_cache_on(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_cmakelists_shared_cache_on(self, gigaverb_export: Path, tmp_project: Path):
         """Test that --shared-cache produces ON with resolved path."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
 
-        config = ProjectConfig(
-            name="testverb", platform="vst3", shared_cache=True
-        )
+        config = ProjectConfig(name="testverb", platform="vst3", shared_cache=True)
         generator = ProjectGenerator(export_info, config)
         project_dir = generator.generate(tmp_project)
 
@@ -434,7 +423,10 @@ class TestVst3BuildIntegration:
 
     @_skip_no_toolchain
     def test_build_clean_rebuild(
-        self, gigaverb_export: Path, tmp_path: Path, fetchcontent_cache: Path,
+        self,
+        gigaverb_export: Path,
+        tmp_path: Path,
+        fetchcontent_cache: Path,
         monkeypatch,
     ):
         """Test that clean + rebuild works via the platform API."""
@@ -454,8 +446,7 @@ class TestVst3BuildIntegration:
         cmakelists = project_dir / "CMakeLists.txt"
         original = cmakelists.read_text()
         inject = (
-            f'set(FETCHCONTENT_BASE_DIR "{fetchcontent_cache}"'
-            f' CACHE PATH "" FORCE)\n'
+            f'set(FETCHCONTENT_BASE_DIR "{fetchcontent_cache}" CACHE PATH "" FORCE)\n'
         )
         cmakelists.write_text(inject + original)
 

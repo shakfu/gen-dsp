@@ -14,7 +14,6 @@ from gen_dsp.platforms import (
     Lv2Platform,
     get_platform,
 )
-from gen_dsp.platforms.lv2 import ParamInfo
 
 
 def _build_env():
@@ -232,9 +231,7 @@ class TestLv2ProjectGeneration:
         assert "WRAPPER_BUFFER_NAME_1 buf2" in buffer_h
         assert "WRAPPER_BUFFER_NAME_2 buf3" in buffer_h
 
-    def test_cmakelists_content(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_cmakelists_content(self, gigaverb_export: Path, tmp_project: Path):
         """Test that CMakeLists.txt has correct template substitutions."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
@@ -251,9 +248,7 @@ class TestLv2ProjectGeneration:
         assert "FetchContent_Declare" in cmake
         assert "lv2/lv2" in cmake
 
-    def test_cmakelists_num_io(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_cmakelists_num_io(self, gigaverb_export: Path, tmp_project: Path):
         """Test that CMakeLists.txt has correct I/O and param counts."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
@@ -267,9 +262,7 @@ class TestLv2ProjectGeneration:
         assert f"LV2_NUM_OUTPUTS={export_info.num_outputs}" in cmake
         assert f"LV2_NUM_PARAMS={export_info.num_params}" in cmake
 
-    def test_generate_copies_gen_export(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_generate_copies_gen_export(self, gigaverb_export: Path, tmp_project: Path):
         """Test that gen~ export is copied to project."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
@@ -285,9 +278,7 @@ class TestLv2ProjectGeneration:
         assert (gen_dir / "gen_dsp").is_dir()
         assert (gen_dir / "gen_dsp" / "genlib.cpp").is_file()
 
-    def test_manifest_ttl_content(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_manifest_ttl_content(self, gigaverb_export: Path, tmp_project: Path):
         """Test manifest.ttl has correct URI and binary reference."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
@@ -303,9 +294,7 @@ class TestLv2ProjectGeneration:
         assert "rdfs:seeAlso" in manifest
         assert "testverb.ttl" in manifest
 
-    def test_plugin_ttl_ports(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_plugin_ttl_ports(self, gigaverb_export: Path, tmp_project: Path):
         """Test plugin.ttl has correct port definitions."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
@@ -333,9 +322,7 @@ class TestLv2ProjectGeneration:
         # Check port indices are present
         assert "lv2:index 0" in ttl  # first param
 
-    def test_plugin_ttl_effect_type(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_plugin_ttl_effect_type(self, gigaverb_export: Path, tmp_project: Path):
         """Test that gigaverb (has inputs) is EffectPlugin."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
@@ -348,14 +335,8 @@ class TestLv2ProjectGeneration:
         ttl = (project_dir / "testverb.ttl").read_text()
         assert "lv2:EffectPlugin" in ttl
 
-    def test_plugin_ttl_generator_type(
-        self, spectraldelayfb_export: Path, tmp_project: Path
-    ):
+    def test_plugin_ttl_generator_type(self):
         """Test that 0-input export is GeneratorPlugin."""
-        parser = GenExportParser(spectraldelayfb_export)
-        export_info = parser.parse()
-
-        # spectraldelayfb has 3 inputs, so we need to test the type logic directly
         platform = Lv2Platform()
         assert platform._detect_plugin_type(0) == "generator"
 
@@ -390,16 +371,12 @@ class TestLv2ProjectGeneration:
         assert "elseif(OFF)" in cmake
         assert "GEN_DSP_CACHE_DIR" in cmake
 
-    def test_cmakelists_shared_cache_on(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_cmakelists_shared_cache_on(self, gigaverb_export: Path, tmp_project: Path):
         """Test that --shared-cache produces ON with resolved path."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
 
-        config = ProjectConfig(
-            name="testverb", platform="lv2", shared_cache=True
-        )
+        config = ProjectConfig(name="testverb", platform="lv2", shared_cache=True)
         generator = ProjectGenerator(export_info, config)
         project_dir = generator.generate(tmp_project)
 
@@ -564,7 +541,10 @@ class TestLv2BuildIntegration:
 
     @_skip_no_toolchain
     def test_build_clean_rebuild(
-        self, gigaverb_export: Path, tmp_path: Path, fetchcontent_cache: Path,
+        self,
+        gigaverb_export: Path,
+        tmp_path: Path,
+        fetchcontent_cache: Path,
         monkeypatch,
     ):
         """Test that clean + rebuild works via the platform API."""
@@ -582,8 +562,7 @@ class TestLv2BuildIntegration:
         cmakelists = project_dir / "CMakeLists.txt"
         original = cmakelists.read_text()
         inject = (
-            f'set(FETCHCONTENT_BASE_DIR "{fetchcontent_cache}"'
-            f' CACHE PATH "" FORCE)\n'
+            f'set(FETCHCONTENT_BASE_DIR "{fetchcontent_cache}" CACHE PATH "" FORCE)\n'
         )
         cmakelists.write_text(inject + original)
 

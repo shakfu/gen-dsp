@@ -21,9 +21,7 @@ _has_cmake = shutil.which("cmake") is not None
 _has_cxx = shutil.which("clang++") is not None or shutil.which("g++") is not None
 _can_build = _is_macos and _has_cmake and _has_cxx
 
-_skip_not_macos = pytest.mark.skipif(
-    not _is_macos, reason="AudioUnit is macOS-only"
-)
+_skip_not_macos = pytest.mark.skipif(not _is_macos, reason="AudioUnit is macOS-only")
 _skip_no_toolchain = pytest.mark.skipif(
     not _can_build, reason="macOS with cmake and C++ compiler required"
 )
@@ -164,9 +162,7 @@ class TestAudioUnitProjectGeneration:
         assert "WRAPPER_BUFFER_NAME_1 buf2" in buffer_h
         assert "WRAPPER_BUFFER_NAME_2 buf3" in buffer_h
 
-    def test_cmakelists_content(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_cmakelists_content(self, gigaverb_export: Path, tmp_project: Path):
         """Test that CMakeLists.txt has correct template substitutions."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
@@ -184,9 +180,7 @@ class TestAudioUnitProjectGeneration:
         assert "CoreFoundation" in cmake
         assert '.component"' in cmake
 
-    def test_info_plist_content(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_info_plist_content(self, gigaverb_export: Path, tmp_project: Path):
         """Test that Info.plist has correct AU metadata."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
@@ -202,9 +196,7 @@ class TestAudioUnitProjectGeneration:
         assert "<string>AUGenFactory</string>" in plist  # factory function
         assert "<string>testverb</string>" in plist  # bundle name
 
-    def test_aufx_type_for_effects(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_aufx_type_for_effects(self, gigaverb_export: Path, tmp_project: Path):
         """Test that gigaverb (has inputs) generates aufx type."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
@@ -217,9 +209,7 @@ class TestAudioUnitProjectGeneration:
         plist = (project_dir / "Info.plist").read_text()
         assert "<string>aufx</string>" in plist
 
-    def test_augn_type_for_generators(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_augn_type_for_generators(self, gigaverb_export: Path, tmp_project: Path):
         """Test that 0 inputs generates augn type (using mock)."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
@@ -238,9 +228,7 @@ class TestAudioUnitProjectGeneration:
         # Restore
         export_info.num_inputs = original_inputs
 
-    def test_generate_copies_gen_export(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_generate_copies_gen_export(self, gigaverb_export: Path, tmp_project: Path):
         """Test that gen~ export is copied to project."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
@@ -256,9 +244,7 @@ class TestAudioUnitProjectGeneration:
         assert (gen_dir / "gen_dsp").is_dir()
         assert (gen_dir / "gen_dsp" / "genlib.cpp").is_file()
 
-    def test_cmakelists_num_io(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_cmakelists_num_io(self, gigaverb_export: Path, tmp_project: Path):
         """Test that CMakeLists.txt has correct I/O counts."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
@@ -279,9 +265,7 @@ class TestAudioUnitBuildIntegration:
     """
 
     @_skip_no_toolchain
-    def test_build_au_no_buffers(
-        self, gigaverb_export: Path, tmp_path: Path
-    ):
+    def test_build_au_no_buffers(self, gigaverb_export: Path, tmp_path: Path):
         """Generate and compile an AudioUnit from gigaverb (no buffers)."""
         project_dir = tmp_path / "gigaverb_au"
         parser = GenExportParser(gigaverb_export)
@@ -323,9 +307,7 @@ class TestAudioUnitBuildIntegration:
         assert component_files[0].name == "gigaverb.component"
 
     @_skip_no_toolchain
-    def test_build_au_with_buffers(
-        self, rampleplayer_export: Path, tmp_path: Path
-    ):
+    def test_build_au_with_buffers(self, rampleplayer_export: Path, tmp_path: Path):
         """Generate and compile an AudioUnit from RamplePlayer (has buffers)."""
         project_dir = tmp_path / "rampleplayer_au"
         parser = GenExportParser(rampleplayer_export)
@@ -413,9 +395,7 @@ class TestAudioUnitBuildIntegration:
         assert "<string>aufx</string>" in plist
 
     @_skip_no_toolchain
-    def test_build_clean_rebuild(
-        self, gigaverb_export: Path, tmp_path: Path
-    ):
+    def test_build_clean_rebuild(self, gigaverb_export: Path, tmp_path: Path):
         """Test that clean + rebuild works via the platform API."""
         project_dir = tmp_path / "gigaverb_rebuild"
         parser = GenExportParser(gigaverb_export)

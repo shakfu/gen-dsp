@@ -1,6 +1,6 @@
 [project]
 name = "gen-dsp"
-version = "0.1.0"
+version = "0.1.1"
 description = "Generate multiple dsp plugin formats from Max gen~ exports"
 readme = "README.md"
 license = {text = "MIT"}
@@ -22,24 +22,29 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Multimedia :: Sound/Audio",
     "Topic :: Software Development :: Code Generators",
 ]
 requires-python = ">=3.9"
 dependencies = []
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
-    "pytest>=7.0",
-    "pytest-cov>=4.0",
+    "mypy>=1.19.1",
+    "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
+    "ruff>=0.15.0",
+    "twine>=6.2.0",
 ]
 
 [project.scripts]
 gen-dsp = "gen_dsp.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/samesimilar/gen_dsp"
-Repository = "https://github.com/samesimilar/gen_dsp"
+Homepage = "https://github.com/shakfu/gen_dsp"
+Repository = "https://github.com/shakfu/gen_dsp"
 
 [build-system]
 requires = ["uv_build>=0.9.29,<0.10.0"]
@@ -61,3 +66,5 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "raise NotImplementedError",
 ]
+
+

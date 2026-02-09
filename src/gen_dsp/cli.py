@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Optional
 
 from gen_dsp import __version__
-from gen_dsp.core.parser import GenExportParser, ExportInfo
+from gen_dsp.core.parser import GenExportParser
 from gen_dsp.core.project import ProjectGenerator, ProjectConfig
 from gen_dsp.core.patcher import Patcher
 from gen_dsp.core.builder import Builder
@@ -46,7 +46,8 @@ Examples:
     )
 
     parser.add_argument(
-        "-V", "--version",
+        "-V",
+        "--version",
         action="version",
         version=f"gen-dsp {__version__}",
     )
@@ -65,18 +66,21 @@ Examples:
         help="Path to the gen~ export directory",
     )
     init_parser.add_argument(
-        "-n", "--name",
+        "-n",
+        "--name",
         required=True,
         help="Name for the external (will be loaded as <name>~ in Pd)",
     )
     init_parser.add_argument(
-        "-p", "--platform",
+        "-p",
+        "--platform",
         choices=list_platforms() + ["both"],
         default="pd",
         help=f"Target platform: {', '.join(list_platforms())}, or 'both' (default: pd)",
     )
     init_parser.add_argument(
-        "-o", "--output",
+        "-o",
+        "--output",
         type=Path,
         help="Output directory (default: ./<name>)",
     )
@@ -115,7 +119,8 @@ Examples:
         help="Path to the project directory (default: current directory)",
     )
     build_parser.add_argument(
-        "-p", "--platform",
+        "-p",
+        "--platform",
         choices=list_platforms(),
         default="pd",
         help=f"Target platform: {', '.join(list_platforms())} (default: pd)",
@@ -126,7 +131,8 @@ Examples:
         help="Clean before building",
     )
     build_parser.add_argument(
-        "-v", "--verbose",
+        "-v",
+        "--verbose",
         action="store_true",
         help="Show build output in real-time",
     )
@@ -192,7 +198,11 @@ def cmd_init(args: argparse.Namespace) -> int:
 
     # Warn if --shared-cache used with non-CMake platform
     cmake_platforms = {"clap", "vst3", "lv2"}
-    if args.shared_cache and args.platform not in cmake_platforms and args.platform != "both":
+    if (
+        args.shared_cache
+        and args.platform not in cmake_platforms
+        and args.platform != "both"
+    ):
         print(
             f"Warning: --shared-cache has no effect for platform '{args.platform}' "
             f"(only {', '.join(sorted(cmake_platforms))})",
@@ -213,8 +223,8 @@ def cmd_init(args: argparse.Namespace) -> int:
     errors = config.validate()
     if errors:
         print("Configuration errors:", file=sys.stderr)
-        for e in errors:
-            print(f"  - {e}", file=sys.stderr)
+        for err in errors:
+            print(f"  - {err}", file=sys.stderr)
         return 1
 
     # Determine output directory
@@ -280,7 +290,7 @@ def cmd_build(args: argparse.Namespace) -> int:
         )
 
         if result.success:
-            print(f"Build successful!")
+            print("Build successful!")
             if result.output_file:
                 print(f"Output: {result.output_file}")
             return 0

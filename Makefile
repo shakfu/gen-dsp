@@ -1,7 +1,8 @@
 # Development Makefile for gen_dsp Python package
 
 .PHONY: all install install-dev test test-cov clean dist help venv \
-       example-pd example-max example-chuck example-au example-clap example-vst3 examples
+       example-pd example-max example-chuck example-au example-clap \
+       example-vst3 examples lint format typecheck qa
 
 VENV := .venv
 UV := uv
@@ -29,6 +30,17 @@ install:
 # Install with development dependencies
 install-dev:
 	$(UV) pip install -e ".[dev]"
+
+lint:
+	$(UV) run ruff check --fix src/ tests/
+
+format:
+	$(UV) run ruff format src/ tests/
+
+typecheck:
+	$(UV) run mypy --strict src/
+
+qa: test lint typecheck format 
 
 # Run tests
 test:

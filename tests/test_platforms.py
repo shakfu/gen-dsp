@@ -4,7 +4,6 @@ import pytest
 
 from gen_dsp.platforms import (
     PLATFORM_REGISTRY,
-    Platform,
     PureDataPlatform,
     MaxPlatform,
     get_platform,

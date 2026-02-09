@@ -2,7 +2,6 @@
 
 import json
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -43,13 +42,17 @@ class TestInitCommand:
     def test_init_dry_run(self, gigaverb_export: Path, tmp_path: Path, capsys):
         """Test init command with --dry-run."""
         output_dir = tmp_path / "output"
-        result = main([
-            "init",
-            str(gigaverb_export),
-            "-n", "testverb",
-            "-o", str(output_dir),
-            "--dry-run",
-        ])
+        result = main(
+            [
+                "init",
+                str(gigaverb_export),
+                "-n",
+                "testverb",
+                "-o",
+                str(output_dir),
+                "--dry-run",
+            ]
+        )
 
         assert result == 0
         captured = capsys.readouterr()
@@ -59,12 +62,16 @@ class TestInitCommand:
     def test_init_creates_project(self, gigaverb_export: Path, tmp_path: Path):
         """Test init command creates project."""
         output_dir = tmp_path / "testverb"
-        result = main([
-            "init",
-            str(gigaverb_export),
-            "-n", "testverb",
-            "-o", str(output_dir),
-        ])
+        result = main(
+            [
+                "init",
+                str(gigaverb_export),
+                "-n",
+                "testverb",
+                "-o",
+                str(output_dir),
+            ]
+        )
 
         assert result == 0
         assert output_dir.is_dir()
@@ -74,13 +81,19 @@ class TestInitCommand:
     def test_init_with_buffers(self, gigaverb_export: Path, tmp_path: Path):
         """Test init command with explicit buffers."""
         output_dir = tmp_path / "testverb"
-        result = main([
-            "init",
-            str(gigaverb_export),
-            "-n", "testverb",
-            "-o", str(output_dir),
-            "--buffers", "buf1", "buf2",
-        ])
+        result = main(
+            [
+                "init",
+                str(gigaverb_export),
+                "-n",
+                "testverb",
+                "-o",
+                str(output_dir),
+                "--buffers",
+                "buf1",
+                "buf2",
+            ]
+        )
 
         assert result == 0
         buffer_h = (output_dir / "gen_buffer.h").read_text()
@@ -91,9 +104,17 @@ class TestInitCommand:
     def test_init_shared_cache_flag_parsed(self):
         """Test that --shared-cache flag is parsed."""
         parser = create_parser()
-        args = parser.parse_args([
-            "init", ".", "-n", "test", "-p", "clap", "--shared-cache",
-        ])
+        args = parser.parse_args(
+            [
+                "init",
+                ".",
+                "-n",
+                "test",
+                "-p",
+                "clap",
+                "--shared-cache",
+            ]
+        )
         assert args.shared_cache is True
 
     def test_init_shared_cache_default_off(self):
@@ -107,14 +128,19 @@ class TestInitCommand:
     ):
         """Test init with --shared-cache creates project with cache enabled."""
         output_dir = tmp_path / "testverb"
-        result = main([
-            "init",
-            str(gigaverb_export),
-            "-n", "testverb",
-            "-p", "clap",
-            "-o", str(output_dir),
-            "--shared-cache",
-        ])
+        result = main(
+            [
+                "init",
+                str(gigaverb_export),
+                "-n",
+                "testverb",
+                "-p",
+                "clap",
+                "-o",
+                str(output_dir),
+                "--shared-cache",
+            ]
+        )
 
         assert result == 0
         cmake = (output_dir / "CMakeLists.txt").read_text()
@@ -125,14 +151,19 @@ class TestInitCommand:
     ):
         """Test --shared-cache warns for non-CMake platforms."""
         output_dir = tmp_path / "testverb"
-        result = main([
-            "init",
-            str(gigaverb_export),
-            "-n", "testverb",
-            "-p", "pd",
-            "-o", str(output_dir),
-            "--shared-cache",
-        ])
+        result = main(
+            [
+                "init",
+                str(gigaverb_export),
+                "-n",
+                "testverb",
+                "-p",
+                "pd",
+                "-o",
+                str(output_dir),
+                "--shared-cache",
+            ]
+        )
 
         assert result == 0
         captured = capsys.readouterr()
@@ -141,12 +172,16 @@ class TestInitCommand:
 
     def test_init_invalid_name(self, gigaverb_export: Path, tmp_path: Path, capsys):
         """Test init command with invalid name."""
-        result = main([
-            "init",
-            str(gigaverb_export),
-            "-n", "123invalid",
-            "-o", str(tmp_path / "output"),
-        ])
+        result = main(
+            [
+                "init",
+                str(gigaverb_export),
+                "-n",
+                "123invalid",
+                "-o",
+                str(tmp_path / "output"),
+            ]
+        )
 
         assert result == 1
         captured = capsys.readouterr()
@@ -154,11 +189,14 @@ class TestInitCommand:
 
     def test_init_invalid_export_path(self, tmp_path: Path, capsys):
         """Test init command with non-existent export path."""
-        result = main([
-            "init",
-            str(tmp_path / "nonexistent"),
-            "-n", "test",
-        ])
+        result = main(
+            [
+                "init",
+                str(tmp_path / "nonexistent"),
+                "-n",
+                "test",
+            ]
+        )
 
         assert result == 1
         captured = capsys.readouterr()

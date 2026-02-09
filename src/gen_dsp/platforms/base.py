@@ -12,6 +12,7 @@ from typing import Optional
 
 from gen_dsp.core.parser import ExportInfo
 from gen_dsp.core.builder import BuildResult
+from gen_dsp.core.project import ProjectConfig
 
 
 class Platform(ABC):
@@ -20,8 +21,11 @@ class Platform(ABC):
     # Platform identifier (e.g., 'pd', 'max')
     name: str = "base"
 
-    # File extension for built externals (can be property for OS-dependent)
-    extension: str = ""
+    @property
+    @abstractmethod
+    def extension(self) -> str:
+        """File extension for built externals (e.g. '.pd_darwin', '.clap')."""
+        ...
 
     # Version string for generated projects
     GENEXT_VERSION = "0.8.0"
@@ -33,7 +37,7 @@ class Platform(ABC):
         output_dir: Path,
         lib_name: str,
         buffers: list[str],
-        config=None,
+        config: Optional[ProjectConfig] = None,
     ) -> None:
         """
         Generate project files for this platform.
@@ -158,7 +162,7 @@ class Platform(ABC):
         cmd: list[str],
         cwd: Path,
         verbose: bool = False,
-    ) -> subprocess.CompletedProcess:
+    ) -> subprocess.CompletedProcess[str]:
         """
         Run a subprocess command with optional output streaming.
 
@@ -182,6 +186,7 @@ class Platform(ABC):
             )
 
             output_lines = []
+            assert process.stdout is not None
             for line in process.stdout:
                 print(line, end="")
                 output_lines.append(line)

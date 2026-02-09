@@ -21,6 +21,7 @@ from typing import Optional
 
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.parser import ExportInfo
+from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform
 from gen_dsp.templates import get_lv2_templates_dir
@@ -82,7 +83,7 @@ class Lv2Platform(Platform):
         output_dir: Path,
         lib_name: str,
         buffers: list[str],
-        config=None,
+        config: Optional[ProjectConfig] = None,
     ) -> None:
         """Generate LV2 project files."""
         templates_dir = get_lv2_templates_dir()
@@ -323,9 +324,7 @@ class Lv2Platform(Platform):
     ) -> None:
         """Generate CMakeLists.txt from template."""
         if not template_path.exists():
-            raise ProjectError(
-                f"CMakeLists.txt template not found at {template_path}"
-            )
+            raise ProjectError(f"CMakeLists.txt template not found at {template_path}")
 
         template_content = template_path.read_text()
         template = Template(template_content)
@@ -361,9 +360,7 @@ class Lv2Platform(Platform):
         build_dir.mkdir(exist_ok=True)
 
         # Configure with CMake
-        configure_result = self.run_command(
-            ["cmake", ".."], build_dir, verbose=verbose
-        )
+        configure_result = self.run_command(["cmake", ".."], build_dir, verbose=verbose)
         if configure_result.returncode != 0:
             return BuildResult(
                 success=False,

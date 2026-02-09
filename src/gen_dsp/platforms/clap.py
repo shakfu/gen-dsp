@@ -13,6 +13,7 @@ from typing import Optional
 
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.parser import ExportInfo
+from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform
 from gen_dsp.templates import get_clap_templates_dir
@@ -40,7 +41,7 @@ class ClapPlatform(Platform):
         output_dir: Path,
         lib_name: str,
         buffers: list[str],
-        config=None,
+        config: Optional[ProjectConfig] = None,
     ) -> None:
         """Generate CLAP project files."""
         templates_dir = get_clap_templates_dir()
@@ -61,13 +62,11 @@ class ClapPlatform(Platform):
             if src.exists():
                 shutil.copy2(src, output_dir / filename)
 
-        # Detect plugin type from I/O configuration
-        plugin_type = self._detect_plugin_type(export_info.num_inputs)
-
         # Resolve shared cache settings
         shared_cache = config is not None and config.shared_cache
         if shared_cache:
             from gen_dsp.core.cache import get_cache_dir
+
             cache_dir = str(get_cache_dir())
         else:
             cache_dir = ""
@@ -115,9 +114,7 @@ class ClapPlatform(Platform):
     ) -> None:
         """Generate CMakeLists.txt from template."""
         if not template_path.exists():
-            raise ProjectError(
-                f"CMakeLists.txt template not found at {template_path}"
-            )
+            raise ProjectError(f"CMakeLists.txt template not found at {template_path}")
 
         template_content = template_path.read_text()
         template = Template(template_content)
@@ -152,9 +149,7 @@ class ClapPlatform(Platform):
         build_dir.mkdir(exist_ok=True)
 
         # Configure with CMake
-        configure_result = self.run_command(
-            ["cmake", ".."], build_dir, verbose=verbose
-        )
+        configure_result = self.run_command(["cmake", ".."], build_dir, verbose=verbose)
         if configure_result.returncode != 0:
             return BuildResult(
                 success=False,

@@ -3,7 +3,6 @@
 import platform
 from pathlib import Path
 
-import pytest
 
 from gen_dsp.core.cache import get_cache_dir
 

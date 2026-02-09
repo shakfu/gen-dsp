@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1]
+
 ### Added
 
 - **LV2 plugin platform support** with CMake-based build system
@@ -85,6 +87,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Strict mypy compliance** across all platform modules
+  - `Platform.extension` changed from class attribute to `@property @abstractmethod` so subclass `@property` overrides are type-safe
+  - `generate_project()` `config` parameter typed as `Optional[ProjectConfig]` in base class and all 7 platform subclasses
+  - `run_command()` return type narrowed to `CompletedProcess[str]`
+  - Fixed `process.stdout` iteration guard in verbose mode
+  - Fixed variable shadowing in CLI error reporting loop
 - **Platform registry refactor** for easier addition of new backends
   - Added `PLATFORM_REGISTRY` dict in `platforms/__init__.py` for dynamic platform lookup
   - New helper functions: `get_platform()`, `get_platform_class()`, `list_platforms()`, `is_valid_platform()`

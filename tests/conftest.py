@@ -39,7 +39,9 @@ def tmp_project(tmp_path: Path) -> Path:
 
 # Fixed path under build/ (gitignored) so SDK downloads persist across
 # pytest sessions.  Both CLAP and VST3 build tests use this.
-_FETCHCONTENT_CACHE = Path(__file__).resolve().parent.parent / "build" / ".fetchcontent_cache"
+_FETCHCONTENT_CACHE = (
+    Path(__file__).resolve().parent.parent / "build" / ".fetchcontent_cache"
+)
 
 
 @pytest.fixture(scope="session")
@@ -51,5 +53,3 @@ def fetchcontent_cache() -> Path:
     """
     _FETCHCONTENT_CACHE.mkdir(parents=True, exist_ok=True)
     return _FETCHCONTENT_CACHE
-
-

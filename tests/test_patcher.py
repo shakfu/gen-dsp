@@ -3,7 +3,6 @@
 import shutil
 from pathlib import Path
 
-import pytest
 
 from gen_dsp.core.patcher import Patcher, PatchResult
 

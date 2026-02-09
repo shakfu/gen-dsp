@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Optional
 
 from gen_dsp.core.parser import ExportInfo
-from gen_dsp.errors import ProjectError, ValidationError
+from gen_dsp.errors import ValidationError
 
 
 @dataclass
@@ -70,9 +70,7 @@ class ProjectConfig:
         # Validate buffer names
         for buf_name in self.buffers:
             if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", buf_name):
-                errors.append(
-                    f"Buffer name '{buf_name}' is not a valid C identifier."
-                )
+                errors.append(f"Buffer name '{buf_name}' is not a valid C identifier.")
 
         return errors
 

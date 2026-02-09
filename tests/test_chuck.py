@@ -131,9 +131,7 @@ class TestChuckProjectGeneration:
         assert "WRAPPER_BUFFER_NAME_1 buf2" in buffer_h
         assert "WRAPPER_BUFFER_NAME_2 buf3" in buffer_h
 
-    def test_makefile_content(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_makefile_content(self, gigaverb_export: Path, tmp_project: Path):
         """Test that makefile has correct template substitutions."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
@@ -148,9 +146,7 @@ class TestChuckProjectGeneration:
         assert "GEN_EXPORTED_NAME=gen_exported" in makefile
         assert "GENLIB_USE_FLOAT32" in makefile
 
-    def test_generate_copies_gen_export(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_generate_copies_gen_export(self, gigaverb_export: Path, tmp_project: Path):
         """Test that gen~ export is copied to project."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
@@ -174,9 +170,7 @@ class TestChuckBuildIntegration:
     """
 
     @_skip_no_toolchain
-    def test_build_chugin_no_buffers(
-        self, gigaverb_export: Path, tmp_path: Path
-    ):
+    def test_build_chugin_no_buffers(self, gigaverb_export: Path, tmp_path: Path):
         """Generate and compile a chugin from gigaverb (no buffers)."""
         project_dir = tmp_path / "gigaverb_chuck"
         parser = GenExportParser(gigaverb_export)
@@ -207,9 +201,7 @@ class TestChuckBuildIntegration:
         assert chug_files[0].stat().st_size > 0
 
     @_skip_no_toolchain
-    def test_build_chugin_with_buffers(
-        self, rampleplayer_export: Path, tmp_path: Path
-    ):
+    def test_build_chugin_with_buffers(self, rampleplayer_export: Path, tmp_path: Path):
         """Generate and compile a chugin from RamplePlayer (has buffers)."""
         project_dir = tmp_path / "rampleplayer_chuck"
         parser = GenExportParser(rampleplayer_export)
@@ -272,9 +264,7 @@ class TestChuckBuildIntegration:
         assert chug_files[0].stat().st_size > 0
 
     @_skip_no_toolchain
-    def test_build_clean_rebuild(
-        self, gigaverb_export: Path, tmp_path: Path
-    ):
+    def test_build_clean_rebuild(self, gigaverb_export: Path, tmp_path: Path):
         """Test that clean + rebuild works via the platform API."""
         project_dir = tmp_path / "gigaverb_rebuild"
         parser = GenExportParser(gigaverb_export)
@@ -298,9 +288,7 @@ class TestChuckBuildIntegration:
         assert build_result.output_file is not None
 
     @_skip_no_chuck
-    def test_load_chugin_in_chuck(
-        self, gigaverb_export: Path, tmp_path: Path
-    ):
+    def test_load_chugin_in_chuck(self, gigaverb_export: Path, tmp_path: Path):
         """Build a chugin and verify ChucK can load and run it."""
         project_dir = tmp_path / "gigaverb_load"
         parser = GenExportParser(gigaverb_export)
@@ -318,9 +306,7 @@ class TestChuckBuildIntegration:
             text=True,
             timeout=120,
         )
-        assert build.returncode == 0, (
-            f"make {target} failed:\nstderr: {build.stderr}"
-        )
+        assert build.returncode == 0, f"make {target} failed:\nstderr: {build.stderr}"
 
         # Write a ChucK script that exercises the chugin
         test_ck = project_dir / "test.ck"

@@ -5,7 +5,6 @@ Uses the platform registry to dynamically select the appropriate
 build system for each platform.
 """
 
-import platform
 import re
 from dataclasses import dataclass
 from pathlib import Path

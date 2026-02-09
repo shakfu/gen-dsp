@@ -13,6 +13,7 @@ from typing import Optional
 
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.parser import ExportInfo
+from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform
 from gen_dsp.templates import get_max_templates_dir
@@ -49,7 +50,7 @@ class MaxPlatform(Platform):
         output_dir: Path,
         lib_name: str,
         buffers: list[str],
-        config=None,
+        config: Optional[ProjectConfig] = None,
     ) -> None:
         """Generate Max/MSP project files."""
         templates_dir = get_max_templates_dir()
@@ -109,9 +110,7 @@ class MaxPlatform(Platform):
                 genext_version=self.GENEXT_VERSION,
             )
         else:
-            raise ProjectError(
-                f"CMakeLists.txt template not found at {template_path}"
-            )
+            raise ProjectError(f"CMakeLists.txt template not found at {template_path}")
 
         output_path.write_text(content)
 
@@ -166,9 +165,7 @@ class MaxPlatform(Platform):
         build_dir.mkdir(exist_ok=True)
 
         # Configure with CMake using base class run_command
-        configure_result = self.run_command(
-            ["cmake", ".."], build_dir, verbose=verbose
-        )
+        configure_result = self.run_command(["cmake", ".."], build_dir, verbose=verbose)
         if configure_result.returncode != 0:
             return BuildResult(
                 success=False,
