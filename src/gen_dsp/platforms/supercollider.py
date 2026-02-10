@@ -118,7 +118,7 @@ class SuperColliderPlatform(Platform):
         if shared_cache:
             from gen_dsp.core.cache import get_cache_dir
 
-            cache_dir = str(get_cache_dir())
+            cache_dir = get_cache_dir().as_posix()
         else:
             cache_dir = ""
 
