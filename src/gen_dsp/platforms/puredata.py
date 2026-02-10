@@ -124,6 +124,7 @@ define forDarwin
 endef
 
 define forLinux
+  cflags += -DGENLIB_USE_FLOAT32 -DWIN32 -DGENLIB_NO_DENORM_TEST
   $(lib.name)~.class.sources += ./gen/gen_dsp/json.c ./gen/gen_dsp/json_builder.c
 endef
 
