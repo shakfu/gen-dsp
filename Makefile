@@ -2,7 +2,7 @@
 
 .PHONY: all install install-dev test test-cov clean dist publish-test publish \
        help venv example-pd example-max example-chuck example-au example-clap \
-       example-vst3 example-lv2 example-sc examples lint format typecheck qa
+       example-vst3 example-lv2 example-sc example-vcvrack examples lint format typecheck qa
 
 VENV := .venv
 UV := uv
@@ -114,8 +114,15 @@ example-sc:
 	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p sc -o $(EXAMPLES_DIR)/$(NAME)_sc $(BUFFERS)
 	cd $(EXAMPLES_DIR)/$(NAME)_sc/build && cmake .. && cmake --build .
 
+# Generate and build a VCV Rack module from a test fixture
+# Rack SDK auto-downloaded to GEN_DSP_CACHE_DIR on first build
+example-vcvrack:
+	rm -rf $(EXAMPLES_DIR)/$(NAME)_vcvrack
+	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p vcvrack -o $(EXAMPLES_DIR)/$(NAME)_vcvrack $(BUFFERS)
+	$(GEN_DSP) build $(EXAMPLES_DIR)/$(NAME)_vcvrack -p vcvrack
+
 # Build all example plugins
-examples: example-pd example-max example-chuck example-au example-clap example-vst3 example-lv2 example-sc
+examples: example-pd example-max example-chuck example-au example-clap example-vst3 example-lv2 example-sc example-vcvrack
 
 # Build distribution
 dist: clean
@@ -148,6 +155,7 @@ help:
 	@echo "  example-vst3  - Generate and build a VST3 plugin"
 	@echo "  example-lv2   - Generate and build an LV2 plugin"
 	@echo "  example-sc    - Generate and build a SuperCollider UGen"
+	@echo "  example-vcvrack - Generate and build a VCV Rack module (requires RACK_DIR)"
 	@echo "  examples      - Build all example plugins"
 	@echo "  clean         - Remove build artifacts"
 	@echo "  dist          - Build distribution packages"

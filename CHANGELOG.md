@@ -7,7 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2]
+
 ### Added
+
+- **VCV Rack module platform support** with Make-based build system
+  - Generates VCV Rack plugins (`plugin.dylib`/`.so`/`.dll`) from gen~ exports
+  - Uses the Rack SDK's Makefile-based build (`plugin.mk`); requires `RACK_DIR` env var
+  - Per-sample processing: gen~'s `perform()` called with `n=1` for zero-latency (VCV Rack's `process()` runs once per sample)
+  - Voltage scaling: gen~ audio [-1, 1] mapped to VCV standard +/-5V; parameters map directly (gen~ min/max = knob min/max)
+  - Parameter metadata (names, ranges) queried from gen~ at module construction time via temporary state
+  - Auto-generates `plugin.json` manifest with module slug, tags (`Effect` vs `Synth Voice`), and brand info
+  - Auto-generates minimal dark panel SVG sized to component count (6/10/16/24 HP)
+  - Auto-layout widget: screws at corners, knobs for params, ports for I/O, arranged in columns (max 9 per column)
+  - Auto-detects effect vs generator from input count
+  - 32-bit float signal processing (`GENLIB_USE_FLOAT32`)
+  - Buffer support via `VcvrackBuffer` class (same pattern as LV2/SC/etc.)
+  - Cross-platform: macOS, Linux, Windows
+  - Platform key: `"vcvrack"`
 
 - **SuperCollider UGen platform support** with CMake-based build system
   - Generates cross-platform SC UGens (`.scx` on macOS, `.so` on Linux) from gen~ exports

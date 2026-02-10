@@ -2,9 +2,9 @@
 
 This project is a friendly fork of Michael Spears' [gen_ext](https://github.com/samesimilar/gen_ext) which was originally created to "compile code exported from a Max gen~ object into an "external" object that can be loaded into a PureData patch."
 
-This fork has taken this excellent original idea and implementation and extended it to include Max/MSP externals, ChucK chugins, AudioUnit (AUv2) plugins, CLAP plugins, VST3 plugins, LV2 plugins, SuperCollider UGens, and possibly other DSP architectures (see [TODO.md](TODO.md)).
+This fork has taken this excellent original idea and implementation and extended it to include Max/MSP externals, ChucK chugins, AudioUnit (AUv2) plugins, CLAP plugins, VST3 plugins, LV2 plugins, SuperCollider UGens, VCV Rack modules, and possibly other DSP architectures (see [TODO.md](TODO.md)).
 
-gen-dsp compiles code exported from Max gen~ objects into external objects for PureData, Max/MSP, ChucK, AudioUnit (AUv2), CLAP, VST3, LV2, and SuperCollider. It automates project setup, buffer detection, and platform-specific patches.
+gen-dsp compiles code exported from Max gen~ objects into external objects for PureData, Max/MSP, ChucK, AudioUnit (AUv2), CLAP, VST3, LV2, SuperCollider, and VCV Rack. It automates project setup, buffer detection, and platform-specific patches.
 
 ## Key Improvements
 
@@ -27,6 +27,8 @@ gen-dsp compiles code exported from Max gen~ objects into external objects for P
 - **LV2 support**: Generates cross-platform LV2 plugins (`.lv2` bundles) with TTL metadata containing real parameter names/ranges parsed from gen~ exports -- LV2 headers fetched via CMake FetchContent.
 
 - **SuperCollider support**: Generates cross-platform SC UGens (`.scx`/`.so`) with `.sc` class files containing parameter names/defaults parsed from gen~ exports -- SC plugin headers fetched via CMake FetchContent.
+
+- **VCV Rack support**: Generates VCV Rack modules with per-sample processing, auto-generated `plugin.json` manifest and panel SVG -- requires pre-installed Rack SDK.
 
 - **Platform-specific patches**: Automatically fixes compatibility issues like the `exp2f -> exp2` problem in Max 9 exports on macOS.
 
@@ -78,7 +80,7 @@ gen-dsp init <export-path> -n <name> [-p <platform>] [-o <output>]
 Options:
 
 - `-n, --name` - Name for the external (required)
-- `-p, --platform` - Target platform: `pd` (default), `max`, `chuck`, `au`, `clap`, `vst3`, `lv2`, `sc`, or `both`
+- `-p, --platform` - Target platform: `pd` (default), `max`, `chuck`, `au`, `clap`, `vst3`, `lv2`, `sc`, `vcvrack`, or `both`
 - `-o, --output` - Output directory (default: `./<name>`)
 - `--buffers` - Explicit buffer names (overrides auto-detection)
 - `--shared-cache` - Use a shared OS cache for FetchContent downloads (clap, vst3, lv2, sc only)
@@ -443,15 +445,50 @@ s.boot;
 { MyOsc.ar(freq: 440, amp: 0.3) }.play;
 ```
 
+## VCV Rack Support
+
+gen-dsp supports generating VCV Rack modules using the Rack SDK's Makefile-based build system. The VCV Rack SDK must be pre-installed and `RACK_DIR` must point to it.
+
+### Quick Start (VCV Rack)
+
+```bash
+# Create a VCV Rack project
+gen-dsp init ./my_export -n myeffect -p vcvrack -o ./myeffect_vcvrack
+
+# Build (requires RACK_DIR to point to Rack SDK)
+cd myeffect_vcvrack
+export RACK_DIR=/path/to/Rack-SDK
+make
+
+# Output: plugin.dylib (macOS), plugin.so (Linux), or plugin.dll (Windows)
+
+# Install: copy entire plugin directory to VCV Rack plugins folder
+# macOS: ~/Documents/Rack2/plugins/
+# Linux: ~/.Rack2/plugins/
+```
+
+The module is automatically detected as an effect (`Effect` tag) if the gen~ export has inputs, or a generator (`Synth Voice` tag) if it has no inputs.
+
+### VCV Rack Module Details
+
+- **Processing**: Per-sample via `perform(n=1)` -- zero latency, called once per sample from VCV Rack's `process()`
+- **Voltage scaling**: gen~ audio [-1, 1] mapped to VCV standard +/-5V; parameters map directly (gen~ min/max = knob min/max)
+- **Parameters**: all gen~ parameters exposed as knobs with real names and ranges queried at construction time
+- **Panel**: auto-generated dark SVG panel sized to component count (6/10/16/24 HP)
+- **Auto-layout**: screws at corners, knobs for params, input/output ports arranged in columns
+- **Manifest**: `plugin.json` generated with module slug, tags, and brand info
+- **Cross-platform**: macOS, Linux, and Windows
+- **Plugin ID**: slug matches lib_name
+
 ### Platform Comparison
 
-| Aspect | LV2 | VST3 | CLAP | SC | AudioUnit | ChucK | PureData | Max/MSP |
-|--------|-----|------|------|----|-----------|-------|----------|---------|
-| Signal type | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | double (64-bit) |
-| Build system | CMake (FetchContent) | CMake (FetchContent) | CMake (FetchContent) | CMake (FetchContent) | CMake | make | make (pd-lib-builder) | CMake (max-sdk-base) |
-| Output format | .lv2 | .vst3 | .clap | .scx / .so | .component | .chug | .pd_darwin / .pd_linux | .mxo / .mxe64 |
-| macOS only | no | no | no | no | yes | no | no | no |
-| External deps | LV2 headers (fetched) | VST3 SDK (fetched) | CLAP headers (fetched) | SC headers (fetched) | none (system frameworks) | none (bundled chugin.h) | PureData headers | max-sdk-base (git) |
+| Aspect | LV2 | VST3 | CLAP | SC | VCV Rack | AudioUnit | ChucK | PureData | Max/MSP |
+|--------|-----|------|------|----|----------|-----------|-------|----------|---------|
+| Signal type | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | double (64-bit) |
+| Build system | CMake (FetchContent) | CMake (FetchContent) | CMake (FetchContent) | CMake (FetchContent) | make (Rack SDK) | CMake | make | make (pd-lib-builder) | CMake (max-sdk-base) |
+| Output format | .lv2 | .vst3 | .clap | .scx / .so | plugin.dylib / .so | .component | .chug | .pd_darwin / .pd_linux | .mxo / .mxe64 |
+| macOS only | no | no | no | no | no | yes | no | no | no |
+| External deps | LV2 headers (fetched) | VST3 SDK (fetched) | CLAP headers (fetched) | SC headers (fetched) | Rack SDK (pre-installed) | none (system frameworks) | none (bundled chugin.h) | PureData headers | max-sdk-base (git) |
 
 ### PureData vs Max/MSP
 
@@ -507,6 +544,7 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 - VST3: first CMake configure requires network access to fetch VST3 SDK (~50MB, cached afterward); GPL3/proprietary dual license
 - LV2: first CMake configure requires network access to fetch LV2 headers (cached afterward)
 - SuperCollider: first CMake configure requires network access to fetch SC headers (~80MB tarball, cached afterward)
+- VCV Rack: requires pre-installed Rack SDK (`RACK_DIR` env var); per-sample `perform(n=1)` has higher CPU overhead than block-based processing
 
 ## Requirements
 
@@ -561,6 +599,12 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 - C/C++ compiler (clang, gcc)
 - Network access on first configure (to fetch SC plugin headers)
 
+### VCV Rack builds
+
+- make
+- C/C++ compiler (clang, gcc)
+- VCV Rack SDK (`RACK_DIR` environment variable must point to SDK path)
+
 ### macOS
 
 Install Xcode or Command Line Tools:
@@ -605,6 +649,7 @@ make example-clap     # CLAP plugin
 make example-vst3     # VST3 plugin
 make example-lv2      # LV2 plugin
 make example-sc       # SuperCollider UGen
+make example-vcvrack  # VCV Rack module (requires RACK_DIR)
 make examples         # All platforms
 ```
 

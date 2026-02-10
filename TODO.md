@@ -20,12 +20,9 @@
 
 - [x] **SuperCollider UGens** - Full support. Generates cross-platform SC UGens (.scx on macOS, .so on Linux) using the SC plugin interface headers (fetched via CMake FetchContent). Generates .sc class files with parameter names/defaults parsed from gen~ exports. Auto-detects effect vs generator from I/O. See `src/gen_dsp/templates/sc/`.
 
+- [x] **VCV Rack modules** - Full support. Generates VCV Rack modules using the Rack SDK's Makefile-based build system. Per-sample processing via perform(n=1). Auto-generates plugin.json manifest and panel SVG. Auto-detects effect vs generator from I/O. Parameter names/ranges parsed from gen~ exports. See `src/gen_dsp/templates/vcvrack/`.
+
 ### To Implement
-
-#### High Priority
-
-- [ ] **VCV Rack modules** - Virtual Eurorack with growing community. Sample-by-sample C++ API. Visual/modular paradigm aligns with gen~ patching approach.
-  - Docs: <https://vcvrack.com/manual/PluginDevelopmentTutorial>
 
 #### Embedded/Hardware Targets
 
@@ -33,7 +30,9 @@
   - Docs: <https://learn.bela.io/>
 
 - [ ] **Daisy (Electrosmith)** - STM32-based embedded audio. Powers commercial Eurorack modules and DIY projects.
-  - Docs: <https://github.com/electro-smith/DaisySP>
+  - Docs:
+    - <https://github.com/electro-smith/libDaisy>
+    - <https://github.com/electro-smith/DaisySP>
 
 - [ ] **Teensy Audio Library** - Arduino-compatible, popular for DIY synths.
   - Docs: <https://www.pjrc.com/teensy/td_libs_Audio.html>

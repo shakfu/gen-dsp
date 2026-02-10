@@ -202,3 +202,26 @@ def list_sc_templates() -> list[Path]:
     if not sc_dir.is_dir():
         return []
     return list(sc_dir.glob("*"))
+
+
+def get_vcvrack_templates_dir() -> Path:
+    """
+    Get the path to VCV Rack module templates.
+
+    Returns:
+        Path to the vcvrack/ templates directory.
+    """
+    return get_templates_dir() / "vcvrack"
+
+
+def list_vcvrack_templates() -> list[Path]:
+    """
+    List all VCV Rack module template files.
+
+    Returns:
+        List of paths to template files.
+    """
+    vcvrack_dir = get_vcvrack_templates_dir()
+    if not vcvrack_dir.is_dir():
+        return []
+    return list(vcvrack_dir.glob("*"))

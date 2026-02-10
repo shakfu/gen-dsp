@@ -8,7 +8,7 @@ This package provides tools to:
 - Build externals using the appropriate build system
 """
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 from gen_dsp.core.parser import GenExportParser
 from gen_dsp.core.project import ProjectGenerator

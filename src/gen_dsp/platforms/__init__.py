@@ -19,6 +19,7 @@ from gen_dsp.platforms.clap import ClapPlatform
 from gen_dsp.platforms.vst3 import Vst3Platform
 from gen_dsp.platforms.lv2 import Lv2Platform
 from gen_dsp.platforms.supercollider import SuperColliderPlatform
+from gen_dsp.platforms.vcvrack import VcvRackPlatform
 
 
 # Registry mapping platform names to their implementation classes.
@@ -35,6 +36,7 @@ PLATFORM_REGISTRY: dict[str, Type[Platform]] = {
     "vst3": Vst3Platform,
     "lv2": Lv2Platform,
     "sc": SuperColliderPlatform,
+    "vcvrack": VcvRackPlatform,
 }
 
 
@@ -109,6 +111,7 @@ __all__ = [
     "Vst3Platform",
     "Lv2Platform",
     "SuperColliderPlatform",
+    "VcvRackPlatform",
     "PLATFORM_REGISTRY",
     "get_platform",
     "get_platform_class",
