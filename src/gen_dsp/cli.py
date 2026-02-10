@@ -27,7 +27,7 @@ def create_parser() -> argparse.ArgumentParser:
     """Create the argument parser."""
     parser = argparse.ArgumentParser(
         prog="gen-dsp",
-        description="Generate PureData and Max/MSP externals from Max gen~ exports",
+        description="Generate buildable audio DSP externals from Max gen~ exports",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -42,6 +42,12 @@ Examples:
 
   # Apply platform patches (exp2f fix)
   gen-dsp patch ./myeffect_project
+
+  # List available target platforms
+  gen-dsp list
+
+  # Show cached SDKs and dependencies
+  gen-dsp cache
 """,
     )
 
@@ -175,6 +181,20 @@ Examples:
         help="Show what would be done without modifying files",
     )
 
+    # list command
+    subparsers.add_parser(
+        "list",
+        help="List available target platforms",
+        description="Show all supported target platforms.",
+    )
+
+    # cache command
+    subparsers.add_parser(
+        "cache",
+        help="Show cached SDKs and dependencies",
+        description="Show paths and status of cached SDKs and dependencies.",
+    )
+
     return parser
 
 
@@ -200,7 +220,7 @@ def cmd_init(args: argparse.Namespace) -> int:
         print("Buffer names must be valid C identifiers.", file=sys.stderr)
         return 1
 
-    # Warn if --shared-cache used with non-CMake platform
+    # Reject --shared-cache on non-CMake platforms
     cmake_platforms = {"clap", "vst3", "lv2", "sc"}
     if (
         args.shared_cache
@@ -208,18 +228,18 @@ def cmd_init(args: argparse.Namespace) -> int:
         and args.platform != "both"
     ):
         print(
-            f"Warning: --shared-cache has no effect for platform '{args.platform}' "
-            f"(only {', '.join(sorted(cmake_platforms))})",
+            f"Error: --shared-cache is only valid for {', '.join(sorted(cmake_platforms))}",
             file=sys.stderr,
         )
+        return 1
 
-    # Warn if --board used with non-daisy platform
+    # Reject --board on non-daisy platforms
     if args.board and args.platform != "daisy":
         print(
-            f"Warning: --board has no effect for platform '{args.platform}' "
-            f"(only daisy)",
+            f"Error: --board is only valid for daisy",
             file=sys.stderr,
         )
+        return 1
 
     # Create config
     config = ProjectConfig(
@@ -401,6 +421,75 @@ def cmd_patch(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_list(args: argparse.Namespace) -> int:
+    """Handle the list command."""
+    for name in list_platforms():
+        print(name)
+    return 0
+
+
+def cmd_cache(args: argparse.Namespace) -> int:
+    """Handle the cache command."""
+    import os
+
+    from gen_dsp.core.cache import get_cache_dir
+    from gen_dsp.platforms.daisy import _resolve_libdaisy_dir, LIBDAISY_VERSION
+    from gen_dsp.platforms.vcvrack import _resolve_rack_dir
+
+    # Resolve effective cache dir (GEN_DSP_CACHE_DIR overrides OS default)
+    env_cache = os.environ.get("GEN_DSP_CACHE_DIR")
+    if env_cache:
+        cache_dir = Path(env_cache)
+        print(f"Cache directory: {cache_dir}  (GEN_DSP_CACHE_DIR)")
+    else:
+        cache_dir = get_cache_dir()
+        print(f"Cache directory: {cache_dir}")
+    print()
+
+    # FetchContent cache (CMake platforms that fetch SDKs)
+    print("FetchContent (clap, lv2, sc, vst3):")
+    if cache_dir.is_dir():
+        # FetchContent creates *-src, *-build, *-subbuild; only show -src
+        src_dirs = sorted(
+            d.name for d in cache_dir.iterdir()
+            if d.is_dir()
+            and d.name.endswith("-src")
+            and d.name not in ("rack-sdk-src", "libdaisy-src")
+        )
+        if src_dirs:
+            for name in src_dirs:
+                sdk_name = name.removesuffix("-src")
+                print(f"  {sdk_name}  ({cache_dir / name})")
+        else:
+            print("  (empty)")
+    else:
+        print("  (not created)")
+    print()
+
+    # Rack SDK
+    rack_dir = _resolve_rack_dir()
+    rack_present = (rack_dir / "Makefile").is_file()
+    print("Rack SDK (vcvrack):")
+    print(f"  Path: {rack_dir}")
+    print(f"  Status: {'present' if rack_present else 'not downloaded'}")
+    print()
+
+    # libDaisy
+    libdaisy_dir = _resolve_libdaisy_dir()
+    libdaisy_present = (libdaisy_dir / "core" / "Makefile").is_file()
+    libdaisy_built = (libdaisy_dir / "build" / "libdaisy.a").is_file()
+    print(f"libDaisy {LIBDAISY_VERSION} (daisy):")
+    print(f"  Path: {libdaisy_dir}")
+    if libdaisy_built:
+        print("  Status: built")
+    elif libdaisy_present:
+        print("  Status: cloned (not built)")
+    else:
+        print("  Status: not cloned")
+
+    return 0
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     """Main entry point."""
     parser = create_parser()
@@ -415,6 +504,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         "build": cmd_build,
         "detect": cmd_detect,
         "patch": cmd_patch,
+        "list": cmd_list,
+        "cache": cmd_cache,
     }
 
     handler = commands.get(args.command)

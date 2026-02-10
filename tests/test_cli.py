@@ -146,10 +146,10 @@ class TestInitCommand:
         cmake = (output_dir / "CMakeLists.txt").read_text()
         assert "elseif(ON)" in cmake
 
-    def test_init_shared_cache_warns_non_cmake(
+    def test_init_shared_cache_rejects_non_cmake(
         self, gigaverb_export: Path, tmp_path: Path, capsys
     ):
-        """Test --shared-cache warns for non-CMake platforms."""
+        """Test --shared-cache errors for non-CMake platforms."""
         output_dir = tmp_path / "testverb"
         result = main(
             [
@@ -165,10 +165,33 @@ class TestInitCommand:
             ]
         )
 
-        assert result == 0
+        assert result == 1
         captured = capsys.readouterr()
-        assert "Warning" in captured.err
-        assert "no effect" in captured.err
+        assert "--shared-cache" in captured.err
+
+    def test_init_board_rejects_non_daisy(
+        self, gigaverb_export: Path, tmp_path: Path, capsys
+    ):
+        """Test --board errors for non-daisy platforms."""
+        output_dir = tmp_path / "testverb"
+        result = main(
+            [
+                "init",
+                str(gigaverb_export),
+                "-n",
+                "testverb",
+                "-p",
+                "pd",
+                "-o",
+                str(output_dir),
+                "--board",
+                "pod",
+            ]
+        )
+
+        assert result == 1
+        captured = capsys.readouterr()
+        assert "--board" in captured.err
 
     def test_init_invalid_name(self, gigaverb_export: Path, tmp_path: Path, capsys):
         """Test init command with invalid name."""
@@ -286,6 +309,64 @@ class TestBuildCommand:
         assert result == 1
         captured = capsys.readouterr()
         assert "Makefile" in captured.err or "Error" in captured.err
+
+
+class TestListCommand:
+    """Tests for list command."""
+
+    def test_list_shows_all_platforms(self, capsys):
+        """Test list command shows all registered platforms."""
+        from gen_dsp.platforms import list_platforms
+
+        result = main(["list"])
+        assert result == 0
+        captured = capsys.readouterr()
+        for platform_name in list_platforms():
+            assert platform_name in captured.out
+
+    def test_list_output_one_per_line(self, capsys):
+        """Test list outputs one platform per line."""
+        result = main(["list"])
+        assert result == 0
+        captured = capsys.readouterr()
+        lines = [l for l in captured.out.strip().split("\n") if l]
+        from gen_dsp.platforms import list_platforms
+
+        assert len(lines) == len(list_platforms())
+
+
+class TestCacheCommand:
+    """Tests for cache command."""
+
+    def test_cache_shows_cache_dir(self, capsys):
+        """Test cache command shows cache directory."""
+        result = main(["cache"])
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "Cache directory:" in captured.out
+
+    def test_cache_shows_fetchcontent(self, capsys):
+        """Test cache command shows FetchContent status for SDK-fetching platforms."""
+        result = main(["cache"])
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "FetchContent" in captured.out
+        assert "clap" in captured.out
+        assert "vst3" in captured.out
+
+    def test_cache_shows_rack_sdk(self, capsys):
+        """Test cache command shows Rack SDK status."""
+        result = main(["cache"])
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "Rack SDK" in captured.out
+
+    def test_cache_shows_libdaisy(self, capsys):
+        """Test cache command shows libDaisy status."""
+        result = main(["cache"])
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "libDaisy" in captured.out
 
 
 class TestMainNoCommand:
