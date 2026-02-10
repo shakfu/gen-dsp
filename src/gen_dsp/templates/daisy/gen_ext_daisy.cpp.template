@@ -1,10 +1,8 @@
-// gen_ext_daisy.cpp - Daisy Seed wrapper for gen~ exports
+// gen_ext_daisy.cpp - Daisy wrapper for gen~ exports
+// Board: $board_key ($board_class)
 // This file includes ONLY libDaisy headers - genlib is isolated in _ext_daisy.cpp
-//
-// Implements a bare Daisy Seed firmware with stereo audio I/O.
-// Parameters retain gen~ defaults; modify this file to add ADC reads for knobs/CV.
 
-#include "daisy_seed.h"
+#include "$board_header"
 
 #include "gen_ext_common_daisy.h"
 #include "_ext_daisy.h"
@@ -12,25 +10,26 @@
 
 using namespace WRAPPER_NAMESPACE;
 using namespace daisy;
+$extra_using
 
 // ---------------------------------------------------------------------------
 // Hardware and state
 // ---------------------------------------------------------------------------
 
-static DaisySeed hw;
+static $board_class hw;
 static GenState* genState = nullptr;
 
 // ---------------------------------------------------------------------------
 // Scratch buffers for I/O channel mismatch
-// DaisySeed has 2 hardware channels; gen~ export may have more.
+// $board_class has $hw_channels hardware channels; gen~ export may have more.
 // Extra gen~ inputs get zeros; extra gen~ outputs are discarded.
 // ---------------------------------------------------------------------------
 
 // Maximum block size (Daisy default is 48, but user may change)
 #define DAISY_MAX_BLOCK_SIZE 256
 
-// Hardware channel count (DaisySeed = stereo)
-#define DAISY_HW_CHANNELS 2
+// Hardware channel count ($board_class)
+#define DAISY_HW_CHANNELS $hw_channels
 
 // Effective channel counts: min(gen~, hardware)
 #define DAISY_MAPPED_INPUTS  ((DAISY_NUM_INPUTS < DAISY_HW_CHANNELS) ? DAISY_NUM_INPUTS : DAISY_HW_CHANNELS)
@@ -88,7 +87,7 @@ int main(void) {
     // Initialize memory pools before any genlib allocation
     daisy_init_memory();
 
-    // Initialize Daisy Seed hardware
+    // Initialize hardware
     hw.Init();
 
     // Configure audio: 48kHz, 48 samples per block (1ms latency)
@@ -100,9 +99,6 @@ int main(void) {
 
     // Main loop (audio runs in interrupt)
     for (;;) {
-        // User code: read ADCs, update parameters, etc.
-        // Example:
-        //   float knob = hw.adc.GetFloat(0);
-        //   wrapper_set_param(genState, 0, knob);
+$main_loop_body
     }
 }

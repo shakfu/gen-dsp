@@ -100,6 +100,10 @@ Examples:
         help="Use shared OS cache for FetchContent downloads (clap, vst3, lv2, sc)",
     )
     init_parser.add_argument(
+        "--board",
+        help="Daisy board variant: seed, pod, patch, patch_sm, field, petal, legio, versio (default: seed)",
+    )
+    init_parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Show what would be done without creating files",
@@ -209,6 +213,14 @@ def cmd_init(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
 
+    # Warn if --board used with non-daisy platform
+    if args.board and args.platform != "daisy":
+        print(
+            f"Warning: --board has no effect for platform '{args.platform}' "
+            f"(only daisy)",
+            file=sys.stderr,
+        )
+
     # Create config
     config = ProjectConfig(
         name=args.name,
@@ -217,6 +229,7 @@ def cmd_init(args: argparse.Namespace) -> int:
         apply_patches=not args.no_patch,
         output_dir=args.output,
         shared_cache=args.shared_cache,
+        board=args.board,
     )
 
     # Validate
@@ -234,6 +247,8 @@ def cmd_init(args: argparse.Namespace) -> int:
         print(f"Would create project at: {output_dir}")
         print(f"  Export: {export_info.name}")
         print(f"  Platform: {args.platform}")
+        if args.board:
+            print(f"  Board: {args.board}")
         print(f"  Inputs: {export_info.num_inputs}")
         print(f"  Outputs: {export_info.num_outputs}")
         print(f"  Parameters: {export_info.num_params}")

@@ -17,14 +17,15 @@ Resolution priority (same pattern as VCV Rack):
   2. GEN_DSP_CACHE_DIR env var  (shared cache override)
   3. OS-appropriate gen-dsp cache path (baked into generated Makefile)
 
-v1 scope: Daisy Seed only (2in/2out stereo, no built-in controls).
-Parameters retain gen~ defaults. Users modify gen_ext_daisy.cpp to add
-ADC reads for knobs/CV.
+Supports 8 board variants (seed, pod, patch, patch_sm, field, petal,
+legio, versio) via --board CLI flag. Knob-to-parameter automap generates
+code that reads hardware knobs and scales to gen~ parameter ranges.
 """
 
 import os
 import shutil
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 from string import Template
 from typing import Optional
@@ -39,6 +40,131 @@ from gen_dsp.templates import get_daisy_templates_dir
 
 # libDaisy version (latest stable, well-tested)
 LIBDAISY_VERSION = "v7.1.0"
+
+
+# ---------------------------------------------------------------------------
+# Board configuration
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class DaisyBoardConfig:
+    """Hardware configuration for a specific Daisy board variant."""
+
+    key: str  # "seed", "pod", etc.
+    header: str  # "daisy_seed.h"
+    hw_class: str  # "DaisySeed"
+    hw_channels: int  # 2 or 4
+    knob_exprs: tuple[str, ...]  # C++ expressions returning 0-1 per knob
+    extra_using: str  # "" or "using namespace daisy::patch_sm;"
+
+
+DAISY_BOARDS: dict[str, DaisyBoardConfig] = {
+    "seed": DaisyBoardConfig(
+        key="seed",
+        header="daisy_seed.h",
+        hw_class="DaisySeed",
+        hw_channels=2,
+        knob_exprs=(),
+        extra_using="",
+    ),
+    "pod": DaisyBoardConfig(
+        key="pod",
+        header="daisy_pod.h",
+        hw_class="DaisyPod",
+        hw_channels=2,
+        knob_exprs=(
+            "hw.knob1.Value()",
+            "hw.knob2.Value()",
+        ),
+        extra_using="",
+    ),
+    "patch": DaisyBoardConfig(
+        key="patch",
+        header="daisy_patch.h",
+        hw_class="DaisyPatch",
+        hw_channels=4,
+        knob_exprs=(
+            "hw.GetKnobValue(DaisyPatch::CTRL_1)",
+            "hw.GetKnobValue(DaisyPatch::CTRL_2)",
+            "hw.GetKnobValue(DaisyPatch::CTRL_3)",
+            "hw.GetKnobValue(DaisyPatch::CTRL_4)",
+        ),
+        extra_using="",
+    ),
+    "patch_sm": DaisyBoardConfig(
+        key="patch_sm",
+        header="daisy_patch_sm.h",
+        hw_class="DaisyPatchSM",
+        hw_channels=2,
+        knob_exprs=(
+            "hw.GetAdcValue(CV_1)",
+            "hw.GetAdcValue(CV_2)",
+            "hw.GetAdcValue(CV_3)",
+            "hw.GetAdcValue(CV_4)",
+        ),
+        extra_using="using namespace daisy::patch_sm;",
+    ),
+    "field": DaisyBoardConfig(
+        key="field",
+        header="daisy_field.h",
+        hw_class="DaisyField",
+        hw_channels=2,
+        knob_exprs=(
+            "hw.GetKnobValue(DaisyField::KNOB_1)",
+            "hw.GetKnobValue(DaisyField::KNOB_2)",
+            "hw.GetKnobValue(DaisyField::KNOB_3)",
+            "hw.GetKnobValue(DaisyField::KNOB_4)",
+            "hw.GetKnobValue(DaisyField::KNOB_5)",
+            "hw.GetKnobValue(DaisyField::KNOB_6)",
+            "hw.GetKnobValue(DaisyField::KNOB_7)",
+            "hw.GetKnobValue(DaisyField::KNOB_8)",
+        ),
+        extra_using="",
+    ),
+    "petal": DaisyBoardConfig(
+        key="petal",
+        header="daisy_petal.h",
+        hw_class="DaisyPetal",
+        hw_channels=2,
+        knob_exprs=(
+            "hw.GetKnobValue(DaisyPetal::KNOB_1)",
+            "hw.GetKnobValue(DaisyPetal::KNOB_2)",
+            "hw.GetKnobValue(DaisyPetal::KNOB_3)",
+            "hw.GetKnobValue(DaisyPetal::KNOB_4)",
+            "hw.GetKnobValue(DaisyPetal::KNOB_5)",
+            "hw.GetKnobValue(DaisyPetal::KNOB_6)",
+        ),
+        extra_using="",
+    ),
+    "legio": DaisyBoardConfig(
+        key="legio",
+        header="daisy_legio.h",
+        hw_class="DaisyLegio",
+        hw_channels=2,
+        knob_exprs=(
+            "hw.GetKnobValue(DaisyLegio::CONTROL_KNOB_TOP)",
+            "hw.GetKnobValue(DaisyLegio::CONTROL_KNOB_BOTTOM)",
+        ),
+        extra_using="",
+    ),
+    "versio": DaisyBoardConfig(
+        key="versio",
+        header="daisy_versio.h",
+        hw_class="DaisyVersio",
+        hw_channels=2,
+        knob_exprs=(
+            "hw.GetKnobValue(0)",
+            "hw.GetKnobValue(1)",
+            "hw.GetKnobValue(2)",
+            "hw.GetKnobValue(3)",
+            "hw.GetKnobValue(4)",
+            "hw.GetKnobValue(5)",
+            "hw.GetKnobValue(6)",
+        ),
+        extra_using="",
+    ),
+}
 _LIBDAISY_CLONE_URL = "https://github.com/electro-smith/libDaisy.git"
 
 # Subdirectory name inside the gen-dsp cache
@@ -166,8 +292,51 @@ def ensure_libdaisy(
     return libdaisy_dir
 
 
+def _generate_main_loop_body(board: DaisyBoardConfig, num_params: int) -> str:
+    """Generate C++ code for the main loop body.
+
+    For boards with knobs: reads knobs, scales to parameter range, sets params.
+    For seed or 0 params: comment-only placeholder.
+
+    Returns indented code (8 spaces) suitable for insertion into the for(;;) block.
+    """
+    num_knobs = len(board.knob_exprs)
+    mapped = min(num_knobs, num_params)
+
+    if mapped == 0:
+        lines = [
+            "        // No hardware knobs on this board (or no gen~ params).",
+            "        // Add user code here: read ADCs, update parameters, etc.",
+        ]
+        return "\n".join(lines)
+
+    lines = []
+    lines.append("        hw.ProcessAllControls();")
+    lines.append("        if (genState) {")
+    lines.append(
+        f"            // Automap: {mapped} knob(s) -> first {mapped} param(s)"
+    )
+    for i in range(mapped):
+        knob_expr = board.knob_exprs[i]
+        lines.append("            {")
+        lines.append(f"                float knob = {knob_expr};")
+        lines.append(
+            f"                float lo = wrapper_param_min(genState, {i});"
+        )
+        lines.append(
+            f"                float hi = wrapper_param_max(genState, {i});"
+        )
+        lines.append(
+            f"                wrapper_set_param(genState, {i}, lo + knob * (hi - lo));"
+        )
+        lines.append("            }")
+    lines.append("        }")
+
+    return "\n".join(lines)
+
+
 class DaisyPlatform(Platform):
-    """Daisy Seed embedded platform implementation using Make."""
+    """Daisy embedded platform implementation using Make."""
 
     name = "daisy"
 
@@ -188,14 +357,24 @@ class DaisyPlatform(Platform):
         buffers: list[str],
         config: Optional[ProjectConfig] = None,
     ) -> None:
-        """Generate Daisy Seed firmware project files."""
+        """Generate Daisy firmware project files."""
         templates_dir = get_daisy_templates_dir()
         if not templates_dir.is_dir():
             raise ProjectError(f"Daisy templates not found at {templates_dir}")
 
-        # Copy static template files
+        # Resolve board config
+        board_key = "seed"
+        if config is not None and config.board is not None:
+            board_key = config.board
+        if board_key not in DAISY_BOARDS:
+            raise ProjectError(
+                f"Unknown Daisy board '{board_key}'. "
+                f"Valid boards: {', '.join(sorted(DAISY_BOARDS))}"
+            )
+        board = DAISY_BOARDS[board_key]
+
+        # Copy static template files (board-agnostic)
         static_files = [
-            "gen_ext_daisy.cpp",
             "gen_ext_common_daisy.h",
             "_ext_daisy.cpp",
             "_ext_daisy.h",
@@ -207,6 +386,14 @@ class DaisyPlatform(Platform):
             src = templates_dir / filename
             if src.exists():
                 shutil.copy2(src, output_dir / filename)
+
+        # Generate gen_ext_daisy.cpp from template (board-specific)
+        self._generate_ext_daisy(
+            templates_dir / "gen_ext_daisy.cpp.template",
+            output_dir / "gen_ext_daisy.cpp",
+            board,
+            export_info.num_params,
+        )
 
         # Resolve default LIBDAISY_DIR for baking into Makefile
         default_libdaisy_dir = str(_get_default_libdaisy_dir())
@@ -256,6 +443,39 @@ class DaisyPlatform(Platform):
             num_outputs=num_outputs,
             num_params=num_params,
             default_libdaisy_dir=default_libdaisy_dir,
+        )
+        output_path.write_text(content)
+
+    def _generate_ext_daisy(
+        self,
+        template_path: Path,
+        output_path: Path,
+        board: DaisyBoardConfig,
+        num_params: int,
+    ) -> None:
+        """Generate gen_ext_daisy.cpp from template with board-specific values."""
+        if not template_path.exists():
+            raise ProjectError(
+                f"gen_ext_daisy.cpp template not found at {template_path}"
+            )
+
+        template_content = template_path.read_text()
+        template = Template(template_content)
+
+        # Build extra_using line (empty string or full line with newline prefix)
+        extra_using = ""
+        if board.extra_using:
+            extra_using = "\n" + board.extra_using
+
+        main_loop_body = _generate_main_loop_body(board, num_params)
+
+        content = template.safe_substitute(
+            board_key=board.key,
+            board_header=board.header,
+            board_class=board.hw_class,
+            hw_channels=board.hw_channels,
+            extra_using=extra_using,
+            main_loop_body=main_loop_body,
         )
         output_path.write_text(content)
 

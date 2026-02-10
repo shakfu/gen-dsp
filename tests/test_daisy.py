@@ -13,7 +13,10 @@ from gen_dsp.platforms import (
     get_platform,
 )
 from gen_dsp.platforms.daisy import (
+    DAISY_BOARDS,
+    DaisyBoardConfig,
     LIBDAISY_VERSION,
+    _generate_main_loop_body,
     _get_default_libdaisy_dir,
     _resolve_libdaisy_dir,
     ensure_libdaisy,
@@ -269,7 +272,7 @@ class TestDaisyProjectGeneration:
     def test_gen_ext_daisy_uses_daisy_seed(
         self, gigaverb_export: Path, tmp_project: Path
     ):
-        """Test that gen_ext_daisy.cpp includes daisy_seed.h."""
+        """Test that gen_ext_daisy.cpp includes daisy_seed.h by default."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
 
@@ -279,6 +282,8 @@ class TestDaisyProjectGeneration:
 
         main_cpp = (project_dir / "gen_ext_daisy.cpp").read_text()
         assert "daisy_seed.h" in main_cpp
+        assert "DaisySeed" in main_cpp
+        assert "Board: seed" in main_cpp
         assert "AudioCallback" in main_cpp
         assert "daisy_init_memory" in main_cpp
         assert "StartAudio" in main_cpp
@@ -330,6 +335,251 @@ class TestDaisyProjectGeneration:
         makefile = (project_dir / "Makefile").read_text()
         assert "DAISY_NUM_INPUTS=3" in makefile
         assert "DAISY_NUM_OUTPUTS=2" in makefile
+
+
+class TestDaisyBoardConfig:
+    """Test board configuration registry."""
+
+    def test_registry_has_all_boards(self):
+        """All 8 board variants are registered."""
+        expected = {"seed", "pod", "patch", "patch_sm", "field", "petal", "legio", "versio"}
+        assert set(DAISY_BOARDS.keys()) == expected
+
+    def test_all_entries_are_board_configs(self):
+        """Every registry value is a DaisyBoardConfig."""
+        for key, cfg in DAISY_BOARDS.items():
+            assert isinstance(cfg, DaisyBoardConfig), f"{key} is not DaisyBoardConfig"
+
+    def test_key_matches_dict_key(self):
+        """Each config's .key matches its dict key."""
+        for key, cfg in DAISY_BOARDS.items():
+            assert cfg.key == key
+
+    def test_knob_exprs_length(self):
+        """knob_exprs tuple length matches expected knob counts."""
+        expected_knobs = {
+            "seed": 0, "pod": 2, "patch": 4, "patch_sm": 4,
+            "field": 8, "petal": 6, "legio": 2, "versio": 7,
+        }
+        for key, cfg in DAISY_BOARDS.items():
+            assert len(cfg.knob_exprs) == expected_knobs[key], (
+                f"{key}: expected {expected_knobs[key]} knobs, got {len(cfg.knob_exprs)}"
+            )
+
+    def test_patch_has_4_channels(self):
+        """Patch is the only board with 4 hardware channels."""
+        assert DAISY_BOARDS["patch"].hw_channels == 4
+        for key, cfg in DAISY_BOARDS.items():
+            if key != "patch":
+                assert cfg.hw_channels == 2, f"{key} should have 2 channels"
+
+    def test_patch_sm_has_extra_using(self):
+        """patch_sm requires using namespace daisy::patch_sm."""
+        assert "patch_sm" in DAISY_BOARDS["patch_sm"].extra_using
+        for key, cfg in DAISY_BOARDS.items():
+            if key != "patch_sm":
+                assert cfg.extra_using == "", f"{key} should have empty extra_using"
+
+    def test_configs_are_frozen(self):
+        """Board configs should be immutable."""
+        cfg = DAISY_BOARDS["seed"]
+        with pytest.raises(AttributeError):
+            cfg.key = "modified"  # type: ignore[misc]
+
+
+class TestDaisyMainLoopBody:
+    """Test _generate_main_loop_body() helper."""
+
+    def test_seed_no_params_comment_only(self):
+        """Seed (0 knobs) produces comment-only loop body."""
+        body = _generate_main_loop_body(DAISY_BOARDS["seed"], num_params=8)
+        assert "ProcessAllControls" not in body
+        assert "No hardware knobs" in body
+
+    def test_seed_with_zero_params_comment_only(self):
+        """Any board with 0 params produces comment-only loop body."""
+        body = _generate_main_loop_body(DAISY_BOARDS["pod"], num_params=0)
+        assert "ProcessAllControls" not in body
+        assert "No hardware knobs" in body
+
+    def test_pod_two_knobs_two_params(self):
+        """Pod with 2+ params maps 2 knobs."""
+        body = _generate_main_loop_body(DAISY_BOARDS["pod"], num_params=5)
+        assert "hw.ProcessAllControls();" in body
+        assert "hw.knob1.Value()" in body
+        assert "hw.knob2.Value()" in body
+        assert "wrapper_param_min(genState, 0)" in body
+        assert "wrapper_param_min(genState, 1)" in body
+        # Should not have param index 2 (only 2 knobs)
+        assert "wrapper_set_param(genState, 2" not in body
+
+    def test_knob_count_capped_by_params(self):
+        """If fewer params than knobs, only map params count."""
+        body = _generate_main_loop_body(DAISY_BOARDS["field"], num_params=3)
+        assert "Automap: 3 knob(s) -> first 3 param(s)" in body
+        # Should have indices 0, 1, 2 but not 3
+        assert "wrapper_set_param(genState, 2" in body
+        assert "wrapper_set_param(genState, 3" not in body
+
+    def test_scaling_uses_min_max(self):
+        """Generated code scales knob 0-1 to param min/max range."""
+        body = _generate_main_loop_body(DAISY_BOARDS["pod"], num_params=2)
+        assert "wrapper_param_min(genState, 0)" in body
+        assert "wrapper_param_max(genState, 0)" in body
+        assert "lo + knob * (hi - lo)" in body
+
+
+class TestDaisyBoardProjectGeneration:
+    """Test project generation for various board variants."""
+
+    @pytest.mark.parametrize("board_key", list(DAISY_BOARDS.keys()))
+    def test_board_generates_correct_header_and_class(
+        self, gigaverb_export: Path, tmp_path: Path, board_key: str
+    ):
+        """Each board produces gen_ext_daisy.cpp with correct header/class/channels."""
+        board = DAISY_BOARDS[board_key]
+        project_dir = tmp_path / f"test_{board_key}"
+
+        parser = GenExportParser(gigaverb_export)
+        export_info = parser.parse()
+
+        config = ProjectConfig(name="testverb", platform="daisy", board=board_key)
+        generator = ProjectGenerator(export_info, config)
+        generator.generate(project_dir)
+
+        main_cpp = (project_dir / "gen_ext_daisy.cpp").read_text()
+        assert f'#include "{board.header}"' in main_cpp
+        assert f"static {board.hw_class} hw;" in main_cpp
+        assert f"#define DAISY_HW_CHANNELS {board.hw_channels}" in main_cpp
+        assert f"Board: {board_key}" in main_cpp
+
+    def test_default_board_is_seed(
+        self, gigaverb_export: Path, tmp_project: Path
+    ):
+        """Omitting --board defaults to seed."""
+        parser = GenExportParser(gigaverb_export)
+        export_info = parser.parse()
+
+        config = ProjectConfig(name="testverb", platform="daisy")
+        generator = ProjectGenerator(export_info, config)
+        project_dir = generator.generate(tmp_project)
+
+        main_cpp = (project_dir / "gen_ext_daisy.cpp").read_text()
+        assert "daisy_seed.h" in main_cpp
+        assert "DaisySeed" in main_cpp
+
+    def test_pod_board_has_knob_automap(
+        self, gigaverb_export: Path, tmp_project: Path
+    ):
+        """Pod board generates ProcessAllControls + knob1/knob2 mapping."""
+        parser = GenExportParser(gigaverb_export)
+        export_info = parser.parse()
+
+        config = ProjectConfig(name="testverb", platform="daisy", board="pod")
+        generator = ProjectGenerator(export_info, config)
+        project_dir = generator.generate(tmp_project)
+
+        main_cpp = (project_dir / "gen_ext_daisy.cpp").read_text()
+        assert "hw.ProcessAllControls();" in main_cpp
+        assert "hw.knob1.Value()" in main_cpp
+        assert "hw.knob2.Value()" in main_cpp
+        assert "wrapper_set_param(genState, 0" in main_cpp
+        assert "wrapper_set_param(genState, 1" in main_cpp
+
+    def test_seed_board_no_knob_code(
+        self, gigaverb_export: Path, tmp_project: Path
+    ):
+        """Seed board has comment-only main loop (no ProcessAllControls)."""
+        parser = GenExportParser(gigaverb_export)
+        export_info = parser.parse()
+
+        config = ProjectConfig(name="testverb", platform="daisy", board="seed")
+        generator = ProjectGenerator(export_info, config)
+        project_dir = generator.generate(tmp_project)
+
+        main_cpp = (project_dir / "gen_ext_daisy.cpp").read_text()
+        assert "ProcessAllControls" not in main_cpp
+        assert "No hardware knobs" in main_cpp
+
+    def test_patch_sm_has_using_namespace(
+        self, gigaverb_export: Path, tmp_project: Path
+    ):
+        """patch_sm board includes 'using namespace daisy::patch_sm;'."""
+        parser = GenExportParser(gigaverb_export)
+        export_info = parser.parse()
+
+        config = ProjectConfig(name="testverb", platform="daisy", board="patch_sm")
+        generator = ProjectGenerator(export_info, config)
+        project_dir = generator.generate(tmp_project)
+
+        main_cpp = (project_dir / "gen_ext_daisy.cpp").read_text()
+        assert "using namespace daisy::patch_sm;" in main_cpp
+
+    def test_patch_board_4_channels(
+        self, gigaverb_export: Path, tmp_project: Path
+    ):
+        """Patch board has 4 hardware channels."""
+        parser = GenExportParser(gigaverb_export)
+        export_info = parser.parse()
+
+        config = ProjectConfig(name="testverb", platform="daisy", board="patch")
+        generator = ProjectGenerator(export_info, config)
+        project_dir = generator.generate(tmp_project)
+
+        main_cpp = (project_dir / "gen_ext_daisy.cpp").read_text()
+        assert "#define DAISY_HW_CHANNELS 4" in main_cpp
+
+    def test_knob_scaling_uses_param_range(
+        self, gigaverb_export: Path, tmp_project: Path
+    ):
+        """Knob automap uses wrapper_param_min/max for scaling."""
+        parser = GenExportParser(gigaverb_export)
+        export_info = parser.parse()
+
+        config = ProjectConfig(name="testverb", platform="daisy", board="versio")
+        generator = ProjectGenerator(export_info, config)
+        project_dir = generator.generate(tmp_project)
+
+        main_cpp = (project_dir / "gen_ext_daisy.cpp").read_text()
+        assert "wrapper_param_min(genState," in main_cpp
+        assert "wrapper_param_max(genState," in main_cpp
+        assert "lo + knob * (hi - lo)" in main_cpp
+
+    def test_zero_params_export_no_automap(
+        self, rampleplayer_export: Path, tmp_project: Path
+    ):
+        """RamplePlayer (0 params) with pod board gets comment-only loop."""
+        parser = GenExportParser(rampleplayer_export)
+        export_info = parser.parse()
+
+        config = ProjectConfig(name="testplayer", platform="daisy", board="pod")
+        generator = ProjectGenerator(export_info, config)
+        project_dir = generator.generate(tmp_project)
+
+        main_cpp = (project_dir / "gen_ext_daisy.cpp").read_text()
+        assert "ProcessAllControls" not in main_cpp
+
+
+class TestDaisyBoardValidation:
+    """Test board name validation in ProjectConfig."""
+
+    def test_invalid_board_name(self):
+        """Invalid board name produces validation error."""
+        config = ProjectConfig(name="test", platform="daisy", board="nonexistent")
+        errors = config.validate()
+        assert any("Unknown Daisy board" in e for e in errors)
+
+    def test_valid_board_name(self):
+        """Valid board name passes validation."""
+        config = ProjectConfig(name="test", platform="daisy", board="pod")
+        errors = config.validate()
+        assert not any("board" in e.lower() for e in errors)
+
+    def test_none_board_passes(self):
+        """None board (default) passes validation."""
+        config = ProjectConfig(name="test", platform="daisy", board=None)
+        errors = config.validate()
+        assert not any("board" in e.lower() for e in errors)
 
 
 class TestDaisyBuildIntegration:
@@ -398,6 +648,40 @@ class TestDaisyBuildIntegration:
 
         output = platform.find_output(project_dir)
         assert output is not None
+
+    @_skip_no_toolchain
+    @pytest.mark.parametrize("board_key", ["pod", "patch"])
+    def test_build_daisy_board_variant(
+        self,
+        gigaverb_export: Path,
+        tmp_path: Path,
+        fetchcontent_cache: Path,
+        board_key: str,
+    ):
+        """Generate and compile Daisy firmware for non-seed boards."""
+        project_dir = tmp_path / f"gigaverb_daisy_{board_key}"
+        parser = GenExportParser(gigaverb_export)
+        export_info = parser.parse()
+
+        config = ProjectConfig(name="gigaverb", platform="daisy", board=board_key)
+        generator = ProjectGenerator(export_info, config)
+        generator.generate(project_dir)
+
+        libdaisy_dir = fetchcontent_cache / "libdaisy-src" / "libDaisy"
+        libdaisy_dir = ensure_libdaisy(libdaisy_dir)
+
+        platform = DaisyPlatform()
+        result = platform.run_command(
+            ["make", f"LIBDAISY_DIR={libdaisy_dir}"], project_dir
+        )
+        assert result.returncode == 0, (
+            f"make failed for board={board_key}:\n"
+            f"stdout: {result.stdout}\nstderr: {result.stderr}"
+        )
+
+        output = platform.find_output(project_dir)
+        assert output is not None
+        assert output.suffix == ".bin"
 
     @_skip_no_toolchain
     def test_build_daisy_spectraldelayfb(

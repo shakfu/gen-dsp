@@ -37,6 +37,9 @@ class ProjectConfig:
     # Use shared FetchContent cache for CMake-based platforms (clap, vst3)
     shared_cache: bool = False
 
+    # Daisy board variant (seed, pod, patch, patch_sm, field, petal, legio, versio)
+    board: Optional[str] = None
+
     def validate(self) -> list[str]:
         """
         Validate the configuration.
@@ -71,6 +74,16 @@ class ProjectConfig:
         for buf_name in self.buffers:
             if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", buf_name):
                 errors.append(f"Buffer name '{buf_name}' is not a valid C identifier.")
+
+        # Validate Daisy board name
+        if self.board is not None:
+            from gen_dsp.platforms.daisy import DAISY_BOARDS
+
+            if self.board not in DAISY_BOARDS:
+                errors.append(
+                    f"Unknown Daisy board '{self.board}'. "
+                    f"Valid boards: {', '.join(sorted(DAISY_BOARDS))}"
+                )
 
         return errors
 
