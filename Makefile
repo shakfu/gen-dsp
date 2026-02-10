@@ -2,7 +2,7 @@
 
 .PHONY: all install install-dev test test-cov clean dist publish-test publish \
        help venv example-pd example-max example-chuck example-au example-clap \
-       example-vst3 examples lint format typecheck qa
+       example-vst3 example-lv2 example-sc examples lint format typecheck qa
 
 VENV := .venv
 UV := uv
@@ -102,8 +102,20 @@ example-vst3:
 	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p vst3 -o $(EXAMPLES_DIR)/$(NAME)_vst3 $(BUFFERS)
 	cd $(EXAMPLES_DIR)/$(NAME)_vst3/build && cmake .. && cmake --build .
 
+# Generate and build an LV2 plugin from a test fixture
+example-lv2:
+	rm -rf $(EXAMPLES_DIR)/$(NAME)_lv2
+	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p lv2 -o $(EXAMPLES_DIR)/$(NAME)_lv2 $(BUFFERS)
+	cd $(EXAMPLES_DIR)/$(NAME)_lv2/build && cmake .. && cmake --build .
+
+# Generate and build a SuperCollider UGen from a test fixture
+example-sc:
+	rm -rf $(EXAMPLES_DIR)/$(NAME)_sc
+	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p sc -o $(EXAMPLES_DIR)/$(NAME)_sc $(BUFFERS)
+	cd $(EXAMPLES_DIR)/$(NAME)_sc/build && cmake .. && cmake --build .
+
 # Build all example plugins
-examples: example-pd example-max example-chuck example-au example-clap example-vst3
+examples: example-pd example-max example-chuck example-au example-clap example-vst3 example-lv2 example-sc
 
 # Build distribution
 dist: clean
@@ -134,6 +146,8 @@ help:
 	@echo "  example-au    - Generate and build an AudioUnit plugin (macOS only)"
 	@echo "  example-clap  - Generate and build a CLAP plugin"
 	@echo "  example-vst3  - Generate and build a VST3 plugin"
+	@echo "  example-lv2   - Generate and build an LV2 plugin"
+	@echo "  example-sc    - Generate and build a SuperCollider UGen"
 	@echo "  examples      - Build all example plugins"
 	@echo "  clean         - Remove build artifacts"
 	@echo "  dist          - Build distribution packages"
