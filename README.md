@@ -2,9 +2,9 @@
 
 This project is a friendly fork of Michael Spears' [gen_ext](https://github.com/samesimilar/gen_ext) which was originally created to "compile code exported from a Max gen~ object into an "external" object that can be loaded into a PureData patch."
 
-This fork has taken this excellent original idea and implementation and extended it to include Max/MSP externals, ChucK chugins, AudioUnit (AUv2) plugins, CLAP plugins, VST3 plugins, LV2 plugins, SuperCollider UGens, VCV Rack modules, and possibly other DSP architectures (see [TODO.md](TODO.md)).
+This fork has taken this excellent original idea and implementation and extended it to include Max/MSP externals, ChucK chugins, AudioUnit (AUv2) plugins, CLAP plugins, VST3 plugins, LV2 plugins, SuperCollider UGens, VCV Rack modules, Daisy (Electrosmith) embedded firmware, and possibly other DSP architectures (see [TODO.md](TODO.md)).
 
-gen-dsp compiles code exported from Max gen~ objects into external objects for PureData, Max/MSP, ChucK, AudioUnit (AUv2), CLAP, VST3, LV2, SuperCollider, and VCV Rack. It automates project setup, buffer detection, and platform-specific patches.
+gen-dsp compiles code exported from Max gen~ objects into external objects for PureData, Max/MSP, ChucK, AudioUnit (AUv2), CLAP, VST3, LV2, SuperCollider, VCV Rack, and Daisy (Electrosmith). It automates project setup, buffer detection, and platform-specific patches.
 
 ## Key Improvements
 
@@ -29,6 +29,8 @@ gen-dsp compiles code exported from Max gen~ objects into external objects for P
 - **SuperCollider support**: Generates cross-platform SC UGens (`.scx`/`.so`) with `.sc` class files containing parameter names/defaults parsed from gen~ exports -- SC plugin headers fetched via CMake FetchContent.
 
 - **VCV Rack support**: Generates VCV Rack modules with per-sample processing, auto-generated `plugin.json` manifest and panel SVG -- requires pre-installed Rack SDK.
+
+- **Daisy support**: Generates Daisy Seed firmware (.bin) with custom genlib runtime (bump allocator for SRAM/SDRAM) -- first embedded/cross-compilation target, requires `arm-none-eabi-gcc`.
 
 - **Platform-specific patches**: Automatically fixes compatibility issues like the `exp2f -> exp2` problem in Max 9 exports on macOS.
 
@@ -80,7 +82,7 @@ gen-dsp init <export-path> -n <name> [-p <platform>] [-o <output>]
 Options:
 
 - `-n, --name` - Name for the external (required)
-- `-p, --platform` - Target platform: `pd` (default), `max`, `chuck`, `au`, `clap`, `vst3`, `lv2`, `sc`, `vcvrack`, or `both`
+- `-p, --platform` - Target platform: `pd` (default), `max`, `chuck`, `au`, `clap`, `vst3`, `lv2`, `sc`, `vcvrack`, `daisy`, or `both`
 - `-o, --output` - Output directory (default: `./<name>`)
 - `--buffers` - Explicit buffer names (overrides auto-detection)
 - `--shared-cache` - Use a shared OS cache for FetchContent downloads (clap, vst3, lv2, sc only)
@@ -480,15 +482,48 @@ The module is automatically detected as an effect (`Effect` tag) if the gen~ exp
 - **Cross-platform**: macOS, Linux, and Windows
 - **Plugin ID**: slug matches lib_name
 
+## Daisy (Electrosmith) Support
+
+gen-dsp supports generating firmware for the Daisy Seed, an STM32H750-based embedded audio platform popular for Eurorack modules and DIY hardware. This is gen-dsp's first cross-compilation target -- it requires `arm-none-eabi-gcc` and produces firmware binaries (.bin) for DFU flashing.
+
+### Quick Start (Daisy)
+
+```bash
+# Create a Daisy project
+gen-dsp init ./my_export -n myeffect -p daisy -o ./myeffect_daisy
+
+# Build (auto-clones libDaisy on first run; requires arm-none-eabi-gcc)
+gen-dsp build ./myeffect_daisy -p daisy
+
+# Output: build/myeffect.bin
+
+# Flash via DFU (put Daisy in bootloader mode first)
+# Using dfu-util:
+dfu-util -a 0 -s 0x08000000:leave -D build/myeffect.bin
+```
+
+### Daisy Details
+
+- **Target**: Daisy Seed (v1) -- 2in/2out stereo audio, no built-in controls
+- **Compiler**: `arm-none-eabi-gcc` (ARM cross-compilation)
+- **Output**: firmware `.bin` for DFU flashing
+- **Audio format**: Float32, non-interleaved (libDaisy's callback matches gen~'s `float**` directly)
+- **Memory**: custom genlib runtime with two-tier bump allocator (SRAM ~450KB + SDRAM 64MB)
+- **Parameters**: retain gen~ defaults; modify `gen_ext_daisy.cpp` to add ADC reads for knobs/CV
+- **SDK**: libDaisy auto-cloned and built on first use (pinned to v7.1.0)
+- **SDK resolution**: `LIBDAISY_DIR` env var > `GEN_DSP_CACHE_DIR` env var > OS cache path
+- **Channel mapping**: `min(gen_channels, 2)` mapped to hardware; extra gen~ I/O uses scratch buffers
+- **Board targets**: Pod, Patch, Field, Petal, Versio can be added in future versions
+
 ### Platform Comparison
 
-| Aspect | LV2 | VST3 | CLAP | SC | VCV Rack | AudioUnit | ChucK | PureData | Max/MSP |
-|--------|-----|------|------|----|----------|-----------|-------|----------|---------|
-| Signal type | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | double (64-bit) |
-| Build system | CMake (FetchContent) | CMake (FetchContent) | CMake (FetchContent) | CMake (FetchContent) | make (Rack SDK) | CMake | make | make (pd-lib-builder) | CMake (max-sdk-base) |
-| Output format | .lv2 | .vst3 | .clap | .scx / .so | plugin.dylib / .so | .component | .chug | .pd_darwin / .pd_linux | .mxo / .mxe64 |
-| macOS only | no | no | no | no | no | yes | no | no | no |
-| External deps | LV2 headers (fetched) | VST3 SDK (fetched) | CLAP headers (fetched) | SC headers (fetched) | Rack SDK (pre-installed) | none (system frameworks) | none (bundled chugin.h) | PureData headers | max-sdk-base (git) |
+| Aspect | LV2 | VST3 | CLAP | SC | VCV Rack | Daisy | AudioUnit | ChucK | PureData | Max/MSP |
+|--------|-----|------|------|----|----------|-------|-----------|-------|----------|---------|
+| Signal type | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | double (64-bit) |
+| Build system | CMake (FetchContent) | CMake (FetchContent) | CMake (FetchContent) | CMake (FetchContent) | make (Rack SDK) | make (libDaisy) | CMake | make | make (pd-lib-builder) | CMake (max-sdk-base) |
+| Output format | .lv2 | .vst3 | .clap | .scx / .so | plugin.dylib / .so | .bin (firmware) | .component | .chug | .pd_darwin / .pd_linux | .mxo / .mxe64 |
+| macOS only | no | no | no | no | no | no | yes | no | no | no |
+| External deps | LV2 headers (fetched) | VST3 SDK (fetched) | CLAP headers (fetched) | SC headers (fetched) | Rack SDK (pre-installed) | libDaisy (auto-cloned) | none (system frameworks) | none (bundled chugin.h) | PureData headers | max-sdk-base (git) |
 
 ### PureData vs Max/MSP
 
@@ -545,6 +580,7 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 - LV2: first CMake configure requires network access to fetch LV2 headers (cached afterward)
 - SuperCollider: first CMake configure requires network access to fetch SC headers (~80MB tarball, cached afterward)
 - VCV Rack: requires pre-installed Rack SDK (`RACK_DIR` env var); per-sample `perform(n=1)` has higher CPU overhead than block-based processing
+- Daisy: requires `arm-none-eabi-gcc` cross-compiler; first clone of libDaisy requires network access and `git`; v1 targets Daisy Seed only (no board-specific knob/CV mapping)
 
 ## Requirements
 
@@ -605,6 +641,13 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 - C/C++ compiler (clang, gcc)
 - VCV Rack SDK (`RACK_DIR` environment variable must point to SDK path)
 
+### Daisy builds
+
+- make
+- `arm-none-eabi-gcc` (ARM GCC toolchain for cross-compilation)
+- git (for cloning libDaisy on first build)
+- Network access on first build (to clone libDaisy + submodules)
+
 ### macOS
 
 Install Xcode or Command Line Tools:
@@ -650,6 +693,7 @@ make example-vst3     # VST3 plugin
 make example-lv2      # LV2 plugin
 make example-sc       # SuperCollider UGen
 make example-vcvrack  # VCV Rack module (requires RACK_DIR)
+make example-daisy    # Daisy firmware (requires arm-none-eabi-gcc)
 make examples         # All platforms
 ```
 

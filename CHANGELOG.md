@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Daisy (Electrosmith) embedded platform support** with Make-based cross-compilation
+  - Generates Daisy Seed firmware binaries (`.bin`) from gen~ exports for the STM32H750-based audio platform
+  - First cross-compilation target: requires `arm-none-eabi-gcc` (ARM GCC toolchain)
+  - Custom genlib runtime (`genlib_daisy.cpp`) replaces standard `genlib.cpp` with two-tier bump allocator:
+    - SRAM pool (~450KB, fast) allocated at init; SDRAM pool (64MB, `.sdram_bss` section) for overflow
+    - No-op `free` (bump allocator never frees individually); no heap fragmentation
+  - libDaisy auto-cloned and built on first use via `git clone --recurse-submodules --depth 1` (pinned to v7.1.0)
+  - SDK resolution priority: `LIBDAISY_DIR` env var > `GEN_DSP_CACHE_DIR` env var > OS-appropriate cache path
+  - Non-interleaved audio callback matches gen~ directly (zero-copy for stereo)
+  - Auto-maps `min(gen_channels, 2)` hardware channels; extra gen~ I/O uses scratch buffers
+  - 32-bit float signal processing (`GENLIB_USE_FLOAT32`)
+  - v1 targets Daisy Seed only (2in/2out stereo, no built-in controls); board targets (Pod, Patch, etc.) can be added later
+  - Parameters retain gen~ defaults; users modify `gen_ext_daisy.cpp` to add ADC reads for knobs/CV
+  - Buffer support via `DaisyBuffer` class (same pattern as other backends)
+  - Platform key: `"daisy"`
+
 ## [0.1.2]
 
 ### Added

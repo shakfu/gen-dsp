@@ -22,17 +22,14 @@
 
 - [x] **VCV Rack modules** - Full support. Generates VCV Rack modules using the Rack SDK's Makefile-based build system. Per-sample processing via perform(n=1). Auto-generates plugin.json manifest and panel SVG. Auto-detects effect vs generator from I/O. Parameter names/ranges parsed from gen~ exports. See `src/gen_dsp/templates/vcvrack/`.
 
+- [x] **Daisy (Electrosmith)** - Full support. Generates Daisy Seed firmware (.bin) using libDaisy's Make-based build system with ARM cross-compilation. Custom genlib runtime with two-tier bump allocator (SRAM + SDRAM). Auto-maps stereo I/O with scratch buffers for channel mismatch. libDaisy auto-cloned and built on first use. See `src/gen_dsp/templates/daisy/`.
+
 ### To Implement
 
 #### Embedded/Hardware Targets
 
 - [ ] **Bela** - BeagleBone-based real-time audio platform. C++ API, ultra-low latency. Similar audience to Organelle.
   - Docs: <https://learn.bela.io/>
-
-- [ ] **Daisy (Electrosmith)** - STM32-based embedded audio. Powers commercial Eurorack modules and DIY projects.
-  - Docs:
-    - <https://github.com/electro-smith/libDaisy>
-    - <https://github.com/electro-smith/DaisySP>
 
 - [ ] **Teensy Audio Library** - Arduino-compatible, popular for DIY synths.
   - Docs: <https://www.pjrc.com/teensy/td_libs_Audio.html>

@@ -225,3 +225,26 @@ def list_vcvrack_templates() -> list[Path]:
     if not vcvrack_dir.is_dir():
         return []
     return list(vcvrack_dir.glob("*"))
+
+
+def get_daisy_templates_dir() -> Path:
+    """
+    Get the path to Daisy embedded templates.
+
+    Returns:
+        Path to the daisy/ templates directory.
+    """
+    return get_templates_dir() / "daisy"
+
+
+def list_daisy_templates() -> list[Path]:
+    """
+    List all Daisy embedded template files.
+
+    Returns:
+        List of paths to template files.
+    """
+    daisy_dir = get_daisy_templates_dir()
+    if not daisy_dir.is_dir():
+        return []
+    return list(daisy_dir.glob("*"))

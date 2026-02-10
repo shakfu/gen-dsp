@@ -2,7 +2,7 @@
 
 .PHONY: all install install-dev test test-cov clean dist publish-test publish \
        help venv example-pd example-max example-chuck example-au example-clap \
-       example-vst3 example-lv2 example-sc example-vcvrack examples lint format typecheck qa
+       example-vst3 example-lv2 example-sc example-vcvrack example-daisy examples lint format typecheck qa
 
 VENV := .venv
 UV := uv
@@ -121,8 +121,15 @@ example-vcvrack:
 	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p vcvrack -o $(EXAMPLES_DIR)/$(NAME)_vcvrack $(BUFFERS)
 	$(GEN_DSP) build $(EXAMPLES_DIR)/$(NAME)_vcvrack -p vcvrack
 
+# Generate and build a Daisy firmware from a test fixture
+# Requires arm-none-eabi-gcc; libDaisy auto-cloned to GEN_DSP_CACHE_DIR on first build
+example-daisy:
+	rm -rf $(EXAMPLES_DIR)/$(NAME)_daisy
+	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p daisy -o $(EXAMPLES_DIR)/$(NAME)_daisy $(BUFFERS)
+	$(GEN_DSP) build $(EXAMPLES_DIR)/$(NAME)_daisy -p daisy
+
 # Build all example plugins
-examples: example-pd example-max example-chuck example-au example-clap example-vst3 example-lv2 example-sc example-vcvrack
+examples: example-pd example-max example-chuck example-au example-clap example-vst3 example-lv2 example-sc example-vcvrack example-daisy
 
 # Build distribution
 dist: clean
@@ -156,6 +163,7 @@ help:
 	@echo "  example-lv2   - Generate and build an LV2 plugin"
 	@echo "  example-sc    - Generate and build a SuperCollider UGen"
 	@echo "  example-vcvrack - Generate and build a VCV Rack module (requires RACK_DIR)"
+	@echo "  example-daisy - Generate and build a Daisy firmware (requires arm-none-eabi-gcc)"
 	@echo "  examples      - Build all example plugins"
 	@echo "  clean         - Remove build artifacts"
 	@echo "  dist          - Build distribution packages"
