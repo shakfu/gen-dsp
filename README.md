@@ -469,10 +469,16 @@ gen-dsp uses a platform registry system that makes it straightforward to add sup
 
 ## Attribution
 
+The gen~ language was created by [Graham Wakefield](https://github.com/grrrwaaa) at Cycling '74.
+
+This project builds on the original idea and work of [gen_ext](https://github.com/samesimilar/gen_ext) by Michael Spears.
+
 Test fixtures include code exported from examples bundled with Max:
 
 - gigaverb: ported from Juhana Sadeharju's implementation
 - spectraldelayfb: from gen~.spectraldelay_feedback
+
+The Daisy backend was informed by techniques from [oopsy](https://github.com/electro-smith/oopsy) by Electrosmith and contributors, including Graham Wakefield.
 
 ## License
 
