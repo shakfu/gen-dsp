@@ -58,6 +58,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi
 
+      - name: Install PureData headers
+        if: matrix.platform == 'pd'
+        shell: bash
+        run: |
+          mkdir -p "${{ github.workspace }}/pd-headers"
+          curl -sL https://raw.githubusercontent.com/pure-data/pure-data/master/src/m_pd.h \
+            -o "${{ github.workspace }}/pd-headers/m_pd.h"
+          echo "PDINCLUDEDIR=${{ github.workspace }}/pd-headers" >> "$GITHUB_ENV"
+
       - run: uv sync --group dev
 
       - name: Generate project

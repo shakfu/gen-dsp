@@ -128,7 +128,7 @@ class AudioUnitPlatform(Platform):
         if not template_path.exists():
             raise ProjectError(f"CMakeLists.txt template not found at {template_path}")
 
-        template_content = template_path.read_text()
+        template_content = template_path.read_text(encoding="utf-8")
         template = Template(template_content)
         content = template.safe_substitute(
             gen_name=gen_name,
@@ -137,7 +137,7 @@ class AudioUnitPlatform(Platform):
             num_inputs=num_inputs,
             num_outputs=num_outputs,
         )
-        output_path.write_text(content)
+        output_path.write_text(content, encoding="utf-8")
 
     def _generate_info_plist(
         self,
@@ -151,7 +151,7 @@ class AudioUnitPlatform(Platform):
         if not template_path.exists():
             raise ProjectError(f"Info.plist template not found at {template_path}")
 
-        template_content = template_path.read_text()
+        template_content = template_path.read_text(encoding="utf-8")
         template = Template(template_content)
         content = template.safe_substitute(
             lib_name=lib_name,
@@ -160,7 +160,7 @@ class AudioUnitPlatform(Platform):
             au_subtype=au_subtype,
             au_manufacturer=self.AU_MANUFACTURER,
         )
-        output_path.write_text(content)
+        output_path.write_text(content, encoding="utf-8")
 
     def build(
         self,

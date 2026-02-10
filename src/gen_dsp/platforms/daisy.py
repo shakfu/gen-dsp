@@ -422,7 +422,7 @@ class DaisyPlatform(Platform):
         if not template_path.exists():
             raise ProjectError(f"Makefile template not found at {template_path}")
 
-        template_content = template_path.read_text()
+        template_content = template_path.read_text(encoding="utf-8")
         template = Template(template_content)
         content = template.safe_substitute(
             gen_name=gen_name,
@@ -433,7 +433,7 @@ class DaisyPlatform(Platform):
             num_params=num_params,
             default_libdaisy_dir=default_libdaisy_dir,
         )
-        output_path.write_text(content)
+        output_path.write_text(content, encoding="utf-8")
 
     def _generate_ext_daisy(
         self,
@@ -448,7 +448,7 @@ class DaisyPlatform(Platform):
                 f"gen_ext_daisy.cpp template not found at {template_path}"
             )
 
-        template_content = template_path.read_text()
+        template_content = template_path.read_text(encoding="utf-8")
         template = Template(template_content)
 
         # Build extra_using line (empty string or full line with newline prefix)
@@ -466,7 +466,7 @@ class DaisyPlatform(Platform):
             extra_using=extra_using,
             main_loop_body=main_loop_body,
         )
-        output_path.write_text(content)
+        output_path.write_text(content, encoding="utf-8")
 
     def build(
         self,

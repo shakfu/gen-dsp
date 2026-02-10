@@ -137,7 +137,7 @@ class Platform(ABC):
             buffer_defs.append(f"// #define WRAPPER_BUFFER_NAME_{i} array{i + 1}")
 
         if template_path.exists():
-            template_content = template_path.read_text()
+            template_content = template_path.read_text(encoding="utf-8")
             template = Template(template_content)
             content = template.safe_substitute(
                 buffer_count=buffer_count,
@@ -155,7 +155,7 @@ class Platform(ABC):
             lines.extend(buffer_defs)
             content = "\n".join(lines) + "\n"
 
-        output_path.write_text(content)
+        output_path.write_text(content, encoding="utf-8")
 
     def run_command(
         self,

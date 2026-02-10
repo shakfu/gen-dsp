@@ -285,7 +285,7 @@ class VcvRackPlatform(Platform):
         if not template_path.exists():
             raise ProjectError(f"Makefile template not found at {template_path}")
 
-        template_content = template_path.read_text()
+        template_content = template_path.read_text(encoding="utf-8")
         template = Template(template_content)
         content = template.safe_substitute(
             gen_name=gen_name,
@@ -297,7 +297,7 @@ class VcvRackPlatform(Platform):
             panel_hp=panel_hp,
             default_rack_dir=default_rack_dir,
         )
-        output_path.write_text(content)
+        output_path.write_text(content, encoding="utf-8")
 
     def _generate_plugin_json(
         self,
@@ -334,7 +334,7 @@ class VcvRackPlatform(Platform):
         }
 
         content = json.dumps(manifest, indent=2) + "\n"
-        (output_dir / "plugin.json").write_text(content)
+        (output_dir / "plugin.json").write_text(content, encoding="utf-8")
 
     def _generate_panel_svg(
         self,

@@ -98,7 +98,7 @@ class Patcher:
         if not genlib_ops_path:
             return None
 
-        content = genlib_ops_path.read_text()
+        content = genlib_ops_path.read_text(encoding="utf-8")
 
         # Check if exp2f is present
         if not self.EXP2F_PATTERN.search(content):
@@ -124,7 +124,7 @@ class Patcher:
 
         # Write the patched content
         try:
-            genlib_ops_path.write_text(new_content)
+            genlib_ops_path.write_text(new_content, encoding="utf-8")
             return PatchResult(
                 file_path=genlib_ops_path,
                 patch_name="exp2f_fix",
@@ -153,7 +153,7 @@ class Patcher:
 
         for path in possible_paths:
             if path.exists():
-                content = path.read_text()
+                content = path.read_text(encoding="utf-8")
                 needed["exp2f_fix"] = bool(self.EXP2F_PATTERN.search(content))
                 break
         else:

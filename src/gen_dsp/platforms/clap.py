@@ -116,7 +116,7 @@ class ClapPlatform(Platform):
         if not template_path.exists():
             raise ProjectError(f"CMakeLists.txt template not found at {template_path}")
 
-        template_content = template_path.read_text()
+        template_content = template_path.read_text(encoding="utf-8")
         template = Template(template_content)
         content = template.safe_substitute(
             gen_name=gen_name,
@@ -127,7 +127,7 @@ class ClapPlatform(Platform):
             use_shared_cache=use_shared_cache,
             cache_dir=cache_dir,
         )
-        output_path.write_text(content)
+        output_path.write_text(content, encoding="utf-8")
 
     def build(
         self,

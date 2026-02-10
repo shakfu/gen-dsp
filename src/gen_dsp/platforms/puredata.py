@@ -96,7 +96,7 @@ class PureDataPlatform(Platform):
     ) -> None:
         """Generate Makefile from template."""
         if template_path.exists():
-            template_content = template_path.read_text()
+            template_content = template_path.read_text(encoding="utf-8")
             template = Template(template_content)
             content = template.safe_substitute(
                 gen_name=gen_name,
@@ -130,7 +130,7 @@ endef
 include ./pd-lib-builder/Makefile.pdlibbuilder
 """
 
-        output_path.write_text(content)
+        output_path.write_text(content, encoding="utf-8")
 
     def build(
         self,

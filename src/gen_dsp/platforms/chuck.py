@@ -106,7 +106,7 @@ class ChuckPlatform(Platform):
     ) -> None:
         """Generate makefile from template."""
         if template_path.exists():
-            template_content = template_path.read_text()
+            template_content = template_path.read_text(encoding="utf-8")
             template = Template(template_content)
             content = template.safe_substitute(
                 gen_name=gen_name,
@@ -116,7 +116,7 @@ class ChuckPlatform(Platform):
         else:
             raise ProjectError(f"makefile template not found at {template_path}")
 
-        output_path.write_text(content)
+        output_path.write_text(content, encoding="utf-8")
 
     def build(
         self,

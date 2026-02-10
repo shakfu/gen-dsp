@@ -102,7 +102,7 @@ class Builder:
         if not makefile.exists():
             return None
 
-        content = makefile.read_text()
+        content = makefile.read_text(encoding="utf-8")
 
         match = re.search(r"lib\.name\s*=\s*(\S+)", content)
         if match:

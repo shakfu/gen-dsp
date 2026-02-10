@@ -120,7 +120,7 @@ class GenExportParser:
         )
 
         # Read the .cpp file content
-        cpp_content = cpp_path.read_text()
+        cpp_content = cpp_path.read_text(encoding="utf-8")
 
         # Extract I/O counts
         info.num_inputs = self._extract_numins(cpp_content)
@@ -245,7 +245,7 @@ class GenExportParser:
         if not genlib_ops_path.exists():
             return None, False
 
-        content = genlib_ops_path.read_text()
+        content = genlib_ops_path.read_text(encoding="utf-8")
         has_issue = bool(self.EXP2F_PATTERN.search(content))
 
         return genlib_ops_path, has_issue

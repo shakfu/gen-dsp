@@ -169,7 +169,7 @@ class Lv2Platform(Platform):
         if not export_info.cpp_path or not export_info.cpp_path.exists():
             return []
 
-        content = export_info.cpp_path.read_text()
+        content = export_info.cpp_path.read_text(encoding="utf-8")
         params = []
         for m in _PARAM_BLOCK_RE.finditer(content):
             params.append(
@@ -207,7 +207,7 @@ class Lv2Platform(Platform):
             f"    lv2:binary <{lib_name}.{binary_ext}> ;\n"
             f"    rdfs:seeAlso <{lib_name}.ttl> .\n"
         )
-        (output_dir / "manifest.ttl").write_text(content)
+        (output_dir / "manifest.ttl").write_text(content, encoding="utf-8")
 
     def _generate_plugin_ttl(
         self,
@@ -302,7 +302,7 @@ class Lv2Platform(Platform):
             port_index += 1
 
         content = "\n".join(lines) + "\n"
-        (output_dir / f"{lib_name}.ttl").write_text(content)
+        (output_dir / f"{lib_name}.ttl").write_text(content, encoding="utf-8")
 
     @staticmethod
     def _sanitize_symbol(name: str) -> str:
@@ -328,7 +328,7 @@ class Lv2Platform(Platform):
         if not template_path.exists():
             raise ProjectError(f"CMakeLists.txt template not found at {template_path}")
 
-        template_content = template_path.read_text()
+        template_content = template_path.read_text(encoding="utf-8")
         template = Template(template_content)
         content = template.safe_substitute(
             gen_name=gen_name,
@@ -340,7 +340,7 @@ class Lv2Platform(Platform):
             use_shared_cache=use_shared_cache,
             cache_dir=cache_dir,
         )
-        output_path.write_text(content)
+        output_path.write_text(content, encoding="utf-8")
 
     def build(
         self,

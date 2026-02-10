@@ -102,7 +102,7 @@ class MaxPlatform(Platform):
     ) -> None:
         """Generate CMakeLists.txt from template."""
         if template_path.exists():
-            template_content = template_path.read_text()
+            template_content = template_path.read_text(encoding="utf-8")
             template = Template(template_content)
             content = template.safe_substitute(
                 gen_name=gen_name,
@@ -112,7 +112,7 @@ class MaxPlatform(Platform):
         else:
             raise ProjectError(f"CMakeLists.txt template not found at {template_path}")
 
-        output_path.write_text(content)
+        output_path.write_text(content, encoding="utf-8")
 
     def setup_sdk(self, project_dir: Path) -> bool:
         """
