@@ -5,25 +5,27 @@
 ### Implemented
 
 - [x] **PureData** - Primary target. Full support.
+
 - [x] **Max/MSP** - Full support. See `src/gen_dsp/templates/max/`.
+
 - [x] **ChucK** - Full support. Generates chugins (.chug) with multi-channel I/O and runtime parameter control. See `src/gen_dsp/templates/chuck/`.
+
 - [x] **AudioUnit (AUv2)** - Full support. Generates macOS .component bundles using raw AUv2 C API (no SDK dependency). Auto-detects effect vs generator from I/O. See `src/gen_dsp/templates/au/`.
+
 - [x] **CLAP** - Full support. Generates cross-platform .clap plugins using the CLAP C API (header-only, MIT licensed, fetched via CMake FetchContent). Zero-copy audio processing. Auto-detects effect vs instrument from I/O. See `src/gen_dsp/templates/clap/`.
+
 - [x] **VST3** - Full support. Generates cross-platform .vst3 bundles using the Steinberg VST3 SDK (fetched via CMake FetchContent). Zero-copy audio processing. Auto-detects effect vs instrument from I/O. Deterministic FUID generation. See `src/gen_dsp/templates/vst3/`.
+
 - [x] **LV2** - Full support. Generates cross-platform .lv2 bundles using the LV2 C API (header-only, ISC licensed, fetched via CMake FetchContent). TTL metadata generated with real parameter names/ranges parsed from gen~ exports. Auto-detects effect vs generator from I/O. See `src/gen_dsp/templates/lv2/`.
+
+- [x] **SuperCollider UGens** - Full support. Generates cross-platform SC UGens (.scx on macOS, .so on Linux) using the SC plugin interface headers (fetched via CMake FetchContent). Generates .sc class files with parameter names/defaults parsed from gen~ exports. Auto-detects effect vs generator from I/O. See `src/gen_dsp/templates/sc/`.
 
 ### To Implement
 
 #### High Priority
 
-- [ ] **SuperCollider UGens** - Large academic/experimental community. C++ plugin API, block-based processing, buffer support via SndBuf. Well-documented UGen interface.
-  - Docs: <https://doc.sccode.org/Guides/WritingUGens.html>
-
 - [ ] **VCV Rack modules** - Virtual Eurorack with growing community. Sample-by-sample C++ API. Visual/modular paradigm aligns with gen~ patching approach.
   - Docs: <https://vcvrack.com/manual/PluginDevelopmentTutorial>
-
-- [ ] **JUCE (VST/AU/AAX)** - Broadest commercial reach. Abstracts plugin formats. Significant effort but high payoff. Note: AU, CLAP, and VST3 are already covered natively without JUCE.
-  - Docs: <https://juce.com/>
 
 #### Embedded/Hardware Targets
 
@@ -37,6 +39,9 @@
   - Docs: <https://www.pjrc.com/teensy/td_libs_Audio.html>
 
 #### Other
+
+- [ ] **JUCE (VST/AU/AAX)** - Abstracts plugin formats. Note: AU, CLAP, VST3, and LV2 are already covered natively without JUCE, so main value-add is AAX (Pro Tools, requires Avid NDA).
+  - Docs: <https://juce.com/>
 
 - [ ] **Web Audio (AudioWorklet + WASM)** - Compile gen~ to WebAssembly for browser. Growing interest in web-based audio.
   - Docs: <https://developer.mozilla.org/en-US/docs/Web/API/AudioWorklet>

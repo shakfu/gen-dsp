@@ -18,6 +18,7 @@ from gen_dsp.platforms.audiounit import AudioUnitPlatform
 from gen_dsp.platforms.clap import ClapPlatform
 from gen_dsp.platforms.vst3 import Vst3Platform
 from gen_dsp.platforms.lv2 import Lv2Platform
+from gen_dsp.platforms.supercollider import SuperColliderPlatform
 
 
 # Registry mapping platform names to their implementation classes.
@@ -33,6 +34,7 @@ PLATFORM_REGISTRY: dict[str, Type[Platform]] = {
     "clap": ClapPlatform,
     "vst3": Vst3Platform,
     "lv2": Lv2Platform,
+    "sc": SuperColliderPlatform,
 }
 
 
@@ -106,6 +108,7 @@ __all__ = [
     "ClapPlatform",
     "Vst3Platform",
     "Lv2Platform",
+    "SuperColliderPlatform",
     "PLATFORM_REGISTRY",
     "get_platform",
     "get_platform_class",

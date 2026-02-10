@@ -2,9 +2,9 @@
 
 This project is a friendly fork of Michael Spears' [gen_ext](https://github.com/samesimilar/gen_ext) which was originally created to "compile code exported from a Max gen~ object into an "external" object that can be loaded into a PureData patch."
 
-This fork has taken this excellent original idea and implementation and extended it to include Max/MSP externals, ChucK chugins, AudioUnit (AUv2) plugins, CLAP plugins, VST3 plugins, LV2 plugins, and possibly other DSP architectures (see [TODO.md](TODO.md)).
+This fork has taken this excellent original idea and implementation and extended it to include Max/MSP externals, ChucK chugins, AudioUnit (AUv2) plugins, CLAP plugins, VST3 plugins, LV2 plugins, SuperCollider UGens, and possibly other DSP architectures (see [TODO.md](TODO.md)).
 
-gen-dsp compiles code exported from Max gen~ objects into external objects for PureData, Max/MSP, ChucK, AudioUnit (AUv2), CLAP, VST3, and LV2. It automates project setup, buffer detection, and platform-specific patches.
+gen-dsp compiles code exported from Max gen~ objects into external objects for PureData, Max/MSP, ChucK, AudioUnit (AUv2), CLAP, VST3, LV2, and SuperCollider. It automates project setup, buffer detection, and platform-specific patches.
 
 ## Key Improvements
 
@@ -20,13 +20,15 @@ gen-dsp compiles code exported from Max gen~ objects into external objects for P
 
 - **AudioUnit support**: Generates macOS AUv2 plugins (.component) using the raw C API -- no Apple SDK dependency, just system frameworks.
 
-- **CLAP support**: Generates cross-platform CLAP plugins (.clap) with zero-copy audio processing -- CLAP headers fetched via CMake FetchContent.
+- **CLAP support**: Generates cross-platform CLAP plugins (`.clap`) with zero-copy audio processing -- CLAP headers fetched via CMake FetchContent.
 
-- **VST3 support**: Generates cross-platform VST3 plugins (.vst3) with zero-copy audio processing -- Steinberg VST3 SDK fetched via CMake FetchContent.
+- **VST3 support**: Generates cross-platform VST3 plugins (`.vst3`) with zero-copy audio processing -- Steinberg VST3 SDK fetched via CMake FetchContent.
 
-- **LV2 support**: Generates cross-platform LV2 plugins (.lv2 bundles) with TTL metadata containing real parameter names/ranges parsed from gen~ exports -- LV2 headers fetched via CMake FetchContent.
+- **LV2 support**: Generates cross-platform LV2 plugins (`.lv2` bundles) with TTL metadata containing real parameter names/ranges parsed from gen~ exports -- LV2 headers fetched via CMake FetchContent.
 
-- **Platform-specific patches**: Automatically fixes compatibility issues like the exp2f -> exp2 problem in Max 9 exports on macOS.
+- **SuperCollider support**: Generates cross-platform SC UGens (`.scx`/`.so`) with `.sc` class files containing parameter names/defaults parsed from gen~ exports -- SC plugin headers fetched via CMake FetchContent.
+
+- **Platform-specific patches**: Automatically fixes compatibility issues like the `exp2f -> exp2` problem in Max 9 exports on macOS.
 
 - **Analysis tools**: `gen-dsp detect` inspects exports to show I/O counts, parameters, and buffers before committing to a build.
 
@@ -76,10 +78,10 @@ gen-dsp init <export-path> -n <name> [-p <platform>] [-o <output>]
 Options:
 
 - `-n, --name` - Name for the external (required)
-- `-p, --platform` - Target platform: `pd` (default), `max`, `chuck`, `au`, `clap`, `vst3`, `lv2`, or `both`
+- `-p, --platform` - Target platform: `pd` (default), `max`, `chuck`, `au`, `clap`, `vst3`, `lv2`, `sc`, or `both`
 - `-o, --output` - Output directory (default: `./<name>`)
 - `--buffers` - Explicit buffer names (overrides auto-detection)
-- `--shared-cache` - Use a shared OS cache for FetchContent downloads (clap, vst3, lv2 only)
+- `--shared-cache` - Use a shared OS cache for FetchContent downloads (clap, vst3, lv2, sc only)
 - `--no-patch` - Skip automatic exp2f fix
 - `--dry-run` - Preview without creating files
 
@@ -391,15 +393,65 @@ The plugin is automatically detected as an effect (`EffectPlugin`) if the gen~ e
 - **TTL metadata**: `manifest.ttl` (discovery) and `<name>.ttl` (ports, parameters) generated at project creation time
 - **Bundle output**: `.lv2` directory containing shared library + 2 TTL files
 
+## SuperCollider Support
+
+gen-dsp supports generating cross-platform SuperCollider UGens (.scx on macOS, .so on Linux) using CMake and the SC plugin interface headers. SC headers are fetched automatically at configure time via CMake FetchContent.
+
+### Quick Start (SuperCollider)
+
+```bash
+# Create a SuperCollider project
+gen-dsp init ./my_export -n myeffect -p sc -o ./myeffect_sc
+
+# Build
+cd myeffect_sc
+mkdir -p build && cd build
+cmake .. && cmake --build .
+
+# Output: build/myeffect.scx (macOS) or build/myeffect.so (Linux)
+
+# Install (copy both the binary and the .sc class file)
+# macOS:
+cp myeffect.scx ~/Library/Application\ Support/SuperCollider/Extensions/
+cp ../Myeffect.sc ~/Library/Application\ Support/SuperCollider/Extensions/
+# Linux:
+cp myeffect.so ~/.local/share/SuperCollider/Extensions/
+cp ../Myeffect.sc ~/.local/share/SuperCollider/Extensions/
+```
+
+The plugin is automatically detected as an effect if the gen~ export has inputs, or a generator if it has no inputs. On macOS, the binary is ad-hoc code signed during build.
+
+### SC UGen Details
+
+- **UGen name**: lib_name with first letter capitalized (e.g., `gigaverb` -> `Gigaverb`) -- SC class names must start uppercase
+- **Input layout**: audio inputs first (0..N-1), then parameters (N..N+P-1) at control rate
+- **Parameters**: all gen~ parameters exposed as SC UGen inputs with real names and defaults parsed from the gen~ export
+- **Audio format**: Float32, block-based (zero-copy -- SC's `IN()`/`OUT()` buffers passed directly to gen~'s `float**`)
+- **Cross-platform**: macOS and Linux
+- **Class file**: `.sc` file generated at project creation time; extends `MultiOutUGen` (multi-output) or `UGen` (single output)
+
+### Using in SuperCollider
+
+```supercollider
+// Boot the server, then use the UGen
+s.boot;
+
+// Effect (has audio inputs)
+{ Gigaverb.ar(SoundIn.ar([0, 1]), revtime: 0.8, damping: 0.5) }.play;
+
+// Generator (no audio inputs)
+{ MyOsc.ar(freq: 440, amp: 0.3) }.play;
+```
+
 ### Platform Comparison
 
-| Aspect | LV2 | VST3 | CLAP | AudioUnit | ChucK | PureData | Max/MSP |
-|--------|-----|------|------|-----------|-------|----------|---------|
-| Signal type | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | double (64-bit) |
-| Build system | CMake (FetchContent) | CMake (FetchContent) | CMake (FetchContent) | CMake | make | make (pd-lib-builder) | CMake (max-sdk-base) |
-| Output format | .lv2 | .vst3 | .clap | .component | .chug | .pd_darwin / .pd_linux | .mxo / .mxe64 |
-| macOS only | no | no | no | yes | no | no | no |
-| External deps | LV2 headers (fetched) | VST3 SDK (fetched) | CLAP headers (fetched) | none (system frameworks) | none (bundled chugin.h) | PureData headers | max-sdk-base (git) |
+| Aspect | LV2 | VST3 | CLAP | SC | AudioUnit | ChucK | PureData | Max/MSP |
+|--------|-----|------|------|----|-----------|-------|----------|---------|
+| Signal type | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | double (64-bit) |
+| Build system | CMake (FetchContent) | CMake (FetchContent) | CMake (FetchContent) | CMake (FetchContent) | CMake | make | make (pd-lib-builder) | CMake (max-sdk-base) |
+| Output format | .lv2 | .vst3 | .clap | .scx / .so | .component | .chug | .pd_darwin / .pd_linux | .mxo / .mxe64 |
+| macOS only | no | no | no | no | yes | no | no | no |
+| External deps | LV2 headers (fetched) | VST3 SDK (fetched) | CLAP headers (fetched) | SC headers (fetched) | none (system frameworks) | none (bundled chugin.h) | PureData headers | max-sdk-base (git) |
 
 ### PureData vs Max/MSP
 
@@ -415,7 +467,7 @@ For PureData, gen~ is compiled with 32-bit float signals. For Max, gen~ uses nat
 
 ## Shared FetchContent Cache
 
-CLAP, VST3, and LV2 backends use CMake FetchContent to download their SDKs/headers at configure time. By default each project downloads its own copy. Two opt-in mechanisms allow sharing a single download across projects:
+CLAP, VST3, LV2, and SC backends use CMake FetchContent to download their SDKs/headers at configure time. By default each project downloads its own copy. Two opt-in mechanisms allow sharing a single download across projects:
 
 ### `--shared-cache` flag
 
@@ -443,7 +495,7 @@ GEN_DSP_CACHE_DIR=/path/to/cache cmake ..
 
 The env var takes highest priority, followed by the `--shared-cache` path, followed by CMake's default (project-local `build/_deps/`).
 
-The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` automatically, so `make example-clap`, `make example-vst3`, and `make example-lv2` share the same SDK cache used by tests.
+The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` automatically, so `make example-clap`, `make example-vst3`, `make example-lv2`, and `make example-sc` share the same SDK cache used by tests.
 
 ## Limitations
 
@@ -454,6 +506,7 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 - CLAP: first CMake configure requires network access to fetch CLAP headers (cached afterward)
 - VST3: first CMake configure requires network access to fetch VST3 SDK (~50MB, cached afterward); GPL3/proprietary dual license
 - LV2: first CMake configure requires network access to fetch LV2 headers (cached afterward)
+- SuperCollider: first CMake configure requires network access to fetch SC headers (~80MB tarball, cached afterward)
 
 ## Requirements
 
@@ -502,6 +555,12 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 - C/C++ compiler (clang, gcc)
 - Network access on first configure (to fetch LV2 headers)
 
+### SuperCollider builds
+
+- CMake >= 3.19
+- C/C++ compiler (clang, gcc)
+- Network access on first configure (to fetch SC plugin headers)
+
 ### macOS
 
 Install Xcode or Command Line Tools:
@@ -545,6 +604,7 @@ make example-au       # AudioUnit plugin (macOS only)
 make example-clap     # CLAP plugin
 make example-vst3     # VST3 plugin
 make example-lv2      # LV2 plugin
+make example-sc       # SuperCollider UGen
 make examples         # All platforms
 ```
 
@@ -560,7 +620,7 @@ Output goes to `build/examples/`.
 
 ### Adding New Backends
 
-gen-dsp uses a platform registry system that makes it straightforward to add support for new audio platforms (SuperCollider, VCV Rack, etc.). See [NEW_BACKENDS.md](NEW_BACKENDS.md) for a complete guide.
+gen-dsp uses a platform registry system that makes it straightforward to add support for new audio platforms (VCV Rack, Bela, Daisy, etc.). See [NEW_BACKENDS.md](NEW_BACKENDS.md) for a complete guide.
 
 ## Attribution
 

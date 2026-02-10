@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **SuperCollider UGen platform support** with CMake-based build system
+  - Generates cross-platform SC UGens (`.scx` on macOS, `.so` on Linux) from gen~ exports
+  - SuperCollider plugin interface headers fetched via CMake FetchContent (URL tarball, pinned to Version-3.13.0)
+  - Uses `FetchContent_Populate` with manual include dirs (`plugin_interface/`, `common/`) since we only need headers
+  - UGen struct extends SC's `Unit`, holds opaque `GenState*`; registered via `fDefineUnit()` with capitalized name
+  - Input layout: audio inputs first (0..N-1), then parameters (N..N+P-1) as control-rate via `IN0()`
+  - Zero-copy audio: SC's `IN()`/`OUT()` return `float*` buffers passed directly to gen~'s `float**` (`GENLIB_USE_FLOAT32`)
+  - Generates `.sc` class file at project-gen time with parameter names/defaults parsed from gen~ exports
+  - `.sc` class extends `MultiOutUGen` (num_outputs > 1) or `UGen` (single output); includes `checkInputs` for audio-rate validation
+  - Auto-detects effect vs generator from input count
+  - Ad-hoc code signing on macOS; cross-platform install targets (macOS + Linux)
+  - No vendored dependencies -- first configure requires network access, cached afterward
+  - Platform key: `"sc"`
+
 ## [0.1.1]
 
 ### Added

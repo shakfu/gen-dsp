@@ -179,3 +179,26 @@ def list_lv2_templates() -> list[Path]:
     if not lv2_dir.is_dir():
         return []
     return list(lv2_dir.glob("*"))
+
+
+def get_sc_templates_dir() -> Path:
+    """
+    Get the path to SuperCollider UGen templates.
+
+    Returns:
+        Path to the sc/ templates directory.
+    """
+    return get_templates_dir() / "sc"
+
+
+def list_sc_templates() -> list[Path]:
+    """
+    List all SuperCollider UGen template files.
+
+    Returns:
+        List of paths to template files.
+    """
+    sc_dir = get_sc_templates_dir()
+    if not sc_dir.is_dir():
+        return []
+    return list(sc_dir.glob("*"))
