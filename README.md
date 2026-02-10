@@ -6,6 +6,38 @@ This fork has taken this excellent original idea and implementation and extended
 
 gen-dsp compiles code exported from Max gen~ objects into external objects for PureData, Max/MSP, ChucK, AudioUnit (AUv2), CLAP, VST3, LV2, SuperCollider, VCV Rack, and Daisy (Electrosmith). It automates project setup, buffer detection, and platform-specific patches.
 
+## Cross-Platform Support
+
+gen-dsp builds on macOS, Linux, and Windows. All platforms are tested in CI via GitHub Actions.
+
+| Platform | macOS | Linux | Windows | Build System | Output |
+|----------|:-----:|:-----:|:-------:|--------------|--------|
+| PureData | yes | yes | -- | make (pd-lib-builder) | `.pd_darwin` / `.pd_linux` |
+| Max/MSP | yes | -- | -- | CMake (max-sdk-base) | `.mxo` / `.mxe64` |
+| ChucK | yes | yes | -- | make | `.chug` |
+| AudioUnit | yes | -- | -- | CMake | `.component` |
+| CLAP | yes | yes | yes | CMake (FetchContent) | `.clap` |
+| VST3 | yes | yes | yes | CMake (FetchContent) | `.vst3` |
+| LV2 | yes | yes | -- | CMake (FetchContent) | `.lv2` |
+| SuperCollider | yes | yes | yes | CMake (FetchContent) | `.scx` / `.so` |
+| VCV Rack | yes | yes | -- | make (Rack SDK) | `plugin.dylib` / `.so` / `.dll` |
+| Daisy | -- | yes | -- | make (libDaisy) | `.bin` (firmware) |
+
+Each platform has a detailed guide covering prerequisites, build details, SDK configuration, install paths, and troubleshooting:
+
+| Platform | Guide |
+|----------|-------|
+| PureData | [docs/backends/puredata.md](docs/backends/puredata.md) |
+| Max/MSP | [docs/backends/max.md](docs/backends/max.md) |
+| ChucK | [docs/backends/chuck.md](docs/backends/chuck.md) |
+| AudioUnit (AUv2) | [docs/backends/audiounit.md](docs/backends/audiounit.md) |
+| CLAP | [docs/backends/clap.md](docs/backends/clap.md) |
+| VST3 | [docs/backends/vst3.md](docs/backends/vst3.md) |
+| LV2 | [docs/backends/lv2.md](docs/backends/lv2.md) |
+| SuperCollider | [docs/backends/supercollider.md](docs/backends/supercollider.md) |
+| VCV Rack | [docs/backends/vcvrack.md](docs/backends/vcvrack.md) |
+| Daisy | [docs/backends/daisy.md](docs/backends/daisy.md) |
+
 ## Key Improvements
 
 - **Python package**: gen-dsp is a pip installable zero-dependency python package with a cli which embeds all templates and related code.
@@ -143,399 +175,123 @@ gen-dsp patch ./my_project --dry-run  # Preview
 gen-dsp patch ./my_project            # Apply
 ```
 
-## Using the External in PureData
+## PureData
 
-### Parameters
-
-Send `<parameter-name> <value>` messages to the first inlet:
-
-```text
-[frequency 440(
-|
-[mysynth~]
-```
-
-Send `bang` to print all available parameters.
-
-### Buffers
-
-Buffers connect to PureData arrays with matching names. To remap a buffer to a different array:
-
-```text
-[pdset original_buffer new_array(
-|
-[mysampler~]
-```
-
-### Sample Rate and Block Size
-
-For subpatches with custom block sizes (e.g., spectral processing):
-
-```text
-[pdsr 96000(  <- Set sample rate
-[pdbs 2048(   <- Set block size
-|
-[myspectral~]
-```
-
-## Max/MSP Support
-
-gen-dsp supports generating Max/MSP externals using CMake and the max-sdk-base submodule.
-
-### Quick Start (Max)
+See the [PureData guide](docs/backends/puredata.md) for full details.
 
 ```bash
-# Create a Max project
+gen-dsp init ./my_export -n myeffect -p pd -o ./myeffect_pd
+cd myeffect_pd && make all
+```
+
+Parameters: send `<name> <value>` messages to the first inlet. Send `bang` to list all parameters. Buffers connect to PureData arrays by name; use `pdset` to remap.
+
+## Max/MSP
+
+See the [Max/MSP guide](docs/backends/max.md) for full details.
+
+```bash
 gen-dsp init ./my_export -n myeffect -p max -o ./myeffect_max
-
-# Build (automatically clones max-sdk-base if needed)
 gen-dsp build ./myeffect_max -p max
-
-# Output: myeffect_max/externals/myeffect~.mxo (macOS) or myeffect~.mxe64 (Windows)
+# Output: externals/myeffect~.mxo (macOS) or myeffect~.mxe64 (Windows)
 ```
 
-Or build manually:
+Max is the only platform using 64-bit double signals. The SDK (max-sdk-base) is auto-cloned on first build.
+
+## ChucK
+
+See the [ChucK guide](docs/backends/chuck.md) for full details.
 
 ```bash
-cd myeffect_max
-git clone --depth 1 https://github.com/Cycling74/max-sdk-base.git
-mkdir -p build && cd build
-cmake .. && cmake --build .
-```
-
-## ChucK Support
-
-gen-dsp supports generating ChucK chugins (.chug files) using make and a bundled `chugin.h` header.
-
-### Quick Start (ChucK)
-
-```bash
-# Create a ChucK project
 gen-dsp init ./my_export -n myeffect -p chuck -o ./myeffect_chuck
-
-# Build
-cd myeffect_chuck
-make mac    # macOS
-make linux  # Linux
-
-# Use in ChucK
-# @import "Myeffect"
-# Myeffect eff => dac;
+cd myeffect_chuck && make mac  # or make linux
 ```
 
-### ChucK API
+Class names are auto-capitalized (`myeffect` -> `Myeffect`). Parameters are controlled via `eff.param("name", value)`.
 
-The generated chugin extends `UGen` and provides:
+## AudioUnit (AUv2)
 
-```chuck
-// Import and instantiate (connects as UGen)
-@import "Myeffect"
-Myeffect eff => dac;
-
-// Set a parameter by name
-eff.param("frequency", 440.0);
-
-// Get a parameter by name
-eff.param("frequency") => float freq;
-
-// Query parameters
-eff.numParams() => int n;
-eff.paramName(0) => string name;
-
-// Print info (parameters, I/O, buffers)
-eff.info();
-
-// Reset internal state
-eff.reset();
-```
-
-### Key Differences from PureData
-
-| Aspect | ChucK | PureData |
-|--------|-------|----------|
-| Signal type | float (32-bit) | float (32-bit) |
-| Build system | make (chugin pattern) | make (pd-lib-builder) |
-| Output format | .chug | .pd_darwin / .pd_linux |
-| Parameter access | `param(string, float)` | message to first inlet |
-| Multi-channel | `CK_DLL_TICKF` (interleaved) | per-signal inlets/outlets |
-
-## AudioUnit (AUv2) Support
-
-gen-dsp supports generating macOS AudioUnit v2 plugins (.component bundles) using CMake and the raw AUv2 C API. No Apple AudioUnitSDK is needed -- only system frameworks (AudioToolbox, CoreFoundation, CoreAudio).
-
-### Quick Start (AudioUnit)
+See the [AudioUnit guide](docs/backends/audiounit.md) for full details.
 
 ```bash
-# Create an AudioUnit project
 gen-dsp init ./my_export -n myeffect -p au -o ./myeffect_au
-
-# Build
-cd myeffect_au
-mkdir -p build && cd build
-cmake .. && cmake --build .
-
+cd myeffect_au && cmake -B build && cmake --build build
 # Output: build/myeffect.component
-
-# Install (optional)
-cp -r myeffect.component ~/Library/Audio/Plug-Ins/Components/
 ```
 
-The plugin is automatically detected as an effect (`aufx`) if the gen~ export has inputs, or a generator (`augn`) if it has no inputs. The .component bundle is ad-hoc code signed during build.
+macOS only. Uses the raw AUv2 C API -- no external SDK needed, just system frameworks. Auto-detects `aufx` (effect) vs `augn` (generator).
 
-### AU Plugin Details
+## CLAP
 
-- **Component type**: `aufx` (effect) or `augn` (generator), auto-detected from I/O
-- **Subtype**: first 4 characters of the library name (lowercased)
-- **Manufacturer**: `gdsp`
-- **Parameters**: all gen~ parameters are exposed as AU parameters with name, min, max
-- **Audio format**: Float32, non-interleaved (standard AU format)
-
-## CLAP Support
-
-gen-dsp supports generating cross-platform CLAP plugins (.clap files) using CMake and the CLAP C API (header-only, MIT licensed). CLAP headers are fetched automatically at configure time via CMake FetchContent.
-
-### Quick Start (CLAP)
+See the [CLAP guide](docs/backends/clap.md) for full details.
 
 ```bash
-# Create a CLAP project
 gen-dsp init ./my_export -n myeffect -p clap -o ./myeffect_clap
-
-# Build
-cd myeffect_clap
-mkdir -p build && cd build
-cmake .. && cmake --build .
-
+cd myeffect_clap && cmake -B build && cmake --build build
 # Output: build/myeffect.clap
-
-# Install (optional)
-# macOS:
-cp myeffect.clap ~/Library/Audio/Plug-Ins/CLAP/
-# Linux:
-cp myeffect.clap ~/.clap/
 ```
 
-The plugin is automatically detected as an audio effect if the gen~ export has inputs, or an instrument if it has no inputs. On macOS, the .clap file is ad-hoc code signed during build.
+Cross-platform (macOS, Linux, Windows). Zero-copy audio. CLAP headers fetched via CMake FetchContent (tag 1.2.2, MIT licensed).
 
-### CLAP Plugin Details
+## VST3
 
-- **Plugin type**: `audio_effect` or `instrument`, auto-detected from I/O
-- **Plugin ID**: `com.gen-dsp.<lib_name>`
-- **Parameters**: all gen~ parameters exposed via the CLAP params extension (automatable)
-- **Audio format**: Float32, non-interleaved (zero-copy -- CLAP's `data32` layout matches gen~'s `float**` exactly)
-- **Cross-platform**: macOS and Linux (unlike AudioUnit)
-- **Extensions**: `audio-ports`, `params`
-
-## VST3 Support
-
-gen-dsp supports generating cross-platform VST3 plugins (.vst3 bundles) using CMake and the Steinberg VST3 SDK. The SDK is fetched automatically at configure time via CMake FetchContent.
-
-### Quick Start (VST3)
+See the [VST3 guide](docs/backends/vst3.md) for full details.
 
 ```bash
-# Create a VST3 project
 gen-dsp init ./my_export -n myeffect -p vst3 -o ./myeffect_vst3
-
-# Build
-cd myeffect_vst3
-mkdir -p build && cd build
-cmake .. && cmake --build .
-
+cd myeffect_vst3 && cmake -B build && cmake --build build
 # Output: build/VST3/Release/myeffect.vst3/
-
-# Install (optional)
-# macOS:
-cp -r VST3/Release/myeffect.vst3 ~/Library/Audio/Plug-Ins/VST3/
-# Linux:
-cp -r VST3/Release/myeffect.vst3 ~/.vst3/
 ```
 
-The plugin is automatically detected as an effect (`Fx`) if the gen~ export has inputs, or an instrument (`Instrument|Synth`) if it has no inputs. On macOS, the .vst3 bundle is ad-hoc code signed during build.
+Cross-platform (macOS, Linux, Windows). Zero-copy audio. VST3 SDK fetched via CMake FetchContent (tag v3.7.9_build_61, GPL3/proprietary dual licensed).
 
-### VST3 Plugin Details
+## LV2
 
-- **Plugin type**: `Fx` or `Instrument|Synth`, auto-detected from I/O
-- **Plugin FUID**: deterministic 128-bit ID from MD5 of `com.gen-dsp.vst3.<lib_name>`
-- **Parameters**: all gen~ parameters exposed as `RangeParameter` with real min/max/default (automatable)
-- **Audio format**: Float32, non-interleaved (zero-copy -- VST3's `channelBuffers32` layout matches gen~'s `float**` exactly)
-- **Cross-platform**: macOS, Linux, and Windows
-- **SDK**: `SingleComponentEffect` (combined processor+controller) -- simplest VST3 plugin structure
-- **License**: VST3 SDK is GPL3/proprietary dual licensed -- users needing a proprietary license must obtain one from Steinberg
-
-## LV2 Support
-
-gen-dsp supports generating cross-platform LV2 plugins (.lv2 bundle directories) using CMake and the LV2 C API (header-only, ISC licensed). LV2 headers are fetched automatically at configure time via CMake FetchContent.
-
-### Quick Start (LV2)
+See the [LV2 guide](docs/backends/lv2.md) for full details.
 
 ```bash
-# Create an LV2 project
 gen-dsp init ./my_export -n myeffect -p lv2 -o ./myeffect_lv2
-
-# Build
-cd myeffect_lv2
-mkdir -p build && cd build
-cmake .. && cmake --build .
-
+cd myeffect_lv2 && cmake -B build && cmake --build build
 # Output: build/myeffect.lv2/
-
-# Install (optional)
-# macOS:
-cp -r myeffect.lv2 ~/Library/Audio/Plug-Ins/LV2/
-# Linux:
-cp -r myeffect.lv2 ~/.lv2/
 ```
 
-The plugin is automatically detected as an effect (`EffectPlugin`) if the gen~ export has inputs, or a generator (`GeneratorPlugin`) if it has no inputs. On macOS, the binary is ad-hoc code signed during build.
+macOS and Linux. LV2 headers fetched via CMake FetchContent (tag v1.18.10, ISC licensed). TTL metadata with real parameter names/ranges generated at project creation time.
 
-### LV2 Plugin Details
+## SuperCollider
 
-- **Plugin type**: `EffectPlugin` or `GeneratorPlugin`, auto-detected from I/O
-- **Plugin URI**: `http://gen-dsp.com/plugins/<lib_name>`
-- **Parameters**: all gen~ parameters exposed as LV2 control ports with real names and ranges parsed from the gen~ export
-- **Audio format**: Float32, port-based (individual `float*` per audio channel, collected into arrays for `wrapper_perform()`)
-- **Cross-platform**: macOS and Linux
-- **TTL metadata**: `manifest.ttl` (discovery) and `<name>.ttl` (ports, parameters) generated at project creation time
-- **Bundle output**: `.lv2` directory containing shared library + 2 TTL files
-
-## SuperCollider Support
-
-gen-dsp supports generating cross-platform SuperCollider UGens (.scx on macOS, .so on Linux) using CMake and the SC plugin interface headers. SC headers are fetched automatically at configure time via CMake FetchContent.
-
-### Quick Start (SuperCollider)
+See the [SuperCollider guide](docs/backends/supercollider.md) for full details.
 
 ```bash
-# Create a SuperCollider project
 gen-dsp init ./my_export -n myeffect -p sc -o ./myeffect_sc
-
-# Build
-cd myeffect_sc
-mkdir -p build && cd build
-cmake .. && cmake --build .
-
+cd myeffect_sc && cmake -B build && cmake --build build
 # Output: build/myeffect.scx (macOS) or build/myeffect.so (Linux)
-
-# Install (copy both the binary and the .sc class file)
-# macOS:
-cp myeffect.scx ~/Library/Application\ Support/SuperCollider/Extensions/
-cp ../Myeffect.sc ~/Library/Application\ Support/SuperCollider/Extensions/
-# Linux:
-cp myeffect.so ~/.local/share/SuperCollider/Extensions/
-cp ../Myeffect.sc ~/.local/share/SuperCollider/Extensions/
 ```
 
-The plugin is automatically detected as an effect if the gen~ export has inputs, or a generator if it has no inputs. On macOS, the binary is ad-hoc code signed during build.
+Cross-platform (macOS, Linux, Windows). SC plugin headers fetched via CMake FetchContent (~80MB tarball). Generates `.sc` class file with parameter names/defaults. UGen name is auto-capitalized.
 
-### SC UGen Details
+## VCV Rack
 
-- **UGen name**: lib_name with first letter capitalized (e.g., `gigaverb` -> `Gigaverb`) -- SC class names must start uppercase
-- **Input layout**: audio inputs first (0..N-1), then parameters (N..N+P-1) at control rate
-- **Parameters**: all gen~ parameters exposed as SC UGen inputs with real names and defaults parsed from the gen~ export
-- **Audio format**: Float32, block-based (zero-copy -- SC's `IN()`/`OUT()` buffers passed directly to gen~'s `float**`)
-- **Cross-platform**: macOS and Linux
-- **Class file**: `.sc` file generated at project creation time; extends `MultiOutUGen` (multi-output) or `UGen` (single output)
-
-### Using in SuperCollider
-
-```supercollider
-// Boot the server, then use the UGen
-s.boot;
-
-// Effect (has audio inputs)
-{ Gigaverb.ar(SoundIn.ar([0, 1]), revtime: 0.8, damping: 0.5) }.play;
-
-// Generator (no audio inputs)
-{ MyOsc.ar(freq: 440, amp: 0.3) }.play;
-```
-
-## VCV Rack Support
-
-gen-dsp supports generating VCV Rack modules using the Rack SDK's Makefile-based build system. The VCV Rack SDK must be pre-installed and `RACK_DIR` must point to it.
-
-### Quick Start (VCV Rack)
+See the [VCV Rack guide](docs/backends/vcvrack.md) for full details.
 
 ```bash
-# Create a VCV Rack project
 gen-dsp init ./my_export -n myeffect -p vcvrack -o ./myeffect_vcvrack
-
-# Build (requires RACK_DIR to point to Rack SDK)
-cd myeffect_vcvrack
-export RACK_DIR=/path/to/Rack-SDK
-make
-
+cd myeffect_vcvrack && make  # Rack SDK auto-downloaded
 # Output: plugin.dylib (macOS), plugin.so (Linux), or plugin.dll (Windows)
-
-# Install: copy entire plugin directory to VCV Rack plugins folder
-# macOS: ~/Documents/Rack2/plugins/
-# Linux: ~/.Rack2/plugins/
 ```
 
-The module is automatically detected as an effect (`Effect` tag) if the gen~ export has inputs, or a generator (`Synth Voice` tag) if it has no inputs.
+Per-sample processing via `perform(n=1)`. Auto-generates `plugin.json` manifest and dark panel SVG. Rack SDK v2.6.1 auto-downloaded and cached.
 
-### VCV Rack Module Details
+## Daisy (Electrosmith)
 
-- **Processing**: Per-sample via `perform(n=1)` -- zero latency, called once per sample from VCV Rack's `process()`
-- **Voltage scaling**: gen~ audio [-1, 1] mapped to VCV standard +/-5V; parameters map directly (gen~ min/max = knob min/max)
-- **Parameters**: all gen~ parameters exposed as knobs with real names and ranges queried at construction time
-- **Panel**: auto-generated dark SVG panel sized to component count (6/10/16/24 HP)
-- **Auto-layout**: screws at corners, knobs for params, input/output ports arranged in columns
-- **Manifest**: `plugin.json` generated with module slug, tags, and brand info
-- **Cross-platform**: macOS, Linux, and Windows
-- **Plugin ID**: slug matches lib_name
-
-## Daisy (Electrosmith) Support
-
-gen-dsp supports generating firmware for the Daisy Seed, an STM32H750-based embedded audio platform popular for Eurorack modules and DIY hardware. This is gen-dsp's first cross-compilation target -- it requires `arm-none-eabi-gcc` and produces firmware binaries (.bin) for DFU flashing.
-
-### Quick Start (Daisy)
+See the [Daisy guide](docs/backends/daisy.md) for full details.
 
 ```bash
-# Create a Daisy project
 gen-dsp init ./my_export -n myeffect -p daisy -o ./myeffect_daisy
-
-# Build (auto-clones libDaisy on first run; requires arm-none-eabi-gcc)
 gen-dsp build ./myeffect_daisy -p daisy
-
 # Output: build/myeffect.bin
-
-# Flash via DFU (put Daisy in bootloader mode first)
-# Using dfu-util:
-dfu-util -a 0 -s 0x08000000:leave -D build/myeffect.bin
 ```
 
-### Daisy Details
-
-- **Target**: Daisy Seed (v1) -- 2in/2out stereo audio, no built-in controls
-- **Compiler**: `arm-none-eabi-gcc` (ARM cross-compilation)
-- **Output**: firmware `.bin` for DFU flashing
-- **Audio format**: Float32, non-interleaved (libDaisy's callback matches gen~'s `float**` directly)
-- **Memory**: custom genlib runtime with two-tier bump allocator (SRAM ~450KB + SDRAM 64MB)
-- **Parameters**: retain gen~ defaults; modify `gen_ext_daisy.cpp` to add ADC reads for knobs/CV
-- **SDK**: libDaisy auto-cloned and built on first use (pinned to v7.1.0)
-- **SDK resolution**: `LIBDAISY_DIR` env var > `GEN_DSP_CACHE_DIR` env var > OS cache path
-- **Channel mapping**: `min(gen_channels, 2)` mapped to hardware; extra gen~ I/O uses scratch buffers
-- **Board targets**: Pod, Patch, Field, Petal, Versio can be added in future versions
-
-### Platform Comparison
-
-| Aspect | LV2 | VST3 | CLAP | SC | VCV Rack | Daisy | AudioUnit | ChucK | PureData | Max/MSP |
-|--------|-----|------|------|----|----------|-------|-----------|-------|----------|---------|
-| Signal type | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | float (32-bit) | double (64-bit) |
-| Build system | CMake (FetchContent) | CMake (FetchContent) | CMake (FetchContent) | CMake (FetchContent) | make (Rack SDK) | make (libDaisy) | CMake | make | make (pd-lib-builder) | CMake (max-sdk-base) |
-| Output format | .lv2 | .vst3 | .clap | .scx / .so | plugin.dylib / .so | .bin (firmware) | .component | .chug | .pd_darwin / .pd_linux | .mxo / .mxe64 |
-| macOS only | no | no | no | no | no | no | yes | no | no | no |
-| External deps | LV2 headers (fetched) | VST3 SDK (fetched) | CLAP headers (fetched) | SC headers (fetched) | Rack SDK (pre-installed) | libDaisy (auto-cloned) | none (system frameworks) | none (bundled chugin.h) | PureData headers | max-sdk-base (git) |
-
-### PureData vs Max/MSP
-
-| Aspect | PureData | Max/MSP |
-|--------|----------|---------|
-| Signal type | float (32-bit) | double (64-bit) |
-| Buffer storage | float (32-bit) | float (32-bit) |
-| Build system | make (pd-lib-builder) | CMake (max-sdk-base) |
-| Buffer access | Direct array | Lock/unlock API |
-| Output format | .pd_darwin / .pd_linux | .mxo / .mxe64 |
-
-For PureData, gen~ is compiled with 32-bit float signals. For Max, gen~ uses native 64-bit double signals, with automatic float conversion for buffer access (Max buffers are always 32-bit).
+Cross-compilation target for STM32H750. Requires `arm-none-eabi-gcc`. libDaisy (v7.1.0) auto-cloned on first build. Supports 8 board variants via `--board` flag (seed, pod, patch, patch_sm, field, petal, legio, versio).
 
 ## Shared FetchContent Cache
 
@@ -586,7 +342,7 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 
 ### Runtime
 
-- Python >= 3.9
+- Python >= 3.10
 - C/C++ compiler (gcc, clang)
 
 ### PureData builds
@@ -709,7 +465,7 @@ Output goes to `build/examples/`.
 
 ### Adding New Backends
 
-gen-dsp uses a platform registry system that makes it straightforward to add support for new audio platforms (VCV Rack, Bela, Daisy, etc.). See [NEW_BACKENDS.md](NEW_BACKENDS.md) for a complete guide.
+gen-dsp uses a platform registry system that makes it straightforward to add support for new audio platforms (VCV Rack, Bela, Daisy, etc.). See [docs/new_backends.md](docs/new_backends.md) for a complete guide.
 
 ## Attribution
 

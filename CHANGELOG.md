@@ -7,11 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4]
+
+### Added
+
+- **Per-platform documentation guides** in `docs/backends/`
+  - 10 standalone guides (one per DSP target): puredata, max, chuck, audiounit, clap, vst3, lv2, supercollider, vcvrack, daisy
+  - Each guide covers prerequisites, quick start, architecture (header isolation, signal format, plugin type detection), parameters, buffers, build details (SDK versions, compile flags, shared cache), install paths, and troubleshooting
+  - FetchContent-based platforms (CLAP, VST3, LV2, SC) document `FETCHCONTENT_SOURCE_DIR_<NAME>` for using a pre-existing local SDK
+- **Platform guides link table** in README cross-platform support section
+
+- **Cross-platform build examples workflow** (`build-examples.yml`) with `fail-fast: false`
+  - Matrix of 9 platforms x 3 OSes (macOS, Linux, Windows) with appropriate exclusions
+  - All platform builds now pass on all supported OSes: macOS (all 9), Linux (all except AU), Windows (CLAP, VST3, SC)
+  - FetchContent SDK cache shared across runs via `actions/cache` and `GEN_DSP_CACHE_DIR`
+
+### Changed
+
+- **README condensed** from ~745 to ~480 lines by replacing verbose per-platform sections with compact summaries linking to the detailed guides
+  - Removed duplicated plugin details, API docs, and comparison tables (now in individual guides)
+  - Each platform section retains a quick start snippet and one-line description
+
+### Fixed
+
+- **Windows: UTF-8 encoding** across all file I/O operations (14 source files)
+  - Python defaults to cp1252 on Windows; explicit `encoding="utf-8"` on every `read_text()`/`write_text()` call prevents decode errors on gen~ exports
+- **Windows: CMake backslash path escaping** in FetchContent cache paths
+  - `GEN_DSP_CACHE_DIR` on Windows produces backslash paths (e.g. `D:\a\...`) which CMake 3.31's `cmake_language(EVAL)` inside FetchContent re-parses as escape sequences (`\a` = invalid escape)
+  - Fixed with `file(TO_CMAKE_PATH ...)` in all 4 CMake templates (CLAP, VST3, LV2, SC) to normalize env var paths to forward slashes
+  - Python-side `Path.as_posix()` for baked-in `--shared-cache` paths
+- **Windows: CLAP designated initializers** require C++20 under MSVC
+  - MSVC enforces strict C++20 requirement for `.field = value` syntax; GCC/Clang accept it as a C++17 extension
+  - CLAP CMake template bumped from C++17 to C++20
+- **Linux: PureData `t_sample` typedef conflict and `exp2` overload ambiguity**
+  - Added `-DGENLIB_USE_FLOAT32 -DWIN32 -DGENLIB_NO_DENORM_TEST` to PD Makefile `forLinux` section, matching all other platforms
+  - `GENLIB_USE_FLOAT32` resolves `t_sample` double-vs-float mismatch; `WIN32` suppresses genlib's inline `exp2`/`trunc` that conflict with system math headers on Linux
+- **macOS: PureData CI builds** now download `m_pd.h` and set `PDINCLUDEDIR` since PureData is not pre-installed on CI runners
+
 ## [0.1.3]
 
 ### Added
 
-- **GitHub Actions CI workflow** with 3 jobs: `lint` (ruff + mypy), `test` (unit tests on Python 3.9 + 3.12), `build` (full C++ compilation integration tests on Ubuntu + macOS)
+- **GitHub Actions CI workflow** with 3 jobs: `lint` (ruff + mypy), `test` (unit tests on Python 3.10 + 3.12), `build` (full C++ compilation integration tests on Ubuntu + macOS)
   - FetchContent SDK cache persisted across runs via `actions/cache`
   - ARM cross-compiler (`gcc-arm-none-eabi`) installed on Linux for Daisy build tests
   - All 10 platforms covered across the two runners (AU macOS-only, Daisy Linux-only, rest on both)

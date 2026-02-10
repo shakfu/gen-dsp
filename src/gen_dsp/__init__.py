@@ -8,13 +8,13 @@ This package provides tools to:
 - Build externals using the appropriate build system
 """
 
-__version__ = "0.1.3"
-
 from gen_dsp.core.parser import GenExportParser
 from gen_dsp.core.project import ProjectGenerator
 from gen_dsp.core.patcher import Patcher
 from gen_dsp.core.builder import Builder
 from gen_dsp.errors import GenExtError
+
+__version__ = "0.1.4"
 
 __all__ = [
     "__version__",
