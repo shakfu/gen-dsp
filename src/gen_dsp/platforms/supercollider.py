@@ -60,14 +60,14 @@ class SuperColliderPlatform(Platform):
     @property
     def extension(self) -> str:
         """Get the extension for SC UGens."""
-        if sys.platform == "darwin":
+        if sys.platform == "darwin" or sys.platform == "win32":
             return ".scx"
         return ".so"
 
     def get_build_instructions(self) -> list[str]:
         """Get build instructions for SuperCollider UGens."""
         return [
-            "mkdir -p build && cd build && cmake .. && cmake --build .",
+            "cmake -B build && cmake --build build",
         ]
 
     def generate_project(
@@ -380,7 +380,7 @@ class SuperColliderPlatform(Platform):
         """Find the built SC UGen binary."""
         build_dir = project_dir / "build"
         if build_dir.is_dir():
-            for ext in [".scx", ".so"]:
+            for ext in [".scx", ".so", ".dll"]:
                 for f in build_dir.glob(f"**/*{ext}"):
                     if f.is_file():
                         return f

@@ -74,7 +74,7 @@ class Lv2Platform(Platform):
     def get_build_instructions(self) -> list[str]:
         """Get build instructions for LV2."""
         return [
-            "mkdir -p build && cd build && cmake .. && cmake --build .",
+            "cmake -B build && cmake --build build",
         ]
 
     def generate_project(
@@ -193,6 +193,8 @@ class Lv2Platform(Platform):
         """Generate manifest.ttl for LV2 plugin discovery."""
         if sys.platform == "darwin":
             binary_ext = "dylib"
+        elif sys.platform == "win32":
+            binary_ext = "dll"
         else:
             binary_ext = "so"
 

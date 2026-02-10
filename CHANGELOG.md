@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **GitHub Actions CI workflow** with 3 jobs: `lint` (ruff + mypy), `test` (unit tests on Python 3.9 + 3.12), `build` (full C++ compilation integration tests on Ubuntu + macOS)
+  - FetchContent SDK cache persisted across runs via `actions/cache`
+  - ARM cross-compiler (`gcc-arm-none-eabi`) installed on Linux for Daisy build tests
+  - All 10 platforms covered across the two runners (AU macOS-only, Daisy Linux-only, rest on both)
+- **Preliminary Windows support** in CMake templates for CLAP, LV2, SuperCollider, and VST3
+  - MSVC-compatible compiler flags (`/wd4101 /wd4244`) alongside GCC/Clang `-Wno-*` flags
+  - Windows install paths: `%COMMONPROGRAMFILES%/CLAP`, `%APPDATA%/LV2`, `%LOCALAPPDATA%/SuperCollider/Extensions`
+  - Correct binary suffixes: `.dll` for LV2, `.scx` for SuperCollider on Windows
 - **Daisy (Electrosmith) embedded platform support** with Make-based cross-compilation
   - Generates Daisy Seed firmware binaries (`.bin`) from gen~ exports for the STM32H750-based audio platform
   - First cross-compilation target: requires `arm-none-eabi-gcc` (ARM GCC toolchain)
@@ -24,6 +32,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Parameters retain gen~ defaults; users modify `gen_ext_daisy.cpp` to add ADC reads for knobs/CV
   - Buffer support via `DaisyBuffer` class (same pattern as other backends)
   - Platform key: `"daisy"`
+
+### Changed
+
+- **Build instructions modernized** to use `cmake -B build && cmake --build build` instead of `mkdir -p build && cd build && cmake .. && cmake --build .` across all CMake-based platforms (AU, CLAP, VST3, LV2, SC) and Makefile example targets
+
+### Fixed
+
+- Ambiguous variable name `l` in list comprehensions (`tests/test_cli.py`, `tests/test_daisy.py`) flagged by ruff E741
+- Ruff formatting inconsistencies in `cli.py`, `daisy.py`, `test_daisy.py`
 
 ## [0.1.2]
 

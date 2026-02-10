@@ -88,31 +88,31 @@ example-chuck:
 example-au:
 	rm -rf $(EXAMPLES_DIR)/$(NAME)_au
 	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p au -o $(EXAMPLES_DIR)/$(NAME)_au $(BUFFERS)
-	cd $(EXAMPLES_DIR)/$(NAME)_au/build && cmake .. && cmake --build .
+	cmake -B $(EXAMPLES_DIR)/$(NAME)_au/build -S $(EXAMPLES_DIR)/$(NAME)_au && cmake --build $(EXAMPLES_DIR)/$(NAME)_au/build
 
 # Generate and build a CLAP plugin from a test fixture
 example-clap:
 	rm -rf $(EXAMPLES_DIR)/$(NAME)_clap
 	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p clap -o $(EXAMPLES_DIR)/$(NAME)_clap $(BUFFERS)
-	cd $(EXAMPLES_DIR)/$(NAME)_clap/build && cmake .. && cmake --build .
+	cmake -B $(EXAMPLES_DIR)/$(NAME)_clap/build -S $(EXAMPLES_DIR)/$(NAME)_clap && cmake --build $(EXAMPLES_DIR)/$(NAME)_clap/build
 
 # Generate and build a VST3 plugin from a test fixture
 example-vst3:
 	rm -rf $(EXAMPLES_DIR)/$(NAME)_vst3
 	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p vst3 -o $(EXAMPLES_DIR)/$(NAME)_vst3 $(BUFFERS)
-	cd $(EXAMPLES_DIR)/$(NAME)_vst3/build && cmake .. && cmake --build .
+	cmake -B $(EXAMPLES_DIR)/$(NAME)_vst3/build -S $(EXAMPLES_DIR)/$(NAME)_vst3 && cmake --build $(EXAMPLES_DIR)/$(NAME)_vst3/build
 
 # Generate and build an LV2 plugin from a test fixture
 example-lv2:
 	rm -rf $(EXAMPLES_DIR)/$(NAME)_lv2
 	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p lv2 -o $(EXAMPLES_DIR)/$(NAME)_lv2 $(BUFFERS)
-	cd $(EXAMPLES_DIR)/$(NAME)_lv2/build && cmake .. && cmake --build .
+	cmake -B $(EXAMPLES_DIR)/$(NAME)_lv2/build -S $(EXAMPLES_DIR)/$(NAME)_lv2 && cmake --build $(EXAMPLES_DIR)/$(NAME)_lv2/build
 
 # Generate and build a SuperCollider UGen from a test fixture
 example-sc:
 	rm -rf $(EXAMPLES_DIR)/$(NAME)_sc
 	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p sc -o $(EXAMPLES_DIR)/$(NAME)_sc $(BUFFERS)
-	cd $(EXAMPLES_DIR)/$(NAME)_sc/build && cmake .. && cmake --build .
+	cmake -B $(EXAMPLES_DIR)/$(NAME)_sc/build -S $(EXAMPLES_DIR)/$(NAME)_sc && cmake --build $(EXAMPLES_DIR)/$(NAME)_sc/build
 
 # Generate and build a VCV Rack module from a test fixture
 # Rack SDK auto-downloaded to GEN_DSP_CACHE_DIR on first build

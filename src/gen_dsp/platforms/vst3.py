@@ -34,7 +34,7 @@ class Vst3Platform(Platform):
     def get_build_instructions(self) -> list[str]:
         """Get build instructions for VST3."""
         return [
-            "mkdir -p build && cd build && cmake .. && cmake --build .",
+            "cmake -B build && cmake --build build",
         ]
 
     def generate_project(

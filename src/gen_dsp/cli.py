@@ -236,7 +236,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     # Reject --board on non-daisy platforms
     if args.board and args.platform != "daisy":
         print(
-            f"Error: --board is only valid for daisy",
+            "Error: --board is only valid for daisy",
             file=sys.stderr,
         )
         return 1
@@ -451,7 +451,8 @@ def cmd_cache(args: argparse.Namespace) -> int:
     if cache_dir.is_dir():
         # FetchContent creates *-src, *-build, *-subbuild; only show -src
         src_dirs = sorted(
-            d.name for d in cache_dir.iterdir()
+            d.name
+            for d in cache_dir.iterdir()
             if d.is_dir()
             and d.name.endswith("-src")
             and d.name not in ("rack-sdk-src", "libdaisy-src")

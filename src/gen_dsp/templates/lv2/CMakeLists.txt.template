@@ -75,10 +75,11 @@ target_compile_definitions($${PROJECT_NAME} PRIVATE
 )
 
 # Compiler options
-target_compile_options($${PROJECT_NAME} PRIVATE
-    -Wno-unused-function
-    -Wno-unused-variable
-)
+if(MSVC)
+    target_compile_options($${PROJECT_NAME} PRIVATE /wd4101 /wd4244)
+else()
+    target_compile_options($${PROJECT_NAME} PRIVATE -Wno-unused-function -Wno-unused-variable)
+endif()
 
 # Set output name (no lib prefix)
 set_target_properties($${PROJECT_NAME} PROPERTIES
@@ -88,6 +89,8 @@ set_target_properties($${PROJECT_NAME} PROPERTIES
 # Platform-specific suffix and bundle assembly
 if(APPLE)
     set_target_properties($${PROJECT_NAME} PROPERTIES SUFFIX ".dylib")
+elseif(WIN32)
+    set_target_properties($${PROJECT_NAME} PROPERTIES SUFFIX ".dll")
 else()
     set_target_properties($${PROJECT_NAME} PROPERTIES SUFFIX ".so")
 endif()
@@ -122,6 +125,9 @@ endif()
 if(APPLE)
     install(DIRECTORY "$${LV2_BUNDLE_DIR}"
             DESTINATION "$$ENV{HOME}/Library/Audio/Plug-Ins/LV2")
+elseif(WIN32)
+    install(DIRECTORY "$${LV2_BUNDLE_DIR}"
+            DESTINATION "$$ENV{APPDATA}/LV2")
 elseif(UNIX)
     install(DIRECTORY "$${LV2_BUNDLE_DIR}"
             DESTINATION "$$ENV{HOME}/.lv2")

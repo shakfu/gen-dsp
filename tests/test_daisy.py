@@ -237,14 +237,12 @@ class TestDaisyProjectGeneration:
         assert "genlib_daisy.cpp" in makefile
         # genlib.cpp should NOT be in CPP_SOURCES (it's in gen/ but not compiled)
         cpp_sources_line = [
-            l for l in makefile.split("\n") if l.startswith("CPP_SOURCES")
+            line for line in makefile.split("\n") if line.startswith("CPP_SOURCES")
         ]
         assert len(cpp_sources_line) == 1
         assert "genlib.cpp" not in cpp_sources_line[0]
 
-    def test_genlib_daisy_files_present(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_genlib_daisy_files_present(self, gigaverb_export: Path, tmp_project: Path):
         """Test that genlib_daisy.h and genlib_daisy.cpp are present."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
@@ -288,9 +286,7 @@ class TestDaisyProjectGeneration:
         assert "daisy_init_memory" in main_cpp
         assert "StartAudio" in main_cpp
 
-    def test_generate_copies_gen_export(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_generate_copies_gen_export(self, gigaverb_export: Path, tmp_project: Path):
         """Test that gen~ export is copied to project."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
@@ -306,9 +302,7 @@ class TestDaisyProjectGeneration:
         assert (gen_dir / "gen_dsp").is_dir()
         assert (gen_dir / "gen_dsp" / "genlib.cpp").is_file()
 
-    def test_rampleplayer_io_counts(
-        self, rampleplayer_export: Path, tmp_project: Path
-    ):
+    def test_rampleplayer_io_counts(self, rampleplayer_export: Path, tmp_project: Path):
         """Test that RamplePlayer (1in/2out) gets correct I/O in Makefile."""
         parser = GenExportParser(rampleplayer_export)
         export_info = parser.parse()
@@ -342,7 +336,16 @@ class TestDaisyBoardConfig:
 
     def test_registry_has_all_boards(self):
         """All 8 board variants are registered."""
-        expected = {"seed", "pod", "patch", "patch_sm", "field", "petal", "legio", "versio"}
+        expected = {
+            "seed",
+            "pod",
+            "patch",
+            "patch_sm",
+            "field",
+            "petal",
+            "legio",
+            "versio",
+        }
         assert set(DAISY_BOARDS.keys()) == expected
 
     def test_all_entries_are_board_configs(self):
@@ -358,8 +361,14 @@ class TestDaisyBoardConfig:
     def test_knob_exprs_length(self):
         """knob_exprs tuple length matches expected knob counts."""
         expected_knobs = {
-            "seed": 0, "pod": 2, "patch": 4, "patch_sm": 4,
-            "field": 8, "petal": 6, "legio": 2, "versio": 7,
+            "seed": 0,
+            "pod": 2,
+            "patch": 4,
+            "patch_sm": 4,
+            "field": 8,
+            "petal": 6,
+            "legio": 2,
+            "versio": 7,
         }
         for key, cfg in DAISY_BOARDS.items():
             assert len(cfg.knob_exprs) == expected_knobs[key], (
@@ -453,9 +462,7 @@ class TestDaisyBoardProjectGeneration:
         assert f"#define DAISY_HW_CHANNELS {board.hw_channels}" in main_cpp
         assert f"Board: {board_key}" in main_cpp
 
-    def test_default_board_is_seed(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_default_board_is_seed(self, gigaverb_export: Path, tmp_project: Path):
         """Omitting --board defaults to seed."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
@@ -468,9 +475,7 @@ class TestDaisyBoardProjectGeneration:
         assert "daisy_seed.h" in main_cpp
         assert "DaisySeed" in main_cpp
 
-    def test_pod_board_has_knob_automap(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_pod_board_has_knob_automap(self, gigaverb_export: Path, tmp_project: Path):
         """Pod board generates ProcessAllControls + knob1/knob2 mapping."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
@@ -486,9 +491,7 @@ class TestDaisyBoardProjectGeneration:
         assert "wrapper_set_param(genState, 0" in main_cpp
         assert "wrapper_set_param(genState, 1" in main_cpp
 
-    def test_seed_board_no_knob_code(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_seed_board_no_knob_code(self, gigaverb_export: Path, tmp_project: Path):
         """Seed board has comment-only main loop (no ProcessAllControls)."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
@@ -515,9 +518,7 @@ class TestDaisyBoardProjectGeneration:
         main_cpp = (project_dir / "gen_ext_daisy.cpp").read_text()
         assert "using namespace daisy::patch_sm;" in main_cpp
 
-    def test_patch_board_4_channels(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_patch_board_4_channels(self, gigaverb_export: Path, tmp_project: Path):
         """Patch board has 4 hardware channels."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()

@@ -329,7 +329,7 @@ class TestListCommand:
         result = main(["list"])
         assert result == 0
         captured = capsys.readouterr()
-        lines = [l for l in captured.out.strip().split("\n") if l]
+        lines = [line for line in captured.out.strip().split("\n") if line]
         from gen_dsp.platforms import list_platforms
 
         assert len(lines) == len(list_platforms())

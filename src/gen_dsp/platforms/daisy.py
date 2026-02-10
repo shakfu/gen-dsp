@@ -197,9 +197,7 @@ def _resolve_libdaisy_dir() -> Path:
     return _get_default_libdaisy_dir()
 
 
-def ensure_libdaisy(
-    libdaisy_dir: Optional[Path] = None, verbose: bool = False
-) -> Path:
+def ensure_libdaisy(libdaisy_dir: Optional[Path] = None, verbose: bool = False) -> Path:
     """Ensure libDaisy is available, cloning and building if necessary.
 
     Args:
@@ -225,8 +223,7 @@ def ensure_libdaisy(
     # Check prerequisites
     if not shutil.which("git"):
         raise BuildError(
-            "git is required to clone libDaisy. "
-            "Install git and ensure it is on PATH."
+            "git is required to clone libDaisy. Install git and ensure it is on PATH."
         )
 
     if not shutil.which("arm-none-eabi-gcc"):
@@ -241,9 +238,7 @@ def ensure_libdaisy(
         cache_parent.mkdir(parents=True, exist_ok=True)
 
         if verbose:
-            print(
-                f"Cloning libDaisy {LIBDAISY_VERSION} from {_LIBDAISY_CLONE_URL} ..."
-            )
+            print(f"Cloning libDaisy {LIBDAISY_VERSION} from {_LIBDAISY_CLONE_URL} ...")
 
         try:
             subprocess.run(
@@ -313,19 +308,13 @@ def _generate_main_loop_body(board: DaisyBoardConfig, num_params: int) -> str:
     lines = []
     lines.append("        hw.ProcessAllControls();")
     lines.append("        if (genState) {")
-    lines.append(
-        f"            // Automap: {mapped} knob(s) -> first {mapped} param(s)"
-    )
+    lines.append(f"            // Automap: {mapped} knob(s) -> first {mapped} param(s)")
     for i in range(mapped):
         knob_expr = board.knob_exprs[i]
         lines.append("            {")
         lines.append(f"                float knob = {knob_expr};")
-        lines.append(
-            f"                float lo = wrapper_param_min(genState, {i});"
-        )
-        lines.append(
-            f"                float hi = wrapper_param_max(genState, {i});"
-        )
+        lines.append(f"                float lo = wrapper_param_min(genState, {i});")
+        lines.append(f"                float hi = wrapper_param_max(genState, {i});")
         lines.append(
             f"                wrapper_set_param(genState, {i}, lo + knob * (hi - lo));"
         )

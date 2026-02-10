@@ -79,10 +79,11 @@ target_compile_definitions($${PROJECT_NAME} PRIVATE
 )
 
 # Compiler options
-target_compile_options($${PROJECT_NAME} PRIVATE
-    -Wno-unused-function
-    -Wno-unused-variable
-)
+if(MSVC)
+    target_compile_options($${PROJECT_NAME} PRIVATE /wd4101 /wd4244)
+else()
+    target_compile_options($${PROJECT_NAME} PRIVATE -Wno-unused-function -Wno-unused-variable)
+endif()
 
 # Set output name (no lib prefix)
 set_target_properties($${PROJECT_NAME} PROPERTIES
@@ -91,6 +92,8 @@ set_target_properties($${PROJECT_NAME} PROPERTIES
 
 # Platform-specific suffix
 if(APPLE)
+    set_target_properties($${PROJECT_NAME} PROPERTIES SUFFIX ".scx")
+elseif(WIN32)
     set_target_properties($${PROJECT_NAME} PROPERTIES SUFFIX ".scx")
 else()
     set_target_properties($${PROJECT_NAME} PROPERTIES SUFFIX ".so")
@@ -109,6 +112,9 @@ endif()
 if(APPLE)
     install(TARGETS $${PROJECT_NAME}
             LIBRARY DESTINATION "$$ENV{HOME}/Library/Application Support/SuperCollider/Extensions")
+elseif(WIN32)
+    install(TARGETS $${PROJECT_NAME}
+            LIBRARY DESTINATION "$$ENV{LOCALAPPDATA}/SuperCollider/Extensions")
 elseif(UNIX)
     install(TARGETS $${PROJECT_NAME}
             LIBRARY DESTINATION "$$ENV{HOME}/.local/share/SuperCollider/Extensions")
