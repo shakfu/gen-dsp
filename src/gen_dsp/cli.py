@@ -97,7 +97,7 @@ Examples:
     init_parser.add_argument(
         "--shared-cache",
         action="store_true",
-        help="Use shared OS cache for FetchContent downloads (clap, vst3)",
+        help="Use shared OS cache for FetchContent downloads (clap, vst3, lv2, sc)",
     )
     init_parser.add_argument(
         "--dry-run",
@@ -197,7 +197,7 @@ def cmd_init(args: argparse.Namespace) -> int:
         return 1
 
     # Warn if --shared-cache used with non-CMake platform
-    cmake_platforms = {"clap", "vst3", "lv2"}
+    cmake_platforms = {"clap", "vst3", "lv2", "sc"}
     if (
         args.shared_cache
         and args.platform not in cmake_platforms
