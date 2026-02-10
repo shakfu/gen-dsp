@@ -66,67 +66,33 @@ clean:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true
 
-# Generate and build a PureData external from a test fixture
+# Shared: clean + init for any platform (usage: $(call example_init,PLATFORM_KEY))
+define example_init
+	rm -rf $(EXAMPLES_DIR)/$(NAME)_$(1)
+	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p $(1) -o $(EXAMPLES_DIR)/$(NAME)_$(1) $(BUFFERS)
+endef
+
+# CMake-based examples: au, clap, vst3, lv2, sc
+CMAKE_EXAMPLES := example-au example-clap example-vst3 example-lv2 example-sc
+$(CMAKE_EXAMPLES): example-%:
+	$(call example_init,$*)
+	cmake -B $(EXAMPLES_DIR)/$(NAME)_$*/build -S $(EXAMPLES_DIR)/$(NAME)_$* && cmake --build $(EXAMPLES_DIR)/$(NAME)_$*/build
+
+# gen-dsp build examples: max, vcvrack, daisy
+GENDSP_EXAMPLES := example-max example-vcvrack example-daisy
+$(GENDSP_EXAMPLES): example-%:
+	$(call example_init,$*)
+	$(GEN_DSP) build $(EXAMPLES_DIR)/$(NAME)_$* -p $*
+
+# PureData: uses make target 'all'
 example-pd:
-	rm -rf $(EXAMPLES_DIR)/$(NAME)_pd
-	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p pd -o $(EXAMPLES_DIR)/$(NAME)_pd $(BUFFERS)
+	$(call example_init,pd)
 	$(MAKE) -C $(EXAMPLES_DIR)/$(NAME)_pd all
 
-# Generate and build a Max/MSP external from a test fixture
-example-max:
-	rm -rf $(EXAMPLES_DIR)/$(NAME)_max
-	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p max -o $(EXAMPLES_DIR)/$(NAME)_max $(BUFFERS)
-	$(GEN_DSP) build $(EXAMPLES_DIR)/$(NAME)_max -p max
-
-# Generate and build a ChucK chugin from a test fixture
+# ChucK: uses make target 'mac'
 example-chuck:
-	rm -rf $(EXAMPLES_DIR)/$(NAME)_chuck
-	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p chuck -o $(EXAMPLES_DIR)/$(NAME)_chuck $(BUFFERS)
+	$(call example_init,chuck)
 	$(MAKE) -C $(EXAMPLES_DIR)/$(NAME)_chuck mac
-
-# Generate and build an AudioUnit plugin from a test fixture (macOS only)
-example-au:
-	rm -rf $(EXAMPLES_DIR)/$(NAME)_au
-	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p au -o $(EXAMPLES_DIR)/$(NAME)_au $(BUFFERS)
-	cmake -B $(EXAMPLES_DIR)/$(NAME)_au/build -S $(EXAMPLES_DIR)/$(NAME)_au && cmake --build $(EXAMPLES_DIR)/$(NAME)_au/build
-
-# Generate and build a CLAP plugin from a test fixture
-example-clap:
-	rm -rf $(EXAMPLES_DIR)/$(NAME)_clap
-	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p clap -o $(EXAMPLES_DIR)/$(NAME)_clap $(BUFFERS)
-	cmake -B $(EXAMPLES_DIR)/$(NAME)_clap/build -S $(EXAMPLES_DIR)/$(NAME)_clap && cmake --build $(EXAMPLES_DIR)/$(NAME)_clap/build
-
-# Generate and build a VST3 plugin from a test fixture
-example-vst3:
-	rm -rf $(EXAMPLES_DIR)/$(NAME)_vst3
-	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p vst3 -o $(EXAMPLES_DIR)/$(NAME)_vst3 $(BUFFERS)
-	cmake -B $(EXAMPLES_DIR)/$(NAME)_vst3/build -S $(EXAMPLES_DIR)/$(NAME)_vst3 && cmake --build $(EXAMPLES_DIR)/$(NAME)_vst3/build
-
-# Generate and build an LV2 plugin from a test fixture
-example-lv2:
-	rm -rf $(EXAMPLES_DIR)/$(NAME)_lv2
-	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p lv2 -o $(EXAMPLES_DIR)/$(NAME)_lv2 $(BUFFERS)
-	cmake -B $(EXAMPLES_DIR)/$(NAME)_lv2/build -S $(EXAMPLES_DIR)/$(NAME)_lv2 && cmake --build $(EXAMPLES_DIR)/$(NAME)_lv2/build
-
-# Generate and build a SuperCollider UGen from a test fixture
-example-sc:
-	rm -rf $(EXAMPLES_DIR)/$(NAME)_sc
-	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p sc -o $(EXAMPLES_DIR)/$(NAME)_sc $(BUFFERS)
-	cmake -B $(EXAMPLES_DIR)/$(NAME)_sc/build -S $(EXAMPLES_DIR)/$(NAME)_sc && cmake --build $(EXAMPLES_DIR)/$(NAME)_sc/build
-
-# Generate and build a VCV Rack module from a test fixture
-# Rack SDK auto-downloaded to GEN_DSP_CACHE_DIR on first build
-example-vcvrack:
-	rm -rf $(EXAMPLES_DIR)/$(NAME)_vcvrack
-	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p vcvrack -o $(EXAMPLES_DIR)/$(NAME)_vcvrack $(BUFFERS)
-	$(GEN_DSP) build $(EXAMPLES_DIR)/$(NAME)_vcvrack -p vcvrack
-
-# Generate and build a Daisy firmware from a test fixture
-# Requires arm-none-eabi-gcc; libDaisy auto-cloned to GEN_DSP_CACHE_DIR on first build
-example-daisy:
-	rm -rf $(EXAMPLES_DIR)/$(NAME)_daisy
-	$(GEN_DSP) init tests/fixtures/$(FIXTURE)/gen -n $(NAME) -p daisy -o $(EXAMPLES_DIR)/$(NAME)_daisy $(BUFFERS)
-	$(GEN_DSP) build $(EXAMPLES_DIR)/$(NAME)_daisy -p daisy
 
 # Build all example plugins
 examples: example-pd example-max example-chuck example-au example-clap example-vst3 example-lv2 example-sc example-vcvrack example-daisy
