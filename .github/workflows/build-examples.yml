@@ -1,0 +1,78 @@
+name: Build Examples
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.platform }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        platform: [pd, chuck, au, clap, vst3, lv2, sc, vcvrack, daisy]
+        exclude:
+          # AU: macOS-only (system AudioToolbox framework)
+          - { os: ubuntu-latest, platform: au }
+          - { os: windows-latest, platform: au }
+          # ChucK: make-based, no Windows target
+          - { os: windows-latest, platform: chuck }
+          # PD: pd-lib-builder requires make + gcc
+          - { os: windows-latest, platform: pd }
+          # LV2: macOS / Linux only
+          - { os: windows-latest, platform: lv2 }
+          # VCV Rack: make-based build
+          - { os: windows-latest, platform: vcvrack }
+          # Daisy: ARM cross-compiler + make, Linux CI only
+          - { os: windows-latest, platform: daisy }
+          - { os: macos-latest, platform: daisy }
+    env:
+      GEN_DSP_CACHE_DIR: ${{ github.workspace }}/build/.fetchcontent_cache
+      GIT_TERMINAL_PROMPT: "0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - uses: actions/cache@v4
+        with:
+          path: build/.fetchcontent_cache
+          key: fetchcontent-${{ matrix.platform }}-${{ runner.os }}-v1
+
+      - name: Install ARM cross-compiler
+        if: matrix.platform == 'daisy'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi
+
+      - run: uv sync --group dev
+
+      - name: Generate project
+        shell: bash
+        run: |
+          EXTRA=""
+          case "${{ matrix.platform }}" in
+            clap|vst3|lv2|sc) EXTRA="--shared-cache" ;;
+          esac
+          uv run gen-dsp init tests/fixtures/gigaverb/gen \
+            -n gigaverb \
+            -p ${{ matrix.platform }} \
+            -o build/gigaverb \
+            $EXTRA
+
+      - name: Build project
+        shell: bash
+        run: uv run gen-dsp build build/gigaverb -p ${{ matrix.platform }} -v
