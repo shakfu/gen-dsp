@@ -7,7 +7,7 @@ set(PROJECT_NAME $lib_name)
 project($${PROJECT_NAME})
 
 # C++ standard
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Shared FetchContent cache (optional -- gen-dsp --shared-cache)
