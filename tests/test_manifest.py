@@ -277,13 +277,9 @@ class TestManifestJsonEmission:
         parser = GenExportParser(rampleplayer_export)
         export_info = parser.parse()
 
-        config = ProjectConfig(
-            name="testsampler", platform="clap", buffers=["sample"]
-        )
+        config = ProjectConfig(name="testsampler", platform="clap", buffers=["sample"])
         generator = ProjectGenerator(export_info, config)
         project_dir = generator.generate(tmp_project)
 
-        data = json.loads(
-            (project_dir / "manifest.json").read_text(encoding="utf-8")
-        )
+        data = json.loads((project_dir / "manifest.json").read_text(encoding="utf-8"))
         assert data["buffers"] == ["sample"]
