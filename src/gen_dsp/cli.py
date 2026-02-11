@@ -195,6 +195,23 @@ Examples:
         description="Show paths and status of cached SDKs and dependencies.",
     )
 
+    # manifest command
+    manifest_parser = subparsers.add_parser(
+        "manifest",
+        help="Emit a JSON manifest for a gen~ export",
+        description="Parse a gen~ export and emit the Manifest IR as JSON to stdout.",
+    )
+    manifest_parser.add_argument(
+        "export_path",
+        type=Path,
+        help="Path to the gen~ export directory",
+    )
+    manifest_parser.add_argument(
+        "--buffers",
+        nargs="+",
+        help="Buffer names (overrides auto-detection)",
+    )
+
     return parser
 
 
@@ -428,6 +445,29 @@ def cmd_list(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_manifest(args: argparse.Namespace) -> int:
+    """Handle the manifest command."""
+    from gen_dsp.core.manifest import manifest_from_export_info
+    from gen_dsp.core.project import ProjectGenerator
+
+    export_path = args.export_path.resolve()
+
+    try:
+        parser = GenExportParser(export_path)
+        export_info = parser.parse()
+    except GenExtError as e:
+        print(f"Error parsing export: {e}", file=sys.stderr)
+        return 1
+
+    buffers = args.buffers if args.buffers else export_info.buffers
+
+    manifest = manifest_from_export_info(
+        export_info, buffers, ProjectGenerator.GENEXT_VERSION
+    )
+    print(manifest.to_json())
+    return 0
+
+
 def cmd_cache(args: argparse.Namespace) -> int:
     """Handle the cache command."""
     import os
@@ -507,6 +547,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         "patch": cmd_patch,
         "list": cmd_list,
         "cache": cmd_cache,
+        "manifest": cmd_manifest,
     }
 
     handler = commands.get(args.command)

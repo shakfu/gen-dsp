@@ -14,50 +14,16 @@ LV2 bundles contain:
 import re
 import shutil
 import sys
-from dataclasses import dataclass
 from pathlib import Path
 from string import Template
 from typing import Optional
 
 from gen_dsp.core.builder import BuildResult
-from gen_dsp.core.parser import ExportInfo
+from gen_dsp.core.manifest import Manifest, ParamInfo
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform
 from gen_dsp.templates import get_lv2_templates_dir
-
-
-@dataclass
-class ParamInfo:
-    """Metadata for a single gen~ parameter, parsed from export .cpp."""
-
-    index: int
-    name: str
-    has_minmax: bool
-    output_min: float
-    output_max: float
-
-
-# Regex to extract parameter blocks from gen~ export create() function.
-# Matches the structured block:
-#   pi = self->__commonstate.params + <index>;
-#   pi->name = "<name>";
-#   ...
-#   pi->hasminmax = true|false;
-#   pi->outputmin = <float>;
-#   pi->outputmax = <float>;
-_PARAM_BLOCK_RE = re.compile(
-    r"pi\s*=\s*self->__commonstate\.params\s*\+\s*(\d+)\s*;"
-    r".*?"
-    r'pi->name\s*=\s*"([^"]+)"\s*;'
-    r".*?"
-    r"pi->hasminmax\s*=\s*(true|false)\s*;"
-    r".*?"
-    r"pi->outputmin\s*=\s*([\d.eE+\-]+)\s*;"
-    r".*?"
-    r"pi->outputmax\s*=\s*([\d.eE+\-]+)\s*;",
-    re.DOTALL,
-)
 
 
 class Lv2Platform(Platform):
@@ -79,10 +45,9 @@ class Lv2Platform(Platform):
 
     def generate_project(
         self,
-        export_info: ExportInfo,
+        manifest: Manifest,
         output_dir: Path,
         lib_name: str,
-        buffers: list[str],
         config: Optional[ProjectConfig] = None,
     ) -> None:
         """Generate LV2 project files."""
@@ -103,9 +68,6 @@ class Lv2Platform(Platform):
             if src.exists():
                 shutil.copy2(src, output_dir / filename)
 
-        # Parse parameter metadata from gen~ export
-        params = self._parse_params(export_info)
-
         # Generate TTL files
         plugin_uri = f"{self.LV2_URI_BASE}/{lib_name}"
         self._generate_manifest_ttl(output_dir, lib_name, plugin_uri)
@@ -113,10 +75,10 @@ class Lv2Platform(Platform):
             output_dir,
             lib_name,
             plugin_uri,
-            export_info.num_inputs,
-            export_info.num_outputs,
-            export_info.num_params,
-            params,
+            manifest.num_inputs,
+            manifest.num_outputs,
+            manifest.num_params,
+            manifest.params,
         )
 
         # Resolve shared cache settings
@@ -132,11 +94,11 @@ class Lv2Platform(Platform):
         self._generate_cmakelists(
             templates_dir / "CMakeLists.txt.template",
             output_dir / "CMakeLists.txt",
-            export_info.name,
+            manifest.gen_name,
             lib_name,
-            export_info.num_inputs,
-            export_info.num_outputs,
-            export_info.num_params,
+            manifest.num_inputs,
+            manifest.num_outputs,
+            manifest.num_params,
             use_shared_cache="ON" if shared_cache else "OFF",
             cache_dir=cache_dir,
         )
@@ -145,7 +107,7 @@ class Lv2Platform(Platform):
         self.generate_buffer_header(
             templates_dir / "gen_buffer.h.template",
             output_dir / "gen_buffer.h",
-            buffers,
+            manifest.buffers,
             header_comment="Buffer configuration for gen_dsp LV2 wrapper",
         )
 
@@ -158,31 +120,6 @@ class Lv2Platform(Platform):
         Returns 'effect' if inputs > 0, 'generator' if inputs == 0.
         """
         return "effect" if num_inputs > 0 else "generator"
-
-    def _parse_params(self, export_info: ExportInfo) -> list[ParamInfo]:
-        """Parse parameter metadata from the gen~ export .cpp file.
-
-        Extracts parameter names and ranges from the structured
-        getparameterinfo-style blocks in the gen~ exported code.
-        Returns an empty list if parsing fails or no params exist.
-        """
-        if not export_info.cpp_path or not export_info.cpp_path.exists():
-            return []
-
-        content = export_info.cpp_path.read_text(encoding="utf-8")
-        params = []
-        for m in _PARAM_BLOCK_RE.finditer(content):
-            params.append(
-                ParamInfo(
-                    index=int(m.group(1)),
-                    name=m.group(2),
-                    has_minmax=(m.group(3) == "true"),
-                    output_min=float(m.group(4)),
-                    output_max=float(m.group(5)),
-                )
-            )
-        params.sort(key=lambda p: p.index)
-        return params
 
     def _generate_manifest_ttl(
         self,
@@ -253,13 +190,15 @@ class Lv2Platform(Platform):
                 p = params[i]
                 symbol = self._sanitize_symbol(p.name)
                 pname = p.name
-                pmin = p.output_min
-                pmax = p.output_max
+                pmin = p.min
+                pmax = p.max
+                pdefault = p.default
             else:
                 symbol = f"param_{i}"
                 pname = f"Parameter {i}"
                 pmin = 0.0
                 pmax = 1.0
+                pdefault = 0.0
 
             is_last = port_index == total_ports - 1
             terminator = " ." if is_last else " ;"
@@ -269,7 +208,7 @@ class Lv2Platform(Platform):
             lines.append(f"        lv2:index {port_index} ;")
             lines.append(f'        lv2:symbol "{symbol}" ;')
             lines.append(f'        lv2:name "{pname}" ;')
-            lines.append(f"        lv2:default {pmin} ;")
+            lines.append(f"        lv2:default {pdefault} ;")
             lines.append(f"        lv2:minimum {pmin} ;")
             lines.append(f"        lv2:maximum {pmax}")
             lines.append(f"    ]{terminator}")

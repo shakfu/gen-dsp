@@ -13,43 +13,16 @@ Output artifacts:
 import re
 import shutil
 import sys
-from dataclasses import dataclass
 from pathlib import Path
 from string import Template
 from typing import Optional
 
 from gen_dsp.core.builder import BuildResult
-from gen_dsp.core.parser import ExportInfo
+from gen_dsp.core.manifest import Manifest, ParamInfo
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform
 from gen_dsp.templates import get_sc_templates_dir
-
-
-@dataclass
-class ParamInfo:
-    """Metadata for a single gen~ parameter, parsed from export .cpp."""
-
-    index: int
-    name: str
-    has_minmax: bool
-    output_min: float
-    output_max: float
-
-
-# Regex to extract parameter blocks from gen~ export create() function.
-_PARAM_BLOCK_RE = re.compile(
-    r"pi\s*=\s*self->__commonstate\.params\s*\+\s*(\d+)\s*;"
-    r".*?"
-    r'pi->name\s*=\s*"([^"]+)"\s*;'
-    r".*?"
-    r"pi->hasminmax\s*=\s*(true|false)\s*;"
-    r".*?"
-    r"pi->outputmin\s*=\s*([\d.eE+\-]+)\s*;"
-    r".*?"
-    r"pi->outputmax\s*=\s*([\d.eE+\-]+)\s*;",
-    re.DOTALL,
-)
 
 
 class SuperColliderPlatform(Platform):
@@ -72,10 +45,9 @@ class SuperColliderPlatform(Platform):
 
     def generate_project(
         self,
-        export_info: ExportInfo,
+        manifest: Manifest,
         output_dir: Path,
         lib_name: str,
-        buffers: list[str],
         config: Optional[ProjectConfig] = None,
     ) -> None:
         """Generate SuperCollider UGen project files."""
@@ -96,9 +68,6 @@ class SuperColliderPlatform(Platform):
             if src.exists():
                 shutil.copy2(src, output_dir / filename)
 
-        # Parse parameter metadata from gen~ export
-        params = self._parse_params(export_info)
-
         # UGen name (first letter capitalized, required by SC)
         ugen_name = self._capitalize_name(lib_name)
 
@@ -107,10 +76,10 @@ class SuperColliderPlatform(Platform):
             output_dir,
             lib_name,
             ugen_name,
-            export_info.num_inputs,
-            export_info.num_outputs,
-            export_info.num_params,
-            params,
+            manifest.num_inputs,
+            manifest.num_outputs,
+            manifest.num_params,
+            manifest.params,
         )
 
         # Resolve shared cache settings
@@ -126,12 +95,12 @@ class SuperColliderPlatform(Platform):
         self._generate_cmakelists(
             templates_dir / "CMakeLists.txt.template",
             output_dir / "CMakeLists.txt",
-            export_info.name,
+            manifest.gen_name,
             lib_name,
             ugen_name,
-            export_info.num_inputs,
-            export_info.num_outputs,
-            export_info.num_params,
+            manifest.num_inputs,
+            manifest.num_outputs,
+            manifest.num_params,
             use_shared_cache="ON" if shared_cache else "OFF",
             cache_dir=cache_dir,
         )
@@ -140,7 +109,7 @@ class SuperColliderPlatform(Platform):
         self.generate_buffer_header(
             templates_dir / "gen_buffer.h.template",
             output_dir / "gen_buffer.h",
-            buffers,
+            manifest.buffers,
             header_comment="Buffer configuration for gen_dsp SuperCollider wrapper",
         )
 
@@ -153,31 +122,6 @@ class SuperColliderPlatform(Platform):
         Returns 'effect' if inputs > 0, 'generator' if inputs == 0.
         """
         return "effect" if num_inputs > 0 else "generator"
-
-    def _parse_params(self, export_info: ExportInfo) -> list[ParamInfo]:
-        """Parse parameter metadata from the gen~ export .cpp file.
-
-        Extracts parameter names and ranges from the structured
-        getparameterinfo-style blocks in the gen~ exported code.
-        Returns an empty list if parsing fails or no params exist.
-        """
-        if not export_info.cpp_path or not export_info.cpp_path.exists():
-            return []
-
-        content = export_info.cpp_path.read_text(encoding="utf-8")
-        params = []
-        for m in _PARAM_BLOCK_RE.finditer(content):
-            params.append(
-                ParamInfo(
-                    index=int(m.group(1)),
-                    name=m.group(2),
-                    has_minmax=(m.group(3) == "true"),
-                    output_min=float(m.group(4)),
-                    output_max=float(m.group(5)),
-                )
-            )
-        params.sort(key=lambda p: p.index)
-        return params
 
     @staticmethod
     def _capitalize_name(name: str) -> str:
@@ -224,7 +168,7 @@ class SuperColliderPlatform(Platform):
             if i < len(params):
                 p = params[i]
                 pname = self._sanitize_sc_arg(p.name)
-                default = p.output_min
+                default = p.default
             else:
                 pname = f"param{i}"
                 default = 0.0

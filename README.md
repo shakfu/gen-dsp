@@ -133,6 +133,16 @@ Build an existing project:
 gen-dsp build [project-path] [-p <platform>] [--clean] [-v]
 ```
 
+### manifest
+
+Emit a JSON manifest describing a gen~ export (I/O counts, parameters with ranges, buffers):
+
+```bash
+gen-dsp manifest <export-path> [--buffers sample envelope]
+```
+
+The same manifest is also written as `manifest.json` to the project root during `gen-dsp init`.
+
 ### detect
 
 Analyze a gen~ export:

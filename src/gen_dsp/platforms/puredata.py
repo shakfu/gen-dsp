@@ -9,7 +9,7 @@ from string import Template
 from typing import Optional
 
 from gen_dsp.core.builder import BuildResult
-from gen_dsp.core.parser import ExportInfo
+from gen_dsp.core.manifest import Manifest
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform
@@ -39,10 +39,9 @@ class PureDataPlatform(Platform):
 
     def generate_project(
         self,
-        export_info: ExportInfo,
+        manifest: Manifest,
         output_dir: Path,
         lib_name: str,
-        buffers: list[str],
         config: Optional[ProjectConfig] = None,
     ) -> None:
         """Generate PureData project files."""
@@ -76,7 +75,7 @@ class PureDataPlatform(Platform):
         self._generate_makefile(
             templates_dir / "Makefile.template",
             output_dir / "Makefile",
-            export_info.name,
+            manifest.gen_name,
             lib_name,
         )
 
@@ -84,7 +83,7 @@ class PureDataPlatform(Platform):
         self.generate_buffer_header(
             templates_dir / "gen_buffer.h.template",
             output_dir / "gen_buffer.h",
-            buffers,
+            manifest.buffers,
         )
 
     def _generate_makefile(

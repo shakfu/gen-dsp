@@ -132,6 +132,7 @@ class ProjectGenerator:
             ProjectError: If project cannot be generated.
             ValidationError: If configuration is invalid.
         """
+        from gen_dsp.core.manifest import manifest_from_export_info
         from gen_dsp.platforms import get_platform, list_platforms
 
         # Validate configuration
@@ -156,28 +157,35 @@ class ProjectGenerator:
             self.config.buffers if self.config.buffers else self.export_info.buffers
         )
 
+        # Build manifest
+        manifest = manifest_from_export_info(
+            self.export_info, buffers, self.GENEXT_VERSION
+        )
+
         # Generate for each platform using the registry
         if self.config.platform == "both":
             # Generate for all registered platforms
             for platform_name in list_platforms():
                 platform_impl = get_platform(platform_name)
                 platform_impl.generate_project(
-                    self.export_info,
+                    manifest,
                     output_dir,
                     self.config.name,
-                    buffers,
                     config=self.config,
                 )
         else:
             # Generate for specific platform
             platform_impl = get_platform(self.config.platform)
             platform_impl.generate_project(
-                self.export_info,
+                manifest,
                 output_dir,
                 self.config.name,
-                buffers,
                 config=self.config,
             )
+
+        # Write manifest.json to project root
+        manifest_path = output_dir / "manifest.json"
+        manifest_path.write_text(manifest.to_json(), encoding="utf-8")
 
         # Copy gen~ export
         self._copy_export(output_dir)

@@ -13,7 +13,7 @@ from string import Template
 from typing import Optional
 
 from gen_dsp.core.builder import BuildResult
-from gen_dsp.core.parser import ExportInfo
+from gen_dsp.core.manifest import Manifest
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform
@@ -41,10 +41,9 @@ class AudioUnitPlatform(Platform):
 
     def generate_project(
         self,
-        export_info: ExportInfo,
+        manifest: Manifest,
         output_dir: Path,
         lib_name: str,
-        buffers: list[str],
         config: Optional[ProjectConfig] = None,
     ) -> None:
         """Generate AudioUnit project files."""
@@ -67,17 +66,17 @@ class AudioUnitPlatform(Platform):
                 shutil.copy2(src, output_dir / filename)
 
         # Detect AU type from I/O configuration
-        au_type = self._detect_au_type(export_info.num_inputs)
+        au_type = self._detect_au_type(manifest.num_inputs)
         au_subtype = self._generate_subtype(lib_name)
 
         # Generate CMakeLists.txt
         self._generate_cmakelists(
             templates_dir / "CMakeLists.txt.template",
             output_dir / "CMakeLists.txt",
-            export_info.name,
+            manifest.gen_name,
             lib_name,
-            export_info.num_inputs,
-            export_info.num_outputs,
+            manifest.num_inputs,
+            manifest.num_outputs,
         )
 
         # Generate Info.plist
@@ -93,7 +92,7 @@ class AudioUnitPlatform(Platform):
         self.generate_buffer_header(
             templates_dir / "gen_buffer.h.template",
             output_dir / "gen_buffer.h",
-            buffers,
+            manifest.buffers,
             header_comment="Buffer configuration for gen_dsp AudioUnit wrapper",
         )
 

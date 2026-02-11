@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Manifest IR** (`src/gen_dsp/core/manifest.py`) -- front-end-agnostic intermediate representation decoupling parsing from platform generation
+  - `Manifest` dataclass: `gen_name`, `num_inputs`, `num_outputs`, `params`, `buffers`, `source`, `version` with JSON/dict serialization
+  - `ParamInfo` dataclass: `index`, `name`, `has_minmax`, `min`, `max`, `default` (replaces duplicated SC/LV2 `ParamInfo`)
+  - `parse_params_from_export()`: consolidated parameter parsing regex (was duplicated in SC and LV2)
+  - `manifest_from_export_info()`: builds a Manifest from a parsed gen~ ExportInfo
+- **`gen-dsp manifest` CLI command** -- emits the parsed Manifest as JSON to stdout without generating a project
+  ```bash
+  gen-dsp manifest ./path/to/export [--buffers ...]
+  ```
+- **`manifest.json` emitted to project root** on every `gen-dsp init` -- machine-readable provenance file describing I/O, parameters, buffers, and tool version
+- Parameter metadata now available to all 11 platform backends via `manifest.params` (previously only SC and LV2 parsed params)
+
+### Changed
+
+- **`Platform.generate_project()` signature**: `(export_info, output_dir, lib_name, buffers, config)` -> `(manifest, output_dir, lib_name, config)` -- buffers moved into Manifest
+- All 11 platform implementations updated to accept `Manifest` instead of `ExportInfo` + `buffers`
+- SC and LV2 backends no longer re-parse gen~ `.cpp` for parameter metadata; they consume `manifest.params` directly
+- LV2 TTL `lv2:default` now uses `ParamInfo.default` (was hardcoded to `output_min`)
+
+### Removed
+
+- Duplicated `ParamInfo` dataclass from `platforms/supercollider.py` and `platforms/lv2.py`
+- Duplicated `_PARAM_BLOCK_RE` regex from both files
+- Duplicated `_parse_params()` method from both platform classes
+
 ## [0.1.5]
 
 ### Added

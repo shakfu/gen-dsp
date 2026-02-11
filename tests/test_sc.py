@@ -94,57 +94,6 @@ class TestScPlatform:
         assert SuperColliderPlatform._format_sc_number(0.5) == "0.5"
 
 
-class TestScParamParsing:
-    """Test parameter metadata extraction from gen~ exports."""
-
-    def test_parse_gigaverb_params(self, gigaverb_export: Path):
-        """Test parsing parameters from gigaverb (8 params)."""
-        parser = GenExportParser(gigaverb_export)
-        export_info = parser.parse()
-
-        platform = SuperColliderPlatform()
-        params = platform._parse_params(export_info)
-
-        assert len(params) == 8
-        # Check first param
-        assert params[0].index == 0
-        assert params[0].name == "bandwidth"
-        # Check last param
-        assert params[7].index == 7
-        assert params[7].name == "tail"
-        # All gigaverb params have hasminmax=true
-        for p in params:
-            assert p.has_minmax is True
-            assert p.output_max >= p.output_min
-        # Spot-check: revtime has min=0.1, others have min=0
-        assert params[0].output_min == 0.0  # bandwidth
-        assert params[0].output_max == 1.0
-        revtime = next(p for p in params if p.name == "revtime")
-        assert revtime.output_min == 0.1
-        assert revtime.output_max == 1.0
-
-    def test_parse_spectraldelayfb_params(self, spectraldelayfb_export: Path):
-        """Test parsing parameters from spectraldelayfb (0 params)."""
-        parser = GenExportParser(spectraldelayfb_export)
-        export_info = parser.parse()
-
-        platform = SuperColliderPlatform()
-        params = platform._parse_params(export_info)
-
-        assert len(params) == 0
-
-    def test_parse_params_sorted_by_index(self, gigaverb_export: Path):
-        """Test that parsed params are sorted by index."""
-        parser = GenExportParser(gigaverb_export)
-        export_info = parser.parse()
-
-        platform = SuperColliderPlatform()
-        params = platform._parse_params(export_info)
-
-        indices = [p.index for p in params]
-        assert indices == sorted(indices)
-
-
 class TestScProjectGeneration:
     """Test SuperCollider project generation."""
 

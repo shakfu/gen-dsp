@@ -32,7 +32,7 @@ from string import Template
 from typing import Optional
 
 from gen_dsp.core.builder import BuildResult
-from gen_dsp.core.parser import ExportInfo
+from gen_dsp.core.manifest import Manifest
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform
@@ -176,10 +176,9 @@ class VcvRackPlatform(Platform):
 
     def generate_project(
         self,
-        export_info: ExportInfo,
+        manifest: Manifest,
         output_dir: Path,
         lib_name: str,
-        buffers: list[str],
         config: Optional[ProjectConfig] = None,
     ) -> None:
         """Generate VCV Rack module project files."""
@@ -204,7 +203,7 @@ class VcvRackPlatform(Platform):
 
         # Compute panel HP
         total_components = (
-            export_info.num_params + export_info.num_inputs + export_info.num_outputs
+            manifest.num_params + manifest.num_inputs + manifest.num_outputs
         )
         panel_hp = self._compute_panel_hp(total_components)
 
@@ -215,11 +214,11 @@ class VcvRackPlatform(Platform):
         self._generate_makefile(
             templates_dir / "Makefile.template",
             output_dir / "Makefile",
-            export_info.name,
+            manifest.gen_name,
             lib_name,
-            export_info.num_inputs,
-            export_info.num_outputs,
-            export_info.num_params,
+            manifest.num_inputs,
+            manifest.num_outputs,
+            manifest.num_params,
             panel_hp,
             default_rack_dir,
         )
@@ -228,7 +227,7 @@ class VcvRackPlatform(Platform):
         self._generate_plugin_json(
             output_dir,
             lib_name,
-            export_info.num_inputs,
+            manifest.num_inputs,
         )
 
         # Generate panel SVG
@@ -244,7 +243,7 @@ class VcvRackPlatform(Platform):
         self.generate_buffer_header(
             templates_dir / "gen_buffer.h.template",
             output_dir / "gen_buffer.h",
-            buffers,
+            manifest.buffers,
             header_comment="Buffer configuration for gen_dsp VCV Rack wrapper",
         )
 
