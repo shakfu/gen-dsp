@@ -37,7 +37,9 @@ class ProjectConfig:
     # Use shared FetchContent cache for CMake-based platforms (clap, vst3)
     shared_cache: bool = False
 
-    # Daisy board variant (seed, pod, patch, patch_sm, field, petal, legio, versio)
+    # Board variant for embedded platforms:
+    #   Daisy: seed, pod, patch, patch_sm, field, petal, legio, versio
+    #   Circle: pi3-i2s, pi4-i2s
     board: Optional[str] = None
 
     def validate(self) -> list[str]:
@@ -76,13 +78,23 @@ class ProjectConfig:
                 errors.append(f"Buffer name '{buf_name}' is not a valid C identifier.")
 
         # Validate Daisy board name
-        if self.board is not None:
+        if self.board is not None and self.platform == "daisy":
             from gen_dsp.platforms.daisy import DAISY_BOARDS
 
             if self.board not in DAISY_BOARDS:
                 errors.append(
                     f"Unknown Daisy board '{self.board}'. "
                     f"Valid boards: {', '.join(sorted(DAISY_BOARDS))}"
+                )
+
+        # Validate Circle board name
+        if self.board is not None and self.platform == "circle":
+            from gen_dsp.platforms.circle import CIRCLE_BOARDS
+
+            if self.board not in CIRCLE_BOARDS:
+                errors.append(
+                    f"Unknown Circle board '{self.board}'. "
+                    f"Valid boards: {', '.join(sorted(CIRCLE_BOARDS))}"
                 )
 
         return errors

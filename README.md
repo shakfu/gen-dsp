@@ -2,9 +2,9 @@
 
 This project is a friendly fork of Michael Spears' [gen_ext](https://github.com/samesimilar/gen_ext) which was originally created to "compile code exported from a Max gen~ object into an "external" object that can be loaded into a PureData patch."
 
-This fork has taken this excellent original idea and implementation and extended it to include Max/MSP externals, ChucK chugins, AudioUnit (AUv2) plugins, CLAP plugins, VST3 plugins, LV2 plugins, SuperCollider UGens, VCV Rack modules, Daisy (Electrosmith) embedded firmware, and possibly other DSP architectures (see [TODO.md](TODO.md)).
+This fork has taken this excellent original idea and implementation and extended it to include Max/MSP externals, ChucK chugins, AudioUnit (AUv2) plugins, CLAP plugins, VST3 plugins, LV2 plugins, SuperCollider UGens, VCV Rack modules, Daisy (Electrosmith) embedded firmware, Circle (Raspberry Pi bare metal) kernel images, and possibly other DSP architectures (see [TODO.md](TODO.md)).
 
-gen-dsp compiles code exported from Max gen~ objects into external objects for PureData, Max/MSP, ChucK, AudioUnit (AUv2), CLAP, VST3, LV2, SuperCollider, VCV Rack, and Daisy (Electrosmith). It automates project setup, buffer detection, and platform-specific patches.
+gen-dsp compiles code exported from Max gen~ objects into external objects for PureData, Max/MSP, ChucK, AudioUnit (AUv2), CLAP, VST3, LV2, SuperCollider, VCV Rack, Daisy (Electrosmith), and Circle (Raspberry Pi bare metal). It automates project setup, buffer detection, and platform-specific patches.
 
 ## Cross-Platform Support
 
@@ -22,6 +22,7 @@ gen-dsp builds on macOS, Linux, and Windows. All platforms are tested in CI via 
 | SuperCollider | yes | yes | yes | CMake (FetchContent) | `.scx` / `.so` |
 | VCV Rack | yes | yes | -- | make (Rack SDK) | `plugin.dylib` / `.so` / `.dll` |
 | Daisy | -- | yes | -- | make (libDaisy) | `.bin` (firmware) |
+| Circle | -- | yes | -- | make (Circle SDK) | `.img` (kernel image) |
 
 Each platform has a detailed guide covering prerequisites, build details, SDK configuration, install paths, and troubleshooting:
 
@@ -37,6 +38,7 @@ Each platform has a detailed guide covering prerequisites, build details, SDK co
 | SuperCollider | [docs/backends/supercollider.md](docs/backends/supercollider.md) |
 | VCV Rack | [docs/backends/vcvrack.md](docs/backends/vcvrack.md) |
 | Daisy | [docs/backends/daisy.md](docs/backends/daisy.md) |
+| Circle | [docs/backends/circle.md](docs/backends/circle.md) |
 
 ## Key Improvements
 
@@ -63,6 +65,8 @@ Each platform has a detailed guide covering prerequisites, build details, SDK co
 - **VCV Rack support**: Generates VCV Rack modules with per-sample processing, auto-generated `plugin.json` manifest and panel SVG -- requires pre-installed Rack SDK.
 
 - **Daisy support**: Generates Daisy Seed firmware (.bin) with custom genlib runtime (bump allocator for SRAM/SDRAM) -- first embedded/cross-compilation target, requires `arm-none-eabi-gcc`.
+
+- **Circle support**: Generates bare-metal Raspberry Pi kernel images (.img) for Pi Zero through Pi 5 using the [Circle](https://github.com/rsta2/circle) framework -- 14 board variants covering I2S, PWM, HDMI, and USB audio outputs.
 
 - **Platform-specific patches**: Automatically fixes compatibility issues like the `exp2f -> exp2` problem in Max 9 exports on macOS.
 
@@ -114,7 +118,7 @@ gen-dsp init <export-path> -n <name> [-p <platform>] [-o <output>]
 Options:
 
 - `-n, --name` - Name for the external (required)
-- `-p, --platform` - Target platform: `pd` (default), `max`, `chuck`, `au`, `clap`, `vst3`, `lv2`, `sc`, `vcvrack`, `daisy`, or `both`
+- `-p, --platform` - Target platform: `pd` (default), `max`, `chuck`, `au`, `clap`, `vst3`, `lv2`, `sc`, `vcvrack`, `daisy`, `circle`, or `both`
 - `-o, --output` - Output directory (default: `./<name>`)
 - `--buffers` - Explicit buffer names (overrides auto-detection)
 - `--shared-cache` - Use a shared OS cache for FetchContent downloads (clap, vst3, lv2, sc only)
@@ -293,6 +297,25 @@ gen-dsp build ./myeffect_daisy -p daisy
 
 Cross-compilation target for STM32H750. Requires `arm-none-eabi-gcc`. libDaisy (v7.1.0) auto-cloned on first build. Supports 8 board variants via `--board` flag (seed, pod, patch, patch_sm, field, petal, legio, versio).
 
+## Circle (Raspberry Pi bare metal)
+
+See the [Circle guide](docs/backends/circle.md) for full details.
+
+```bash
+gen-dsp init ./my_export -n myeffect -p circle --board pi3-i2s -o ./myeffect_circle
+gen-dsp build ./myeffect_circle -p circle
+# Output: kernel8.img (copy to SD card boot partition)
+```
+
+Bare-metal kernel images for Raspberry Pi using the [Circle](https://github.com/rsta2/circle) framework (no OS). Requires `aarch64-none-elf-gcc` (64-bit) or `arm-none-eabi-gcc` (32-bit Pi Zero). Circle SDK auto-cloned on first build. Supports 14 board variants via `--board` flag:
+
+| Audio | Boards |
+|-------|--------|
+| I2S (external DAC) | `pi0-i2s`, `pi0w2-i2s`, `pi3-i2s` (default), `pi4-i2s`, `pi5-i2s` |
+| PWM (3.5mm jack) | `pi0-pwm`, `pi0w2-pwm`, `pi3-pwm`, `pi4-pwm` |
+| HDMI | `pi3-hdmi`, `pi4-hdmi`, `pi5-hdmi` |
+| USB (USB DAC) | `pi4-usb`, `pi5-usb` |
+
 ## Shared FetchContent Cache
 
 CLAP, VST3, LV2, and SC backends use CMake FetchContent to download their SDKs/headers at configure time. By default each project downloads its own copy. Two opt-in mechanisms allow sharing a single download across projects:
@@ -337,6 +360,7 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 - SuperCollider: first CMake configure requires network access to fetch SC headers (~80MB tarball, cached afterward)
 - VCV Rack: requires pre-installed Rack SDK (`RACK_DIR` env var); per-sample `perform(n=1)` has higher CPU overhead than block-based processing
 - Daisy: requires `arm-none-eabi-gcc` cross-compiler; first clone of libDaisy requires network access and `git`; v1 targets Daisy Seed only (no board-specific knob/CV mapping)
+- Circle: requires `aarch64-none-elf-gcc` (or `arm-none-eabi-gcc` for Pi Zero) cross-compiler; first clone of Circle SDK requires network access and `git`; output-only (no audio input capture); parameter control requires manual GPIO/ADC code in `gen_ext_circle.cpp`
 
 ## Requirements
 
@@ -404,6 +428,13 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 - git (for cloning libDaisy on first build)
 - Network access on first build (to clone libDaisy + submodules)
 
+### Circle builds
+
+- make
+- `aarch64-none-elf-gcc` (AArch64 bare-metal toolchain, for Pi 3/4/5/Zero 2 W) or `arm-none-eabi-gcc` (for Pi Zero)
+- git (for cloning Circle SDK on first build)
+- Network access on first build (to clone Circle)
+
 ### macOS
 
 Install Xcode or Command Line Tools:
@@ -450,6 +481,7 @@ make example-lv2      # LV2 plugin
 make example-sc       # SuperCollider UGen
 make example-vcvrack  # VCV Rack module (requires RACK_DIR)
 make example-daisy    # Daisy firmware (requires arm-none-eabi-gcc)
+make example-circle   # Circle kernel image (requires aarch64-none-elf-gcc)
 make examples         # All platforms
 ```
 
@@ -479,6 +511,8 @@ Test fixtures include code exported from examples bundled with Max:
 - spectraldelayfb: from gen~.spectraldelay_feedback
 
 The Daisy backend was informed by techniques from [oopsy](https://github.com/electro-smith/oopsy) by Electrosmith and contributors, including Graham Wakefield.
+
+The Circle backend uses [Circle](https://github.com/rsta2/circle) by Rene Stange, a C++ bare metal programming environment for the Raspberry Pi.
 
 ## License
 

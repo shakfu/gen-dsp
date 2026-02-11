@@ -1,0 +1,7 @@
+# config.txt - Raspberry Pi boot configuration for gen-dsp Circle firmware
+# Place this file on the SD card boot partition alongside the kernel image.
+
+$audio_boot_config
+
+# Reduce GPU memory to give more RAM to the application
+gpu_mem=16

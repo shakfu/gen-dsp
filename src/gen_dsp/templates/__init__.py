@@ -248,3 +248,26 @@ def list_daisy_templates() -> list[Path]:
     if not daisy_dir.is_dir():
         return []
     return list(daisy_dir.glob("*"))
+
+
+def get_circle_templates_dir() -> Path:
+    """
+    Get the path to Circle bare metal templates.
+
+    Returns:
+        Path to the circle/ templates directory.
+    """
+    return get_templates_dir() / "circle"
+
+
+def list_circle_templates() -> list[Path]:
+    """
+    List all Circle bare metal template files.
+
+    Returns:
+        List of paths to template files.
+    """
+    circle_dir = get_circle_templates_dir()
+    if not circle_dir.is_dir():
+        return []
+    return list(circle_dir.glob("*"))

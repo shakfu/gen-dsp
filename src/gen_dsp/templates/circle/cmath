@@ -1,0 +1,8 @@
+// cmath shim for Circle bare-metal builds
+// Circle's Rules.mk adds -nostdinc++ which strips C++ stdlib include paths.
+// genlib_ops.h includes <cmath> but only uses C math functions (no std::),
+// so wrapping <math.h> is sufficient.
+#ifndef _CIRCLE_CMATH_SHIM
+#define _CIRCLE_CMATH_SHIM
+#include <math.h>
+#endif

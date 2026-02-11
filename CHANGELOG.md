@@ -7,12 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Circle (Raspberry Pi bare metal) platform support** with Make-based cross-compilation
+  - Generates bare-metal kernel images (`.img`) for Raspberry Pi Zero through Pi 5 using the [Circle](https://github.com/rsta2/circle) C++ framework (no OS)
+  - 14 board variants via `--board` flag covering 4 audio output types:
+    - **I2S**: `pi0-i2s`, `pi0w2-i2s`, `pi3-i2s`, `pi4-i2s`, `pi5-i2s` (external DAC: PCM5102A, PCM5122, etc.)
+    - **PWM**: `pi0-pwm`, `pi0w2-pwm`, `pi3-pwm`, `pi4-pwm` (built-in 3.5mm headphone jack)
+    - **HDMI**: `pi3-hdmi`, `pi4-hdmi`, `pi5-hdmi` (HDMI audio output)
+    - **USB**: `pi4-usb`, `pi5-usb` (USB DAC / audio interface)
+  - Cross-compilation: `arm-none-eabi-gcc` (32-bit Pi Zero) or `aarch64-none-elf-gcc` (64-bit Pi 3/4/5)
+  - Custom genlib runtime (`genlib_circle.cpp`) with heap-backed bump allocator (16MB pool)
+  - Universal sample conversion via `GetRangeMin()`/`GetRangeMax()` works across all audio device types
+  - DMA-based audio devices (I2S, PWM, HDMI) share one template; USB gets a separate template with `CUSBHCIDevice` init
+  - GNU Make `override` directives ensure project RASPPI/AARCH/PREFIX take precedence over Circle's `Config.mk`
+  - Circle SDK auto-cloned and built on first use (`git clone --depth 1 --branch Step50.1`)
+  - SDK resolution priority: `CIRCLE_DIR` env var > `GEN_DSP_CACHE_DIR` env var > OS-appropriate cache path
+  - Boot partition `config.txt` generated with audio-device-specific settings
+  - `cmath` shim header included in generated projects -- Circle's `Rules.mk` adds `-nostdinc++` which strips C++ standard library include paths; the shim wraps `<math.h>` so genlib's `#include <cmath>` resolves correctly
+  - Compiler prerequisite check: `ensure_circle()` verifies `aarch64-none-elf-gcc` is on PATH before attempting SDK clone/build, with download instructions pointing to ARM GNU Toolchain
+  - 32-bit float signal processing (`GENLIB_USE_FLOAT32`)
+  - Buffer support via `CircleBuffer` class (same pattern as other backends)
+  - Platform key: `"circle"`, default board: `pi3-i2s`
+
 ## [0.1.4]
 
 ### Added
 
 - **Per-platform documentation guides** in `docs/backends/`
-  - 10 standalone guides (one per DSP target): puredata, max, chuck, audiounit, clap, vst3, lv2, supercollider, vcvrack, daisy
+  - 11 standalone guides (one per DSP target): puredata, max, chuck, audiounit, clap, vst3, lv2, supercollider, vcvrack, daisy, circle
   - Each guide covers prerequisites, quick start, architecture (header isolation, signal format, plugin type detection), parameters, buffers, build details (SDK versions, compile flags, shared cache), install paths, and troubleshooting
   - FetchContent-based platforms (CLAP, VST3, LV2, SC) document `FETCHCONTENT_SOURCE_DIR_<NAME>` for using a pre-existing local SDK
 - **Platform guides link table** in README cross-platform support section

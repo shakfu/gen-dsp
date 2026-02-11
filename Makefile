@@ -2,7 +2,7 @@
 
 .PHONY: all install install-dev test test-cov clean dist publish-test publish \
        help venv example-pd example-max example-chuck example-au example-clap \
-       example-vst3 example-lv2 example-sc example-vcvrack example-daisy examples lint format typecheck qa
+       example-vst3 example-lv2 example-sc example-vcvrack example-daisy example-circle examples lint format typecheck qa
 
 VENV := .venv
 UV := uv
@@ -78,8 +78,8 @@ $(CMAKE_EXAMPLES): example-%:
 	$(call example_init,$*)
 	cmake -B $(EXAMPLES_DIR)/$(NAME)_$*/build -S $(EXAMPLES_DIR)/$(NAME)_$* && cmake --build $(EXAMPLES_DIR)/$(NAME)_$*/build
 
-# gen-dsp build examples: max, vcvrack, daisy
-GENDSP_EXAMPLES := example-max example-vcvrack example-daisy
+# gen-dsp build examples: max, vcvrack, daisy, circle
+GENDSP_EXAMPLES := example-max example-vcvrack example-daisy example-circle
 $(GENDSP_EXAMPLES): example-%:
 	$(call example_init,$*)
 	$(GEN_DSP) build $(EXAMPLES_DIR)/$(NAME)_$* -p $*
@@ -95,7 +95,7 @@ example-chuck:
 	$(MAKE) -C $(EXAMPLES_DIR)/$(NAME)_chuck mac
 
 # Build all example plugins
-examples: example-pd example-max example-chuck example-au example-clap example-vst3 example-lv2 example-sc example-vcvrack example-daisy
+examples: example-pd example-max example-chuck example-au example-clap example-vst3 example-lv2 example-sc example-vcvrack example-daisy example-circle
 
 # Build distribution
 dist: clean
@@ -130,6 +130,7 @@ help:
 	@echo "  example-sc    - Generate and build a SuperCollider UGen"
 	@echo "  example-vcvrack - Generate and build a VCV Rack module (requires RACK_DIR)"
 	@echo "  example-daisy - Generate and build a Daisy firmware (requires arm-none-eabi-gcc)"
+	@echo "  example-circle - Generate and build a Circle kernel image (requires aarch64-none-elf-gcc)"
 	@echo "  examples      - Build all example plugins"
 	@echo "  clean         - Remove build artifacts"
 	@echo "  dist          - Build distribution packages"

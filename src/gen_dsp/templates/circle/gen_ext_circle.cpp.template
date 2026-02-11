@@ -1,0 +1,240 @@
+// gen_ext_circle.cpp - Circle bare metal wrapper for gen~ exports
+// Board: $board_key (Raspberry Pi $rasppi)
+// Audio: $audio_label output
+// Output: $kernel_img
+// This file includes ONLY Circle headers - genlib is isolated in _ext_circle.cpp
+
+#include <circle/actled.h>
+#include <circle/koptions.h>
+#include <circle/devicenameservice.h>
+#include <circle/exceptionhandler.h>
+#include <circle/interrupt.h>
+#include <circle/logger.h>
+#include <circle/startup.h>
+#include <circle/timer.h>
+#include <circle/types.h>
+$audio_include
+
+#include "gen_ext_common_circle.h"
+#include "_ext_circle.h"
+#include "genlib_circle.h"
+
+using namespace WRAPPER_NAMESPACE;
+
+// ---------------------------------------------------------------------------
+// Configuration
+// ---------------------------------------------------------------------------
+
+#define CIRCLE_SAMPLE_RATE     48000
+#define CIRCLE_CHUNK_SIZE      256
+#define CIRCLE_AUDIO_CHANNELS  2
+
+// gen~ I/O counts (from Makefile defines)
+#define CIRCLE_NUM_INPUTS  $num_inputs
+#define CIRCLE_NUM_OUTPUTS $num_outputs
+
+// ---------------------------------------------------------------------------
+// CGenDSPSoundDevice - $audio_label sound device with gen~ DSP processing
+// ---------------------------------------------------------------------------
+
+class CGenDSPSoundDevice : public $audio_base_class
+{
+public:
+    CGenDSPSoundDevice(CInterruptSystem* pInterrupt)
+        : $audio_base_class(pInterrupt, CIRCLE_SAMPLE_RATE, CIRCLE_CHUNK_SIZE),
+          m_genState(nullptr)
+    {
+        // Initialize float buffer pointer arrays
+        for (int i = 0; i < CIRCLE_NUM_INPUTS || i < 1; i++) {
+            m_pInputBuffers[i] = m_InputStorage[i];
+        }
+        for (int i = 0; i < CIRCLE_NUM_OUTPUTS || i < 1; i++) {
+            m_pOutputBuffers[i] = m_OutputStorage[i];
+        }
+    }
+
+    ~CGenDSPSoundDevice(void)
+    {
+        if (m_genState) {
+            wrapper_destroy(m_genState);
+            m_genState = nullptr;
+        }
+    }
+
+    boolean Initialize(void)
+    {
+        // Create gen~ state
+        m_genState = wrapper_create((float)CIRCLE_SAMPLE_RATE, (long)CIRCLE_CHUNK_SIZE);
+        if (!m_genState) {
+            return FALSE;
+        }
+
+        return Start();
+    }
+
+protected:
+    // GetChunk is called from the DMA interrupt handler to fill audio output.
+    // Uses GetRangeMin()/GetRangeMax() for device-agnostic sample conversion.
+    unsigned GetChunk(u32* pBuffer, unsigned nChunkSize) override
+    {
+        if (!m_genState) {
+            // Silence
+            for (unsigned i = 0; i < nChunkSize; i++) {
+                pBuffer[i] = 0;
+            }
+            return nChunkSize;
+        }
+
+        // nChunkSize is in number of u32 words (samples * channels)
+        unsigned nFrames = nChunkSize / CIRCLE_AUDIO_CHANNELS;
+
+        // Clear input buffers (bare metal output-only: no input capture)
+#if CIRCLE_NUM_INPUTS > 0
+        for (int ch = 0; ch < CIRCLE_NUM_INPUTS; ch++) {
+            for (unsigned i = 0; i < nFrames; i++) {
+                m_InputStorage[ch][i] = 0.0f;
+            }
+        }
+#endif
+
+        // Run gen~ DSP
+        wrapper_perform(
+            m_genState,
+#if CIRCLE_NUM_INPUTS > 0
+            m_pInputBuffers,
+#else
+            nullptr,
+#endif
+            CIRCLE_NUM_INPUTS,
+            m_pOutputBuffers,
+            CIRCLE_NUM_OUTPUTS,
+            (long)nFrames
+        );
+
+        // Convert float [-1,1] to device-native sample format
+        // GetRangeMin()/GetRangeMax() returns the correct range for any
+        // DMA-based audio device (I2S, PWM, HDMI).
+        int nRangeMin = GetRangeMin();
+        int nRangeMax = GetRangeMax();
+
+        for (unsigned i = 0; i < nFrames; i++) {
+            for (int ch = 0; ch < CIRCLE_AUDIO_CHANNELS; ch++) {
+                float sample = 0.0f;
+                if (ch < CIRCLE_NUM_OUTPUTS) {
+                    sample = m_pOutputBuffers[ch][i];
+                }
+
+                // Clamp to [-1.0, 1.0]
+                if (sample > 1.0f) sample = 1.0f;
+                if (sample < -1.0f) sample = -1.0f;
+
+                // Map [-1, 1] -> [RangeMin, RangeMax]
+                int nSample = (int)((sample + 1.0f) / 2.0f
+                    * (nRangeMax - nRangeMin) + nRangeMin);
+                pBuffer[i * CIRCLE_AUDIO_CHANNELS + ch] = (u32)nSample;
+            }
+        }
+
+        return nChunkSize;
+    }
+
+private:
+    GenState* m_genState;
+
+    // Float audio buffers for gen~ processing
+    float m_InputStorage[CIRCLE_NUM_INPUTS > 0 ? CIRCLE_NUM_INPUTS : 1][CIRCLE_CHUNK_SIZE];
+    float m_OutputStorage[CIRCLE_NUM_OUTPUTS > 0 ? CIRCLE_NUM_OUTPUTS : 1][CIRCLE_CHUNK_SIZE];
+    float* m_pInputBuffers[CIRCLE_NUM_INPUTS > 0 ? CIRCLE_NUM_INPUTS : 1];
+    float* m_pOutputBuffers[CIRCLE_NUM_OUTPUTS > 0 ? CIRCLE_NUM_OUTPUTS : 1];
+};
+
+// ---------------------------------------------------------------------------
+// CKernel - Main application kernel
+// ---------------------------------------------------------------------------
+
+class CKernel
+{
+public:
+    CKernel(void)
+        : m_Timer(&m_Interrupt),
+          m_Logger(m_Options.GetLogLevel(), &m_Timer),
+          m_pSound(nullptr)
+    {
+    }
+
+    ~CKernel(void)
+    {
+        delete m_pSound;
+    }
+
+    boolean Initialize(void)
+    {
+        if (!m_Interrupt.Initialize()) {
+            return FALSE;
+        }
+
+        if (!m_Timer.Initialize()) {
+            return FALSE;
+        }
+
+        if (!m_Logger.Initialize(nullptr)) {
+            return FALSE;
+        }
+
+        // Initialize genlib memory pool
+        circle_init_memory();
+
+        // Create and initialize sound device
+        m_pSound = new CGenDSPSoundDevice(&m_Interrupt);
+        if (!m_pSound->Initialize()) {
+            m_Logger.Write("gen-dsp", LogError, "Failed to initialize $audio_label sound device");
+            return FALSE;
+        }
+
+        m_Logger.Write("gen-dsp", LogNotice,
+            "gen-dsp Circle audio started: %uHz, %u frames/chunk, $audio_label output",
+            CIRCLE_SAMPLE_RATE, CIRCLE_CHUNK_SIZE);
+
+        return TRUE;
+    }
+
+    void Run(void)
+    {
+        // Audio runs in the DMA interrupt handler via GetChunk().
+        // Main loop does nothing but keep the system alive.
+        // Future: read GPIO/ADC for parameter control here.
+        for (;;) {
+            // Yield to interrupts
+        }
+    }
+
+private:
+    CActLED             m_ActLED;
+    CKernelOptions      m_Options;
+    CDeviceNameService  m_DeviceNameService;
+    CExceptionHandler   m_ExceptionHandler;
+    CInterruptSystem    m_Interrupt;
+    CTimer              m_Timer;
+    CLogger             m_Logger;
+    CGenDSPSoundDevice* m_pSound;
+};
+
+// ---------------------------------------------------------------------------
+// Entry point
+// ---------------------------------------------------------------------------
+
+int main(void)
+{
+    CKernel Kernel;
+
+    if (!Kernel.Initialize()) {
+        halt();
+        return EXIT_HALT;
+    }
+
+    Kernel.Run();
+
+    // Run() never returns, but satisfy the compiler
+    halt();
+    return EXIT_HALT;
+}

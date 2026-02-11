@@ -24,6 +24,8 @@
 
 - [x] **Daisy (Electrosmith)** - Full support. Generates Daisy Seed firmware (.bin) using libDaisy's Make-based build system with ARM cross-compilation. Custom genlib runtime with two-tier bump allocator (SRAM + SDRAM). Auto-maps stereo I/O with scratch buffers for channel mismatch. libDaisy auto-cloned and built on first use. See `src/gen_dsp/templates/daisy/`.
 
+- [x] **Circle (Raspberry Pi bare metal)** - Full support. Generates bare-metal kernel images (.img) for Raspberry Pi 3/4 using the Circle C++ framework with ARM cross-compilation. I2S audio output via external DAC (PCM5102A, PCM5122, WM8960, etc.). Custom genlib runtime with heap-backed bump allocator. Circle SDK auto-cloned and built on first use. See `src/gen_dsp/templates/circle/`.
+
 ### To Implement
 
 #### Embedded/Hardware Targets
