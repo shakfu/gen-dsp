@@ -1,10 +1,8 @@
 # gen-dsp
 
-This project is a friendly fork of Michael Spears' [gen_ext](https://github.com/samesimilar/gen_ext) which was originally created to "compile code exported from a Max gen~ object into an "external" object that can be loaded into a PureData patch."
+This project is a friendly fork of Michael Spears' [gen_ext](https://github.com/samesimilar/gen_ext) which was originally created to "compile code exported from a Max gen~ object into an "external" object that can be loaded into a PureData patch." 
 
-This fork has taken this excellent original idea and implementation and extended it to include Max/MSP externals, ChucK chugins, AudioUnit (AUv2) plugins, CLAP plugins, VST3 plugins, LV2 plugins, SuperCollider UGens, VCV Rack modules, Daisy (Electrosmith) embedded firmware, Circle (Raspberry Pi bare metal) kernel images, and possibly other DSP architectures (see [TODO.md](TODO.md)).
-
-gen-dsp compiles code exported from Max gen~ objects into external objects for PureData, Max/MSP, ChucK, AudioUnit (AUv2), CLAP, VST3, LV2, SuperCollider, VCV Rack, Daisy (Electrosmith), and Circle (Raspberry Pi bare metal). It automates project setup, buffer detection, and platform-specific patches.
+Building on this excellent original idea and implementation, gen-dsp compiles code exported from Max gen~ objects into external objects for PureData, Max/MSP, ChucK, AudioUnit (AUv2), CLAP, VST3, LV2, SuperCollider, VCV Rack, Daisy (Electrosmith), and Circle (Raspberry Pi bare metal). It automates project setup, buffer detection, and platform-specific patches.
 
 ## Cross-Platform Support
 
@@ -40,7 +38,7 @@ Each platform has a detailed guide covering prerequisites, build details, SDK co
 | Daisy | [docs/backends/daisy.md](docs/backends/daisy.md) |
 | Circle | [docs/backends/circle.md](docs/backends/circle.md) |
 
-## Key Improvements
+## Key Improvements and Features
 
 - **Python package**: gen-dsp is a pip installable zero-dependency python package with a cli which embeds all templates and related code.
 
@@ -62,7 +60,7 @@ Each platform has a detailed guide covering prerequisites, build details, SDK co
 
 - **SuperCollider support**: Generates cross-platform SC UGens (`.scx`/`.so`) with `.sc` class files containing parameter names/defaults parsed from gen~ exports -- SC plugin headers fetched via CMake FetchContent.
 
-- **VCV Rack support**: Generates VCV Rack modules with per-sample processing, auto-generated `plugin.json` manifest and panel SVG -- requires pre-installed Rack SDK.
+- **VCV Rack support**: Generates VCV Rack modules with per-sample processing, auto-generated `plugin.json` manifest and panel SVG -- Rack SDK auto-downloaded and cached on first build.
 
 - **Daisy support**: Generates Daisy Seed firmware (.bin) with custom genlib runtime (bump allocator for SRAM/SDRAM) -- first embedded/cross-compilation target, requires `arm-none-eabi-gcc`.
 
@@ -161,7 +159,7 @@ Apply platform-specific fixes:
 gen-dsp patch <target-path> [--dry-run]
 ```
 
-Currently applies the exp2f -> exp2 fix for macOS compatibility with Max 9 exports.
+Currently applies the `exp2f -> exp2` fix for macOS compatibility with Max 9 exports.
 
 ## Features
 
@@ -368,7 +366,7 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 - VST3: first CMake configure requires network access to fetch VST3 SDK (~50MB, cached afterward); GPL3/proprietary dual license
 - LV2: first CMake configure requires network access to fetch LV2 headers (cached afterward)
 - SuperCollider: first CMake configure requires network access to fetch SC headers (~80MB tarball, cached afterward)
-- VCV Rack: requires pre-installed Rack SDK (`RACK_DIR` env var); per-sample `perform(n=1)` has higher CPU overhead than block-based processing
+- VCV Rack: first build requires network access to fetch Rack SDK (cached afterward); `RACK_DIR` env var can override auto-download; per-sample `perform(n=1)` has higher CPU overhead than block-based processing
 - Daisy: requires `arm-none-eabi-gcc` cross-compiler; first clone of libDaisy requires network access and `git`; v1 targets Daisy Seed only (no board-specific knob/CV mapping)
 - Circle: requires `aarch64-none-elf-gcc` (or `arm-none-eabi-gcc` for Pi Zero) cross-compiler; first clone of Circle SDK requires network access and `git`; output-only (no audio input capture); parameter control requires manual GPIO/ADC code in `gen_ext_circle.cpp`
 
@@ -429,7 +427,7 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 
 - make
 - C/C++ compiler (clang, gcc)
-- VCV Rack SDK (`RACK_DIR` environment variable must point to SDK path)
+- Network access on first build (Rack SDK auto-downloaded and cached; override with `RACK_DIR` env var)
 
 ### Daisy builds
 
@@ -489,7 +487,7 @@ make example-clap     # CLAP plugin
 make example-vst3     # VST3 plugin
 make example-lv2      # LV2 plugin
 make example-sc       # SuperCollider UGen
-make example-vcvrack  # VCV Rack module (requires RACK_DIR)
+make example-vcvrack  # VCV Rack module (auto-downloads Rack SDK)
 make example-daisy    # Daisy firmware (requires arm-none-eabi-gcc)
 make example-circle   # Circle kernel image (requires aarch64-none-elf-gcc)
 make examples         # All platforms
@@ -507,7 +505,7 @@ Output goes to `build/examples/`.
 
 ### Adding New Backends
 
-gen-dsp uses a platform registry system that makes it straightforward to add support for new audio platforms (VCV Rack, Bela, Daisy, etc.). See [docs/new_backends.md](docs/new_backends.md) for a complete guide.
+gen-dsp uses a platform registry system that makes it straightforward to add support for new audio platforms (Bela, Daisy, etc.). See [docs/new_backends.md](docs/new_backends.md) for a complete guide.
 
 ## Attribution
 
