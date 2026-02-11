@@ -1,6 +1,6 @@
 [project]
 name = "gen-dsp"
-version = "0.1.5"
+version = "0.1.6"
 description = "Generate multiple dsp plugin formats from Max gen~ exports"
 readme = "README.md"
 license = {text = "MIT"}
@@ -10,7 +10,7 @@ authors = [
 ]
 keywords = ["puredata", "pd", "max", "msp", "gen~", "dsp", "audio", "external"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 3 - Alpha",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: Other Audience",
