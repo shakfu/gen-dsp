@@ -231,7 +231,7 @@ cd myeffect_au && cmake -B build && cmake --build build
 # Output: build/myeffect.component
 ```
 
-macOS only. Uses the raw AUv2 C API -- no external SDK needed, just system frameworks. Auto-detects `aufx` (effect) vs `augn` (generator).
+macOS only. Uses the raw AUv2 C API -- no external SDK needed, just system frameworks. Auto-detects `aufx` (effect) vs `augn` (generator). Passes Apple's `auval` validation.
 
 ## CLAP
 
@@ -243,7 +243,7 @@ cd myeffect_clap && cmake -B build && cmake --build build
 # Output: build/myeffect.clap
 ```
 
-Cross-platform (macOS, Linux, Windows). Zero-copy audio. CLAP headers fetched via CMake FetchContent (tag 1.2.2, MIT licensed).
+Cross-platform (macOS, Linux, Windows). Zero-copy audio. Passes [clap-validator](https://github.com/free-audio/clap-validator) conformance tests. CLAP headers fetched via CMake FetchContent (tag 1.2.2, MIT licensed).
 
 ## VST3
 
@@ -255,7 +255,7 @@ cd myeffect_vst3 && cmake -B build && cmake --build build
 # Output: build/VST3/Release/myeffect.vst3/
 ```
 
-Cross-platform (macOS, Linux, Windows). Zero-copy audio. VST3 SDK fetched via CMake FetchContent (tag v3.7.9_build_61, GPL3/proprietary dual licensed).
+Cross-platform (macOS, Linux, Windows). Zero-copy audio. Passes Steinberg's SDK validator (47/47 tests). VST3 SDK fetched via CMake FetchContent (tag v3.7.9_build_61, GPL3/proprietary dual licensed).
 
 ## LV2
 
@@ -361,7 +361,7 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 - Maximum of 5 buffers per external
 - Buffers are single-channel only. Use multiple buffers for multi-channel audio.
 - Max/MSP: Windows builds require Visual Studio or equivalent MSVC toolchain
-- AudioUnit: macOS only; initial implementation may not pass all `auval` checks
+- AudioUnit: macOS only
 - CLAP: first CMake configure requires network access to fetch CLAP headers (cached afterward)
 - VST3: first CMake configure requires network access to fetch VST3 SDK (~50MB, cached afterward); GPL3/proprietary dual license
 - LV2: first CMake configure requires network access to fetch LV2 headers (cached afterward)

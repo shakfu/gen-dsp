@@ -38,6 +38,9 @@
 
 #### Other
 
+- [ ] **DISTRHO Plugin Framework** - [DPF](https://github.com/DISTRHO/DPF) can build LADSPA, DSSI, LV2, VST2, VST3 and CLAP formats. A JACK/Standalone mode is also available, allowing you to quickly test plugins.
+  - Docs: <https://distrho.github.io/DPF/>
+
 - [ ] **JUCE (VST/AU/AAX)** - Abstracts plugin formats. Note: AU, CLAP, VST3, and LV2 are already covered natively without JUCE, so main value-add is AAX (Pro Tools, requires Avid NDA).
   - Docs: <https://juce.com/>
 

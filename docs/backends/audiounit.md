@@ -25,8 +25,7 @@ gen-dsp init ./my_export -n myeffect -p au -o ./myeffect_au
 
 # Build
 cd myeffect_au
-mkdir -p build && cd build
-cmake .. && cmake --build .
+cmake -B build && cmake --build build
 
 # Output: build/myeffect.component
 ```
@@ -45,7 +44,14 @@ gen-dsp uses **header isolation** to separate AU API code from genlib code:
 - `_ext_au.cpp` -- genlib-facing bridge (includes only genlib headers)
 - `_ext_au.h` -- C interface connecting the two sides via an opaque `GenState*` pointer
 
-The plugin implements `AudioComponentPlugInInterface` directly using the raw C API -- no Apple AudioUnitSDK wrapper classes are needed.
+The plugin implements `AudioComponentPlugInInterface` directly using the raw C API -- no Apple AudioUnitSDK wrapper classes are needed. The implementation passes Apple's `auval` validation tool, including:
+
+- State save/restore (ClassInfo) via CFDictionary serialization
+- Parameter retention across Initialize and Reset
+- Property change listeners with notifications
+- Channel count validation in SetStreamFormat
+- AU-to-AU connection support (MakeConnection)
+- Host-allocated output buffers (NULL mData handling)
 
 **Signal type:** float (32-bit). gen~ is compiled with `GENLIB_USE_FLOAT32`.
 
@@ -58,7 +64,7 @@ The plugin implements `AudioComponentPlugInInterface` directly using the raw C A
 
 - **Type:** `aufx` or `augn` (auto-detected)
 - **Subtype:** first 4 characters of lib_name, lowercased, padded with `x` if shorter
-- **Manufacturer:** `gdsp`
+- **Manufacturer:** `Gdsp`
 
 ## Parameters
 
@@ -89,12 +95,12 @@ After installing, you may need to restart your DAW or run `auval` to validate th
 
 ```bash
 auval -a  # List all AudioUnits
-auval -v aufx <subtype> gdsp  # Validate a specific plugin
+auval -v aufx <subtype> Gdsp  # Validate a specific plugin
 ```
 
 ## Troubleshooting
 
 - **"Not a macOS system" error:** AudioUnit plugins can only be built on macOS. This is an Apple platform limitation.
 - **Plugin not appearing in DAW:** Ensure the `.component` bundle is in `~/Library/Audio/Plug-Ins/Components/`. Try restarting the DAW or running `killall -9 AudioComponentRegistrar` to refresh the AU cache.
-- **`auval` failures:** The initial implementation may not pass all `auval` validation checks. Common issues include missing property handlers. The plugin should still load and function in most DAWs.
+- **`auval` failures:** Generated plugins pass `auval -v` validation. If you modify `gen_ext_au.cpp` and break conformance, run `auval -v aufx <subtype> Gdsp` to diagnose.
 - **Code signing issues:** The build produces an ad-hoc signed bundle. For distribution, you will need to re-sign with a valid Apple Developer certificate.

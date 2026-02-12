@@ -33,6 +33,8 @@
             <string>$lib_name AudioUnit (gen-dsp)</string>
             <key>factoryFunction</key>
             <string>AUGenFactory</string>
+            <key>version</key>
+            <integer>$au_version</integer>
             <key>sandboxSafe</key>
             <true/>
         </dict>

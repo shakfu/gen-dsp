@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.7]
+
+### Fixed
+
+- **CLAP: full clap-validator conformance** -- all non-skipped validator tests pass (10/10 passed, 10 skipped for unimplemented extensions)
+  - Fixed macOS bundle structure: CLAP on macOS must be a proper bundle directory (`Contents/MacOS/`), not a flat shared library (was failing `dlopen` via `CFBundle`)
+  - Fixed parameter queryability: gen state now created eagerly in factory function so `get_value()` works before activation
+  - Fixed deactivate lifecycle: gen state kept alive through deactivate so parameters remain queryable (CLAP spec requires this)
+  - Fixed parameter default clamping: gen~ initial values may exceed declared range
+- **VST3: full SDK validator conformance** -- all 47 validator tests pass (was crashing during Silence Flags test for multi-channel plugins)
+  - Fixed bus speaker arrangements: use correct channel count from gen~ export instead of always kStereo (caused buffer overrun crash for plugins with != 2 channels, e.g. spectraldelayfb 3in/2out)
+  - Fixed parameter unitId: changed `RangeParameter` unitId from `(ParamID)i` to `0` (kRootUnitId) so parameters reference the root unit instead of nonexistent unit IDs
+  - Fixed parameter default clamping: gen~ initial values may exceed declared `[outputmin, outputmax]` range (e.g. gigaverb revtime init=11, max=1), causing out-of-range normalized defaults
+- **AudioUnit: full `auval` conformance** -- comprehensive rewrite of `gen_ext_au.cpp` to pass Apple's `auval -v` validation tool
+  - Manufacturer code changed from `gdsp` to `Gdsp` (Apple requires at least one non-lowercase character in OSType)
+  - Added `version` integer to Info.plist AudioComponents dict (required for CoreAudio component registration)
+  - Added property listener support: `AddPropertyListener`, `RemovePropertyListenerWithUserData` with tracked callbacks and `FirePropertyChanged()` on `MaxFramesPerSlice` change
+  - Added `PresentPreset` property (get/set current preset name and number)
+  - Added `ClassInfo` state save/restore via CFDictionary with version, component description, name, and parameter data blob
+  - Added `MakeConnection` property for AU-to-AU input pulling via `AudioUnitRender`
+  - Added `AddRenderNotify` / `RemoveRenderNotify` selector stubs
+  - Fixed parameter retention across `Reset` and `Initialize` (save/restore cycle)
+  - Fixed channel validation in `SetStreamFormat` to reject mismatched channel counts (prevents buffer overflows during render)
+  - Fixed `Latency` / `TailTime` scope checking (only valid for `kAudioUnitScope_Global`)
+  - Fixed NULL `mData` crash in render: host may pass NULL `AudioBufferList.mData` expecting plugin to provide buffers
+  - Gen state now created eagerly in factory function (parameter names available before `Initialize`)
+  - `MaxFramesPerSlice` change while initialized now recreates gen state with parameter save/restore
+
+### Added
+
+- **VST3 SDK validator in build integration tests** -- all 4 VST3 build tests now run the SDK `validator` tool after compilation to verify conformance
+  - Validator binary built once per session from SDK hosting examples (persistent cache in `build/.vst3_validator/`)
+  - Reuses shared FetchContent SDK source to avoid duplicate downloads
+  - Gracefully skipped if validator build fails
+- **`auval` validation in AU build integration tests** -- all 4 AU build tests now run `auval -v` after compilation to verify conformance
+  - Component copied to `~/Library/Audio/Plug-Ins/Components/` for CoreAudio discovery, cleaned up after validation
+  - Gated by `auval` availability on PATH
+- **clap-validator in CLAP build integration tests** -- all 4 CLAP build tests now run `clap-validator validate` after compilation
+  - Validator binary built once per session from clap-validator Rust source (persistent cache in `build/.clap_validator/`)
+  - Gated by `cargo` availability on PATH
+
 ## [0.1.6]
 
 ### Added

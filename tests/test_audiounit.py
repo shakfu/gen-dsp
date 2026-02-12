@@ -3,6 +3,7 @@
 import platform as sys_platform
 import shutil
 import subprocess
+import time
 from pathlib import Path
 
 import pytest
@@ -25,6 +26,49 @@ _skip_not_macos = pytest.mark.skipif(not _is_macos, reason="AudioUnit is macOS-o
 _skip_no_toolchain = pytest.mark.skipif(
     not _can_build, reason="macOS with cmake and C++ compiler required"
 )
+
+_has_auval = shutil.which("auval") is not None
+_AU_COMPONENTS_DIR = Path.home() / "Library" / "Audio" / "Plug-Ins" / "Components"
+
+
+def _validate_au(component_path: Path, lib_name: str) -> None:
+    """Validate a built .component bundle with Apple's auval tool.
+
+    Copies the component into ~/Library/Audio/Plug-Ins/Components/ so
+    CoreAudio can discover it, runs auval -v, then cleans up.
+    """
+    if not _has_auval:
+        return
+
+    subtype = lib_name.lower()[:4].ljust(4, "x")
+    dest = _AU_COMPONENTS_DIR / component_path.name
+
+    try:
+        _AU_COMPONENTS_DIR.mkdir(parents=True, exist_ok=True)
+        if dest.exists():
+            shutil.rmtree(dest)
+        shutil.copytree(component_path, dest)
+
+        # Re-sign in place and give CoreAudio time to discover the component
+        subprocess.run(
+            ["codesign", "-f", "-s", "-", str(dest)],
+            capture_output=True,
+            timeout=10,
+        )
+        time.sleep(8)
+
+        result = subprocess.run(
+            ["auval", "-v", "aufx", subtype, "Gdsp"],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        assert result.returncode == 0, (
+            f"auval validation failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
+        )
+    finally:
+        if dest.exists():
+            shutil.rmtree(dest)
 
 
 class TestAudioUnitPlatform:
@@ -192,7 +236,7 @@ class TestAudioUnitProjectGeneration:
         plist = (project_dir / "Info.plist").read_text()
         assert "<string>aufx</string>" in plist  # effect (has inputs)
         assert "<string>test</string>" in plist  # subtype: first 4 chars of "testverb"
-        assert "<string>gdsp</string>" in plist  # manufacturer
+        assert "<string>Gdsp</string>" in plist  # manufacturer
         assert "<string>AUGenFactory</string>" in plist  # factory function
         assert "<string>testverb</string>" in plist  # bundle name
 
@@ -306,6 +350,8 @@ class TestAudioUnitBuildIntegration:
         assert len(component_files) >= 1
         assert component_files[0].name == "gigaverb.component"
 
+        _validate_au(component_files[0], "gigaverb")
+
     @_skip_no_toolchain
     def test_build_au_with_buffers(self, rampleplayer_export: Path, tmp_path: Path):
         """Generate and compile an AudioUnit from RamplePlayer (has buffers)."""
@@ -348,6 +394,8 @@ class TestAudioUnitBuildIntegration:
         component_files = list(build_dir.glob("**/*.component"))
         assert len(component_files) >= 1
         assert component_files[0].name == "rampleplayer.component"
+
+        _validate_au(component_files[0], "rampleplayer")
 
     @_skip_no_toolchain
     def test_build_au_spectraldelayfb(
@@ -394,6 +442,8 @@ class TestAudioUnitBuildIntegration:
         plist = (project_dir / "Info.plist").read_text()
         assert "<string>aufx</string>" in plist
 
+        _validate_au(component_files[0], "spectraldelayfb")
+
     @_skip_no_toolchain
     def test_build_clean_rebuild(self, gigaverb_export: Path, tmp_path: Path):
         """Test that clean + rebuild works via the platform API."""
@@ -417,3 +467,5 @@ class TestAudioUnitBuildIntegration:
         build_result = platform.build(project_dir, clean=True)
         assert build_result.success
         assert build_result.output_file is not None
+
+        _validate_au(build_result.output_file, "gigaverb")

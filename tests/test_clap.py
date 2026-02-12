@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
+from typing import Optional
 
 import pytest
 
@@ -26,11 +27,92 @@ def _build_env():
 # Skip conditions
 _has_cmake = shutil.which("cmake") is not None
 _has_cxx = shutil.which("clang++") is not None or shutil.which("g++") is not None
+_has_cargo = shutil.which("cargo") is not None
 _can_build = _has_cmake and _has_cxx
 
 _skip_no_toolchain = pytest.mark.skipif(
     not _can_build, reason="cmake and C++ compiler required"
 )
+
+# -- Persistent CLAP validator build directory (reused across sessions) --------
+_VALIDATOR_DIR = Path(__file__).resolve().parent.parent / "build" / ".clap_validator"
+
+
+@pytest.fixture(scope="session")
+def clap_validator() -> Optional[Path]:
+    """Build the clap-validator once per session.
+
+    The validator binary persists in build/.clap_validator/ so it is only
+    compiled on first run.  Returns None (and prints a warning) if the
+    build fails -- this lets the build integration tests still pass
+    without validation.
+    """
+    if not _can_build or not _has_cargo:
+        return None
+
+    src_dir = _VALIDATOR_DIR / "src"
+    binary = src_dir / "target" / "release" / "clap-validator"
+
+    # Check for a previously built validator
+    if binary.is_file() and os.access(binary, os.X_OK):
+        return binary
+
+    # Clone and build clap-validator
+    _VALIDATOR_DIR.mkdir(parents=True, exist_ok=True)
+
+    if not (src_dir / "Cargo.toml").is_file():
+        result = subprocess.run(
+            [
+                "git",
+                "clone",
+                "--depth",
+                "1",
+                "https://github.com/free-audio/clap-validator.git",
+                str(src_dir),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        if result.returncode != 0:
+            print(f"clap-validator clone failed:\n{result.stderr}")
+            return None
+
+    result = subprocess.run(
+        ["cargo", "build", "--release"],
+        cwd=src_dir,
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    if result.returncode != 0:
+        print(f"clap-validator build failed:\n{result.stderr}")
+        return None
+
+    if binary.is_file() and os.access(binary, os.X_OK):
+        return binary
+
+    print("clap-validator binary not found after build")
+    return None
+
+
+def _validate_clap(validator: Optional[Path], clap_bundle: Path) -> None:
+    """Run the CLAP validator against a plugin, if available."""
+    if validator is None:
+        return
+    result = subprocess.run(
+        [str(validator), "validate", str(clap_bundle)],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    # Check for failures in output (validator returns 0 even with warnings)
+    assert "0 failed" in result.stdout, (
+        f"CLAP validation failed:\n{result.stdout}\n{result.stderr}"
+    )
+    assert result.returncode == 0, (
+        f"CLAP validation failed:\n{result.stdout}\n{result.stderr}"
+    )
 
 
 class TestClapPlatform:
@@ -247,7 +329,11 @@ class TestClapBuildIntegration:
 
     @_skip_no_toolchain
     def test_build_clap_no_buffers(
-        self, gigaverb_export: Path, tmp_path: Path, fetchcontent_cache: Path
+        self,
+        gigaverb_export: Path,
+        tmp_path: Path,
+        fetchcontent_cache: Path,
+        clap_validator: Optional[Path],
     ):
         """Generate and compile a CLAP plugin from gigaverb (no buffers)."""
         project_dir = tmp_path / "gigaverb_clap"
@@ -292,9 +378,16 @@ class TestClapBuildIntegration:
         assert len(clap_files) >= 1
         assert clap_files[0].name == "gigaverb.clap"
 
+        # Validate against CLAP spec
+        _validate_clap(clap_validator, clap_files[0])
+
     @_skip_no_toolchain
     def test_build_clap_with_buffers(
-        self, rampleplayer_export: Path, tmp_path: Path, fetchcontent_cache: Path
+        self,
+        rampleplayer_export: Path,
+        tmp_path: Path,
+        fetchcontent_cache: Path,
+        clap_validator: Optional[Path],
     ):
         """Generate and compile a CLAP plugin from RamplePlayer (has buffers)."""
         project_dir = tmp_path / "rampleplayer_clap"
@@ -340,9 +433,15 @@ class TestClapBuildIntegration:
         assert len(clap_files) >= 1
         assert clap_files[0].name == "rampleplayer.clap"
 
+        _validate_clap(clap_validator, clap_files[0])
+
     @_skip_no_toolchain
     def test_build_clap_spectraldelayfb(
-        self, spectraldelayfb_export: Path, tmp_path: Path, fetchcontent_cache: Path
+        self,
+        spectraldelayfb_export: Path,
+        tmp_path: Path,
+        fetchcontent_cache: Path,
+        clap_validator: Optional[Path],
     ):
         """Generate and compile a CLAP plugin from spectraldelayfb (3in/2out)."""
         project_dir = tmp_path / "spectraldelayfb_clap"
@@ -384,12 +483,15 @@ class TestClapBuildIntegration:
         assert len(clap_files) >= 1
         assert clap_files[0].name == "spectraldelayfb.clap"
 
+        _validate_clap(clap_validator, clap_files[0])
+
     @_skip_no_toolchain
     def test_build_clean_rebuild(
         self,
         gigaverb_export: Path,
         tmp_path: Path,
         fetchcontent_cache: Path,
+        clap_validator: Optional[Path],
         monkeypatch,
     ):
         """Test that clean + rebuild works via the platform API."""
@@ -423,3 +525,6 @@ class TestClapBuildIntegration:
         build_result = platform.build(project_dir, clean=True)
         assert build_result.success
         assert build_result.output_file is not None
+
+        # Validate the rebuilt bundle
+        _validate_clap(clap_validator, build_result.output_file)

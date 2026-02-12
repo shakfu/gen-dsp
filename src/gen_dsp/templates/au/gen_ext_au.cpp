@@ -21,9 +21,20 @@
 
 using namespace WRAPPER_NAMESPACE;
 
+// Maximum number of parameters we support for save/restore
+static const int kMaxParams = 256;
+// Maximum number of property listeners
+static const int kMaxListeners = 32;
+
 // ---------------------------------------------------------------------------
 // Plugin state
 // ---------------------------------------------------------------------------
+
+struct PropertyListener {
+    AudioUnitPropertyID property;
+    AudioUnitPropertyListenerProc proc;
+    void* refCon;
+};
 
 struct AUGenPlugin {
     AudioComponentPlugInInterface interface;  // must be first member
@@ -38,6 +49,22 @@ struct AUGenPlugin {
     float**                      outBuffers;
     AURenderCallbackStruct       inputCallback;
     bool                         initialized;
+
+    // Component description (from factory)
+    UInt32                       componentType;
+    UInt32                       componentSubType;
+    UInt32                       componentManufacturer;
+
+    // Current preset
+    SInt32                       currentPresetNumber;
+
+    // Property listeners
+    PropertyListener             listeners[kMaxListeners];
+    int                          numListeners;
+
+    // AU-to-AU connection (alternative to render callback)
+    AudioUnitConnection          connection;
+    bool                         hasConnection;
 
     // Stream format (same for input and output)
     AudioStreamBasicDescription  streamFormat;
@@ -85,6 +112,34 @@ static void AllocateBufferFrames(float** buffers, int count, UInt32 frames) {
     }
 }
 
+// Save current parameter values from gen state into array
+static void SaveParams(AUGenPlugin* plug, float* saved, int count) {
+    if (!plug->genState) return;
+    for (int i = 0; i < count && i < kMaxParams; i++) {
+        saved[i] = wrapper_get_param(plug->genState, i);
+    }
+}
+
+// Restore parameter values from array into gen state
+static void RestoreParams(AUGenPlugin* plug, const float* saved, int count) {
+    if (!plug->genState) return;
+    for (int i = 0; i < count && i < kMaxParams; i++) {
+        wrapper_set_param(plug->genState, i, saved[i]);
+    }
+}
+
+// Fire property change notifications to all registered listeners
+static void FirePropertyChanged(AUGenPlugin* plug, AudioUnitPropertyID prop,
+                                AudioUnitScope scope, AudioUnitElement elem) {
+    for (int i = 0; i < plug->numListeners; i++) {
+        if (plug->listeners[i].property == prop) {
+            plug->listeners[i].proc(
+                plug->listeners[i].refCon, plug->instance,
+                prop, scope, elem);
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Open / Close
 // ---------------------------------------------------------------------------
@@ -116,6 +171,13 @@ static OSStatus AUGenClose(void* self) {
 static OSStatus AUGenInitialize(void* self) {
     AUGenPlugin* plug = (AUGenPlugin*)self;
 
+    // Save parameter values across re-initialization
+    float savedParams[kMaxParams];
+    bool hasParams = plug->genState && plug->numParams > 0;
+    if (hasParams) {
+        SaveParams(plug, savedParams, plug->numParams);
+    }
+
     if (plug->genState) {
         wrapper_destroy(plug->genState);
     }
@@ -123,6 +185,11 @@ static OSStatus AUGenInitialize(void* self) {
     plug->genState = wrapper_create((float)plug->sampleRate, (long)plug->maxFramesPerSlice);
     if (!plug->genState) {
         return kAudioUnitErr_FailedInitialization;
+    }
+
+    // Restore parameter values
+    if (hasParams) {
+        RestoreParams(plug, savedParams, plug->numParams);
     }
 
     // Allocate per-channel I/O buffers
@@ -142,16 +209,12 @@ static OSStatus AUGenInitialize(void* self) {
 static OSStatus AUGenUninitialize(void* self) {
     AUGenPlugin* plug = (AUGenPlugin*)self;
 
-    if (plug->genState) {
-        wrapper_destroy(plug->genState);
-        plug->genState = nullptr;
-    }
-
     FreeBuffers(plug->inBuffers, plug->numInputs);
     FreeBuffers(plug->outBuffers, plug->numOutputs);
     plug->inBuffers = nullptr;
     plug->outBuffers = nullptr;
 
+    // Keep genState alive for parameter queries while uninitialized
     plug->initialized = false;
     return noErr;
 }
@@ -166,7 +229,7 @@ static OSStatus AUGenGetPropertyInfo(void* self,
                                      AudioUnitElement elem,
                                      UInt32* outDataSize,
                                      Boolean* outWritable) {
-    AUGenPlugin* plug = (AUGenPlugin*)self;
+    (void)self;
 
     switch (prop) {
         case kAudioUnitProperty_StreamFormat:
@@ -180,7 +243,8 @@ static OSStatus AUGenGetPropertyInfo(void* self,
             return noErr;
         }
 
-        case kAudioUnitProperty_ParameterList:
+        case kAudioUnitProperty_ParameterList: {
+            AUGenPlugin* plug = (AUGenPlugin*)self;
             if (scope == kAudioUnitScope_Global) {
                 if (outDataSize) *outDataSize = (UInt32)(plug->numParams * sizeof(AudioUnitParameterID));
                 if (outWritable) *outWritable = false;
@@ -189,6 +253,7 @@ static OSStatus AUGenGetPropertyInfo(void* self,
             if (outDataSize) *outDataSize = 0;
             if (outWritable) *outWritable = false;
             return noErr;
+        }
 
         case kAudioUnitProperty_ParameterInfo:
             if (scope == kAudioUnitScope_Global) {
@@ -205,6 +270,8 @@ static OSStatus AUGenGetPropertyInfo(void* self,
 
         case kAudioUnitProperty_Latency:
         case kAudioUnitProperty_TailTime:
+            if (scope != kAudioUnitScope_Global)
+                return kAudioUnitErr_InvalidProperty;
             if (outDataSize) *outDataSize = sizeof(Float64);
             if (outWritable) *outWritable = false;
             return noErr;
@@ -229,9 +296,97 @@ static OSStatus AUGenGetPropertyInfo(void* self,
             if (outWritable) *outWritable = false;
             return noErr;
 
+        case kAudioUnitProperty_PresentPreset:
+            if (outDataSize) *outDataSize = sizeof(AUPreset);
+            if (outWritable) *outWritable = true;
+            return noErr;
+
+        case kAudioUnitProperty_ClassInfo:
+            if (outDataSize) *outDataSize = sizeof(CFPropertyListRef);
+            if (outWritable) *outWritable = true;
+            return noErr;
+
+        case kAudioUnitProperty_MakeConnection:
+            if (outDataSize) *outDataSize = sizeof(AudioUnitConnection);
+            if (outWritable) *outWritable = true;
+            return noErr;
+
         default:
             return kAudioUnitErr_InvalidProperty;
     }
+}
+
+// ---------------------------------------------------------------------------
+// ClassInfo helpers (state save/restore)
+// ---------------------------------------------------------------------------
+
+static CFMutableDictionaryRef CreateClassInfo(AUGenPlugin* plug) {
+    CFMutableDictionaryRef dict = CFDictionaryCreateMutable(
+        kCFAllocatorDefault, 0,
+        &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+
+    // Standard AU state keys
+    SInt32 version = 0;
+    CFNumberRef versionNum = CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt32Type, &version);
+    CFDictionarySetValue(dict, CFSTR("version"), versionNum);
+    CFRelease(versionNum);
+
+    SInt32 typeVal = (SInt32)plug->componentType;
+    CFNumberRef typeNum = CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt32Type, &typeVal);
+    CFDictionarySetValue(dict, CFSTR("type"), typeNum);
+    CFRelease(typeNum);
+
+    SInt32 subtypeVal = (SInt32)plug->componentSubType;
+    CFNumberRef subtypeNum = CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt32Type, &subtypeVal);
+    CFDictionarySetValue(dict, CFSTR("subtype"), subtypeNum);
+    CFRelease(subtypeNum);
+
+    SInt32 mfrVal = (SInt32)plug->componentManufacturer;
+    CFNumberRef mfrNum = CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt32Type, &mfrVal);
+    CFDictionarySetValue(dict, CFSTR("manufacturer"), mfrNum);
+    CFRelease(mfrNum);
+
+    CFDictionarySetValue(dict, CFSTR("name"), CFSTR(""));
+
+    // Store parameter values as CFData blob
+    if (plug->genState && plug->numParams > 0) {
+        int nParams = plug->numParams < kMaxParams ? plug->numParams : kMaxParams;
+        float values[kMaxParams];
+        for (int i = 0; i < nParams; i++) {
+            values[i] = wrapper_get_param(plug->genState, i);
+        }
+        CFDataRef data = CFDataCreate(kCFAllocatorDefault,
+            (const UInt8*)values, (CFIndex)(nParams * sizeof(float)));
+        CFDictionarySetValue(dict, CFSTR("data"), data);
+        CFRelease(data);
+    }
+
+    return dict;
+}
+
+static OSStatus RestoreClassInfo(AUGenPlugin* plug, CFPropertyListRef plist) {
+    if (CFGetTypeID(plist) != CFDictionaryGetTypeID())
+        return kAudioUnitErr_InvalidPropertyValue;
+
+    CFDictionaryRef dict = (CFDictionaryRef)plist;
+
+    // Restore parameter values from data blob
+    CFDataRef data = nullptr;
+    if (CFDictionaryGetValueIfPresent(dict, CFSTR("data"), (const void**)&data) &&
+        data && CFGetTypeID(data) == CFDataGetTypeID()) {
+        int nParams = plug->numParams < kMaxParams ? plug->numParams : kMaxParams;
+        CFIndex dataSize = CFDataGetLength(data);
+        CFIndex expectedSize = (CFIndex)(nParams * sizeof(float));
+
+        if (dataSize >= expectedSize && plug->genState) {
+            const float* values = (const float*)CFDataGetBytePtr(data);
+            for (int i = 0; i < nParams; i++) {
+                wrapper_set_param(plug->genState, i, values[i]);
+            }
+        }
+    }
+
+    return noErr;
 }
 
 // ---------------------------------------------------------------------------
@@ -341,6 +496,8 @@ static OSStatus AUGenGetProperty(void* self,
         }
 
         case kAudioUnitProperty_Latency: {
+            if (scope != kAudioUnitScope_Global)
+                return kAudioUnitErr_InvalidProperty;
             if (*ioDataSize < sizeof(Float64))
                 return kAudioUnitErr_InvalidPropertyValue;
             *(Float64*)outData = 0.0;
@@ -349,6 +506,8 @@ static OSStatus AUGenGetProperty(void* self,
         }
 
         case kAudioUnitProperty_TailTime: {
+            if (scope != kAudioUnitScope_Global)
+                return kAudioUnitErr_InvalidProperty;
             if (*ioDataSize < sizeof(Float64))
                 return kAudioUnitErr_InvalidPropertyValue;
             *(Float64*)outData = 0.0;
@@ -388,6 +547,25 @@ static OSStatus AUGenGetProperty(void* self,
             return noErr;
         }
 
+        case kAudioUnitProperty_PresentPreset: {
+            if (*ioDataSize < sizeof(AUPreset))
+                return kAudioUnitErr_InvalidPropertyValue;
+            AUPreset* preset = (AUPreset*)outData;
+            preset->presetNumber = plug->currentPresetNumber;
+            preset->presetName = CFSTR("Untitled");
+            CFRetain(preset->presetName);
+            *ioDataSize = sizeof(AUPreset);
+            return noErr;
+        }
+
+        case kAudioUnitProperty_ClassInfo: {
+            if (*ioDataSize < sizeof(CFPropertyListRef))
+                return kAudioUnitErr_InvalidPropertyValue;
+            *(CFPropertyListRef*)outData = CreateClassInfo(plug);
+            *ioDataSize = sizeof(CFPropertyListRef);
+            return noErr;
+        }
+
         default:
             return kAudioUnitErr_InvalidProperty;
     }
@@ -421,6 +599,15 @@ static OSStatus AUGenSetProperty(void* self,
             if (!(fmt->mFormatFlags & kAudioFormatFlagIsNonInterleaved))
                 return kAudioUnitErr_FormatNotSupported;
 
+            // Validate channel count matches our fixed configuration
+            if (scope == kAudioUnitScope_Input) {
+                if ((int)fmt->mChannelsPerFrame != plug->numInputs)
+                    return kAudioUnitErr_FormatNotSupported;
+            } else if (scope == kAudioUnitScope_Output) {
+                if ((int)fmt->mChannelsPerFrame != plug->numOutputs)
+                    return kAudioUnitErr_FormatNotSupported;
+            }
+
             plug->sampleRate = fmt->mSampleRate;
             plug->streamFormat = *fmt;
             return noErr;
@@ -433,11 +620,22 @@ static OSStatus AUGenSetProperty(void* self,
             UInt32 newMax = *(const UInt32*)inData;
             plug->maxFramesPerSlice = newMax;
 
-            // Reallocate internal buffers if already initialized
+            // Recreate gen state and reallocate buffers if already initialized
             if (plug->initialized) {
+                float savedParams[kMaxParams];
+                bool hasParams = plug->genState && plug->numParams > 0;
+                if (hasParams) SaveParams(plug, savedParams, plug->numParams);
+
+                if (plug->genState) wrapper_destroy(plug->genState);
+                plug->genState = wrapper_create((float)plug->sampleRate, (long)newMax);
+                if (hasParams && plug->genState) RestoreParams(plug, savedParams, plug->numParams);
+
                 AllocateBufferFrames(plug->inBuffers, plug->numInputs, newMax);
                 AllocateBufferFrames(plug->outBuffers, plug->numOutputs, newMax);
             }
+
+            FirePropertyChanged(plug, kAudioUnitProperty_MaximumFramesPerSlice,
+                                kAudioUnitScope_Global, 0);
             return noErr;
         }
 
@@ -451,6 +649,29 @@ static OSStatus AUGenSetProperty(void* self,
 
         case kAudioUnitProperty_ShouldAllocateBuffer:
             return noErr;
+
+        case kAudioUnitProperty_PresentPreset: {
+            if (inDataSize < sizeof(AUPreset))
+                return kAudioUnitErr_InvalidPropertyValue;
+            const AUPreset* preset = (const AUPreset*)inData;
+            plug->currentPresetNumber = preset->presetNumber;
+            return noErr;
+        }
+
+        case kAudioUnitProperty_ClassInfo: {
+            if (inDataSize < sizeof(CFPropertyListRef))
+                return kAudioUnitErr_InvalidPropertyValue;
+            CFPropertyListRef plist = *(const CFPropertyListRef*)inData;
+            return RestoreClassInfo(plug, plist);
+        }
+
+        case kAudioUnitProperty_MakeConnection: {
+            if (inDataSize < sizeof(AudioUnitConnection))
+                return kAudioUnitErr_InvalidPropertyValue;
+            plug->connection = *(const AudioUnitConnection*)inData;
+            plug->hasConnection = (plug->connection.sourceAudioUnit != nullptr);
+            return noErr;
+        }
 
         default:
             return kAudioUnitErr_InvalidProperty;
@@ -519,8 +740,8 @@ static OSStatus AUGenRender(void* self,
     if (inNumberFrames > plug->maxFramesPerSlice)
         return kAudioUnitErr_TooManyFramesToProcess;
 
-    // For effects: pull input audio via render callback
-    if (plug->numInputs > 0 && plug->inputCallback.inputProc) {
+    // For effects: pull input audio via connection or render callback
+    if (plug->numInputs > 0 && (plug->hasConnection || plug->inputCallback.inputProc)) {
         // Create an AudioBufferList for input
         UInt32 inputBufListSize = offsetof(AudioBufferList, mBuffers) +
             sizeof(AudioBuffer) * (UInt32)plug->numInputs;
@@ -534,19 +755,36 @@ static OSStatus AUGenRender(void* self,
         }
 
         AudioUnitRenderActionFlags pullFlags = 0;
-        OSStatus pullErr = plug->inputCallback.inputProc(
-            plug->inputCallback.inputProcRefCon,
-            &pullFlags,
-            inTimeStamp,
-            0,  // input bus 0
-            inNumberFrames,
-            inputBufList
-        );
+        OSStatus pullErr;
+
+        if (plug->hasConnection) {
+            // Pull input from connected AU
+            pullErr = AudioUnitRender(
+                plug->connection.sourceAudioUnit,
+                &pullFlags,
+                inTimeStamp,
+                plug->connection.sourceOutputNumber,
+                inNumberFrames,
+                inputBufList
+            );
+        } else {
+            // Pull input via render callback
+            pullErr = plug->inputCallback.inputProc(
+                plug->inputCallback.inputProcRefCon,
+                &pullFlags,
+                inTimeStamp,
+                0,  // input bus 0
+                inNumberFrames,
+                inputBufList
+            );
+        }
 
         if (pullErr != noErr) {
             // Zero output on pull failure
             for (UInt32 b = 0; b < ioData->mNumberBuffers; b++) {
-                memset(ioData->mBuffers[b].mData, 0, ioData->mBuffers[b].mDataByteSize);
+                if (ioData->mBuffers[b].mData) {
+                    memset(ioData->mBuffers[b].mData, 0, ioData->mBuffers[b].mDataByteSize);
+                }
             }
             return pullErr;
         }
@@ -560,16 +798,23 @@ static OSStatus AUGenRender(void* self,
     }
 
     // Set up output buffer pointers
-    // Use ioData buffers directly if they match our channel count
+    // Use ioData buffers directly if they match our channel count.
+    // When ioData->mData is NULL, the host expects us to provide the buffer.
     float* outPtrs[64];  // reasonable max
     int outCount = plug->numOutputs < 64 ? plug->numOutputs : 64;
     for (int i = 0; i < outCount; i++) {
-        if (i < (int)ioData->mNumberBuffers && ioData->mBuffers[i].mData) {
-            outPtrs[i] = (float*)ioData->mBuffers[i].mData;
+        if (i < (int)ioData->mNumberBuffers) {
+            if (ioData->mBuffers[i].mData) {
+                outPtrs[i] = (float*)ioData->mBuffers[i].mData;
+            } else {
+                // Host provided NULL mData -- render into our buffer
+                outPtrs[i] = plug->outBuffers[i];
+                ioData->mBuffers[i].mData = plug->outBuffers[i];
+                ioData->mBuffers[i].mDataByteSize = inNumberFrames * sizeof(Float32);
+            }
         } else if (plug->outBuffers && plug->outBuffers[i]) {
             outPtrs[i] = plug->outBuffers[i];
         } else {
-            // Should not happen -- fallback to silence
             static float silence[4096];
             outPtrs[i] = silence;
         }
@@ -601,8 +846,68 @@ static OSStatus AUGenRender(void* self,
 static OSStatus AUGenReset(void* self, AudioUnitScope scope, AudioUnitElement elem) {
     AUGenPlugin* plug = (AUGenPlugin*)self;
     if (plug->genState) {
+        // Save parameter values, reset DSP state, restore parameters
+        float savedParams[kMaxParams];
+        int nParams = plug->numParams < kMaxParams ? plug->numParams : kMaxParams;
+        SaveParams(plug, savedParams, nParams);
         wrapper_reset(plug->genState);
+        RestoreParams(plug, savedParams, nParams);
     }
+    return noErr;
+}
+
+// ---------------------------------------------------------------------------
+// Property Listener stubs
+// ---------------------------------------------------------------------------
+
+static OSStatus AUGenAddPropertyListener(void* self,
+                                         AudioUnitPropertyID prop,
+                                         AudioUnitPropertyListenerProc proc,
+                                         void* refCon) {
+    AUGenPlugin* plug = (AUGenPlugin*)self;
+    if (plug->numListeners >= kMaxListeners) return noErr;
+    plug->listeners[plug->numListeners].property = prop;
+    plug->listeners[plug->numListeners].proc = proc;
+    plug->listeners[plug->numListeners].refCon = refCon;
+    plug->numListeners++;
+    return noErr;
+}
+
+static OSStatus AUGenRemovePropertyListenerWithUserData(void* self,
+                                                        AudioUnitPropertyID prop,
+                                                        AudioUnitPropertyListenerProc proc,
+                                                        void* refCon) {
+    AUGenPlugin* plug = (AUGenPlugin*)self;
+    for (int i = 0; i < plug->numListeners; i++) {
+        if (plug->listeners[i].property == prop &&
+            plug->listeners[i].proc == proc &&
+            plug->listeners[i].refCon == refCon) {
+            // Shift remaining listeners down
+            for (int j = i; j < plug->numListeners - 1; j++) {
+                plug->listeners[j] = plug->listeners[j + 1];
+            }
+            plug->numListeners--;
+            i--;  // re-check this index
+        }
+    }
+    return noErr;
+}
+
+// ---------------------------------------------------------------------------
+// Render notify stubs
+// ---------------------------------------------------------------------------
+
+static OSStatus AUGenAddRenderNotify(void* self,
+                                     AURenderCallback proc,
+                                     void* refCon) {
+    (void)self; (void)proc; (void)refCon;
+    return noErr;
+}
+
+static OSStatus AUGenRemoveRenderNotify(void* self,
+                                        AURenderCallback proc,
+                                        void* refCon) {
+    (void)self; (void)proc; (void)refCon;
     return noErr;
 }
 
@@ -635,6 +940,14 @@ static AudioComponentMethod AUGenLookup(SInt16 selector) {
             return (AudioComponentMethod)AUGenRender;
         case kAudioUnitResetSelect:
             return (AudioComponentMethod)AUGenReset;
+        case kAudioUnitAddPropertyListenerSelect:
+            return (AudioComponentMethod)AUGenAddPropertyListener;
+        case kAudioUnitRemovePropertyListenerWithUserDataSelect:
+            return (AudioComponentMethod)AUGenRemovePropertyListenerWithUserData;
+        case kAudioUnitAddRenderNotifySelect:
+            return (AudioComponentMethod)AUGenAddRenderNotify;
+        case kAudioUnitRemoveRenderNotifySelect:
+            return (AudioComponentMethod)AUGenRemoveRenderNotify;
         default:
             return nullptr;
     }
@@ -655,17 +968,29 @@ extern "C" void* AUGenFactory(const AudioComponentDescription* desc) {
 
     plug->sampleRate         = 44100.0;
     plug->maxFramesPerSlice  = 1024;
-    plug->genState           = nullptr;
     plug->numInputs          = wrapper_num_inputs();
     plug->numOutputs         = wrapper_num_outputs();
     plug->numParams          = wrapper_num_params();
     plug->inBuffers          = nullptr;
     plug->outBuffers         = nullptr;
     plug->initialized        = false;
+    plug->currentPresetNumber = -1;
+    plug->hasConnection      = false;
+    plug->numListeners       = 0;
+
+    // Store component description for ClassInfo serialization
+    if (desc) {
+        plug->componentType         = desc->componentType;
+        plug->componentSubType      = desc->componentSubType;
+        plug->componentManufacturer = desc->componentManufacturer;
+    }
 
     memset(&plug->inputCallback, 0, sizeof(AURenderCallbackStruct));
 
     InitStreamFormat(&plug->streamFormat, plug->sampleRate, (UInt32)plug->numOutputs);
+
+    // Create gen state eagerly so parameter metadata is available before Initialize
+    plug->genState = wrapper_create((float)plug->sampleRate, (long)plug->maxFramesPerSlice);
 
     return plug;
 }

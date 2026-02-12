@@ -5,7 +5,9 @@ import os
 import shutil
 import struct
 import subprocess
+import textwrap
 from pathlib import Path
+from typing import Optional
 
 import pytest
 
@@ -33,6 +35,113 @@ _can_build = _has_cmake and _has_cxx
 _skip_no_toolchain = pytest.mark.skipif(
     not _can_build, reason="cmake and C++ compiler required"
 )
+
+# -- Persistent validator build directory (reused across sessions) -------------
+_VALIDATOR_DIR = Path(__file__).resolve().parent.parent / "build" / ".vst3_validator"
+
+_VALIDATOR_CMAKE_TEMPLATE = textwrap.dedent("""\
+    cmake_minimum_required(VERSION 3.15)
+    project(vst3_validator_build)
+
+    include(FetchContent)
+    FetchContent_Declare(
+        vst3sdk
+        GIT_REPOSITORY https://github.com/steinbergmedia/vst3sdk.git
+        GIT_TAG v3.7.9_build_61
+        GIT_SHALLOW ON
+    )
+
+    set(SMTG_ENABLE_VST3_HOSTING_EXAMPLES ON CACHE BOOL "" FORCE)
+    set(SMTG_ENABLE_VST3_PLUGIN_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(SMTG_ENABLE_VSTGUI_SUPPORT OFF CACHE BOOL "" FORCE)
+    set(SMTG_RUN_VST_VALIDATOR OFF CACHE BOOL "" FORCE)
+
+    FetchContent_MakeAvailable(vst3sdk)
+""")
+
+
+@pytest.fixture(scope="session")
+def vst3_validator(fetchcontent_cache: Path) -> Optional[Path]:
+    """Build the VST3 SDK validator once per session.
+
+    The validator binary persists in build/.vst3_validator/ so it is only
+    compiled on first run.  Returns None (and prints a warning) if the
+    build fails -- this lets the build integration tests still pass
+    without validation.
+    """
+    if not _can_build:
+        return None
+
+    _VALIDATOR_DIR.mkdir(parents=True, exist_ok=True)
+    build_dir = _VALIDATOR_DIR / "build"
+    build_dir.mkdir(exist_ok=True)
+
+    # Check for a previously built validator
+    for candidate in build_dir.glob("**/validator"):
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return candidate
+
+    # Write the CMakeLists.txt that builds just the validator
+    cmakelists = _VALIDATOR_DIR / "CMakeLists.txt"
+    cmakelists.write_text(_VALIDATOR_CMAKE_TEMPLATE)
+
+    env = _build_env()
+
+    # Use FETCHCONTENT_SOURCE_DIR to reuse already-downloaded SDK source
+    # without sharing the build tree (which causes cross-project
+    # contamination when FETCHCONTENT_BASE_DIR is shared).
+    cmake_configure = ["cmake", "..", "-DCMAKE_BUILD_TYPE=Release"]
+    sdk_src = fetchcontent_cache / "vst3sdk-src"
+    if sdk_src.is_dir():
+        cmake_configure.append(f"-DFETCHCONTENT_SOURCE_DIR_VST3SDK={sdk_src}")
+
+    # Configure
+    result = subprocess.run(
+        cmake_configure,
+        cwd=build_dir,
+        capture_output=True,
+        text=True,
+        timeout=300,
+        env=env,
+    )
+    if result.returncode != 0:
+        print(f"VST3 validator cmake configure failed:\n{result.stderr}")
+        return None
+
+    # Build only the validator target
+    result = subprocess.run(
+        ["cmake", "--build", ".", "--target", "validator"],
+        cwd=build_dir,
+        capture_output=True,
+        text=True,
+        timeout=300,
+        env=env,
+    )
+    if result.returncode != 0:
+        print(f"VST3 validator build failed:\n{result.stderr}")
+        return None
+
+    for candidate in build_dir.glob("**/validator"):
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return candidate
+
+    print("VST3 validator binary not found after build")
+    return None
+
+
+def _validate_vst3(validator: Optional[Path], vst3_bundle: Path) -> None:
+    """Run the VST3 SDK validator against a bundle, if available."""
+    if validator is None:
+        return
+    result = subprocess.run(
+        [str(validator), str(vst3_bundle)],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert result.returncode == 0, (
+        f"VST3 validation failed:\n{result.stdout}\n{result.stderr}"
+    )
 
 
 class TestVst3Platform:
@@ -284,7 +393,11 @@ class TestVst3BuildIntegration:
 
     @_skip_no_toolchain
     def test_build_vst3_no_buffers(
-        self, gigaverb_export: Path, tmp_path: Path, fetchcontent_cache: Path
+        self,
+        gigaverb_export: Path,
+        tmp_path: Path,
+        fetchcontent_cache: Path,
+        vst3_validator: Optional[Path],
     ):
         """Generate and compile a VST3 plugin from gigaverb (no buffers)."""
         project_dir = tmp_path / "gigaverb_vst3"
@@ -329,9 +442,17 @@ class TestVst3BuildIntegration:
         assert len(vst3_dirs) >= 1
         assert any("gigaverb" in str(d) for d in vst3_dirs)
 
+        # Validate against VST3 spec
+        vst3_bundle = next(d for d in vst3_dirs if "gigaverb" in str(d))
+        _validate_vst3(vst3_validator, vst3_bundle)
+
     @_skip_no_toolchain
     def test_build_vst3_with_buffers(
-        self, rampleplayer_export: Path, tmp_path: Path, fetchcontent_cache: Path
+        self,
+        rampleplayer_export: Path,
+        tmp_path: Path,
+        fetchcontent_cache: Path,
+        vst3_validator: Optional[Path],
     ):
         """Generate and compile a VST3 plugin from RamplePlayer (has buffers)."""
         project_dir = tmp_path / "rampleplayer_vst3"
@@ -377,9 +498,16 @@ class TestVst3BuildIntegration:
         assert len(vst3_dirs) >= 1
         assert any("rampleplayer" in str(d) for d in vst3_dirs)
 
+        vst3_bundle = next(d for d in vst3_dirs if "rampleplayer" in str(d))
+        _validate_vst3(vst3_validator, vst3_bundle)
+
     @_skip_no_toolchain
     def test_build_vst3_spectraldelayfb(
-        self, spectraldelayfb_export: Path, tmp_path: Path, fetchcontent_cache: Path
+        self,
+        spectraldelayfb_export: Path,
+        tmp_path: Path,
+        fetchcontent_cache: Path,
+        vst3_validator: Optional[Path],
     ):
         """Generate and compile a VST3 plugin from spectraldelayfb (3in/2out)."""
         project_dir = tmp_path / "spectraldelayfb_vst3"
@@ -421,12 +549,16 @@ class TestVst3BuildIntegration:
         assert len(vst3_dirs) >= 1
         assert any("spectraldelayfb" in str(d) for d in vst3_dirs)
 
+        vst3_bundle = next(d for d in vst3_dirs if "spectraldelayfb" in str(d))
+        _validate_vst3(vst3_validator, vst3_bundle)
+
     @_skip_no_toolchain
     def test_build_clean_rebuild(
         self,
         gigaverb_export: Path,
         tmp_path: Path,
         fetchcontent_cache: Path,
+        vst3_validator: Optional[Path],
         monkeypatch,
     ):
         """Test that clean + rebuild works via the platform API."""
@@ -462,3 +594,6 @@ class TestVst3BuildIntegration:
         build_result = platform.build(project_dir, clean=True)
         assert build_result.success
         assert build_result.output_file is not None
+
+        # Validate the rebuilt bundle
+        _validate_vst3(vst3_validator, build_result.output_file)

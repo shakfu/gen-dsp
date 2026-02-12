@@ -26,7 +26,8 @@ class AudioUnitPlatform(Platform):
     name = "au"
 
     # Default manufacturer code for gen-dsp generated AUs
-    AU_MANUFACTURER = "gdsp"
+    # Apple requires at least one non-lowercase character in manufacturer OSType
+    AU_MANUFACTURER = "Gdsp"
 
     @property
     def extension(self) -> str:
@@ -138,6 +139,15 @@ class AudioUnitPlatform(Platform):
         )
         output_path.write_text(content, encoding="utf-8")
 
+    @staticmethod
+    def _version_to_int(version_str: str) -> int:
+        """Convert 'major.minor.patch' to AU packed integer (major<<16 | minor<<8 | patch)."""
+        parts = version_str.split(".")
+        major = int(parts[0]) if len(parts) > 0 else 0
+        minor = int(parts[1]) if len(parts) > 1 else 0
+        patch = int(parts[2]) if len(parts) > 2 else 0
+        return (major << 16) | (minor << 8) | patch
+
     def _generate_info_plist(
         self,
         template_path: Path,
@@ -158,6 +168,7 @@ class AudioUnitPlatform(Platform):
             au_type=au_type,
             au_subtype=au_subtype,
             au_manufacturer=self.AU_MANUFACTURER,
+            au_version=self._version_to_int(self.GENEXT_VERSION),
         )
         output_path.write_text(content, encoding="utf-8")
 

@@ -1,6 +1,6 @@
 # CLAP
 
-Generates cross-platform CLAP plugins (`.clap` files) from gen~ exports using CMake and the CLAP C API (header-only, MIT licensed).
+Generates cross-platform CLAP plugins (`.clap` bundles on macOS, shared libraries on Linux/Windows) from gen~ exports using CMake and the CLAP C API (header-only, MIT licensed). Passes all [clap-validator](https://github.com/free-audio/clap-validator) conformance tests.
 
 **OS support:** macOS, Linux, Windows
 
@@ -19,10 +19,9 @@ gen-dsp init ./my_export -n myeffect -p clap -o ./myeffect_clap
 
 # Build
 cd myeffect_clap
-mkdir -p build && cd build
-cmake .. && cmake --build .
+cmake -B build && cmake --build build
 
-# Output: build/myeffect.clap
+# Output: build/myeffect.clap (bundle on macOS, .clap file on Linux/Windows)
 ```
 
 Or use `gen-dsp build`:
@@ -42,6 +41,8 @@ gen-dsp uses **header isolation** to separate CLAP API code from genlib code:
 **Signal type:** float (32-bit). gen~ is compiled with `GENLIB_USE_FLOAT32`.
 
 **Zero-copy audio:** CLAP's `data32[ch][sample]` layout matches gen~'s `float**` exactly, so audio buffers are passed directly with no copying or format conversion.
+
+**Lifecycle:** Gen state is created eagerly when the plugin factory instantiates the plugin, so parameter values are queryable before activation. The state survives deactivate/reactivate cycles (only destroyed and recreated on activate, or destroyed on plugin destroy).
 
 **Plugin type detection:** Automatic based on I/O configuration:
 
@@ -106,15 +107,15 @@ This tells CMake to use your local copy instead of cloning from GitHub. No templ
 | Windows | `%COMMONPROGRAMFILES%/CLAP/` |
 
 ```bash
-# macOS
-cp build/myeffect.clap ~/Library/Audio/Plug-Ins/CLAP/
+# macOS (bundle directory)
+cp -r build/myeffect.clap ~/Library/Audio/Plug-Ins/CLAP/
 
-# Linux
+# Linux (flat shared library)
 cp build/myeffect.clap ~/.clap/
 ```
 
 ## Troubleshooting
 
 - **CMake configure fails on first run:** Network access is required to fetch CLAP headers. Ensure you have internet connectivity. After the first successful configure, headers are cached locally.
-- **Plugin not appearing in DAW:** Ensure the `.clap` file is in the correct install path for your OS. Restart the DAW to rescan plugins.
+- **Plugin not appearing in DAW:** Ensure the `.clap` bundle (macOS) or file (Linux/Windows) is in the correct install path for your OS. On macOS, `myeffect.clap` is a directory -- copy it with `cp -r`. Restart the DAW to rescan plugins.
 - **Windows build issues:** CLAP uses C++20 designated initializers, which require MSVC 2019 16.1+ or a recent gcc/clang.

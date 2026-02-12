@@ -19,8 +19,7 @@ gen-dsp init ./my_export -n myeffect -p vst3 -o ./myeffect_vst3
 
 # Build
 cd myeffect_vst3
-mkdir -p build && cd build
-cmake .. && cmake --build .
+cmake -B build && cmake --build build
 
 # Output: build/VST3/Release/myeffect.vst3/
 ```
@@ -39,7 +38,7 @@ gen-dsp uses **header isolation** to separate VST3 SDK code from genlib code:
 - `_ext_vst3.cpp` -- genlib-facing bridge (includes only genlib headers)
 - `_ext_vst3.h` -- C interface connecting the two sides via an opaque `GenState*` pointer
 
-The plugin uses `SingleComponentEffect` -- the simplest VST3 plugin structure that combines the audio processor and edit controller into a single class.
+The plugin uses `SingleComponentEffect` -- the simplest VST3 plugin structure that combines the audio processor and edit controller into a single class. The implementation passes all 47 tests in Steinberg's SDK validator.
 
 **Signal type:** float (32-bit). gen~ is compiled with `GENLIB_USE_FLOAT32`.
 

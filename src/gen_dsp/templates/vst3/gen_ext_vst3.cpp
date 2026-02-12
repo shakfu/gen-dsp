@@ -127,11 +127,21 @@ tresult PLUGIN_API GenVst3Plugin::initialize(FUnknown* context) {
     tresult result = SingleComponentEffect::initialize(context);
     if (result != kResultOk) return result;
 
+    // Build speaker arrangements matching gen~ channel counts
+    auto speakerArrForCount = [](int n) -> SpeakerArrangement {
+        if (n == 1) return SpeakerArr::kMono;
+        if (n == 2) return SpeakerArr::kStereo;
+        // Generic N-channel: set first N speaker bits
+        SpeakerArrangement arr = 0;
+        for (int i = 0; i < n; i++) arr |= (SpeakerArrangement)1 << i;
+        return arr;
+    };
+
     // Add audio buses
     if (VST3_NUM_INPUTS > 0) {
-        addAudioInput(STR16("Input"), SpeakerArr::kStereo);
+        addAudioInput(STR16("Input"), speakerArrForCount(VST3_NUM_INPUTS));
     }
-    addAudioOutput(STR16("Output"), SpeakerArr::kStereo);
+    addAudioOutput(STR16("Output"), speakerArrForCount(VST3_NUM_OUTPUTS));
 
     // Create a temporary gen state to query parameter metadata
     GenState* tmpState = wrapper_create(44100.0f, 512);
@@ -151,6 +161,11 @@ tresult PLUGIN_API GenVst3Plugin::initialize(FUnknown* context) {
             pmax = wrapper_param_max(tmpState, i);
         }
         float pdefault = wrapper_get_param(tmpState, i);
+
+        // Clamp default to [min, max] -- gen~ initial values may exceed
+        // the declared range (e.g. gigaverb revtime init=11, max=1)
+        if (pdefault < pmin) pdefault = pmin;
+        if (pdefault > pmax) pdefault = pmax;
 
         mParamRanges[i].min = pmin;
         mParamRanges[i].max = pmax;
@@ -184,7 +199,7 @@ tresult PLUGIN_API GenVst3Plugin::initialize(FUnknown* context) {
             (ParamValue)pdefault, // defaultValuePlain
             0,              // stepCount (0 = continuous)
             0,              // flags
-            (ParamID)i      // unitId
+            0               // unitId (kRootUnitId -- no unit hierarchy)
         );
         parameters.addParameter(param);
     }

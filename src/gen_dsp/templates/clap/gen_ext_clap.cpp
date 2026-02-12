@@ -113,7 +113,11 @@ static bool params_get_info(const clap_plugin_t* plugin,
             info->max_value = 1.0;
         }
 
-        info->default_value = (double)wrapper_get_param(plug->genState, (int)param_index);
+        double def = (double)wrapper_get_param(plug->genState, (int)param_index);
+        // Clamp default to declared range -- gen~ initial values may exceed it
+        if (def < info->min_value) def = info->min_value;
+        if (def > info->max_value) def = info->max_value;
+        info->default_value = def;
     } else {
         snprintf(info->name, sizeof(info->name), "Param %u", param_index);
         info->min_value = 0.0;
@@ -226,10 +230,8 @@ static bool clap_gen_activate(const clap_plugin_t* plugin,
 
 static void clap_gen_deactivate(const clap_plugin_t* plugin) {
     ClapGenPlugin* plug = (ClapGenPlugin*)plugin->plugin_data;
-    if (plug->genState) {
-        wrapper_destroy(plug->genState);
-        plug->genState = nullptr;
-    }
+    // Keep genState alive so params remain queryable after deactivation.
+    // It will be destroyed/recreated on next activate() or in destroy().
     plug->active = false;
 }
 
@@ -381,13 +383,15 @@ static const clap_plugin_t* factory_create_plugin(
     if (!plug) return nullptr;
 
     plug->host       = host;
-    plug->genState   = nullptr;
     plug->sampleRate = 44100.0f;
     plug->maxFrames  = 1024;
     plug->numInputs  = wrapper_num_inputs();
     plug->numOutputs = wrapper_num_outputs();
     plug->numParams  = wrapper_num_params();
     plug->active     = false;
+
+    // Create gen state eagerly so params are queryable before activation
+    plug->genState   = wrapper_create(plug->sampleRate, (long)plug->maxFrames);
 
     plug->plugin.desc            = &s_descriptor;
     plug->plugin.plugin_data     = plug;
