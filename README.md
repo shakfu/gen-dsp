@@ -219,7 +219,7 @@ gen-dsp init ./my_export -n myeffect -p chuck -o ./myeffect_chuck
 cd myeffect_chuck && make mac  # or make linux
 ```
 
-Class names are auto-capitalized (`myeffect` -> `Myeffect`). Parameters are controlled via `eff.param("name", value)`.
+Class names are auto-capitalized (`myeffect` -> `Myeffect`). Parameters are controlled via `eff.param("name", value)`. Buffer-based chugins can load WAV files at runtime via `eff.loadBuffer("sample", "amen.wav")`.
 
 ## AudioUnit (AUv2)
 
@@ -267,7 +267,7 @@ cd myeffect_lv2 && cmake -B build && cmake --build build
 # Output: build/myeffect.lv2/
 ```
 
-macOS and Linux. LV2 headers fetched via CMake FetchContent (tag v1.18.10, ISC licensed). TTL metadata with real parameter names/ranges generated at project creation time.
+macOS and Linux. Passes lilv-based instantiation and audio processing validation. LV2 headers fetched via CMake FetchContent (tag v1.18.10, ISC licensed). TTL metadata with real parameter names/ranges generated at project creation time.
 
 ## SuperCollider
 
@@ -279,7 +279,7 @@ cd myeffect_sc && cmake -B build && cmake --build build
 # Output: build/myeffect.scx (macOS) or build/myeffect.so (Linux)
 ```
 
-Cross-platform (macOS, Linux, Windows). SC plugin headers fetched via CMake FetchContent (~80MB tarball). Generates `.sc` class file with parameter names/defaults. UGen name is auto-capitalized.
+Cross-platform (macOS, Linux, Windows). Passes sclang class compilation and scsynth NRT audio rendering validation. SC plugin headers fetched via CMake FetchContent (~80MB tarball). Generates `.sc` class file with parameter names/defaults. UGen name is auto-capitalized.
 
 ## VCV Rack
 
@@ -291,7 +291,7 @@ cd myeffect_vcvrack && make  # Rack SDK auto-downloaded
 # Output: plugin.dylib (macOS), plugin.so (Linux), or plugin.dll (Windows)
 ```
 
-Per-sample processing via `perform(n=1)`. Auto-generates `plugin.json` manifest and dark panel SVG. Rack SDK v2.6.1 auto-downloaded and cached.
+Per-sample processing via `perform(n=1)`. Auto-generates `plugin.json` manifest and dark panel SVG. Passes headless Rack runtime validation (plugin loading + module instantiation). Rack SDK v2.6.1 auto-downloaded and cached.
 
 ## Daisy (Electrosmith)
 

@@ -28,6 +28,101 @@ _skip_no_chuck = pytest.mark.skipif(
 )
 
 
+def _validate_chugin(
+    project_dir: Path,
+    class_name: str,
+    expected_params: int,
+    expect_audio: bool = False,
+    buffers: dict[str, str] | None = None,
+    phasor_input: bool = False,
+) -> None:
+    """Load a built chugin in ChucK and validate it works.
+
+    When expect_audio is True, feeds audio through the chugin and asserts
+    non-zero energy in the output.
+
+    buffers: optional dict mapping buffer name -> wav filename (relative to
+    project_dir). Loaded into gen~ internal buffers via loadBuffer().
+
+    phasor_input: when True, uses a Phasor (0-1 ramp at 10 Hz) as the audio
+    input instead of Noise. Useful for position-controlled sample players.
+    """
+    if not _has_chuck:
+        return
+
+    test_ck = project_dir / "test.ck"
+
+    lines = [f'@import "{class_name}"']
+
+    if expect_audio:
+        if phasor_input:
+            lines += [
+                f"Phasor src => {class_name} eff => Gain g => blackhole;",
+                "10.0 => src.freq;",
+            ]
+        else:
+            lines.append(f"Noise src => {class_name} eff => Gain g => blackhole;")
+    else:
+        lines.append(f"{class_name} eff => blackhole;")
+
+    # Load internal gen~ buffers if specified
+    if buffers:
+        for buf_name, wav_file in buffers.items():
+            lines += [
+                f'eff.loadBuffer("{buf_name}", "{wav_file}") => int frames;',
+                f'<<< "LOADED_{buf_name}", frames >>>;',
+            ]
+
+    lines += [
+        "eff.numParams() => int np;",
+        '<<< "PARAMS", np >>>;',
+    ]
+    if expected_params > 0:
+        lines += [
+            "eff.paramName(0) => string pname;",
+            '<<< "PNAME", pname >>>;',
+        ]
+
+    if expect_audio:
+        lines += [
+            "50::ms => now;",
+            "0.0 => float energy;",
+            "repeat(2205) {",
+            "    1::samp => now;",
+            "    g.last() * g.last() +=> energy;",
+            "}",
+            'if (energy > 0.0) <<< "AUDIO_OK" >>>;',
+            'else <<< "AUDIO_FAIL", energy >>>;',
+        ]
+    else:
+        lines.append("100::ms => now;")
+
+    lines.append('<<< "DONE" >>>;')
+    test_ck.write_text("\n".join(lines) + "\n")
+
+    result = subprocess.run(
+        ["chuck", "--chugin-path:.", "--silent", "test.ck"],
+        cwd=project_dir,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 0, (
+        f"chuck failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
+    )
+    output = result.stderr
+    assert "PARAMS" in output
+    assert str(expected_params) in output
+    if buffers:
+        for buf_name in buffers:
+            assert f"LOADED_{buf_name}" in output, (
+                f"Buffer '{buf_name}' not loaded:\n{output}"
+            )
+    if expect_audio:
+        assert "AUDIO_OK" in output, f"No audio output detected:\n{output}"
+    assert "DONE" in output
+
+
 class TestChuckPlatform:
     """Test ChucK platform registry and basic properties."""
 
@@ -200,6 +295,8 @@ class TestChuckBuildIntegration:
         assert chug_files[0].name == "Gigaverb.chug"
         assert chug_files[0].stat().st_size > 0
 
+        _validate_chugin(project_dir, "Gigaverb", 8, expect_audio=True)
+
     @_skip_no_toolchain
     def test_build_chugin_with_buffers(self, rampleplayer_export: Path, tmp_path: Path):
         """Generate and compile a chugin from RamplePlayer (has buffers)."""
@@ -232,6 +329,19 @@ class TestChuckBuildIntegration:
         assert len(chug_files) == 1
         assert chug_files[0].name == "Rampleplayer.chug"
 
+        # Copy test audio for buffer loading
+        wav_src = Path(__file__).parent / "data" / "amen.wav"
+        shutil.copy2(wav_src, project_dir / "amen.wav")
+
+        _validate_chugin(
+            project_dir,
+            "Rampleplayer",
+            0,
+            expect_audio=True,
+            buffers={"sample": "amen.wav"},
+            phasor_input=True,
+        )
+
     @_skip_no_toolchain
     def test_build_chugin_spectraldelayfb(
         self, spectraldelayfb_export: Path, tmp_path: Path
@@ -263,6 +373,8 @@ class TestChuckBuildIntegration:
         assert chug_files[0].name == "Spectraldelayfb.chug"
         assert chug_files[0].stat().st_size > 0
 
+        _validate_chugin(project_dir, "Spectraldelayfb", 0, expect_audio=True)
+
     @_skip_no_toolchain
     def test_build_clean_rebuild(self, gigaverb_export: Path, tmp_path: Path):
         """Test that clean + rebuild works via the platform API."""
@@ -286,6 +398,8 @@ class TestChuckBuildIntegration:
         build_result = platform.build(project_dir, clean=True)
         assert build_result.success
         assert build_result.output_file is not None
+
+        _validate_chugin(project_dir, "Gigaverb", 8, expect_audio=True)
 
     @_skip_no_chuck
     def test_load_chugin_in_chuck(self, gigaverb_export: Path, tmp_path: Path):

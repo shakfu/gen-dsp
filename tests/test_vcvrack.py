@@ -1,8 +1,13 @@
 """Tests for VCV Rack module platform implementation."""
 
 import json
+import os
+import platform as sys_platform
 import shutil
+import subprocess
+import sys
 from pathlib import Path
+from typing import Optional
 
 import pytest
 
@@ -30,6 +35,124 @@ _can_build = _has_make and _has_cxx
 _skip_no_toolchain = pytest.mark.skipif(
     not _can_build, reason="make and C++ compiler required"
 )
+
+
+def _find_rack_binary() -> Optional[str]:
+    """Find VCV Rack binary. PATH > RACK_APP env > macOS app bundle."""
+    found = shutil.which("Rack")
+    if found:
+        return found
+    env_val = os.environ.get("RACK_APP")
+    if env_val:
+        candidate = Path(env_val) / "Contents" / "MacOS" / "Rack"
+        if candidate.is_file():
+            return str(candidate)
+    if sys.platform == "darwin":
+        for app_dir in [
+            Path("/Applications/VCV Rack 2 Pro.app"),
+            Path("/Applications/VCV Rack 2 Free.app"),
+            Path("/Applications/Studio/VCV Rack 2 Pro.app"),
+            Path("/Applications/Studio/VCV Rack 2 Free.app"),
+        ]:
+            candidate = app_dir / "Contents" / "MacOS" / "Rack"
+            if candidate.is_file():
+                return str(candidate)
+    return None
+
+
+_rack_binary = _find_rack_binary()
+_has_rack_runtime = _rack_binary is not None
+
+
+def _rack_plugins_subdir() -> str:
+    """Return the platform-specific plugins subfolder name."""
+    system = sys_platform.system().lower()
+    machine = sys_platform.machine().lower()
+    if system == "darwin":
+        os_tag = "mac"
+        cpu_tag = "arm64" if machine == "arm64" else "x64"
+    elif system == "linux":
+        os_tag = "lin"
+        cpu_tag = "x64"
+    else:
+        os_tag = "win"
+        cpu_tag = "x64"
+    return f"plugins-{os_tag}-{cpu_tag}"
+
+
+def _validate_vcvrack(project_dir: Path, slug: str) -> None:
+    """Load a built VCV Rack plugin in headless Rack and verify it loads."""
+    if not _has_rack_runtime:
+        return
+
+    import tempfile
+
+    user_dir = Path(tempfile.mkdtemp(prefix="rack_validate_"))
+    try:
+        # Copy plugin to isolated user dir
+        plugins_dir = user_dir / _rack_plugins_subdir() / slug
+        plugins_dir.mkdir(parents=True)
+        # Copy plugin.dylib/so/dll
+        platform = VcvRackPlatform()
+        output = platform.find_output(project_dir)
+        assert output is not None
+        shutil.copy2(output, plugins_dir / output.name)
+        # Copy plugin.json
+        shutil.copy2(project_dir / "plugin.json", plugins_dir / "plugin.json")
+        # Copy res/ if it exists
+        res_src = project_dir / "res"
+        if res_src.is_dir():
+            shutil.copytree(res_src, plugins_dir / "res")
+
+        # Create minimal autosave patch that instantiates our module
+        autosave_dir = user_dir / "autosave"
+        autosave_dir.mkdir()
+        patch = {
+            "version": "2.6.6",
+            "modules": [
+                {
+                    "id": 1,
+                    "plugin": slug,
+                    "model": slug,
+                    "version": "2.0.0",
+                    "params": [],
+                }
+            ],
+            "cables": [],
+        }
+        (autosave_dir / "patch.json").write_text(json.dumps(patch))
+        # Minimal settings -- disable network access for fast, offline validation
+        settings = {
+            "autoCheckUpdates": False,
+            "verifyHttpsCerts": False,
+        }
+        (user_dir / "settings.json").write_text(json.dumps(settings))
+
+        # Run Rack headless -- /dev/null stdin causes immediate exit after load
+        result = subprocess.run(
+            [_rack_binary, "--headless", "--user", str(user_dir)],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        # Read log
+        log_path = user_dir / "log.txt"
+        log_text = log_path.read_text() if log_path.is_file() else ""
+
+        assert result.returncode == 0, (
+            f"Rack headless failed (exit {result.returncode}):\n{log_text}"
+        )
+        assert f"Loaded plugin {slug}" in log_text, (
+            f"Plugin {slug} not loaded:\n{log_text}"
+        )
+        # Check no module creation error
+        assert "Could not create module" not in log_text, (
+            f"Module creation failed:\n{log_text}"
+        )
+    finally:
+        shutil.rmtree(user_dir, ignore_errors=True)
 
 
 class TestVcvRackPlatform:
@@ -389,6 +512,8 @@ class TestVcvRackBuildIntegration:
         assert output is not None
         assert output.name.startswith("plugin")
 
+        _validate_vcvrack(project_dir, "gigaverb")
+
     @_skip_no_toolchain
     def test_build_vcvrack_with_buffers(
         self, rampleplayer_export: Path, tmp_path: Path, fetchcontent_cache: Path
@@ -418,6 +543,8 @@ class TestVcvRackBuildIntegration:
         output = platform.find_output(project_dir)
         assert output is not None
 
+        _validate_vcvrack(project_dir, "rampleplayer")
+
     @_skip_no_toolchain
     def test_build_vcvrack_spectraldelayfb(
         self, spectraldelayfb_export: Path, tmp_path: Path, fetchcontent_cache: Path
@@ -442,3 +569,5 @@ class TestVcvRackBuildIntegration:
 
         output = platform.find_output(project_dir)
         assert output is not None
+
+        _validate_vcvrack(project_dir, "spectraldelayfb")

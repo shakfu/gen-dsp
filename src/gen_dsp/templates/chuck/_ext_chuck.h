@@ -37,6 +37,7 @@ float wrapper_get_param(GenState* state, int index);
 // Buffers
 int wrapper_num_buffers();
 const char* wrapper_buffer_name(int index);
+int wrapper_load_buffer(int index, const char* path);
 
 } // namespace WRAPPER_NAMESPACE
 

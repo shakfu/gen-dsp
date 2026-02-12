@@ -82,6 +82,26 @@ static const char* buffer_names[] = {
     nullptr
 };
 
+// Buffer pointer array (parallel to buffer_names)
+static ChuckBuffer* buffer_ptrs[] = {
+#ifdef WRAPPER_BUFFER_NAME_0
+    &WRAPPER_BUFFER_NAME_0,
+#endif
+#ifdef WRAPPER_BUFFER_NAME_1
+    &WRAPPER_BUFFER_NAME_1,
+#endif
+#ifdef WRAPPER_BUFFER_NAME_2
+    &WRAPPER_BUFFER_NAME_2,
+#endif
+#ifdef WRAPPER_BUFFER_NAME_3
+    &WRAPPER_BUFFER_NAME_3,
+#endif
+#ifdef WRAPPER_BUFFER_NAME_4
+    &WRAPPER_BUFFER_NAME_4,
+#endif
+    nullptr
+};
+
 using namespace GEN_EXPORTED_NAME;
 
 // Wrapper function implementations
@@ -153,6 +173,11 @@ const char* wrapper_buffer_name(int index) {
         return buffer_names[index];
     }
     return nullptr;
+}
+
+int wrapper_load_buffer(int index, const char* path) {
+    if (index < 0 || index >= WRAPPER_BUFFER_COUNT) return -1;
+    return buffer_ptrs[index]->loadWav(path);
 }
 
 } // namespace WRAPPER_NAMESPACE

@@ -2,8 +2,13 @@
 
 import os
 import shutil
+import struct
 import subprocess
+import sys
+import tempfile
+import wave
 from pathlib import Path
+from typing import Optional
 
 import pytest
 
@@ -31,6 +36,243 @@ _can_build = _has_cmake and _has_cxx
 _skip_no_toolchain = pytest.mark.skipif(
     not _can_build, reason="cmake and C++ compiler required"
 )
+
+
+# -- SuperCollider runtime tool discovery --------------------------------------
+
+
+def _find_sc_tool(name: str, bundle_subpath: str) -> Optional[str]:
+    """Find a SuperCollider tool (sclang or scsynth).
+
+    Resolution order: PATH > environment variable > macOS app bundle.
+    """
+    found = shutil.which(name)
+    if found:
+        return found
+    env_val = os.environ.get(name.upper())
+    if env_val:
+        p = Path(env_val)
+        if p.is_file():
+            return str(p)
+    if sys.platform == "darwin":
+        for app_dir in [
+            Path("/Applications/SuperCollider.app"),
+        ]:
+            candidate = app_dir / bundle_subpath
+            if candidate.is_file():
+                return str(candidate)
+    return None
+
+
+_sclang = _find_sc_tool("sclang", "Contents/MacOS/sclang")
+_scsynth = _find_sc_tool("scsynth", "Contents/Resources/scsynth")
+
+
+def _find_sc_resource(subdir: str) -> Optional[Path]:
+    """Derive an SC Resources subdirectory from the scsynth location."""
+    if not _scsynth:
+        return None
+    scsynth_path = Path(_scsynth)
+    # App bundle: .../Contents/Resources/scsynth -> .../Contents/Resources/<subdir>
+    candidate = scsynth_path.parent / subdir
+    if candidate.is_dir():
+        return candidate
+    # Also check from sclang path (Contents/MacOS/sclang -> Contents/Resources/<subdir>)
+    if _sclang:
+        contents = Path(_sclang).parent.parent
+        candidate = contents / "Resources" / subdir
+        if candidate.is_dir():
+            return candidate
+    return None
+
+
+_sc_class_lib = _find_sc_resource("SCClassLibrary")
+_sc_plugins_dir = _find_sc_resource("plugins")
+_has_sc_runtime = (
+    _sclang is not None
+    and _scsynth is not None
+    and _sc_class_lib is not None
+    and _sc_plugins_dir is not None
+)
+
+
+# -- OSC binary helpers for NRT score generation -------------------------------
+
+
+def _osc_string(s: str) -> bytes:
+    """Encode an OSC string (null-terminated, padded to 4 bytes)."""
+    b = s.encode("ascii") + b"\x00"
+    b += b"\x00" * ((4 - len(b) % 4) % 4)
+    return b
+
+
+def _osc_message(address: str, *args: tuple[str, object]) -> bytes:
+    """Build an OSC message. Each arg is (type_char, value)."""
+    msg = _osc_string(address)
+    type_tags = "," + "".join(t for t, _ in args)
+    msg += _osc_string(type_tags)
+    for t, v in args:
+        if t == "i":
+            msg += struct.pack(">i", v)
+        elif t == "s":
+            msg += _osc_string(str(v))
+    return msg
+
+
+def _osc_bundle(time_seconds: float, messages: list[bytes]) -> bytes:
+    """Build an OSC bundle with NTP timetag."""
+    secs = int(time_seconds)
+    frac = int((time_seconds - secs) * (2**32))
+    bundle = b"#bundle\x00" + struct.pack(">II", secs, frac)
+    for msg in messages:
+        bundle += struct.pack(">i", len(msg)) + msg
+    return bundle
+
+
+def _write_nrt_score(path: Path, synthdef_path: Path, num_outputs: int) -> None:
+    """Write a minimal NRT score: load synthdef, create synth, free after 1s."""
+    d_load = _osc_message("/d_load", ("s", str(synthdef_path)))
+    s_new = _osc_message("/s_new", ("s", "test"), ("i", 1000), ("i", 0), ("i", 0))
+    n_free = _osc_message("/n_free", ("i", 1000))
+    c_set = _osc_message("/c_set", ("i", 0), ("i", 0))
+
+    bundles = [
+        _osc_bundle(0.0, [d_load, s_new]),
+        _osc_bundle(1.0, [n_free, c_set]),
+    ]
+    with open(path, "wb") as f:
+        for b in bundles:
+            f.write(struct.pack(">i", len(b)) + b)
+
+
+# -- SC validation function ---------------------------------------------------
+
+_SC_SYNTHDEF_SCRIPT = r"""(
+var sdDir = "$SYNTHDEF_DIR";
+SynthDef(\test, {
+    var inputs = Array.fill($NUM_INPUTS, { WhiteNoise.ar(0.1) });
+    var sig = $UGEN_NAME.performList(\ar, inputs);
+    Out.ar(0, sig);
+}).writeDefFile(sdDir);
+"SYNTHDEF_OK".postln;
+0.exit;
+)
+"""
+
+
+def _validate_sc(
+    project_dir: Path,
+    build_dir: Path,
+    ugen_name: str,
+    lib_name: str,
+    num_inputs: int,
+    num_outputs: int,
+) -> None:
+    """Validate a built SC UGen via sclang SynthDef build + scsynth NRT render.
+
+    1. sclang compiles the .sc class and builds a SynthDef binary
+    2. scsynth renders NRT audio using the SynthDef and .scx plugin
+    3. Output WAV is checked for non-zero energy (effects only)
+    """
+    if not _has_sc_runtime:
+        return
+
+    assert _sclang is not None
+    assert _scsynth is not None
+    assert _sc_class_lib is not None
+    assert _sc_plugins_dir is not None
+
+    ext = ".scx" if sys.platform == "darwin" else ".so"
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        td = Path(tmpdir)
+        plugin_dir = td / "plugins"
+        plugin_dir.mkdir()
+        synthdef_dir = td / "synthdefs"
+        synthdef_dir.mkdir()
+        sc_class_dir = td / "classes"
+        sc_class_dir.mkdir()
+
+        # Copy .scx binary
+        scx_files = list(build_dir.glob(f"**/{lib_name}{ext}"))
+        assert scx_files, f"No {ext} binary found in {build_dir}"
+        shutil.copy2(scx_files[0], plugin_dir / scx_files[0].name)
+
+        # Copy .sc class file
+        sc_class_file = project_dir / f"{ugen_name}.sc"
+        assert sc_class_file.is_file(), f"Missing {sc_class_file}"
+        shutil.copy2(sc_class_file, sc_class_dir / sc_class_file.name)
+
+        # Create sclang config including SCClassLibrary + our class dir
+        config = td / "sclang_conf.yaml"
+        config.write_text(
+            "includePaths:\n"
+            f"    - {_sc_class_lib}\n"
+            f"    - {sc_class_dir}\n"
+            "excludePaths: []\n"
+            "postInlineWarnings: false\n"
+        )
+
+        # Step 1: Build SynthDef using sclang
+        script = td / "build_synthdef.scd"
+        script.write_text(
+            _SC_SYNTHDEF_SCRIPT.replace("$SYNTHDEF_DIR", str(synthdef_dir))
+            .replace("$NUM_INPUTS", str(num_inputs))
+            .replace("$UGEN_NAME", ugen_name)
+        )
+
+        result = subprocess.run(
+            [_sclang, "-l", str(config), str(script)],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        output = result.stdout + result.stderr
+        assert "SYNTHDEF_OK" in output, f"sclang SynthDef build failed:\n{output}"
+
+        # Verify SynthDef file was created
+        sd_file = synthdef_dir / "test.scsyndef"
+        assert sd_file.is_file(), "SynthDef file not written"
+
+        # Step 2: Generate NRT score and render
+        osc_path = td / "score.osc"
+        output_wav = td / "output.wav"
+        _write_nrt_score(osc_path, sd_file, num_outputs)
+
+        result = subprocess.run(
+            [
+                _scsynth,
+                "-N",
+                str(osc_path),
+                "_",
+                str(output_wav),
+                "44100",
+                "WAV",
+                "int16",
+                "-U",
+                f"{_sc_plugins_dir}:{plugin_dir}",
+                "-o",
+                str(num_outputs),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert result.returncode == 0, (
+            f"scsynth NRT failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
+        )
+
+        # Step 3: Check output audio energy
+        assert output_wav.is_file(), "NRT output WAV not created"
+        with wave.open(str(output_wav), "rb") as wf:
+            n_frames = wf.getnframes()
+            n_channels = wf.getnchannels()
+            raw = wf.readframes(n_frames)
+            samples = struct.unpack(f"<{n_frames * n_channels}h", raw)
+            energy = sum(s * s for s in samples) / (32768.0**2)
+
+        if num_inputs > 0:
+            assert energy > 0, "Zero output energy from effect"
 
 
 class TestScPlatform:
@@ -365,14 +607,14 @@ class TestScBuildIntegration:
         )
 
         # Verify binary was produced
-        import sys
-
         ext = ".scx" if sys.platform == "darwin" else ".so"
         binaries = list(build_dir.glob(f"**/gigaverb{ext}"))
         assert len(binaries) >= 1
 
         # Verify .sc class file exists in project dir
         assert (project_dir / "Gigaverb.sc").is_file()
+
+        _validate_sc(project_dir, build_dir, "Gigaverb", "gigaverb", 2, 2)
 
     @_skip_no_toolchain
     def test_build_sc_with_buffers(
@@ -418,11 +660,11 @@ class TestScBuildIntegration:
             f"cmake build failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
         )
 
-        import sys
-
         ext = ".scx" if sys.platform == "darwin" else ".so"
         binaries = list(build_dir.glob(f"**/rampleplayer{ext}"))
         assert len(binaries) >= 1
+
+        _validate_sc(project_dir, build_dir, "Rampleplayer", "rampleplayer", 1, 2)
 
     @_skip_no_toolchain
     def test_build_sc_spectraldelayfb(
@@ -464,11 +706,11 @@ class TestScBuildIntegration:
             f"cmake build failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
         )
 
-        import sys
-
         ext = ".scx" if sys.platform == "darwin" else ".so"
         binaries = list(build_dir.glob(f"**/spectraldelayfb{ext}"))
         assert len(binaries) >= 1
+
+        _validate_sc(project_dir, build_dir, "Spectraldelayfb", "spectraldelayfb", 3, 2)
 
     @_skip_no_toolchain
     def test_build_clean_rebuild(
@@ -508,3 +750,5 @@ class TestScBuildIntegration:
         build_result = platform.build(project_dir, clean=True)
         assert build_result.success
         assert build_result.output_file is not None
+
+        _validate_sc(project_dir, project_dir / "build", "Gigaverb", "gigaverb", 2, 2)

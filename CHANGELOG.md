@@ -7,8 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **ChucK: `loadBuffer(name, path)` method** -- chugins can now load WAV audio files into gen~ internal buffers at runtime from ChucK scripts
+  - Supports PCM 16-bit, 24-bit, and IEEE float 32-bit WAV files
+  - Minimal WAV reader in `ChuckBuffer::loadWav()` (genlib side, no external dependencies)
+  - Returns frame count on success, -1 on error
+  - Example: `eff.loadBuffer("sample", "amen.wav")`
+- **ChucK: runtime validation in build integration tests** -- all 4 build tests now load the compiled chugin in the ChucK VM and verify correct operation (previously only gigaverb had runtime validation)
+  - Audio flow validation: feeds Noise (effects) or Phasor (position-controlled sample players) through the chugin and asserts non-zero energy in the output
+  - Buffer loading validation: RamplePlayer test loads a WAV file via `loadBuffer()` and verifies audio playback from the internal gen~ buffer
+  - Parameter metadata validation: verifies `numParams()` and `paramName()` return expected values
+- **LV2: lilv-based runtime validation in build integration tests** -- all 4 build tests now instantiate the plugin via a custom C validator that uses the lilv API to load, connect ports, process 8 blocks of audio, and verify non-zero output energy
+  - Validator compiled once from C source using `pkg-config lilv-0` and cached in `build/.lv2_validator/`
+  - Validates port counts (audio in/out, control params), successful instantiation, and audio flow
+  - Bundle copied to isolated temp directory to avoid lilv scanning noise
+  - Gracefully skipped when `lilv-0` pkg-config is not available
+- **SuperCollider: sclang + scsynth NRT runtime validation in build integration tests** -- all 4 build tests now compile a SynthDef via sclang and render audio via scsynth in non-realtime mode
+  - Two-phase validation: sclang compiles the `.sc` class and builds a binary SynthDef, then scsynth renders NRT audio using the `.scx` plugin
+  - Verifies: class compilation, UGen binary loading, audio processing with non-zero output energy
+  - Custom OSC binary score generation from Python (no external dependencies)
+  - sclang library config (`-l`) includes standard SCClassLibrary + custom class directory
+  - Tool discovery: PATH > `SCLANG`/`SCSYNTH` env vars > standard macOS app bundle
+  - Gracefully skipped when sclang, scsynth, or SCClassLibrary not available
+- **PureData: build integration tests and runtime validation** -- new `test_pd.py` with 12 tests covering all 3 fixtures
+  - Build tests: generate and compile PD externals (gigaverb, RamplePlayer, spectraldelayfb) plus clean/rebuild
+  - Runtime validation: loads each compiled external in headless PD (`pd -nogui -verbose`) and verifies successful instantiation (no "couldn't create" errors)
+  - Gated by `pd` availability on PATH
+- **VCV Rack: headless runtime validation in build integration tests** -- all 3 build tests now load the compiled plugin in VCV Rack headless mode and verify correct operation
+  - Plugin copied to isolated temp user dir (`--user <tmpdir>`) with minimal autosave patch that instantiates the module
+  - `/dev/null` stdin causes Rack to load plugins, process the patch, then exit cleanly (~0.6s)
+  - Log-based validation: asserts "Loaded plugin <slug>" present and "Could not create module" absent
+  - Rack binary discovery: PATH > `RACK_APP` env var > well-known macOS app bundle paths
+  - Gracefully skipped when VCV Rack is not installed
+
 ### Fixed
 
+- **VCV Rack: plugin.json version** -- changed from `"1.0.0"` to `"2.0.0"` to match VCV Rack 2 ABI version (Rack rejects plugins with mismatched major version)
 - **PureData: bundle `m_pd.h` in package** -- PureData externals can be built without a system PureData installation; the Pd API header is included in generated projects under `pd-include/` (overridable via `PDINCLUDEDIR`)
 - **CMake: `FETCHCONTENT_BASE_DIR` cache fix** -- `GEN_DSP_CACHE_DIR` and `--shared-cache` now actually cache SDK build artifacts across runs; previously the normal `set()` was silently overridden by FetchContent's own `CACHE` variable, causing full SDK recompilation every build (e.g. VST3: 52s → 3s)
 

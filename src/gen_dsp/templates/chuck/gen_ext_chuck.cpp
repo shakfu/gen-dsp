@@ -35,6 +35,7 @@ CK_DLL_MFUN(genext_param_set);
 CK_DLL_MFUN(genext_param_get);
 CK_DLL_MFUN(genext_num_params);
 CK_DLL_MFUN(genext_param_name);
+CK_DLL_MFUN(genext_load_buffer);
 CK_DLL_MFUN(genext_info);
 CK_DLL_MFUN(genext_reset);
 
@@ -85,6 +86,11 @@ CK_DLL_QUERY(CHUCK_EXT_NAME)
     // paramName(int) -> string
     QUERY->add_mfun(QUERY, genext_param_name, "string", "paramName");
     QUERY->add_arg(QUERY, "int", "index");
+
+    // loadBuffer(string, string) -> int : load WAV file into named buffer
+    QUERY->add_mfun(QUERY, genext_load_buffer, "int", "loadBuffer");
+    QUERY->add_arg(QUERY, "string", "name");
+    QUERY->add_arg(QUERY, "string", "path");
 
     // info() -> void : print info
     QUERY->add_mfun(QUERY, genext_info, "void", "info");
@@ -281,6 +287,33 @@ CK_DLL_MFUN(genext_param_name)
     const char* pname = wrapper_param_name(data->gen_state, (int)index);
     if (pname) {
         RETURN->v_string = (Chuck_String*)API->object->create_string(VM, pname, false);
+    }
+}
+
+
+//-----------------------------------------------------------------------------
+// loadBuffer(string, string) -> int : load WAV file into named buffer
+//-----------------------------------------------------------------------------
+CK_DLL_MFUN(genext_load_buffer)
+{
+    Chuck_String* name = GET_NEXT_STRING(ARGS);
+    Chuck_String* path = GET_NEXT_STRING(ARGS);
+
+    RETURN->v_int = -1;
+
+    if (!name || !path) return;
+
+    const char* buf_name = API->object->str(name);
+    const char* file_path = API->object->str(path);
+
+    // Find buffer index by name
+    int num_bufs = wrapper_num_buffers();
+    for (int i = 0; i < num_bufs; i++) {
+        const char* bname = wrapper_buffer_name(i);
+        if (bname && strcmp(bname, buf_name) == 0) {
+            RETURN->v_int = wrapper_load_buffer(i, file_path);
+            return;
+        }
     }
 }
 
