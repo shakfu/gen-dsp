@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.8]
+
 ### Added
 
 - **ChucK: `loadBuffer(name, path)` method** -- chugins can now load WAV audio files into gen~ internal buffers at runtime from ChucK scripts
