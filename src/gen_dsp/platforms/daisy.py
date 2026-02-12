@@ -229,7 +229,10 @@ def ensure_libdaisy(libdaisy_dir: Optional[Path] = None, verbose: bool = False) 
     if not shutil.which("arm-none-eabi-gcc"):
         raise BuildError(
             "arm-none-eabi-gcc is required to build for Daisy. "
-            "Install the ARM GCC toolchain and ensure it is on PATH."
+            "Download the ARM GNU toolchain from:\n"
+            "  https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads\n"
+            "Select the 'arm-none-eabi' variant for your host OS, extract it,\n"
+            "and add its bin/ directory to your PATH."
         )
 
     # Clone if not present

@@ -432,14 +432,14 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 ### Daisy builds
 
 - make
-- `arm-none-eabi-gcc` (ARM GCC toolchain for cross-compilation)
+- `arm-none-eabi-gcc` ([ARM GNU Toolchain Downloads](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads) -- select `arm-none-eabi`)
 - git (for cloning libDaisy on first build)
 - Network access on first build (to clone libDaisy + submodules)
 
 ### Circle builds
 
 - make
-- `aarch64-none-elf-gcc` (AArch64 bare-metal toolchain, for Pi 3/4/5/Zero 2 W) or `arm-none-eabi-gcc` (for Pi Zero)
+- `aarch64-none-elf-gcc` ([ARM GNU Toolchain Downloads](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads) -- select `aarch64-none-elf`) or `arm-none-eabi-gcc` (for Pi Zero)
 - git (for cloning Circle SDK on first build)
 - Network access on first build (to clone Circle)
 

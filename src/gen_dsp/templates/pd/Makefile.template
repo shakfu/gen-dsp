@@ -21,4 +21,7 @@ define forLinux
   $$(lib.name)~.class.sources += ./gen/gen_dsp/json.c ./gen/gen_dsp/json_builder.c
 endef
 
+# Use bundled m_pd.h unless PDINCLUDEDIR is already set
+PDINCLUDEDIR ?= ./pd-include
+
 include ./pd-lib-builder/Makefile.pdlibbuilder

@@ -89,13 +89,24 @@ example-pd:
 	$(call example_init,pd)
 	$(MAKE) -C $(EXAMPLES_DIR)/$(NAME)_pd all
 
-# ChucK: uses make target 'mac'
+# ChucK: uses platform-specific make target
+CHUCK_TARGET := $(if $(filter Darwin,$(shell uname -s)),mac,linux)
 example-chuck:
 	$(call example_init,chuck)
-	$(MAKE) -C $(EXAMPLES_DIR)/$(NAME)_chuck mac
+	$(MAKE) -C $(EXAMPLES_DIR)/$(NAME)_chuck $(CHUCK_TARGET)
 
-# Build all example plugins
-examples: example-pd example-max example-chuck example-au example-clap example-vst3 example-lv2 example-sc example-vcvrack example-daisy example-circle
+# Platform-portable examples (work on any OS with a C/C++ compiler)
+PORTABLE_EXAMPLES := example-pd example-max example-chuck example-clap example-vst3 example-lv2 example-sc example-vcvrack example-daisy example-circle
+
+# macOS-only examples
+MACOS_EXAMPLES := example-au
+
+# Build all example plugins appropriate for this platform
+ifeq ($(shell uname -s),Darwin)
+examples: $(PORTABLE_EXAMPLES) $(MACOS_EXAMPLES)
+else
+examples: $(PORTABLE_EXAMPLES)
+endif
 
 # Build distribution
 dist: clean

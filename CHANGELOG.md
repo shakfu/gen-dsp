@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **PureData: bundle `m_pd.h` in package** -- PureData externals can be built without a system PureData installation; the Pd API header is included in generated projects under `pd-include/` (overridable via `PDINCLUDEDIR`)
+- **CMake: `FETCHCONTENT_BASE_DIR` cache fix** -- `GEN_DSP_CACHE_DIR` and `--shared-cache` now actually cache SDK build artifacts across runs; previously the normal `set()` was silently overridden by FetchContent's own `CACHE` variable, causing full SDK recompilation every build (e.g. VST3: 52s → 3s)
+
 ## [0.1.7]
 
 ### Fixed

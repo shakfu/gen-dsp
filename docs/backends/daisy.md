@@ -14,6 +14,12 @@ Generates firmware binaries (`.bin`) for the Daisy Seed and related boards from 
 
 ### Installing the ARM toolchain
 
+See the [Daisy C++ Dev Environment](https://daisy.audio/tutorials/cpp-dev-env/) tutorial for a complete setup guide.
+
+Download the ARM GNU toolchain from the [ARM GNU Toolchain Downloads](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads) page. Select the **arm-none-eabi** variant for your host OS, extract it, and add its `bin/` directory to your PATH.
+
+Alternatively, use a package manager:
+
 **macOS (Homebrew):**
 
 ```bash
@@ -134,7 +140,7 @@ make program-dfu
 
 ## Troubleshooting
 
-- **`arm-none-eabi-gcc` not found:** Install the ARM GCC toolchain and ensure it is on PATH.
+- **`arm-none-eabi-gcc` not found:** Download the ARM GNU toolchain from the [ARM GNU Toolchain Downloads](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads) page (select `arm-none-eabi`) and add its `bin/` directory to your PATH.
 - **libDaisy clone fails:** Ensure git is installed and you have network access. The clone includes submodules, so it may take a minute. Set `GIT_TERMINAL_PROMPT=0` to prevent git from hanging on credential prompts.
 - **libDaisy build fails:** Ensure `arm-none-eabi-gcc` is the correct version (9.x+ recommended). Check that `make` is GNU Make, not BSD make.
 - **Out of memory at runtime:** The bump allocator has fixed pools (450KB SRAM + 64MB SDRAM). Complex gen~ patches with many delay lines or buffers may exhaust available memory. There is no runtime error -- behavior is undefined if pools overflow.

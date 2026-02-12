@@ -63,6 +63,13 @@ class PureDataPlatform(Platform):
             if src.exists():
                 shutil.copy2(src, output_dir / filename)
 
+        # Copy bundled m_pd.h
+        pd_include_dst = output_dir / "pd-include"
+        pd_include_dst.mkdir(exist_ok=True)
+        m_pd_h = templates_dir / "m_pd.h"
+        if m_pd_h.exists():
+            shutil.copy2(m_pd_h, pd_include_dst / "m_pd.h")
+
         # Copy pd-lib-builder
         pd_lib_builder_src = templates_dir / "pd-lib-builder"
         pd_lib_builder_dst = output_dir / "pd-lib-builder"
@@ -126,6 +133,9 @@ define forLinux
   cflags += -DGENLIB_USE_FLOAT32 -DWIN32 -DGENLIB_NO_DENORM_TEST
   $(lib.name)~.class.sources += ./gen/gen_dsp/json.c ./gen/gen_dsp/json_builder.c
 endef
+
+# Use bundled m_pd.h unless PDINCLUDEDIR is already set
+PDINCLUDEDIR ?= ./pd-include
 
 include ./pd-lib-builder/Makefile.pdlibbuilder
 """

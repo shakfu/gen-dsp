@@ -25,9 +25,9 @@ set(SMTG_RUN_VST_VALIDATOR OFF CACHE BOOL "" FORCE)
 # Shared FetchContent cache (optional -- gen-dsp --shared-cache)
 if(DEFINED ENV{GEN_DSP_CACHE_DIR})
     file(TO_CMAKE_PATH "$$ENV{GEN_DSP_CACHE_DIR}" _gen_dsp_cache)
-    set(FETCHCONTENT_BASE_DIR "$${_gen_dsp_cache}")
+    set(FETCHCONTENT_BASE_DIR "$${_gen_dsp_cache}" CACHE PATH "" FORCE)
 elseif($use_shared_cache)
-    set(FETCHCONTENT_BASE_DIR "$cache_dir")
+    set(FETCHCONTENT_BASE_DIR "$cache_dir" CACHE PATH "" FORCE)
 endif()
 
 # Fetch VST3 SDK
