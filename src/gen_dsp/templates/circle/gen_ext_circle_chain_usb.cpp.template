@@ -1,0 +1,263 @@
+// gen_ext_circle_chain.cpp - Circle bare metal chain wrapper for gen~ exports (USB audio)
+// Board: $board_key (Raspberry Pi $rasppi)
+// Audio: USB output (requires USB DAC or audio interface)
+// Output: $kernel_img
+// Chain: $num_nodes nodes
+// This file includes ONLY Circle headers - genlib is isolated in _ext_circle_N.cpp
+
+#include <circle/actled.h>
+#include <circle/koptions.h>
+#include <circle/devicenameservice.h>
+#include <circle/exceptionhandler.h>
+#include <circle/interrupt.h>
+#include <circle/logger.h>
+#include <circle/startup.h>
+#include <circle/timer.h>
+#include <circle/types.h>
+#include <circle/usb/usbhcidevice.h>
+#include <circle/sound/usbsoundbasedevice.h>
+#include <circle/usb/usbmididevice.h>
+
+#include "genlib_circle.h"
+
+// Per-node wrapper headers
+$chain_includes
+
+// ---------------------------------------------------------------------------
+// Configuration
+// ---------------------------------------------------------------------------
+
+#define CIRCLE_SAMPLE_RATE     48000
+#define CIRCLE_CHUNK_SIZE      256
+#define CIRCLE_AUDIO_CHANNELS  2
+
+#define CHAIN_NODE_COUNT       $num_nodes
+#define CHAIN_MAX_CHANNELS     $max_channels
+
+// Per-node I/O counts
+$chain_io_defines
+
+// ---------------------------------------------------------------------------
+// CGenDSPSoundDevice - USB sound device with chain DSP processing
+// ---------------------------------------------------------------------------
+
+class CGenDSPSoundDevice : public CUSBSoundBaseDevice
+{
+public:
+    CGenDSPSoundDevice(unsigned nSampleRate)
+        : CUSBSoundBaseDevice(nSampleRate)
+    {
+        for (int i = 0; i < CHAIN_NODE_COUNT; i++) {
+            m_genState[i] = nullptr;
+        }
+
+        // Initialize scratch buffer pointer arrays
+        for (int ch = 0; ch < CHAIN_MAX_CHANNELS; ch++) {
+            m_pScratchA[ch] = m_ScratchStorageA[ch];
+            m_pScratchB[ch] = m_ScratchStorageB[ch];
+        }
+    }
+
+    ~CGenDSPSoundDevice(void)
+    {
+$chain_destroy_calls
+    }
+
+    boolean Initialize(void)
+    {
+$chain_create_calls
+
+        return Start();
+    }
+
+    // Set parameter on a specific chain node
+    void SetParam(int nodeIndex, int paramIndex, float value)
+    {
+$chain_set_param_calls
+    }
+
+protected:
+    unsigned GetChunk(u32* pBuffer, unsigned nChunkSize) override
+    {
+        unsigned nFrames = nChunkSize / CIRCLE_AUDIO_CHANNELS;
+
+        // Clear initial input (scratch A)
+        for (int ch = 0; ch < CHAIN_MAX_CHANNELS; ch++) {
+            for (unsigned i = 0; i < nFrames; i++) {
+                m_ScratchStorageA[ch][i] = 0.0f;
+            }
+        }
+
+        // Chain: each node reads from one scratch buffer, writes to the other
+$chain_perform_block
+
+        // Convert final output to device-native format
+        int nRangeMin = GetRangeMin();
+        int nRangeMax = GetRangeMax();
+
+        for (unsigned i = 0; i < nFrames; i++) {
+            for (int ch = 0; ch < CIRCLE_AUDIO_CHANNELS; ch++) {
+                float sample = 0.0f;
+                if (ch < $chain_last_num_outputs) {
+                    sample = $chain_final_output_ptr[ch][i];
+                }
+
+                if (sample > 1.0f) sample = 1.0f;
+                if (sample < -1.0f) sample = -1.0f;
+
+                int nSample = (int)((sample + 1.0f) / 2.0f
+                    * (nRangeMax - nRangeMin) + nRangeMin);
+                pBuffer[i * CIRCLE_AUDIO_CHANNELS + ch] = (u32)nSample;
+            }
+        }
+
+        return nChunkSize;
+    }
+
+private:
+    GenState* m_genState[CHAIN_NODE_COUNT];
+
+    // Ping-pong scratch buffers for chain processing
+    float m_ScratchStorageA[CHAIN_MAX_CHANNELS][CIRCLE_CHUNK_SIZE];
+    float m_ScratchStorageB[CHAIN_MAX_CHANNELS][CIRCLE_CHUNK_SIZE];
+    float* m_pScratchA[CHAIN_MAX_CHANNELS];
+    float* m_pScratchB[CHAIN_MAX_CHANNELS];
+};
+
+// ---------------------------------------------------------------------------
+// MIDI CC dispatch
+// ---------------------------------------------------------------------------
+
+static CGenDSPSoundDevice* s_pSoundDevice = nullptr;
+
+static void MIDIPacketHandler(unsigned nCable, u8* pPacket, unsigned nLength)
+{
+    if (nLength < 3) return;
+
+    u8 status = pPacket[0];
+    u8 type = status & 0xF0;
+    u8 channel = (status & 0x0F) + 1;  // MIDI channels are 1-based
+
+    // Only handle CC messages (0xB0)
+    if (type != 0xB0) return;
+
+    u8 cc = pPacket[1];
+    u8 value = pPacket[2];
+    float normalized = (float)value / 127.0f;
+
+    if (!s_pSoundDevice) return;
+
+$chain_midi_dispatch
+}
+
+// ---------------------------------------------------------------------------
+// CKernel - Main application kernel (USB audio chain mode with MIDI)
+// ---------------------------------------------------------------------------
+
+class CKernel
+{
+public:
+    CKernel(void)
+        : m_Timer(&m_Interrupt),
+          m_Logger(m_Options.GetLogLevel(), &m_Timer),
+          m_USBHCI(&m_Interrupt, &m_Timer, TRUE),
+          m_pSound(nullptr)
+    {
+    }
+
+    ~CKernel(void)
+    {
+        delete m_pSound;
+    }
+
+    boolean Initialize(void)
+    {
+        if (!m_Interrupt.Initialize()) {
+            return FALSE;
+        }
+
+        if (!m_Timer.Initialize()) {
+            return FALSE;
+        }
+
+        if (!m_Logger.Initialize(nullptr)) {
+            return FALSE;
+        }
+
+        // Initialize USB host controller (for both audio and MIDI)
+        if (!m_USBHCI.Initialize()) {
+            m_Logger.Write("gen-dsp", LogError, "Failed to initialize USB host controller");
+            return FALSE;
+        }
+
+        // Initialize genlib memory pool
+        circle_init_memory();
+
+        // Create and initialize USB sound device
+        m_pSound = new CGenDSPSoundDevice(CIRCLE_SAMPLE_RATE);
+        s_pSoundDevice = m_pSound;
+
+        if (!m_pSound->Initialize()) {
+            m_Logger.Write("gen-dsp", LogError, "Failed to initialize USB sound device");
+            return FALSE;
+        }
+
+        m_Logger.Write("gen-dsp", LogNotice,
+            "gen-dsp Circle chain started: %uHz, %u frames/chunk, "
+            "USB output, %u nodes",
+            CIRCLE_SAMPLE_RATE, CIRCLE_CHUNK_SIZE, CHAIN_NODE_COUNT);
+
+        return TRUE;
+    }
+
+    void Run(void)
+    {
+        // Register MIDI handler and poll USB for MIDI CC control
+        CUSBMIDIDevice* pMIDI =
+            (CUSBMIDIDevice*)m_DeviceNameService.GetDevice("umidi1", FALSE);
+        if (pMIDI) {
+            pMIDI->RegisterPacketHandler(MIDIPacketHandler);
+            m_Logger.Write("gen-dsp", LogNotice, "USB MIDI device detected");
+        }
+
+        for (;;) {
+            if (!pMIDI) {
+                pMIDI = (CUSBMIDIDevice*)m_DeviceNameService.GetDevice("umidi1", FALSE);
+                if (pMIDI) {
+                    pMIDI->RegisterPacketHandler(MIDIPacketHandler);
+                    m_Logger.Write("gen-dsp", LogNotice, "USB MIDI device detected");
+                }
+            }
+        }
+    }
+
+private:
+    CActLED             m_ActLED;
+    CKernelOptions      m_Options;
+    CDeviceNameService  m_DeviceNameService;
+    CExceptionHandler   m_ExceptionHandler;
+    CInterruptSystem    m_Interrupt;
+    CTimer              m_Timer;
+    CLogger             m_Logger;
+    CUSBHCIDevice       m_USBHCI;
+    CGenDSPSoundDevice* m_pSound;
+};
+
+// ---------------------------------------------------------------------------
+// Entry point
+// ---------------------------------------------------------------------------
+
+int main(void)
+{
+    CKernel Kernel;
+
+    if (!Kernel.Initialize()) {
+        halt();
+        return EXIT_HALT;
+    }
+
+    Kernel.Run();
+
+    halt();
+    return EXIT_HALT;
+}

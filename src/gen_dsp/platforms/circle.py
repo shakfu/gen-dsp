@@ -30,7 +30,10 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from string import Template
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from gen_dsp.core.graph import GraphConfig, ResolvedChainNode
 
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest
@@ -423,6 +426,183 @@ def ensure_circle(circle_dir: Optional[Path] = None, verbose: bool = False) -> P
     return circle_dir
 
 
+# ---------------------------------------------------------------------------
+# Chain code generation helpers
+# ---------------------------------------------------------------------------
+
+
+def _build_chain_includes(chain: "list[ResolvedChainNode]") -> str:
+    """Build #include lines for per-node wrapper headers."""
+    lines = []
+    for node in chain:
+        lines.append(f'#include "_ext_circle_{node.index}.h"')
+    return "\n".join(lines)
+
+
+def _build_chain_io_defines(chain: "list[ResolvedChainNode]") -> str:
+    """Build per-node I/O count #defines."""
+    lines = []
+    for node in chain:
+        prefix = f"NODE_{node.index}"
+        lines.append(f"#define {prefix}_NUM_INPUTS  {node.manifest.num_inputs}")
+        lines.append(f"#define {prefix}_NUM_OUTPUTS {node.manifest.num_outputs}")
+    return "\n".join(lines)
+
+
+def _build_chain_create(chain: "list[ResolvedChainNode]") -> str:
+    """Build gen state creation calls for Initialize()."""
+    lines = []
+    for node in chain:
+        ns = f"{node.config.id}_circle"
+        lines.append(
+            f"        m_genState[{node.index}] = "
+            f"{ns}::wrapper_create((float)CIRCLE_SAMPLE_RATE, (long)CIRCLE_CHUNK_SIZE);"
+        )
+        lines.append(f"        if (!m_genState[{node.index}]) return FALSE;")
+    return "\n".join(lines)
+
+
+def _build_chain_destroy(chain: "list[ResolvedChainNode]") -> str:
+    """Build gen state destruction calls for destructor."""
+    lines = []
+    for node in chain:
+        ns = f"{node.config.id}_circle"
+        lines.append(f"        if (m_genState[{node.index}]) {{")
+        lines.append(f"            {ns}::wrapper_destroy(m_genState[{node.index}]);")
+        lines.append(f"            m_genState[{node.index}] = nullptr;")
+        lines.append("        }")
+    return "\n".join(lines)
+
+
+def _build_chain_set_param(chain: "list[ResolvedChainNode]") -> str:
+    """Build SetParam dispatch for per-node parameter setting."""
+    lines = []
+    for node in chain:
+        ns = f"{node.config.id}_circle"
+        lines.append(f"        if (nodeIndex == {node.index}) {{")
+        lines.append(
+            f"            {ns}::wrapper_set_param(m_genState[{node.index}], paramIndex, value);"
+        )
+        lines.append("        }")
+    return "\n".join(lines)
+
+
+def _build_chain_perform(chain: "list[ResolvedChainNode]", max_channels: int) -> str:
+    """Build the ping-pong perform block for GetChunk().
+
+    Node 0 reads from scratchA, writes to scratchB.
+    Node 1 reads from scratchB, writes to scratchA.
+    And so on, alternating.
+    """
+    lines = []
+    for node in chain:
+        idx = node.index
+        ns = f"{node.config.id}_circle"
+        n_in = node.manifest.num_inputs
+        n_out = node.manifest.num_outputs
+
+        if idx % 2 == 0:
+            in_buf = "m_pScratchA"
+            out_buf = "m_pScratchB"
+        else:
+            in_buf = "m_pScratchB"
+            out_buf = "m_pScratchA"
+
+        lines.append(f"        // Node {idx}: {node.config.id} ({n_in}in/{n_out}out)")
+        lines.append(f"        {ns}::wrapper_perform(")
+        lines.append(f"            m_genState[{idx}],")
+        if n_in > 0:
+            lines.append(f"            {in_buf}, {n_in},")
+        else:
+            lines.append("            nullptr, 0,")
+        lines.append(f"            {out_buf}, {n_out},")
+        lines.append("            (long)nFrames);")
+        lines.append("")
+    return "\n".join(lines)
+
+
+def _build_chain_midi_dispatch(
+    chain: "list[ResolvedChainNode]", graph: "GraphConfig"
+) -> str:
+    """Build MIDI CC dispatch code.
+
+    For each node, generates an if-block matching its MIDI channel.
+    Within that block, maps CC numbers to parameter indices.
+    If cc_map is explicit, use it. Otherwise, CC-by-param-index
+    (CC 0 -> param 0, CC 1 -> param 1, etc.).
+    """
+    lines = []
+    for node in chain:
+        midi_ch = node.config.midi_channel
+        if midi_ch is None:
+            midi_ch = node.index + 1
+        ns = f"{node.config.id}_circle"
+        n_params = node.manifest.num_params
+
+        lines.append(f"    // Node {node.index}: {node.config.id} (MIDI ch {midi_ch})")
+        lines.append(f"    if (channel == {midi_ch}) {{")
+
+        if node.config.cc_map:
+            # Explicit CC mapping
+            for cc_num, param_name in sorted(node.config.cc_map.items()):
+                # Find param index by name
+                param_idx = None
+                for p in node.manifest.params:
+                    if p.name == param_name:
+                        param_idx = p.index
+                        break
+                if param_idx is not None:
+                    lines.append(f"        if (cc == {cc_num}) {{")
+                    lines.append(
+                        f"            // {param_name}: scale normalized to [min, max]"
+                    )
+                    lines.append(
+                        f"            float min = {ns}::wrapper_param_min("
+                        f"s_pSoundDevice->m_genState[{node.index}], {param_idx});"
+                    )
+                    lines.append(
+                        f"            float max = {ns}::wrapper_param_max("
+                        f"s_pSoundDevice->m_genState[{node.index}], {param_idx});"
+                    )
+                    lines.append(
+                        f"            s_pSoundDevice->SetParam({node.index}, "
+                        f"{param_idx}, min + normalized * (max - min));"
+                    )
+                    lines.append("        }")
+        else:
+            # CC-by-param-index: CC N -> param N
+            if n_params > 0:
+                lines.append(f"        if (cc < {n_params}) {{")
+                lines.append(
+                    f"            s_pSoundDevice->SetParam({node.index}, "
+                    f"(int)cc, normalized);"
+                )
+                lines.append("        }")
+
+        lines.append("    }")
+    return "\n".join(lines)
+
+
+def _build_chain_per_node_flags(chain: "list[ResolvedChainNode]") -> str:
+    """Build per-node CPPFLAGS with include paths and defines."""
+    lines = []
+    for node in chain:
+        idx = node.index
+        gen_name = node.export_info.name
+        node_id = node.config.id
+        export_dir = f"gen_{node.config.export}"
+
+        lines.append(
+            f"_ext_circle_{idx}.o: CPPFLAGS += "
+            f"-I./{export_dir} -I./{export_dir}/gen_dsp "
+            f"-DCIRCLE_EXT_NAME={node_id} "
+            f"-DGEN_EXPORTED_NAME={gen_name} "
+            f'-DGEN_EXPORTED_HEADER=\\"{gen_name}.h\\" '
+            f'-DGEN_EXPORTED_CPP=\\"{gen_name}.cpp\\"'
+        )
+    return "\n".join(lines)
+
+
 class CirclePlatform(Platform):
     """Circle bare metal Raspberry Pi platform implementation using Make."""
 
@@ -651,3 +831,228 @@ class CirclePlatform(Platform):
         for candidate in project_dir.glob("kernel*.img"):
             return candidate
         return None
+
+    # ------------------------------------------------------------------
+    # Chain mode (multi-plugin serial chain)
+    # ------------------------------------------------------------------
+
+    def generate_chain_project(
+        self,
+        chain: "list[ResolvedChainNode]",
+        graph: "GraphConfig",
+        output_dir: Path,
+        lib_name: str,
+        config: Optional[ProjectConfig] = None,
+    ) -> None:
+        """Generate Circle chain project with multiple gen~ plugins.
+
+        Args:
+            chain: List of ResolvedChainNode (from graph.resolve_chain).
+            graph: The original GraphConfig (for MIDI mapping).
+            output_dir: Output directory.
+            lib_name: Project name.
+            config: Optional project config (for board selection).
+        """
+
+        templates_dir = get_circle_templates_dir()
+        if not templates_dir.is_dir():
+            raise ProjectError(f"Circle templates not found at {templates_dir}")
+
+        # Resolve board config
+        board_key = "pi3-i2s"
+        if config is not None and config.board is not None:
+            board_key = config.board
+        if board_key not in CIRCLE_BOARDS:
+            raise ProjectError(
+                f"Unknown Circle board '{board_key}'. "
+                f"Valid boards: {', '.join(sorted(CIRCLE_BOARDS))}"
+            )
+        board = CIRCLE_BOARDS[board_key]
+
+        # Copy static template files shared with chain mode
+        static_files = [
+            "gen_ext_common_circle.h",
+            "_ext_circle_impl.cpp",
+            "_ext_circle_impl.h",
+            "circle_buffer.h",
+            "genlib_circle.h",
+            "genlib_circle.cpp",
+            "cmath",
+        ]
+        for filename in static_files:
+            src = templates_dir / filename
+            if src.exists():
+                shutil.copy2(src, output_dir / filename)
+
+        # Compute chain metrics
+        max_channels = max(
+            max(n.manifest.num_inputs, n.manifest.num_outputs, 1) for n in chain
+        )
+
+        # Generate per-node wrapper shims
+        self._generate_per_node_wrappers(chain, output_dir)
+
+        # Generate gen_buffer.h (no buffers in chain Phase 1)
+        self.generate_buffer_header(
+            templates_dir / "gen_buffer.h.template",
+            output_dir / "gen_buffer.h",
+            [],
+            header_comment="Buffer configuration for gen_dsp Circle chain wrapper",
+        )
+
+        # Generate chain kernel (gen_ext_circle.cpp)
+        self._generate_chain_kernel(
+            templates_dir, output_dir, chain, graph, board, max_channels, lib_name
+        )
+
+        # Generate chain Makefile
+        default_circle_dir = str(_get_default_circle_dir())
+        self._generate_chain_makefile(
+            templates_dir, output_dir, chain, lib_name, default_circle_dir, board
+        )
+
+        # Generate config.txt
+        self._generate_config_txt(
+            templates_dir / "config.txt.template",
+            output_dir / "config.txt",
+            board,
+        )
+
+    def _generate_per_node_wrappers(
+        self,
+        chain: "list[ResolvedChainNode]",
+        output_dir: Path,
+    ) -> None:
+        """Generate thin _ext_circle_N.cpp/h shims for each chain node.
+
+        Each shim defines macros (CIRCLE_EXT_NAME, GEN_EXPORTED_NAME, etc.)
+        then #includes the shared _ext_circle_impl.cpp/h.
+        """
+        for node in chain:
+            idx = node.index
+            node_id = node.config.id
+            gen_name = node.export_info.name
+
+            # Generate _ext_circle_N.h
+            h_content = (
+                f"// _ext_circle_{idx}.h - Chain node {idx}: {node_id}\n"
+                f"// Auto-generated wrapper header for {gen_name}\n"
+                f"\n"
+                f"#undef CIRCLE_EXT_NAME\n"
+                f"#define CIRCLE_EXT_NAME {node_id}\n"
+                f"\n"
+                f'#include "_ext_circle_impl.h"\n'
+            )
+            (output_dir / f"_ext_circle_{idx}.h").write_text(
+                h_content, encoding="utf-8"
+            )
+
+            # Generate _ext_circle_N.cpp
+            cpp_content = (
+                f"// _ext_circle_{idx}.cpp - Chain node {idx}: {node_id}\n"
+                f"// Auto-generated wrapper for {gen_name}\n"
+                f"\n"
+                f"#undef CIRCLE_EXT_NAME\n"
+                f"#define CIRCLE_EXT_NAME {node_id}\n"
+                f"#undef GEN_EXPORTED_NAME\n"
+                f"#define GEN_EXPORTED_NAME {gen_name}\n"
+                f"#undef GEN_EXPORTED_HEADER\n"
+                f'#define GEN_EXPORTED_HEADER "{gen_name}.h"\n'
+                f"#undef GEN_EXPORTED_CPP\n"
+                f'#define GEN_EXPORTED_CPP "{gen_name}.cpp"\n'
+                f"\n"
+                f'#include "_ext_circle_impl.cpp"\n'
+            )
+            (output_dir / f"_ext_circle_{idx}.cpp").write_text(
+                cpp_content, encoding="utf-8"
+            )
+
+    def _generate_chain_kernel(
+        self,
+        templates_dir: Path,
+        output_dir: Path,
+        chain: "list[ResolvedChainNode]",
+        graph: "GraphConfig",
+        board: CircleBoardConfig,
+        max_channels: int,
+        lib_name: str,
+    ) -> None:
+        """Generate gen_ext_circle.cpp from chain template."""
+        if board.audio_device == "usb":
+            template_name = "gen_ext_circle_chain_usb.cpp.template"
+        else:
+            template_name = "gen_ext_circle_chain.cpp.template"
+
+        template_path = templates_dir / template_name
+        if not template_path.exists():
+            raise ProjectError(f"Chain template not found at {template_path}")
+
+        template_content = template_path.read_text(encoding="utf-8")
+        template = Template(template_content)
+
+        last_node = chain[-1]
+        # Determine which scratch buffer holds the final output
+        # Even-indexed nodes write to B, odd-indexed nodes write to A
+        if (len(chain) - 1) % 2 == 0:
+            final_output_ptr = "m_pScratchB"
+        else:
+            final_output_ptr = "m_pScratchA"
+
+        content = template.safe_substitute(
+            board_key=board.key,
+            rasppi=board.rasppi,
+            kernel_img=board.kernel_img,
+            num_nodes=len(chain),
+            max_channels=max_channels,
+            audio_include=_get_audio_include(board.audio_device),
+            audio_base_class=_get_audio_base_class(board.audio_device),
+            audio_label=_get_audio_label(board.audio_device),
+            chain_includes=_build_chain_includes(chain),
+            chain_io_defines=_build_chain_io_defines(chain),
+            chain_create_calls=_build_chain_create(chain),
+            chain_destroy_calls=_build_chain_destroy(chain),
+            chain_set_param_calls=_build_chain_set_param(chain),
+            chain_perform_block=_build_chain_perform(chain, max_channels),
+            chain_midi_dispatch=_build_chain_midi_dispatch(chain, graph),
+            chain_last_num_outputs=last_node.manifest.num_outputs,
+            chain_final_output_ptr=final_output_ptr,
+        )
+        (output_dir / "gen_ext_circle.cpp").write_text(content, encoding="utf-8")
+
+    def _generate_chain_makefile(
+        self,
+        templates_dir: Path,
+        output_dir: Path,
+        chain: "list[ResolvedChainNode]",
+        lib_name: str,
+        default_circle_dir: str,
+        board: CircleBoardConfig,
+    ) -> None:
+        """Generate Makefile from chain template."""
+        template_path = templates_dir / "Makefile_chain.template"
+        if not template_path.exists():
+            raise ProjectError(f"Chain Makefile template not found at {template_path}")
+
+        template_content = template_path.read_text(encoding="utf-8")
+        template = Template(template_content)
+
+        # Build per-node .o list
+        ext_objs = " ".join(f"_ext_circle_{n.index}.o" for n in chain)
+
+        # Extra libs: for chain mode, USB is always linked (for MIDI).
+        # But if audio is also USB, we don't duplicate.
+        extra_libs = _get_extra_libs(board.audio_device)
+
+        content = template.safe_substitute(
+            lib_name=lib_name,
+            genext_version=self.GENEXT_VERSION,
+            num_nodes=len(chain),
+            default_circle_dir=default_circle_dir,
+            rasppi=board.rasppi,
+            aarch=board.aarch,
+            prefix=board.prefix,
+            chain_ext_objs=ext_objs,
+            extra_libs=extra_libs,
+            chain_per_node_flags=_build_chain_per_node_flags(chain),
+        )
+        (output_dir / "Makefile").write_text(content, encoding="utf-8")

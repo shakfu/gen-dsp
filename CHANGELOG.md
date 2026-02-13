@@ -7,8 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.9]
+
+### Added
+
+- **Circle: multi-plugin serial chain mode** -- new `--graph` flag on `gen-dsp init` enables chaining multiple gen~ plugins in series on a single Circle bare-metal kernel image
+  - JSON graph file defines nodes (gen~ exports), connections (linear audio chain), and MIDI CC mapping
+  - Phase 1 supports linear chains only (no fan-out, fan-in, or cycles); non-linear graphs rejected with clear errors
+  - Compile-time graph: JSON consumed by Python at project-gen time, generates flat C code (no JSON parser on Pi)
+  - Per-node wrapper shims (`_ext_circle_N.cpp/h`) with `#define` macros before `#include`-ing shared `_ext_circle_impl.cpp/h` -- avoids fragile per-target Make variable assignment through Circle's Rules.mk
+  - Ping-pong scratch buffers for zero-copy inter-node audio routing
+  - USB MIDI CC parameter control at runtime: each node gets a MIDI channel (auto-assigned or explicit), with CC-by-param-index (default) or explicit CC-to-param-name mapping
+  - USB always linked in chain mode (even DMA audio boards need USB for MIDI)
+  - Channel mismatch handling: scratch buffers sized to max channel count across all nodes; zero-padding for missing channels
+  - All 14 board variants supported (I2S, PWM, HDMI, USB audio) with both DMA and USB audio chain templates
+  - No buffer support in chain Phase 1 (`WRAPPER_BUFFER_COUNT=0`)
+  - Example usage:
+    ```bash
+    gen-dsp init ./exports -n mychain -p circle --graph chain.json -o ./mychain
+    ```
+- **Graph data model** (`src/gen_dsp/core/graph.py`) -- pure data model for multi-plugin chain configurations
+  - `ChainNodeConfig`, `GraphConfig`, `ResolvedChainNode` dataclasses
+  - `parse_graph()`: JSON loading with validation (missing fields, bad types, invalid CC keys)
+  - `validate_linear_chain()`: rejects fan-out, fan-in, cycles, missing audio_in/audio_out, bad MIDI values, unconnected nodes, reserved name collisions
+  - `extract_chain_order()`: walks connections from audio_in to audio_out
+  - `resolve_chain()`: parses exports, builds manifests, assigns default MIDI channels
+- **CLI: `--graph` and `--export` flags** for `gen-dsp init`
+  - `--graph <path>`: JSON graph file for multi-plugin chain mode (Circle only in Phase 1)
+  - `--export <path>`: additional export path (repeatable) for explicit per-node export resolution
+
 ### Fixed
 
+- **CLI: `--board` flag accepted for Circle platform** -- previously `--board` was only valid for Daisy; now accepts both `daisy` and `circle` with updated help text listing Circle board variants
 - **AudioUnit: parameter default clamping** -- gen~ initial values that exceed the declared `[outputmin, outputmax]` range are now clamped before reporting to the host (e.g. gigaverb `revtime` init=11, max=1 now reports default=1.0 instead of 12.1). Matches the existing clamping in VST3 and CLAP backends.
 - **Manifest: parameter defaults from gen~ initial values** -- `parse_params_from_export()` now extracts actual default values from gen~ exports by parsing `pi->defaultvalue` member variable references and looking up their initialization in `reset()`. Previously all defaults were set to `outputmin`, causing incorrect metadata in LV2 TTL files and any backend consuming `manifest.params`. Defaults are clamped to `[min, max]` to handle gen~ values that exceed the declared range.
 

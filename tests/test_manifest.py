@@ -210,9 +210,9 @@ class TestParamParsing:
         assert by_name["damping"].default == 0.7
         assert by_name["dry"].default == 1.0
         assert by_name["early"].default == 0.25
-        assert by_name["revtime"].default == 1.0   # init=11, clamped to max=1
+        assert by_name["revtime"].default == 1.0  # init=11, clamped to max=1
         assert by_name["roomsize"].default == 75.0  # init=75, within [0.1, 300]
-        assert by_name["spread"].default == 23.0    # init=23, within [0, 100]
+        assert by_name["spread"].default == 23.0  # init=23, within [0, 100]
         assert by_name["tail"].default == 0.25
 
 

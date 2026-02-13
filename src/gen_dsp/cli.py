@@ -107,12 +107,27 @@ Examples:
     )
     init_parser.add_argument(
         "--board",
-        help="Daisy board variant: seed, pod, patch, patch_sm, field, petal, legio, versio (default: seed)",
+        help="Board variant for embedded platforms. "
+        "Daisy: seed, pod, patch, patch_sm, field, petal, legio, versio (default: seed). "
+        "Circle: pi3-i2s, pi4-usb, pi5-hdmi, etc. (default: pi3-i2s)",
     )
     init_parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Show what would be done without creating files",
+    )
+    init_parser.add_argument(
+        "--graph",
+        type=Path,
+        help="JSON graph file for multi-plugin chain mode (Circle only)",
+    )
+    init_parser.add_argument(
+        "--export",
+        type=Path,
+        action="append",
+        dest="exports",
+        help="Additional export path (can be repeated). "
+        "Use with --graph to specify explicit paths for chain nodes.",
     )
 
     # build command
@@ -217,6 +232,10 @@ Examples:
 
 def cmd_init(args: argparse.Namespace) -> int:
     """Handle the init command."""
+    # Branch to chain mode if --graph is provided
+    if args.graph:
+        return cmd_init_chain(args)
+
     export_path = args.export_path.resolve()
 
     # Parse the export
@@ -250,10 +269,10 @@ def cmd_init(args: argparse.Namespace) -> int:
         )
         return 1
 
-    # Reject --board on non-daisy platforms
-    if args.board and args.platform != "daisy":
+    # Reject --board on non-embedded platforms
+    if args.board and args.platform not in ("daisy", "circle"):
         print(
-            "Error: --board is only valid for daisy",
+            "Error: --board is only valid for daisy and circle",
             file=sys.stderr,
         )
         return 1
@@ -320,6 +339,140 @@ def cmd_init(args: argparse.Namespace) -> int:
                 print(f"  {instruction}")
     except GenExtError as e:
         print(f"Error creating project: {e}", file=sys.stderr)
+        return 1
+
+    return 0
+
+
+def cmd_init_chain(args: argparse.Namespace) -> int:
+    """Handle init command in chain mode (--graph provided)."""
+    from gen_dsp.core.graph import parse_graph, validate_linear_chain, resolve_chain
+    from gen_dsp.core.project import ProjectGenerator
+    from gen_dsp.platforms.circle import CirclePlatform
+
+    # Validate platform
+    if args.platform != "circle":
+        print(
+            "Error: --graph is currently only supported for the circle platform",
+            file=sys.stderr,
+        )
+        return 1
+
+    graph_path = args.graph.resolve()
+
+    # Parse graph
+    try:
+        graph = parse_graph(graph_path)
+    except GenExtError as e:
+        print(f"Error parsing graph: {e}", file=sys.stderr)
+        return 1
+
+    # Validate linear chain
+    errors = validate_linear_chain(graph)
+    if errors:
+        print("Graph validation errors:", file=sys.stderr)
+        for err in errors:
+            print(f"  - {err}", file=sys.stderr)
+        return 1
+
+    # Resolve export directories
+    # Base directory: the positional export_path arg
+    # Each node's 'export' field is resolved as a subdirectory
+    # --export flags provide explicit overrides
+    base_dir = args.export_path.resolve()
+    export_dirs: dict[str, Path] = {}
+
+    # First, try to resolve each node's export from the base directory
+    for node_id, node_config in graph.nodes.items():
+        candidate = base_dir / node_config.export / "gen"
+        if candidate.is_dir():
+            export_dirs[node_config.export] = candidate
+        else:
+            # Try without /gen suffix
+            candidate = base_dir / node_config.export
+            if candidate.is_dir():
+                export_dirs[node_config.export] = candidate
+
+    # Override with --export paths if provided
+    if args.exports:
+        for export_path in args.exports:
+            resolved = export_path.resolve()
+            # Use the directory name as the export key
+            export_dirs[resolved.name] = resolved
+
+    # Resolve chain
+    try:
+        chain = resolve_chain(graph, export_dirs, ProjectGenerator.GENEXT_VERSION)
+    except GenExtError as e:
+        print(f"Error resolving chain: {e}", file=sys.stderr)
+        return 1
+
+    # Determine output directory
+    output_dir = args.output if args.output else Path.cwd() / args.name
+    output_dir = Path(output_dir).resolve()
+
+    if args.dry_run:
+        print(f"Would create chain project at: {output_dir}")
+        print("  Platform: circle (chain mode)")
+        if args.board:
+            print(f"  Board: {args.board}")
+        print(f"  Nodes: {len(chain)}")
+        for node in chain:
+            print(
+                f"    [{node.index}] {node.config.id}: {node.config.export} "
+                f"({node.manifest.num_inputs}in/{node.manifest.num_outputs}out, "
+                f"{node.manifest.num_params} params, MIDI ch {node.config.midi_channel})"
+            )
+        return 0
+
+    # Generate chain project
+    try:
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        config = ProjectConfig(
+            name=args.name,
+            platform="circle",
+            buffers=[],
+            apply_patches=not args.no_patch,
+            output_dir=args.output,
+            board=args.board,
+        )
+
+        platform = CirclePlatform()
+        platform.generate_chain_project(chain, graph, output_dir, args.name, config)
+
+        # Copy each node's gen~ export to gen_<export_name>/ subdirectories
+        import shutil
+
+        for node in chain:
+            export_dest = output_dir / f"gen_{node.config.export}"
+            if export_dest.exists():
+                shutil.rmtree(export_dest)
+            shutil.copytree(node.export_info.path, export_dest)
+
+        # Apply patches if requested
+        if not args.no_patch:
+            from gen_dsp.core.patcher import Patcher
+
+            for node in chain:
+                export_dest = output_dir / f"gen_{node.config.export}"
+                patcher = Patcher(export_dest)
+                patcher.apply_all()
+
+        print(f"Chain project created at: {output_dir}")
+        print("  Platform: circle (chain mode)")
+        print(f"  Nodes: {len(chain)}")
+        for node in chain:
+            print(
+                f"    [{node.index}] {node.config.id}: {node.config.export} "
+                f"({node.manifest.num_inputs}in/{node.manifest.num_outputs}out)"
+            )
+        print()
+        print("Next steps:")
+        print(f"  cd {output_dir}")
+        print("  make")
+    except GenExtError as e:
+        print(f"Error creating chain project: {e}", file=sys.stderr)
         return 1
 
     return 0

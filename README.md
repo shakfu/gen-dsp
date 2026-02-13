@@ -64,7 +64,7 @@ Each platform has a detailed guide covering prerequisites, build details, SDK co
 
 - **Daisy support**: Generates Daisy Seed firmware (.bin) with custom genlib runtime (bump allocator for SRAM/SDRAM) -- first embedded/cross-compilation target, requires `arm-none-eabi-gcc`.
 
-- **Circle support**: Generates bare-metal Raspberry Pi kernel images (.img) for Pi Zero through Pi 5 using the [Circle](https://github.com/rsta2/circle) framework -- 14 board variants covering I2S, PWM, HDMI, and USB audio outputs.
+- **Circle support**: Generates bare-metal Raspberry Pi kernel images (.img) for Pi Zero through Pi 5 using the [Circle](https://github.com/rsta2/circle) framework -- 14 board variants covering I2S, PWM, HDMI, and USB audio outputs. Supports multi-plugin serial chain mode via `--graph` with USB MIDI CC parameter control.
 
 - **Platform-specific patches**: Automatically fixes compatibility issues like the `exp2f -> exp2` problem in Max 9 exports on macOS.
 
@@ -120,6 +120,9 @@ Options:
 - `-o, --output` - Output directory (default: `./<name>`)
 - `--buffers` - Explicit buffer names (overrides auto-detection)
 - `--shared-cache` - Use a shared OS cache for FetchContent downloads (clap, vst3, lv2, sc only)
+- `--board` - Board variant for embedded platforms (Daisy: `seed`, `pod`, etc.; Circle: `pi3-i2s`, `pi4-usb`, etc.)
+- `--graph` - JSON graph file for multi-plugin chain mode (Circle only; see [Chain Mode](#circle-chain-mode) below)
+- `--export` - Additional export path for chain node resolution (repeatable; use with `--graph`)
 - `--no-patch` - Skip automatic exp2f fix
 - `--dry-run` - Preview without creating files
 
@@ -324,6 +327,40 @@ Bare-metal kernel images for Raspberry Pi using the [Circle](https://github.com/
 | HDMI | `pi3-hdmi`, `pi4-hdmi`, `pi5-hdmi` |
 | USB (USB DAC) | `pi4-usb`, `pi5-usb` |
 
+### Circle Chain Mode
+
+Chain mode lets you run multiple gen~ plugins in series on a single Circle kernel image, with USB MIDI CC parameter control at runtime. Provide a JSON graph file via `--graph`:
+
+```bash
+gen-dsp init ./exports -n mychain -p circle --graph chain.json --board pi4-i2s -o ./mychain
+cd mychain && make
+# Output: kernel8-rpi4.img
+```
+
+The JSON graph defines nodes, their connections, and optional MIDI CC mappings:
+
+```json
+{
+  "nodes": {
+    "reverb": { "export": "gigaverb", "midi_channel": 1 },
+    "comp":   { "export": "compressor", "midi_channel": 2,
+                "cc": { "21": "threshold", "22": "ratio" } }
+  },
+  "connections": [
+    ["audio_in", "reverb"],
+    ["reverb",   "comp"],
+    ["comp",     "audio_out"]
+  ]
+}
+```
+
+- **`nodes`**: dict of `id -> config`. `export` is required (references a gen~ export directory name under the base `export_path`). `midi_channel` defaults to position + 1. `cc` is optional (default: CC-by-param-index, i.e. CC 0 = param 0).
+- **`connections`**: list of `[from, to]` pairs. `audio_in` and `audio_out` are reserved endpoints. Phase 1 supports linear chains only (no fan-out, fan-in, or cycles).
+
+The positional `export_path` argument is the base directory; each node's `export` field is resolved as a subdirectory (e.g. `./exports/gigaverb/gen/`). Use `--export /path/to/export` to provide explicit paths for individual nodes.
+
+At runtime, connect a USB MIDI controller. Each node listens on its assigned MIDI channel for CC messages. With the default CC-by-index mapping, CC 0 controls parameter 0, CC 1 controls parameter 1, etc. Explicit `cc` mappings let you assign specific CC numbers to named parameters.
+
 ## Shared FetchContent Cache
 
 CLAP, VST3, LV2, and SC backends use CMake FetchContent to download their SDKs/headers at configure time. By default each project downloads its own copy. Two opt-in mechanisms allow sharing a single download across projects:
@@ -368,7 +405,7 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 - SuperCollider: first CMake configure requires network access to fetch SC headers (~80MB tarball, cached afterward)
 - VCV Rack: first build requires network access to fetch Rack SDK (cached afterward); `RACK_DIR` env var can override auto-download; per-sample `perform(n=1)` has higher CPU overhead than block-based processing
 - Daisy: requires `arm-none-eabi-gcc` cross-compiler; first clone of libDaisy requires network access and `git`; v1 targets Daisy Seed only (no board-specific knob/CV mapping)
-- Circle: requires `aarch64-none-elf-gcc` (or `arm-none-eabi-gcc` for Pi Zero) cross-compiler; first clone of Circle SDK requires network access and `git`; output-only (no audio input capture); parameter control requires manual GPIO/ADC code in `gen_ext_circle.cpp`
+- Circle: requires `aarch64-none-elf-gcc` (or `arm-none-eabi-gcc` for Pi Zero) cross-compiler; first clone of Circle SDK requires network access and `git`; output-only (no audio input capture); single-plugin mode requires manual GPIO/ADC code for parameter control; chain mode (`--graph`) supports only linear chains (no fan-out/fan-in) and no buffers in Phase 1
 
 ## Requirements
 

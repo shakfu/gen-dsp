@@ -127,14 +127,10 @@ _PARAM_BLOCK_RE = re.compile(
 )
 
 # Regex to extract the member variable name from pi->defaultvalue = self->m_XXX;
-_DEFAULT_VAR_RE = re.compile(
-    r"pi->defaultvalue\s*=\s*self->(m_\w+)\s*;"
-)
+_DEFAULT_VAR_RE = re.compile(r"pi->defaultvalue\s*=\s*self->(m_\w+)\s*;")
 
 # Regex to extract initial values from reset(): m_XXX = ((int|t_sample)VALUE);
-_MEMBER_INIT_RE = re.compile(
-    r"(m_\w+)\s*=\s*\(\((?:int|t_sample)\)([\d.eE+\-]+)\)\s*;"
-)
+_MEMBER_INIT_RE = re.compile(r"(m_\w+)\s*=\s*\(\((?:int|t_sample)\)([\d.eE+\-]+)\)\s*;")
 
 
 def _parse_member_init_values(content: str) -> dict[str, float]:
@@ -157,7 +153,11 @@ def _parse_default_var_for_param(content: str, param_block_start: int) -> str | 
     """
     # Search from the param block start to the next block or end
     next_block = content.find("pi = self->__commonstate.params", param_block_start + 1)
-    region = content[param_block_start:next_block] if next_block != -1 else content[param_block_start:]
+    region = (
+        content[param_block_start:next_block]
+        if next_block != -1
+        else content[param_block_start:]
+    )
     m = _DEFAULT_VAR_RE.search(region)
     return m.group(1) if m else None
 
