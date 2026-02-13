@@ -476,7 +476,12 @@ static OSStatus AUGenGetProperty(void* self,
             if (plug->genState && wrapper_param_hasminmax(plug->genState, (int)elem)) {
                 info->minValue     = wrapper_param_min(plug->genState, (int)elem);
                 info->maxValue     = wrapper_param_max(plug->genState, (int)elem);
-                info->defaultValue = wrapper_get_param(plug->genState, (int)elem);
+                float pdefault     = wrapper_get_param(plug->genState, (int)elem);
+                // Clamp default to [min, max] -- gen~ initial values may exceed
+                // the declared range (e.g. gigaverb revtime init=11, max=1)
+                if (pdefault < info->minValue) pdefault = info->minValue;
+                if (pdefault > info->maxValue) pdefault = info->maxValue;
+                info->defaultValue = pdefault;
             } else {
                 info->minValue     = 0.0f;
                 info->maxValue     = 1.0f;

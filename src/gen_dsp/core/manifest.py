@@ -108,6 +108,7 @@ class Manifest:
 # Matches the structured block:
 #   pi = self->__commonstate.params + <index>;
 #   pi->name = "<name>";
+#   pi->defaultvalue = self->m_<varname>;
 #   ...
 #   pi->hasminmax = true|false;
 #   pi->outputmin = <float>;
@@ -125,6 +126,41 @@ _PARAM_BLOCK_RE = re.compile(
     re.DOTALL,
 )
 
+# Regex to extract the member variable name from pi->defaultvalue = self->m_XXX;
+_DEFAULT_VAR_RE = re.compile(
+    r"pi->defaultvalue\s*=\s*self->(m_\w+)\s*;"
+)
+
+# Regex to extract initial values from reset(): m_XXX = ((int|t_sample)VALUE);
+_MEMBER_INIT_RE = re.compile(
+    r"(m_\w+)\s*=\s*\(\((?:int|t_sample)\)([\d.eE+\-]+)\)\s*;"
+)
+
+
+def _parse_member_init_values(content: str) -> dict[str, float]:
+    """Parse initial member values from the reset() function.
+
+    Extracts assignments like: m_bandwidth_21 = ((t_sample)0.5);
+    Returns a dict mapping member name to numeric value.
+    """
+    values: dict[str, float] = {}
+    for m in _MEMBER_INIT_RE.finditer(content):
+        values[m.group(1)] = float(m.group(2))
+    return values
+
+
+def _parse_default_var_for_param(content: str, param_block_start: int) -> str | None:
+    """Find the pi->defaultvalue member variable name near a param block.
+
+    Searches forward from param_block_start for the defaultvalue assignment
+    within the same parameter block (before the next 'pi = ' assignment).
+    """
+    # Search from the param block start to the next block or end
+    next_block = content.find("pi = self->__commonstate.params", param_block_start + 1)
+    region = content[param_block_start:next_block] if next_block != -1 else content[param_block_start:]
+    m = _DEFAULT_VAR_RE.search(region)
+    return m.group(1) if m else None
+
 
 def parse_params_from_export(export_info: ExportInfo) -> list[ParamInfo]:
     """Parse parameter metadata from a gen~ export's .cpp file.
@@ -135,17 +171,31 @@ def parse_params_from_export(export_info: ExportInfo) -> list[ParamInfo]:
         return []
 
     content = export_info.cpp_path.read_text(encoding="utf-8")
+
+    # Build lookup of member variable initial values from reset()
+    member_values = _parse_member_init_values(content)
+
     params = []
     for m in _PARAM_BLOCK_RE.finditer(content):
         output_min = float(m.group(4))
+        output_max = float(m.group(5))
+
+        # Try to extract the actual default value from pi->defaultvalue
+        default = output_min  # fallback
+        var_name = _parse_default_var_for_param(content, m.start())
+        if var_name and var_name in member_values:
+            raw_default = member_values[var_name]
+            # Clamp to declared range -- gen~ initial values may exceed it
+            default = max(output_min, min(output_max, raw_default))
+
         params.append(
             ParamInfo(
                 index=int(m.group(1)),
                 name=m.group(2),
                 has_minmax=(m.group(3) == "true"),
                 min=output_min,
-                max=float(m.group(5)),
-                default=output_min,
+                max=output_max,
+                default=default,
             )
         )
     params.sort(key=lambda p: p.index)

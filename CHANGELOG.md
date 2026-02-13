@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **AudioUnit: parameter default clamping** -- gen~ initial values that exceed the declared `[outputmin, outputmax]` range are now clamped before reporting to the host (e.g. gigaverb `revtime` init=11, max=1 now reports default=1.0 instead of 12.1). Matches the existing clamping in VST3 and CLAP backends.
+- **Manifest: parameter defaults from gen~ initial values** -- `parse_params_from_export()` now extracts actual default values from gen~ exports by parsing `pi->defaultvalue` member variable references and looking up their initialization in `reset()`. Previously all defaults were set to `outputmin`, causing incorrect metadata in LV2 TTL files and any backend consuming `manifest.params`. Defaults are clamped to `[min, max]` to handle gen~ values that exceed the declared range.
+
 ## [0.1.8]
 
 ### Added

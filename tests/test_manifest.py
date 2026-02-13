@@ -183,15 +183,37 @@ class TestParamParsing:
         for p in params:
             assert p.name.isidentifier(), f"{p.name} is not a valid identifier"
 
-    def test_default_equals_min(self, gigaverb_export: Path):
-        """Test that default equals min for gen~ exports."""
+    def test_defaults_clamped_to_range(self, gigaverb_export: Path):
+        """Test that defaults are clamped to [min, max] range."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
 
         params = parse_params_from_export(export_info)
 
         for p in params:
-            assert p.default == p.min
+            assert p.min <= p.default <= p.max, (
+                f"{p.name}: default {p.default} outside [{p.min}, {p.max}]"
+            )
+
+    def test_defaults_from_gen_export(self, gigaverb_export: Path):
+        """Test that defaults reflect actual gen~ initial values."""
+        parser = GenExportParser(gigaverb_export)
+        export_info = parser.parse()
+
+        params = parse_params_from_export(export_info)
+        by_name = {p.name: p for p in params}
+
+        # Known gigaverb initial values (from reset() in gen_exported.cpp)
+        # Values that exceed range are clamped: revtime init=11 -> max=1,
+        # roomsize init=75 -> max=300, spread init=23 -> max=100
+        assert by_name["bandwidth"].default == 0.5
+        assert by_name["damping"].default == 0.7
+        assert by_name["dry"].default == 1.0
+        assert by_name["early"].default == 0.25
+        assert by_name["revtime"].default == 1.0   # init=11, clamped to max=1
+        assert by_name["roomsize"].default == 75.0  # init=75, within [0.1, 300]
+        assert by_name["spread"].default == 23.0    # init=23, within [0, 100]
+        assert by_name["tail"].default == 0.25
 
 
 class TestManifestFromExportInfo:
