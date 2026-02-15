@@ -1,0 +1,278 @@
+// gen_ext_circle_dag.cpp - Circle bare metal DAG wrapper for gen~ exports
+// Board: $board_key (Raspberry Pi $rasppi)
+// Audio: $audio_label output (DMA)
+// Output: $kernel_img
+// DAG: $num_nodes nodes, $num_buffers intermediate buffers
+// This file includes ONLY Circle headers - genlib is isolated in _ext_circle_N.cpp
+
+#include <circle/actled.h>
+#include <circle/koptions.h>
+#include <circle/devicenameservice.h>
+#include <circle/exceptionhandler.h>
+#include <circle/interrupt.h>
+#include <circle/logger.h>
+#include <circle/startup.h>
+#include <circle/timer.h>
+#include <circle/types.h>
+$audio_include
+#include <circle/usb/usbhcidevice.h>
+#include <circle/usb/usbmididevice.h>
+
+#include "genlib_circle.h"
+
+// Per-node wrapper headers (gen~ nodes only)
+$dag_includes
+
+// ---------------------------------------------------------------------------
+// Configuration
+// ---------------------------------------------------------------------------
+
+#define CIRCLE_SAMPLE_RATE     48000
+#define CIRCLE_CHUNK_SIZE      256
+#define CIRCLE_AUDIO_CHANNELS  2
+
+#define DAG_NODE_COUNT         $num_nodes
+
+// Per-node I/O counts (gen~ nodes only)
+$dag_io_defines
+
+// ---------------------------------------------------------------------------
+// Buffer declarations
+// ---------------------------------------------------------------------------
+
+$dag_buffer_decls
+
+// ---------------------------------------------------------------------------
+// CGenDSPSoundDevice - $audio_label sound device with DAG DSP processing
+// ---------------------------------------------------------------------------
+
+class CGenDSPSoundDevice : public $audio_base_class
+{
+public:
+    CGenDSPSoundDevice(CInterruptSystem* pInterrupt)
+        : $audio_base_class(pInterrupt, CIRCLE_SAMPLE_RATE, CIRCLE_CHUNK_SIZE)
+    {
+        for (int i = 0; i < DAG_NODE_COUNT; i++) {
+            m_genState[i] = nullptr;
+        }
+
+        // Initialize hardware input buffer pointers
+        for (int ch = 0; ch < CIRCLE_AUDIO_CHANNELS; ch++) {
+            m_pHwInput[ch] = m_HwInputStorage[ch];
+        }
+
+        // Initialize DAG buffer pointer arrays
+$dag_buffer_init
+    }
+
+    ~CGenDSPSoundDevice(void)
+    {
+$dag_destroy_calls
+    }
+
+    boolean Initialize(void)
+    {
+$dag_create_calls
+
+        return Start();
+    }
+
+    // Set parameter on a specific DAG node
+    void SetParam(int nodeIndex, int paramIndex, float value)
+    {
+$dag_set_param_calls
+    }
+
+protected:
+    unsigned GetChunk(u32* pBuffer, unsigned nChunkSize) override
+    {
+        unsigned nFrames = nChunkSize / CIRCLE_AUDIO_CHANNELS;
+
+        // Clear hardware input buffer (will be zero for generators)
+        for (int ch = 0; ch < CIRCLE_AUDIO_CHANNELS; ch++) {
+            for (unsigned i = 0; i < nFrames; i++) {
+                m_HwInputStorage[ch][i] = 0.0f;
+            }
+        }
+
+        // Clear all intermediate buffers
+        for (unsigned i = 0; i < nFrames; i++) {
+$dag_clear_buffers
+        }
+
+        // DAG processing in topological order
+$dag_perform_block
+
+        // Convert final output to device-native format
+        int nRangeMin = GetRangeMin();
+        int nRangeMax = GetRangeMax();
+
+        for (unsigned i = 0; i < nFrames; i++) {
+            for (int ch = 0; ch < CIRCLE_AUDIO_CHANNELS; ch++) {
+                float sample = 0.0f;
+                if (ch < $dag_last_num_outputs) {
+                    sample = $dag_final_output_ptr[ch][i];
+                }
+
+                if (sample > 1.0f) sample = 1.0f;
+                if (sample < -1.0f) sample = -1.0f;
+
+                int nSample = (int)((sample + 1.0f) / 2.0f
+                    * (nRangeMax - nRangeMin) + nRangeMin);
+                pBuffer[i * CIRCLE_AUDIO_CHANNELS + ch] = (u32)nSample;
+            }
+        }
+
+        return nChunkSize;
+    }
+
+private:
+    GenState* m_genState[DAG_NODE_COUNT];
+
+    // Hardware input buffer (stereo)
+    float m_HwInputStorage[CIRCLE_AUDIO_CHANNELS][CIRCLE_CHUNK_SIZE];
+    float* m_pHwInput[CIRCLE_AUDIO_CHANNELS];
+
+    // Mixer gain parameters
+$dag_mixer_gain_decls
+};
+
+// ---------------------------------------------------------------------------
+// MIDI CC dispatch
+// ---------------------------------------------------------------------------
+
+static CGenDSPSoundDevice* s_pSoundDevice = nullptr;
+
+static void MIDIPacketHandler(unsigned nCable, u8* pPacket, unsigned nLength)
+{
+    if (nLength < 3) return;
+
+    u8 status = pPacket[0];
+    u8 type = status & 0xF0;
+    u8 channel = (status & 0x0F) + 1;  // MIDI channels are 1-based
+
+    // Only handle CC messages (0xB0)
+    if (type != 0xB0) return;
+
+    u8 cc = pPacket[1];
+    u8 value = pPacket[2];
+    float normalized = (float)value / 127.0f;
+
+    if (!s_pSoundDevice) return;
+
+$dag_midi_dispatch
+}
+
+// ---------------------------------------------------------------------------
+// CKernel - Main application kernel (DAG mode with USB MIDI)
+// ---------------------------------------------------------------------------
+
+class CKernel
+{
+public:
+    CKernel(void)
+        : m_Timer(&m_Interrupt),
+          m_Logger(m_Options.GetLogLevel(), &m_Timer),
+          m_USBHCI(&m_Interrupt, &m_Timer, TRUE),
+          m_pSound(nullptr)
+    {
+    }
+
+    ~CKernel(void)
+    {
+        delete m_pSound;
+    }
+
+    boolean Initialize(void)
+    {
+        if (!m_Interrupt.Initialize()) {
+            return FALSE;
+        }
+
+        if (!m_Timer.Initialize()) {
+            return FALSE;
+        }
+
+        if (!m_Logger.Initialize(nullptr)) {
+            return FALSE;
+        }
+
+        // Initialize USB host controller (needed for MIDI even on DMA audio)
+        if (!m_USBHCI.Initialize()) {
+            m_Logger.Write("gen-dsp", LogError, "Failed to initialize USB host controller");
+            return FALSE;
+        }
+
+        // Initialize genlib memory pool
+        circle_init_memory();
+
+        // Create and initialize sound device
+        m_pSound = new CGenDSPSoundDevice(&m_Interrupt);
+        s_pSoundDevice = m_pSound;
+
+        if (!m_pSound->Initialize()) {
+            m_Logger.Write("gen-dsp", LogError,
+                "Failed to initialize $audio_label sound device");
+            return FALSE;
+        }
+
+        m_Logger.Write("gen-dsp", LogNotice,
+            "gen-dsp Circle DAG started: %uHz, %u frames/chunk, "
+            "$audio_label output, %u nodes",
+            CIRCLE_SAMPLE_RATE, CIRCLE_CHUNK_SIZE, DAG_NODE_COUNT);
+
+        return TRUE;
+    }
+
+    void Run(void)
+    {
+        // Register MIDI handler and poll USB for MIDI CC control
+        CUSBMIDIDevice* pMIDI =
+            (CUSBMIDIDevice*)m_DeviceNameService.GetDevice("umidi1", FALSE);
+        if (pMIDI) {
+            pMIDI->RegisterPacketHandler(MIDIPacketHandler);
+            m_Logger.Write("gen-dsp", LogNotice, "USB MIDI device detected");
+        }
+
+        for (;;) {
+            // Poll for newly connected USB MIDI devices
+            if (!pMIDI) {
+                pMIDI = (CUSBMIDIDevice*)m_DeviceNameService.GetDevice("umidi1", FALSE);
+                if (pMIDI) {
+                    pMIDI->RegisterPacketHandler(MIDIPacketHandler);
+                    m_Logger.Write("gen-dsp", LogNotice, "USB MIDI device detected");
+                }
+            }
+        }
+    }
+
+private:
+    CActLED             m_ActLED;
+    CKernelOptions      m_Options;
+    CDeviceNameService  m_DeviceNameService;
+    CExceptionHandler   m_ExceptionHandler;
+    CInterruptSystem    m_Interrupt;
+    CTimer              m_Timer;
+    CLogger             m_Logger;
+    CUSBHCIDevice       m_USBHCI;
+    CGenDSPSoundDevice* m_pSound;
+};
+
+// ---------------------------------------------------------------------------
+// Entry point
+// ---------------------------------------------------------------------------
+
+int main(void)
+{
+    CKernel Kernel;
+
+    if (!Kernel.Initialize()) {
+        halt();
+        return EXIT_HALT;
+    }
+
+    Kernel.Run();
+
+    halt();
+    return EXIT_HALT;
+}

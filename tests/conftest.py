@@ -1,5 +1,6 @@
 """Pytest configuration and fixtures for gen_dsp tests."""
 
+import shutil
 from pathlib import Path
 
 import pytest
@@ -49,7 +50,12 @@ def fetchcontent_cache() -> Path:
     """Fixed-path FetchContent cache shared across all build tests.
 
     Persists across pytest sessions so large SDKs (e.g. VST3 ~50 MB)
-    are only downloaded once.
+    are only downloaded once.  Build/subbuild directories are cleared
+    each session to avoid stale absolute paths from previous pytest
+    temp directories baked into CMake state.
     """
     _FETCHCONTENT_CACHE.mkdir(parents=True, exist_ok=True)
+    for d in _FETCHCONTENT_CACHE.iterdir():
+        if d.is_dir() and (d.name.endswith("-build") or d.name.endswith("-subbuild")):
+            shutil.rmtree(d, ignore_errors=True)
     return _FETCHCONTENT_CACHE

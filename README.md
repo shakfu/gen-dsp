@@ -64,7 +64,7 @@ Each platform has a detailed guide covering prerequisites, build details, SDK co
 
 - **Daisy support**: Generates Daisy Seed firmware (.bin) with custom genlib runtime (bump allocator for SRAM/SDRAM) -- first embedded/cross-compilation target, requires `arm-none-eabi-gcc`.
 
-- **Circle support**: Generates bare-metal Raspberry Pi kernel images (.img) for Pi Zero through Pi 5 using the [Circle](https://github.com/rsta2/circle) framework -- 14 board variants covering I2S, PWM, HDMI, and USB audio outputs. Supports multi-plugin serial chain mode via `--graph` with USB MIDI CC parameter control.
+- **Circle support**: Generates bare-metal Raspberry Pi kernel images (.img) for Pi Zero through Pi 5 using the [Circle](https://github.com/rsta2/circle) framework -- 14 board variants covering I2S, PWM, HDMI, and USB audio outputs. Supports multi-plugin mode via `--graph` with USB MIDI CC parameter control: linear chains use an optimized ping-pong buffer codegen path, while arbitrary DAGs (fan-out, fan-in via mixer nodes) use topological sort with per-edge buffer allocation.
 
 - **Platform-specific patches**: Automatically fixes compatibility issues like the `exp2f -> exp2` problem in Max 9 exports on macOS.
 
@@ -327,9 +327,9 @@ Bare-metal kernel images for Raspberry Pi using the [Circle](https://github.com/
 | HDMI | `pi3-hdmi`, `pi4-hdmi`, `pi5-hdmi` |
 | USB (USB DAC) | `pi4-usb`, `pi5-usb` |
 
-### Circle Chain Mode
+### Circle Multi-Plugin Mode
 
-Chain mode lets you run multiple gen~ plugins in series on a single Circle kernel image, with USB MIDI CC parameter control at runtime. Provide a JSON graph file via `--graph`:
+Multi-plugin mode lets you run multiple gen~ plugins on a single Circle kernel image, with USB MIDI CC parameter control at runtime. Provide a JSON graph file via `--graph`:
 
 ```bash
 gen-dsp init ./exports -n mychain -p circle --graph chain.json --board pi4-i2s -o ./mychain
@@ -337,7 +337,9 @@ cd mychain && make
 # Output: kernel8-rpi4.img
 ```
 
-The JSON graph defines nodes, their connections, and optional MIDI CC mappings:
+#### Linear chain (auto-detected)
+
+When connections form a simple series, gen-dsp uses an optimized ping-pong buffer codegen path:
 
 ```json
 {
@@ -354,8 +356,33 @@ The JSON graph defines nodes, their connections, and optional MIDI CC mappings:
 }
 ```
 
-- **`nodes`**: dict of `id -> config`. `export` is required (references a gen~ export directory name under the base `export_path`). `midi_channel` defaults to position + 1. `cc` is optional (default: CC-by-param-index, i.e. CC 0 = param 0).
-- **`connections`**: list of `[from, to]` pairs. `audio_in` and `audio_out` are reserved endpoints. Phase 1 supports linear chains only (no fan-out, fan-in, or cycles).
+#### DAG with fan-out and mixer
+
+For non-linear topologies, use fan-out (one output feeding multiple nodes) and built-in mixer nodes for fan-in:
+
+```json
+{
+  "nodes": {
+    "reverb":  { "export": "gigaverb" },
+    "delay":   { "export": "spectraldelayfb" },
+    "mix":     { "type": "mixer", "inputs": 2 }
+  },
+  "connections": [
+    ["audio_in", "reverb"],
+    ["audio_in", "delay"],
+    ["reverb",   "mix:0"],
+    ["delay",    "mix:1"],
+    ["mix",      "audio_out"]
+  ]
+}
+```
+
+Mixer nodes combine inputs via weighted sum with per-input gain parameters (default 1.0, range 0.0-2.0), controllable via MIDI CC like any other parameter. The `"mix:0"` syntax routes to a specific mixer input index.
+
+#### Graph reference
+
+- **`nodes`**: dict of `id -> config`. Gen~ nodes require `"export"` (references a gen~ export directory name under the base `export_path`). Mixer nodes require `"type": "mixer"` and `"inputs"` count. `midi_channel` defaults to position + 1. `cc` is optional (default: CC-by-param-index).
+- **`connections`**: list of `[from, to]` pairs. `audio_in` and `audio_out` are reserved endpoints. Use `"node:N"` to target a specific input index on mixer nodes.
 
 The positional `export_path` argument is the base directory; each node's `export` field is resolved as a subdirectory (e.g. `./exports/gigaverb/gen/`). Use `--export /path/to/export` to provide explicit paths for individual nodes.
 
@@ -405,7 +432,7 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 - SuperCollider: first CMake configure requires network access to fetch SC headers (~80MB tarball, cached afterward)
 - VCV Rack: first build requires network access to fetch Rack SDK (cached afterward); `RACK_DIR` env var can override auto-download; per-sample `perform(n=1)` has higher CPU overhead than block-based processing
 - Daisy: requires `arm-none-eabi-gcc` cross-compiler; first clone of libDaisy requires network access and `git`; v1 targets Daisy Seed only (no board-specific knob/CV mapping)
-- Circle: requires `aarch64-none-elf-gcc` (or `arm-none-eabi-gcc` for Pi Zero) cross-compiler; first clone of Circle SDK requires network access and `git`; output-only (no audio input capture); single-plugin mode requires manual GPIO/ADC code for parameter control; chain mode (`--graph`) supports only linear chains (no fan-out/fan-in) and no buffers in Phase 1
+- Circle: requires `aarch64-none-elf-gcc` (or `arm-none-eabi-gcc` for Pi Zero) cross-compiler; first clone of Circle SDK requires network access and `git`; output-only (no audio input capture); single-plugin mode requires manual GPIO/ADC code for parameter control; multi-plugin mode (`--graph`) supports linear chains and arbitrary DAGs (fan-out, fan-in via mixer nodes) but no buffers
 
 ## Requirements
 

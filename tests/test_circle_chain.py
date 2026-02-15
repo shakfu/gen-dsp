@@ -7,6 +7,7 @@ import pytest
 
 from gen_dsp.core.graph import (
     ChainNodeConfig,
+    Connection,
     GraphConfig,
     ResolvedChainNode,
     parse_graph,
@@ -106,9 +107,9 @@ def _two_node_graph() -> GraphConfig:
             ),
         },
         connections=[
-            ("audio_in", "reverb"),
-            ("reverb", "delay"),
-            ("delay", "audio_out"),
+            Connection("audio_in", "reverb"),
+            Connection("reverb", "delay"),
+            Connection("delay", "audio_out"),
         ],
     )
 
@@ -242,7 +243,10 @@ class TestCircleChainCodeGenerationHelpers:
                     cc_map={21: "revtime", 22: "damping"},
                 ),
             },
-            connections=[("audio_in", "reverb"), ("reverb", "audio_out")],
+            connections=[
+                Connection("audio_in", "reverb"),
+                Connection("reverb", "audio_out"),
+            ],
         )
         result = _build_chain_midi_dispatch(chain, graph)
 

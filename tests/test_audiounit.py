@@ -49,21 +49,32 @@ def _validate_au(component_path: Path, lib_name: str) -> None:
             shutil.rmtree(dest)
         shutil.copytree(component_path, dest)
 
-        # Re-sign in place and give CoreAudio time to discover the component
-        subprocess.run(
+        # Re-sign in place so CoreAudio accepts the bundle
+        sign_result = subprocess.run(
             ["codesign", "-f", "-s", "-", str(dest)],
             capture_output=True,
+            text=True,
             timeout=10,
         )
-        time.sleep(8)
-
-        result = subprocess.run(
-            ["auval", "-v", "aufx", subtype, "Gdsp"],
-            capture_output=True,
-            text=True,
-            timeout=120,
+        assert sign_result.returncode == 0, (
+            f"codesign failed:\nstdout: {sign_result.stdout}\nstderr: {sign_result.stderr}"
         )
-        assert result.returncode == 0, (
+
+        # Give CoreAudio time to discover the component.  Retry once with
+        # a longer sleep if the first attempt fails -- under heavy load the
+        # initial scan can take longer than 10 seconds.
+        result = None
+        for wait in (10, 15):
+            time.sleep(wait)
+            result = subprocess.run(
+                ["auval", "-v", "aufx", subtype, "Gdsp"],
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            if result.returncode == 0:
+                break
+        assert result is not None and result.returncode == 0, (
             f"auval validation failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
         )
     finally:

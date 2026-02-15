@@ -12,9 +12,12 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from gen_dsp import __version__
+
+if TYPE_CHECKING:
+    from gen_dsp.core.graph import GraphConfig, ResolvedChainNode
 from gen_dsp.core.parser import GenExportParser
 from gen_dsp.core.project import ProjectGenerator, ProjectConfig
 from gen_dsp.core.patcher import Patcher
@@ -344,11 +347,46 @@ def cmd_init(args: argparse.Namespace) -> int:
     return 0
 
 
+def _resolve_export_dirs(
+    args: argparse.Namespace, graph: "GraphConfig"
+) -> dict[str, Path]:
+    """Resolve export directories from base path and --export overrides.
+
+    For gen~ nodes only (mixer nodes have no export).
+    """
+    base_dir = args.export_path.resolve()
+    export_dirs: dict[str, Path] = {}
+
+    for _node_id, node_config in graph.nodes.items():
+        if node_config.export is None:
+            continue  # mixer nodes have no export
+        candidate = base_dir / node_config.export / "gen"
+        if candidate.is_dir():
+            export_dirs[node_config.export] = candidate
+        else:
+            candidate = base_dir / node_config.export
+            if candidate.is_dir():
+                export_dirs[node_config.export] = candidate
+
+    if args.exports:
+        for export_path in args.exports:
+            resolved = export_path.resolve()
+            export_dirs[resolved.name] = resolved
+
+    return export_dirs
+
+
 def cmd_init_chain(args: argparse.Namespace) -> int:
-    """Handle init command in chain mode (--graph provided)."""
-    from gen_dsp.core.graph import parse_graph, validate_linear_chain, resolve_chain
-    from gen_dsp.core.project import ProjectGenerator
-    from gen_dsp.platforms.circle import CirclePlatform
+    """Handle init command in chain mode (--graph provided).
+
+    Tries Phase 1 (linear chain) first. If the graph is non-linear,
+    falls through to Phase 2 (DAG) path.
+    """
+    from gen_dsp.core.graph import (
+        parse_graph,
+        validate_linear_chain,
+        validate_dag,
+    )
 
     # Validate platform
     if args.platform != "circle":
@@ -367,49 +405,62 @@ def cmd_init_chain(args: argparse.Namespace) -> int:
         print(f"Error parsing graph: {e}", file=sys.stderr)
         return 1
 
-    # Validate linear chain
-    errors = validate_linear_chain(graph)
-    if errors:
-        print("Graph validation errors:", file=sys.stderr)
-        for err in errors:
-            print(f"  - {err}", file=sys.stderr)
-        return 1
+    # Try linear chain validation first (Phase 1)
+    linear_errors = validate_linear_chain(graph)
+    is_linear = len(linear_errors) == 0
+
+    if not is_linear:
+        # Try DAG validation (Phase 2)
+        dag_errors = validate_dag(graph)
+        if dag_errors:
+            print("Graph validation errors:", file=sys.stderr)
+            for err in dag_errors:
+                print(f"  - {err}", file=sys.stderr)
+            return 1
 
     # Resolve export directories
-    # Base directory: the positional export_path arg
-    # Each node's 'export' field is resolved as a subdirectory
-    # --export flags provide explicit overrides
-    base_dir = args.export_path.resolve()
-    export_dirs: dict[str, Path] = {}
+    export_dirs = _resolve_export_dirs(args, graph)
 
-    # First, try to resolve each node's export from the base directory
-    for node_id, node_config in graph.nodes.items():
-        candidate = base_dir / node_config.export / "gen"
-        if candidate.is_dir():
-            export_dirs[node_config.export] = candidate
-        else:
-            # Try without /gen suffix
-            candidate = base_dir / node_config.export
-            if candidate.is_dir():
-                export_dirs[node_config.export] = candidate
+    # Determine output directory
+    output_dir = args.output if args.output else Path.cwd() / args.name
+    output_dir = Path(output_dir).resolve()
 
-    # Override with --export paths if provided
-    if args.exports:
-        for export_path in args.exports:
-            resolved = export_path.resolve()
-            # Use the directory name as the export key
-            export_dirs[resolved.name] = resolved
+    config = ProjectConfig(
+        name=args.name,
+        platform="circle",
+        buffers=[],
+        apply_patches=not args.no_patch,
+        output_dir=args.output,
+        board=args.board,
+    )
 
-    # Resolve chain
+    if is_linear:
+        return _init_chain_linear(
+            args, graph, export_dirs, output_dir, config
+        )
+    else:
+        return _init_chain_dag(
+            args, graph, export_dirs, output_dir, config
+        )
+
+
+def _init_chain_linear(
+    args: argparse.Namespace,
+    graph: "GraphConfig",
+    export_dirs: dict[str, Path],
+    output_dir: Path,
+    config: "ProjectConfig",
+) -> int:
+    """Generate a linear chain project (Phase 1 path)."""
+    from gen_dsp.core.graph import resolve_chain
+    from gen_dsp.core.project import ProjectGenerator
+    from gen_dsp.platforms.circle import CirclePlatform
+
     try:
         chain = resolve_chain(graph, export_dirs, ProjectGenerator.GENEXT_VERSION)
     except GenExtError as e:
         print(f"Error resolving chain: {e}", file=sys.stderr)
         return 1
-
-    # Determine output directory
-    output_dir = args.output if args.output else Path.cwd() / args.name
-    output_dir = Path(output_dir).resolve()
 
     if args.dry_run:
         print(f"Would create chain project at: {output_dir}")
@@ -418,46 +469,22 @@ def cmd_init_chain(args: argparse.Namespace) -> int:
             print(f"  Board: {args.board}")
         print(f"  Nodes: {len(chain)}")
         for node in chain:
+            export_label = node.config.export or "(built-in)"
             print(
-                f"    [{node.index}] {node.config.id}: {node.config.export} "
+                f"    [{node.index}] {node.config.id}: {export_label} "
                 f"({node.manifest.num_inputs}in/{node.manifest.num_outputs}out, "
                 f"{node.manifest.num_params} params, MIDI ch {node.config.midi_channel})"
             )
         return 0
 
-    # Generate chain project
     try:
         output_dir.mkdir(parents=True, exist_ok=True)
-
-        config = ProjectConfig(
-            name=args.name,
-            platform="circle",
-            buffers=[],
-            apply_patches=not args.no_patch,
-            output_dir=args.output,
-            board=args.board,
-        )
 
         platform = CirclePlatform()
         platform.generate_chain_project(chain, graph, output_dir, args.name, config)
 
-        # Copy each node's gen~ export to gen_<export_name>/ subdirectories
-        import shutil
-
-        for node in chain:
-            export_dest = output_dir / f"gen_{node.config.export}"
-            if export_dest.exists():
-                shutil.rmtree(export_dest)
-            shutil.copytree(node.export_info.path, export_dest)
-
-        # Apply patches if requested
-        if not args.no_patch:
-            from gen_dsp.core.patcher import Patcher
-
-            for node in chain:
-                export_dest = output_dir / f"gen_{node.config.export}"
-                patcher = Patcher(export_dest)
-                patcher.apply_all()
+        # Copy gen~ exports and apply patches
+        _copy_and_patch_exports(chain, output_dir, args)
 
         print(f"Chain project created at: {output_dir}")
         print("  Platform: circle (chain mode)")
@@ -476,6 +503,108 @@ def cmd_init_chain(args: argparse.Namespace) -> int:
         return 1
 
     return 0
+
+
+def _init_chain_dag(
+    args: argparse.Namespace,
+    graph: "GraphConfig",
+    export_dirs: dict[str, Path],
+    output_dir: Path,
+    config: "ProjectConfig",
+) -> int:
+    """Generate a DAG project (Phase 2 path)."""
+    from gen_dsp.core.graph import resolve_dag, allocate_edge_buffers
+    from gen_dsp.core.project import ProjectGenerator
+    from gen_dsp.platforms.circle import CirclePlatform
+
+    try:
+        dag_nodes = resolve_dag(
+            graph, export_dirs, ProjectGenerator.GENEXT_VERSION
+        )
+    except GenExtError as e:
+        print(f"Error resolving DAG: {e}", file=sys.stderr)
+        return 1
+
+    resolved_map = {n.config.id: n for n in dag_nodes}
+    topo_order = [n.config.id for n in dag_nodes]
+    edge_buffers, num_buffers = allocate_edge_buffers(
+        graph, resolved_map, topo_order
+    )
+
+    if args.dry_run:
+        print(f"Would create DAG project at: {output_dir}")
+        print("  Platform: circle (DAG mode)")
+        if args.board:
+            print(f"  Board: {args.board}")
+        print(f"  Nodes: {len(dag_nodes)}")
+        print(f"  Intermediate buffers: {num_buffers}")
+        for node in dag_nodes:
+            export_label = node.config.export or f"(mixer, {node.config.mixer_inputs} inputs)"
+            print(
+                f"    [{node.index}] {node.config.id}: {export_label} "
+                f"({node.manifest.num_inputs}in/{node.manifest.num_outputs}out, "
+                f"{node.manifest.num_params} params, MIDI ch {node.config.midi_channel})"
+            )
+        return 0
+
+    try:
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        platform = CirclePlatform()
+        platform.generate_dag_project(
+            dag_nodes, graph, edge_buffers, num_buffers,
+            output_dir, args.name, config
+        )
+
+        # Copy gen~ exports and apply patches (gen~ nodes only)
+        _copy_and_patch_exports(dag_nodes, output_dir, args)
+
+        print(f"DAG project created at: {output_dir}")
+        print("  Platform: circle (DAG mode)")
+        print(f"  Nodes: {len(dag_nodes)}")
+        print(f"  Intermediate buffers: {num_buffers}")
+        for node in dag_nodes:
+            ntype = "mixer" if node.config.node_type == "mixer" else node.config.export
+            print(
+                f"    [{node.index}] {node.config.id}: {ntype} "
+                f"({node.manifest.num_inputs}in/{node.manifest.num_outputs}out)"
+            )
+        print()
+        print("Next steps:")
+        print(f"  cd {output_dir}")
+        print("  make")
+    except GenExtError as e:
+        print(f"Error creating DAG project: {e}", file=sys.stderr)
+        return 1
+
+    return 0
+
+
+def _copy_and_patch_exports(
+    nodes: "list[ResolvedChainNode]",
+    output_dir: Path,
+    args: argparse.Namespace,
+) -> None:
+    """Copy gen~ exports and apply patches for gen~ nodes."""
+    import shutil
+
+    for node in nodes:
+        if node.config.node_type != "gen" or node.export_info is None:
+            continue
+        export_dest = output_dir / f"gen_{node.config.export}"
+        if export_dest.exists():
+            shutil.rmtree(export_dest)
+        shutil.copytree(node.export_info.path, export_dest)
+
+    if not args.no_patch:
+        from gen_dsp.core.patcher import Patcher
+
+        for node in nodes:
+            if node.config.node_type != "gen" or node.export_info is None:
+                continue
+            export_dest = output_dir / f"gen_{node.config.export}"
+            patcher = Patcher(export_dest)
+            patcher.apply_all()
 
 
 def cmd_build(args: argparse.Namespace) -> int:

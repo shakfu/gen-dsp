@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Circle: DAG topology for multi-plugin mode (Phase 2)** -- the `--graph` flag now supports arbitrary directed acyclic graphs, lifting the Phase 1 linear-chain-only restriction
+  - Fan-out: a single node's output can feed multiple downstream nodes (zero-copy, shared buffer)
+  - Fan-in via mixer nodes: built-in `"type": "mixer"` node type combines multiple inputs with per-input gain parameters (weighted sum)
+  - Topological sort (Kahn's algorithm) determines execution order for arbitrary DAGs
+  - Per-edge buffer allocation with fan-out sharing -- edges from the same source reuse one buffer
+  - Channel mismatch handling: zero-pad missing channels, truncate extras; mixer output channels = max of input channel counts
+  - Mixer gain parameters controllable via USB MIDI CC (same mapping as gen~ node params)
+  - Connection targeting: `["reverb", "mix:1"]` syntax routes to specific mixer input indices
+  - Linear chains detected automatically and still use the simpler Phase 1 codegen path
+  - New DAG kernel templates for both DMA and USB audio devices
+  - Example DAG graph with fan-out and mixer:
+    ```json
+    {
+      "nodes": {
+        "reverb":  { "export": "gigaverb" },
+        "delay":   { "export": "spectraldelayfb" },
+        "mix":     { "type": "mixer", "inputs": 2 }
+      },
+      "connections": [
+        ["audio_in", "reverb"],
+        ["audio_in", "delay"],
+        ["reverb",   "mix:0"],
+        ["delay",    "mix:1"],
+        ["mix",      "audio_out"]
+      ]
+    }
+    ```
+- **Graph data model: DAG support** (`src/gen_dsp/core/graph.py`)
+  - `Connection` dataclass replacing raw tuples, with optional `dst_input_index` for mixer input targeting
+  - `ChainNodeConfig` extended with `node_type` ("gen" / "mixer") and `mixer_inputs` count
+  - `validate_dag()`: cycle detection (DFS), connectivity checks, mixer input count validation, MIDI validation
+  - `topological_sort()`: Kahn's algorithm for execution ordering
+  - `allocate_edge_buffers()`: per-edge buffer assignment with fan-out sharing
+  - `resolve_dag()`: resolves gen~ nodes and constructs synthetic manifests for mixer nodes (with `gain_N` parameters)
+  - `EdgeBuffer` dataclass for tracking buffer assignments
+
+### Fixed
+
+- **Test infrastructure: FetchContent stale cache** -- build/subbuild directories in the shared FetchContent cache are now cleaned at session start to prevent stale absolute paths from previous pytest temp directories causing CMake build failures
+- **Test infrastructure: AU auval resilience** -- `_validate_au()` now verifies codesign success and retries auval with a longer sleep if CoreAudio component discovery is slow under load
+
 ## [0.1.9]
 
 ### Added
