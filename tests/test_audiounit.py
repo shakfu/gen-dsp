@@ -111,14 +111,18 @@ class TestAudioUnitPlatform:
 
     def test_detect_au_type_effect(self):
         """Test that inputs > 0 gives aufx (effect)."""
-        platform = AudioUnitPlatform()
-        assert platform._detect_au_type(2) == "aufx"
-        assert platform._detect_au_type(1) == "aufx"
+        from gen_dsp.platforms.base import PluginCategory
+
+        assert PluginCategory.from_num_inputs(2) == PluginCategory.EFFECT
+        assert PluginCategory.from_num_inputs(1) == PluginCategory.EFFECT
+        assert AudioUnitPlatform._AU_TYPE_MAP[PluginCategory.EFFECT] == "aufx"
 
     def test_detect_au_type_generator(self):
         """Test that inputs == 0 gives augn (generator)."""
-        platform = AudioUnitPlatform()
-        assert platform._detect_au_type(0) == "augn"
+        from gen_dsp.platforms.base import PluginCategory
+
+        assert PluginCategory.from_num_inputs(0) == PluginCategory.GENERATOR
+        assert AudioUnitPlatform._AU_TYPE_MAP[PluginCategory.GENERATOR] == "augn"
 
     def test_generate_subtype_normal(self):
         """Test subtype generation for normal names."""

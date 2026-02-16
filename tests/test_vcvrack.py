@@ -185,14 +185,16 @@ class TestVcvRackPlatform:
 
     def test_detect_plugin_type_effect(self):
         """Test that inputs > 0 gives effect."""
-        platform = VcvRackPlatform()
-        assert platform._detect_plugin_type(2) == "effect"
-        assert platform._detect_plugin_type(1) == "effect"
+        from gen_dsp.platforms.base import PluginCategory
+
+        assert PluginCategory.from_num_inputs(2) == PluginCategory.EFFECT
+        assert PluginCategory.from_num_inputs(1) == PluginCategory.EFFECT
 
     def test_detect_plugin_type_generator(self):
         """Test that inputs == 0 gives generator."""
-        platform = VcvRackPlatform()
-        assert platform._detect_plugin_type(0) == "generator"
+        from gen_dsp.platforms.base import PluginCategory
+
+        assert PluginCategory.from_num_inputs(0) == PluginCategory.GENERATOR
 
     def test_compute_panel_hp_small(self):
         """Test HP computation for small component counts."""
@@ -425,8 +427,9 @@ class TestVcvRackProjectGeneration:
 
     def test_plugin_json_generator_tags(self):
         """Test that 0-input export gets Synth Voice tag."""
-        platform = VcvRackPlatform()
-        assert platform._detect_plugin_type(0) == "generator"
+        from gen_dsp.platforms.base import PluginCategory
+
+        assert PluginCategory.from_num_inputs(0) == PluginCategory.GENERATOR
 
     def test_panel_svg_exists(self, gigaverb_export: Path, tmp_project: Path):
         """Test that panel SVG is generated with correct dimensions."""

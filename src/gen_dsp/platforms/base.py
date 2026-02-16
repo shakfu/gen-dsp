@@ -6,6 +6,7 @@ Provides common functionality shared across all platforms.
 
 import subprocess
 from abc import ABC, abstractmethod
+from enum import Enum
 from pathlib import Path
 from string import Template
 from typing import Optional
@@ -16,6 +17,22 @@ from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError
+
+
+class PluginCategory(Enum):
+    """Plugin category based on I/O configuration.
+
+    EFFECT: has audio inputs (processes existing audio)
+    GENERATOR: no audio inputs (synthesizes audio)
+    """
+
+    EFFECT = "effect"
+    GENERATOR = "generator"
+
+    @staticmethod
+    def from_num_inputs(num_inputs: int) -> "PluginCategory":
+        """Detect category from number of audio inputs."""
+        return PluginCategory.EFFECT if num_inputs > 0 else PluginCategory.GENERATOR
 
 
 class Platform(ABC):

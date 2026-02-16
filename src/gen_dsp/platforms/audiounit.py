@@ -16,6 +16,7 @@ from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
+from gen_dsp.platforms.base import PluginCategory
 from gen_dsp.platforms.cmake_platform import CMakePlatform
 from gen_dsp.templates import get_au_templates_dir
 
@@ -28,6 +29,11 @@ class AudioUnitPlatform(CMakePlatform):
     # Default manufacturer code for gen-dsp generated AUs
     # Apple requires at least one non-lowercase character in manufacturer OSType
     AU_MANUFACTURER = "Gdsp"
+
+    _AU_TYPE_MAP = {
+        PluginCategory.EFFECT: "aufx",
+        PluginCategory.GENERATOR: "augn",
+    }
 
     @property
     def extension(self) -> str:
@@ -62,7 +68,8 @@ class AudioUnitPlatform(CMakePlatform):
         self.generate_ext_header(output_dir, "au")
 
         # Detect AU type from I/O configuration
-        au_type = self._detect_au_type(manifest.num_inputs)
+        category = PluginCategory.from_num_inputs(manifest.num_inputs)
+        au_type = self._AU_TYPE_MAP[category]
         au_subtype = self._generate_subtype(lib_name)
 
         # Generate CMakeLists.txt
@@ -94,13 +101,6 @@ class AudioUnitPlatform(CMakePlatform):
 
         # Create build directory
         (output_dir / "build").mkdir(exist_ok=True)
-
-    def _detect_au_type(self, num_inputs: int) -> str:
-        """Detect AU component type from number of inputs.
-
-        Returns 'aufx' (effect) if inputs > 0, 'augn' (generator) if inputs == 0.
-        """
-        return "aufx" if num_inputs > 0 else "augn"
 
     def _generate_subtype(self, lib_name: str) -> str:
         """Generate a 4-char AU subtype code from the library name.

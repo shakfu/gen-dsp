@@ -14,7 +14,7 @@
 typedef void GenState;
 
 // Buffer support for gen~ (uses genlib's DataInterface)
-#include "gen_buffer_max.h"
+#include "max_buffer.h"
 
 namespace WRAPPER_NAMESPACE {
 

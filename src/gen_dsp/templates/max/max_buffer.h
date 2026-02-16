@@ -1,4 +1,4 @@
-// gen_buffer_max.h - Buffer class for gen~ code (genlib side)
+// max_buffer.h - Buffer class for gen~ code (genlib side)
 // Uses DataInterface for gen~ compatibility, no Max headers
 
 #ifndef GEN_BUFFER_MAX_H

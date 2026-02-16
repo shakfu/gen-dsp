@@ -62,7 +62,7 @@ class MaxPlatform(CMakePlatform):
             "gen_ext_common_max.h",
             "_ext_max.cpp",
             "_ext_max.h",
-            "gen_buffer_max.h",
+            "max_buffer.h",
         ]
 
         for filename in static_files:

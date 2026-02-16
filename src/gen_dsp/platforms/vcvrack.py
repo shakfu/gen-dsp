@@ -35,7 +35,7 @@ from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
-from gen_dsp.platforms.base import Platform
+from gen_dsp.platforms.base import Platform, PluginCategory
 from gen_dsp.templates import get_vcvrack_templates_dir
 
 
@@ -248,12 +248,10 @@ class VcvRackPlatform(Platform):
             header_comment="Buffer configuration for gen_dsp VCV Rack wrapper",
         )
 
-    def _detect_plugin_type(self, num_inputs: int) -> str:
-        """Detect module type from number of inputs.
-
-        Returns 'effect' if inputs > 0, 'generator' if inputs == 0.
-        """
-        return "effect" if num_inputs > 0 else "generator"
+    _VCR_TAG_MAP = {
+        PluginCategory.EFFECT: ["Effect"],
+        PluginCategory.GENERATOR: ["Synth Voice"],
+    }
 
     @staticmethod
     def _compute_panel_hp(total_components: int) -> int:
@@ -306,11 +304,8 @@ class VcvRackPlatform(Platform):
         num_inputs: int,
     ) -> None:
         """Generate plugin.json manifest for VCV Rack."""
-        plugin_type = self._detect_plugin_type(num_inputs)
-        if plugin_type == "effect":
-            tags = ["Effect"]
-        else:
-            tags = ["Synth Voice"]
+        category = PluginCategory.from_num_inputs(num_inputs)
+        tags = self._VCR_TAG_MAP[category]
 
         manifest = {
             "slug": lib_name,

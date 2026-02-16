@@ -21,6 +21,7 @@ from typing import Optional
 from gen_dsp.core.manifest import Manifest, ParamInfo
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import ProjectError
+from gen_dsp.platforms.base import PluginCategory
 from gen_dsp.platforms.cmake_platform import CMakePlatform
 from gen_dsp.templates import get_lv2_templates_dir
 
@@ -30,6 +31,11 @@ class Lv2Platform(CMakePlatform):
 
     name = "lv2"
     LV2_URI_BASE = "http://gen-dsp.com/plugins"
+
+    _LV2_TYPE_MAP = {
+        PluginCategory.EFFECT: "lv2:Plugin ,\n      lv2:EffectPlugin",
+        PluginCategory.GENERATOR: "lv2:Plugin ,\n      lv2:GeneratorPlugin",
+    }
 
     @property
     def extension(self) -> str:
@@ -145,10 +151,8 @@ class Lv2Platform(CMakePlatform):
           indices above..+nout      = AudioPort OutputPort
         """
         # Plugin type
-        if num_inputs > 0:
-            plugin_type = "lv2:Plugin ,\n      lv2:EffectPlugin"
-        else:
-            plugin_type = "lv2:Plugin ,\n      lv2:GeneratorPlugin"
+        category = PluginCategory.from_num_inputs(num_inputs)
+        plugin_type = self._LV2_TYPE_MAP[category]
 
         lines = [
             "@prefix doap: <http://usefulinc.com/ns/doap#> .",
