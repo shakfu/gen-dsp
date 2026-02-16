@@ -21,7 +21,7 @@ from typing import Optional
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, ParamInfo
 from gen_dsp.core.project import ProjectConfig
-from gen_dsp.errors import BuildError, ProjectError
+from gen_dsp.errors import ProjectError
 from gen_dsp.platforms.base import Platform
 from gen_dsp.templates import get_lv2_templates_dir
 
@@ -113,13 +113,6 @@ class Lv2Platform(Platform):
 
         # Create build directory
         (output_dir / "build").mkdir(exist_ok=True)
-
-    def _detect_plugin_type(self, num_inputs: int) -> str:
-        """Detect LV2 plugin type from number of inputs.
-
-        Returns 'effect' if inputs > 0, 'generator' if inputs == 0.
-        """
-        return "effect" if num_inputs > 0 else "generator"
 
     def _generate_manifest_ttl(
         self,
@@ -288,52 +281,11 @@ class Lv2Platform(Platform):
         verbose: bool = False,
     ) -> BuildResult:
         """Build LV2 plugin using CMake."""
-        cmakelists = project_dir / "CMakeLists.txt"
-        if not cmakelists.exists():
-            raise BuildError(f"CMakeLists.txt not found in {project_dir}")
-
-        build_dir = project_dir / "build"
-
-        # Clean if requested
-        if clean and build_dir.exists():
-            shutil.rmtree(build_dir)
-
-        build_dir.mkdir(exist_ok=True)
-
-        # Configure with CMake
-        configure_result = self.run_command(["cmake", ".."], build_dir, verbose=verbose)
-        if configure_result.returncode != 0:
-            return BuildResult(
-                success=False,
-                platform="lv2",
-                output_file=None,
-                stdout=configure_result.stdout,
-                stderr=configure_result.stderr,
-                return_code=configure_result.returncode,
-            )
-
-        # Build
-        build_result = self.run_command(
-            ["cmake", "--build", "."], build_dir, verbose=verbose
-        )
-
-        # Find output
-        output_file = self.find_output(project_dir)
-
-        return BuildResult(
-            success=build_result.returncode == 0,
-            platform="lv2",
-            output_file=output_file,
-            stdout=build_result.stdout,
-            stderr=build_result.stderr,
-            return_code=build_result.returncode,
-        )
+        return self._build_with_cmake(project_dir, clean, verbose)
 
     def clean(self, project_dir: Path) -> None:
         """Clean build artifacts."""
-        build_dir = project_dir / "build"
-        if build_dir.exists():
-            shutil.rmtree(build_dir)
+        self._clean_build_dir(project_dir)
 
     def find_output(self, project_dir: Path) -> Optional[Path]:
         """Find the built LV2 bundle directory."""

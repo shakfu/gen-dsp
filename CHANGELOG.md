@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Refactoring: extracted `_build_with_cmake()` into `Platform` base class** -- the identical CMake configure+build sequence previously duplicated across 5 platforms (CLAP, VST3, LV2, SC, AU) is now a single 30-line method in `platforms/base.py`. AU and Max retain platform-specific pre-checks before delegating. Uses `self.name` for the `BuildResult.platform` field, eliminating hardcoded platform name strings.
+- **Refactoring: extracted `_clean_build_dir()` into `Platform` base class** -- the identical `rm -rf build/` logic duplicated in 6 platforms (CLAP, VST3, LV2, SC, AU, Max) is now a 3-line method in `platforms/base.py`.
+- **Refactoring: collapsed `templates/__init__.py`** -- replaced 274 lines of 22 repetitive getter/lister functions with a single generic `get_templates_dir(platform)` function plus 11 one-liner backward-compatible aliases. Removed all `list_*_templates()` functions (zero callers). Removed `get_max_templates_dir()` side effect (directory creation).
+- **Refactoring: consolidated dual `GENEXT_VERSION`** -- removed the duplicate `GENEXT_VERSION = "0.8.0"` from `ProjectGenerator` in `core/project.py`. All references now use `Platform.GENEXT_VERSION` from `platforms/base.py` as the single source of truth.
+
+### Removed
+
+- Dead `_detect_plugin_type()` methods from CLAP, VST3, LV2, and SuperCollider platforms (defined but never called; AU and VCV Rack still use their detection methods)
+
 ### Added
 
 - **Circle: DAG topology for multi-plugin mode (Phase 2)** -- the `--graph` flag now supports arbitrary directed acyclic graphs, lifting the Phase 1 linear-chain-only restriction

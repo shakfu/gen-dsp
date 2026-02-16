@@ -142,17 +142,6 @@ class TestClapPlatform:
         assert len(instructions) > 0
         assert any("cmake" in instr for instr in instructions)
 
-    def test_detect_plugin_type_effect(self):
-        """Test that inputs > 0 gives effect."""
-        platform = ClapPlatform()
-        assert platform._detect_plugin_type(2) == "effect"
-        assert platform._detect_plugin_type(1) == "effect"
-
-    def test_detect_plugin_type_instrument(self):
-        """Test that inputs == 0 gives instrument."""
-        platform = ClapPlatform()
-        assert platform._detect_plugin_type(0) == "instrument"
-
 
 class TestClapProjectGeneration:
     """Test CLAP project generation."""
@@ -273,22 +262,6 @@ class TestClapProjectGeneration:
         assert (gen_dir / "gen_exported.h").is_file()
         assert (gen_dir / "gen_dsp").is_dir()
         assert (gen_dir / "gen_dsp" / "genlib.cpp").is_file()
-
-    def test_effect_type_for_inputs(self, gigaverb_export: Path, tmp_project: Path):
-        """Test that gigaverb (has inputs) is detected as effect."""
-        parser = GenExportParser(gigaverb_export)
-        export_info = parser.parse()
-        assert export_info.num_inputs > 0
-
-        platform = ClapPlatform()
-        assert platform._detect_plugin_type(export_info.num_inputs) == "effect"
-
-    def test_instrument_type_for_no_inputs(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
-        """Test that 0 inputs gives instrument type."""
-        platform = ClapPlatform()
-        assert platform._detect_plugin_type(0) == "instrument"
 
     def test_cmakelists_shared_cache_off_by_default(
         self, gigaverb_export: Path, tmp_project: Path

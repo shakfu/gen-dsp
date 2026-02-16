@@ -302,17 +302,6 @@ class TestScPlatform:
         assert len(instructions) > 0
         assert any("cmake" in instr for instr in instructions)
 
-    def test_detect_plugin_type_effect(self):
-        """Test that inputs > 0 gives effect."""
-        platform = SuperColliderPlatform()
-        assert platform._detect_plugin_type(2) == "effect"
-        assert platform._detect_plugin_type(1) == "effect"
-
-    def test_detect_plugin_type_generator(self):
-        """Test that inputs == 0 gives generator."""
-        platform = SuperColliderPlatform()
-        assert platform._detect_plugin_type(0) == "generator"
-
     def test_capitalize_name(self):
         """Test first-letter capitalization for SC class names."""
         assert SuperColliderPlatform._capitalize_name("gigaverb") == "Gigaverb"

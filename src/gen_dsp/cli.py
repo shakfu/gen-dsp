@@ -24,6 +24,7 @@ from gen_dsp.core.patcher import Patcher
 from gen_dsp.core.builder import Builder
 from gen_dsp.errors import GenExtError
 from gen_dsp.platforms import list_platforms, get_platform
+from gen_dsp.platforms.base import Platform
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -435,13 +436,9 @@ def cmd_init_chain(args: argparse.Namespace) -> int:
     )
 
     if is_linear:
-        return _init_chain_linear(
-            args, graph, export_dirs, output_dir, config
-        )
+        return _init_chain_linear(args, graph, export_dirs, output_dir, config)
     else:
-        return _init_chain_dag(
-            args, graph, export_dirs, output_dir, config
-        )
+        return _init_chain_dag(args, graph, export_dirs, output_dir, config)
 
 
 def _init_chain_linear(
@@ -453,11 +450,10 @@ def _init_chain_linear(
 ) -> int:
     """Generate a linear chain project (Phase 1 path)."""
     from gen_dsp.core.graph import resolve_chain
-    from gen_dsp.core.project import ProjectGenerator
     from gen_dsp.platforms.circle import CirclePlatform
 
     try:
-        chain = resolve_chain(graph, export_dirs, ProjectGenerator.GENEXT_VERSION)
+        chain = resolve_chain(graph, export_dirs, Platform.GENEXT_VERSION)
     except GenExtError as e:
         print(f"Error resolving chain: {e}", file=sys.stderr)
         return 1
@@ -514,22 +510,17 @@ def _init_chain_dag(
 ) -> int:
     """Generate a DAG project (Phase 2 path)."""
     from gen_dsp.core.graph import resolve_dag, allocate_edge_buffers
-    from gen_dsp.core.project import ProjectGenerator
     from gen_dsp.platforms.circle import CirclePlatform
 
     try:
-        dag_nodes = resolve_dag(
-            graph, export_dirs, ProjectGenerator.GENEXT_VERSION
-        )
+        dag_nodes = resolve_dag(graph, export_dirs, Platform.GENEXT_VERSION)
     except GenExtError as e:
         print(f"Error resolving DAG: {e}", file=sys.stderr)
         return 1
 
     resolved_map = {n.config.id: n for n in dag_nodes}
     topo_order = [n.config.id for n in dag_nodes]
-    edge_buffers, num_buffers = allocate_edge_buffers(
-        graph, resolved_map, topo_order
-    )
+    edge_buffers, num_buffers = allocate_edge_buffers(graph, resolved_map, topo_order)
 
     if args.dry_run:
         print(f"Would create DAG project at: {output_dir}")
@@ -539,7 +530,9 @@ def _init_chain_dag(
         print(f"  Nodes: {len(dag_nodes)}")
         print(f"  Intermediate buffers: {num_buffers}")
         for node in dag_nodes:
-            export_label = node.config.export or f"(mixer, {node.config.mixer_inputs} inputs)"
+            export_label = (
+                node.config.export or f"(mixer, {node.config.mixer_inputs} inputs)"
+            )
             print(
                 f"    [{node.index}] {node.config.id}: {export_label} "
                 f"({node.manifest.num_inputs}in/{node.manifest.num_outputs}out, "
@@ -552,8 +545,7 @@ def _init_chain_dag(
 
         platform = CirclePlatform()
         platform.generate_dag_project(
-            dag_nodes, graph, edge_buffers, num_buffers,
-            output_dir, args.name, config
+            dag_nodes, graph, edge_buffers, num_buffers, output_dir, args.name, config
         )
 
         # Copy gen~ exports and apply patches (gen~ nodes only)
@@ -730,7 +722,6 @@ def cmd_list(args: argparse.Namespace) -> int:
 def cmd_manifest(args: argparse.Namespace) -> int:
     """Handle the manifest command."""
     from gen_dsp.core.manifest import manifest_from_export_info
-    from gen_dsp.core.project import ProjectGenerator
 
     export_path = args.export_path.resolve()
 
@@ -743,9 +734,7 @@ def cmd_manifest(args: argparse.Namespace) -> int:
 
     buffers = args.buffers if args.buffers else export_info.buffers
 
-    manifest = manifest_from_export_info(
-        export_info, buffers, ProjectGenerator.GENEXT_VERSION
-    )
+    manifest = manifest_from_export_info(export_info, buffers, Platform.GENEXT_VERSION)
     print(manifest.to_json())
     return 0
 

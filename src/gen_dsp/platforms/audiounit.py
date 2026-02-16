@@ -181,53 +181,11 @@ class AudioUnitPlatform(Platform):
         """Build AudioUnit using CMake."""
         if sys_platform.system() != "Darwin":
             raise BuildError("AudioUnit plugins can only be built on macOS")
-
-        cmakelists = project_dir / "CMakeLists.txt"
-        if not cmakelists.exists():
-            raise BuildError(f"CMakeLists.txt not found in {project_dir}")
-
-        build_dir = project_dir / "build"
-
-        # Clean if requested
-        if clean and build_dir.exists():
-            shutil.rmtree(build_dir)
-
-        build_dir.mkdir(exist_ok=True)
-
-        # Configure with CMake
-        configure_result = self.run_command(["cmake", ".."], build_dir, verbose=verbose)
-        if configure_result.returncode != 0:
-            return BuildResult(
-                success=False,
-                platform="au",
-                output_file=None,
-                stdout=configure_result.stdout,
-                stderr=configure_result.stderr,
-                return_code=configure_result.returncode,
-            )
-
-        # Build
-        build_result = self.run_command(
-            ["cmake", "--build", "."], build_dir, verbose=verbose
-        )
-
-        # Find output file
-        output_file = self.find_output(project_dir)
-
-        return BuildResult(
-            success=build_result.returncode == 0,
-            platform="au",
-            output_file=output_file,
-            stdout=build_result.stdout,
-            stderr=build_result.stderr,
-            return_code=build_result.returncode,
-        )
+        return self._build_with_cmake(project_dir, clean, verbose)
 
     def clean(self, project_dir: Path) -> None:
         """Clean build artifacts."""
-        build_dir = project_dir / "build"
-        if build_dir.exists():
-            shutil.rmtree(build_dir)
+        self._clean_build_dir(project_dir)
 
     def find_output(self, project_dir: Path) -> Optional[Path]:
         """Find the built AudioUnit .component bundle."""

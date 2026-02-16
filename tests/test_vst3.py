@@ -171,17 +171,6 @@ class TestVst3Platform:
         assert len(instructions) > 0
         assert any("cmake" in instr for instr in instructions)
 
-    def test_detect_plugin_type_effect(self):
-        """Test that inputs > 0 gives effect."""
-        platform = Vst3Platform()
-        assert platform._detect_plugin_type(2) == "effect"
-        assert platform._detect_plugin_type(1) == "effect"
-
-    def test_detect_plugin_type_instrument(self):
-        """Test that inputs == 0 gives instrument."""
-        platform = Vst3Platform()
-        assert platform._detect_plugin_type(0) == "instrument"
-
     def test_fuid_generation_deterministic(self):
         """Test that FUID is deterministic for same name."""
         platform = Vst3Platform()

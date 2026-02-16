@@ -152,15 +152,11 @@ def parse_graph(json_path: Path) -> GraphConfig:
             export = None
         elif node_type == "gen":
             if "export" not in node_data:
-                raise ValidationError(
-                    f"Node '{node_id}' must have an 'export' field"
-                )
+                raise ValidationError(f"Node '{node_id}' must have an 'export' field")
             export = node_data["export"]
             mixer_inputs = 0
         else:
-            raise ValidationError(
-                f"Node '{node_id}': unknown node type '{node_type}'"
-            )
+            raise ValidationError(f"Node '{node_id}': unknown node type '{node_type}'")
 
         cc_map: dict[int, str] = {}
         if "cc" in node_data:
@@ -521,9 +517,7 @@ def validate_dag(graph: GraphConfig) -> list[str]:
     # 7. Mixer input count matches incoming connections
     for nid, ncfg in graph.nodes.items():
         if ncfg.node_type == "mixer":
-            incoming = sum(
-                1 for c in graph.connections if c.dst_node == nid
-            )
+            incoming = sum(1 for c in graph.connections if c.dst_node == nid)
             if incoming != ncfg.mixer_inputs:
                 errors.append(
                     f"Node '{nid}': mixer expects {ncfg.mixer_inputs} inputs "
@@ -535,14 +529,11 @@ def validate_dag(graph: GraphConfig) -> list[str]:
         if ncfg.midi_channel is not None:
             if not (1 <= ncfg.midi_channel <= 16):
                 errors.append(
-                    f"Node '{nid}': midi_channel must be 1-16, "
-                    f"got {ncfg.midi_channel}"
+                    f"Node '{nid}': midi_channel must be 1-16, got {ncfg.midi_channel}"
                 )
         for cc_num in ncfg.cc_map:
             if not (0 <= cc_num <= 127):
-                errors.append(
-                    f"Node '{nid}': CC number must be 0-127, got {cc_num}"
-                )
+                errors.append(f"Node '{nid}': CC number must be 0-127, got {cc_num}")
 
     return errors
 
@@ -582,7 +573,8 @@ def topological_sort(graph: GraphConfig) -> list[str]:
     for nid in graph.nodes:
         # Count edges from audio_in separately
         audio_in_edges = sum(
-            1 for c in graph.connections
+            1
+            for c in graph.connections
             if c.src_node == "audio_in" and c.dst_node == nid
         )
         # In-degree from non-audio_in sources
@@ -598,7 +590,8 @@ def topological_sort(graph: GraphConfig) -> list[str]:
             in_degree[successor] -= 1
             # Check if all non-audio_in predecessors are processed
             audio_in_edges = sum(
-                1 for c in graph.connections
+                1
+                for c in graph.connections
                 if c.src_node == "audio_in" and c.dst_node == successor
             )
             remaining = in_degree[successor] - audio_in_edges
@@ -606,9 +599,7 @@ def topological_sort(graph: GraphConfig) -> list[str]:
                 queue.append(successor)
 
     if len(result) != len(graph.nodes):
-        raise ValidationError(
-            "Cycle detected in graph during topological sort"
-        )
+        raise ValidationError("Cycle detected in graph during topological sort")
 
     return result
 
@@ -716,9 +707,7 @@ def resolve_dag(
         if node_config.node_type == "mixer":
             # Synthetic manifest for mixer node
             # Determine actual incoming connections
-            incoming = [
-                c for c in graph.connections if c.dst_node == node_id
-            ]
+            incoming = [c for c in graph.connections if c.dst_node == node_id]
             n_inputs = len(incoming)
 
             # Mixer output channels = max channel count of inputs
@@ -765,8 +754,7 @@ def resolve_dag(
                 export_info = parser.parse()
             except Exception as e:
                 raise ValidationError(
-                    f"Node '{node_id}': failed to parse export "
-                    f"'{export_name}': {e}"
+                    f"Node '{node_id}': failed to parse export '{export_name}': {e}"
                 ) from e
 
             manifest = manifest_from_export_info(export_info, [], version)
@@ -783,17 +771,13 @@ def resolve_dag(
     resolved_map = {n.config.id: n for n in resolved}
     for node in resolved:
         if node.config.node_type == "mixer":
-            incoming = [
-                c for c in graph.connections if c.dst_node == node.config.id
-            ]
+            incoming = [c for c in graph.connections if c.dst_node == node.config.id]
             max_ch = 0
             for c in incoming:
                 if c.src_node == "audio_in":
                     max_ch = max(max_ch, 2)  # hardware stereo
                 elif c.src_node in resolved_map:
-                    max_ch = max(
-                        max_ch, resolved_map[c.src_node].manifest.num_outputs
-                    )
+                    max_ch = max(max_ch, resolved_map[c.src_node].manifest.num_outputs)
             if max_ch > 0:
                 node.manifest.num_outputs = max_ch
 

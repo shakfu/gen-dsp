@@ -357,17 +357,6 @@ class TestLv2Platform:
         assert len(instructions) > 0
         assert any("cmake" in instr for instr in instructions)
 
-    def test_detect_plugin_type_effect(self):
-        """Test that inputs > 0 gives effect."""
-        platform = Lv2Platform()
-        assert platform._detect_plugin_type(2) == "effect"
-        assert platform._detect_plugin_type(1) == "effect"
-
-    def test_detect_plugin_type_generator(self):
-        """Test that inputs == 0 gives generator."""
-        platform = Lv2Platform()
-        assert platform._detect_plugin_type(0) == "generator"
-
     def test_sanitize_symbol_valid(self):
         """Test that valid symbols pass through."""
         assert Lv2Platform._sanitize_symbol("bandwidth") == "bandwidth"
@@ -568,11 +557,6 @@ class TestLv2ProjectGeneration:
 
         ttl = (project_dir / "testverb.ttl").read_text()
         assert "lv2:EffectPlugin" in ttl
-
-    def test_plugin_ttl_generator_type(self):
-        """Test that 0-input export is GeneratorPlugin."""
-        platform = Lv2Platform()
-        assert platform._detect_plugin_type(0) == "generator"
 
     def test_plugin_ttl_no_params(
         self, spectraldelayfb_export: Path, tmp_project: Path

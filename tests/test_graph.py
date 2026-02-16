@@ -569,15 +569,11 @@ def _diamond_graph() -> GraphConfig:
     """Construct a diamond DAG GraphConfig directly."""
     return GraphConfig(
         nodes={
-            "reverb": ChainNodeConfig(
-                id="reverb", export="gigaverb", node_type="gen"
-            ),
+            "reverb": ChainNodeConfig(id="reverb", export="gigaverb", node_type="gen"),
             "delay": ChainNodeConfig(
                 id="delay", export="spectraldelayfb", node_type="gen"
             ),
-            "mix": ChainNodeConfig(
-                id="mix", node_type="mixer", mixer_inputs=2
-            ),
+            "mix": ChainNodeConfig(id="mix", node_type="mixer", mixer_inputs=2),
         },
         connections=[
             Connection("audio_in", "reverb"),
@@ -775,9 +771,7 @@ class TestValidateDAG:
         graph = GraphConfig(
             nodes={
                 "a": ChainNodeConfig(id="a", export="ex_a"),
-                "mix": ChainNodeConfig(
-                    id="mix", node_type="mixer", mixer_inputs=3
-                ),
+                "mix": ChainNodeConfig(id="mix", node_type="mixer", mixer_inputs=3),
             },
             connections=[
                 Connection("audio_in", "a"),
@@ -803,9 +797,7 @@ class TestValidateDAG:
         """Reject invalid MIDI channel."""
         graph = GraphConfig(
             nodes={
-                "a": ChainNodeConfig(
-                    id="a", export="ex_a", midi_channel=17
-                ),
+                "a": ChainNodeConfig(id="a", export="ex_a", midi_channel=17),
             },
             connections=[
                 Connection("audio_in", "a"),
@@ -849,9 +841,7 @@ class TestTopologicalSort:
                 "src": ChainNodeConfig(id="src", export="ex_a"),
                 "a": ChainNodeConfig(id="a", export="ex_b"),
                 "b": ChainNodeConfig(id="b", export="ex_c"),
-                "mix": ChainNodeConfig(
-                    id="mix", node_type="mixer", mixer_inputs=2
-                ),
+                "mix": ChainNodeConfig(id="mix", node_type="mixer", mixer_inputs=2),
             },
             connections=[
                 Connection("audio_in", "src"),
@@ -971,11 +961,13 @@ class TestAllocateEdgeBuffers:
     def test_buffer_count(self):
         """Total buffer count matches unique source allocations."""
         graph = _diamond_graph()
-        resolved = self._make_resolved_map({
-            "reverb": (2, 2),
-            "delay": (3, 2),
-            "mix": (2, 2),
-        })
+        resolved = self._make_resolved_map(
+            {
+                "reverb": (2, 2),
+                "delay": (3, 2),
+                "mix": (2, 2),
+            }
+        )
         topo = ["reverb", "delay", "mix"]
         edges, total = allocate_edge_buffers(graph, resolved, topo)
 
@@ -1005,9 +997,7 @@ class TestAllocateEdgeBuffers:
 class TestResolveDAG:
     """Test resolve_dag() with real fixtures."""
 
-    def test_resolve_diamond_dag(
-        self, gigaverb_export, spectraldelayfb_export
-    ):
+    def test_resolve_diamond_dag(self, gigaverb_export, spectraldelayfb_export):
         """Resolve a diamond DAG with mixer node."""
         graph = _diamond_graph()
         export_dirs = {

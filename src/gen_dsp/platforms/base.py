@@ -10,9 +10,12 @@ from pathlib import Path
 from string import Template
 from typing import Optional
 
+import shutil
+
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest
 from gen_dsp.core.project import ProjectConfig
+from gen_dsp.errors import BuildError
 
 
 class Platform(ABC):
@@ -104,6 +107,59 @@ class Platform(ABC):
     # -------------------------------------------------------------------------
     # Common utility methods shared by all platforms
     # -------------------------------------------------------------------------
+
+    def _build_with_cmake(
+        self,
+        project_dir: Path,
+        clean: bool = False,
+        verbose: bool = False,
+    ) -> BuildResult:
+        """Build a project using CMake (configure + build).
+
+        Shared by all CMake-based platforms (AU, CLAP, VST3, LV2, SC, Max).
+        """
+        cmakelists = project_dir / "CMakeLists.txt"
+        if not cmakelists.exists():
+            raise BuildError(f"CMakeLists.txt not found in {project_dir}")
+
+        build_dir = project_dir / "build"
+
+        if clean and build_dir.exists():
+            shutil.rmtree(build_dir)
+
+        build_dir.mkdir(exist_ok=True)
+
+        configure_result = self.run_command(["cmake", ".."], build_dir, verbose=verbose)
+        if configure_result.returncode != 0:
+            return BuildResult(
+                success=False,
+                platform=self.name,
+                output_file=None,
+                stdout=configure_result.stdout,
+                stderr=configure_result.stderr,
+                return_code=configure_result.returncode,
+            )
+
+        build_result = self.run_command(
+            ["cmake", "--build", "."], build_dir, verbose=verbose
+        )
+
+        output_file = self.find_output(project_dir)
+
+        return BuildResult(
+            success=build_result.returncode == 0,
+            platform=self.name,
+            output_file=output_file,
+            stdout=build_result.stdout,
+            stderr=build_result.stderr,
+            return_code=build_result.returncode,
+        )
+
+    def _clean_build_dir(self, project_dir: Path) -> None:
+        """Remove the build/ subdirectory. Shared by all CMake-based platforms."""
+        build_dir = project_dir / "build"
+        if build_dir.exists():
+            shutil.rmtree(build_dir)
 
     def generate_buffer_header(
         self,

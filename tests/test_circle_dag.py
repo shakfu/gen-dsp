@@ -90,15 +90,30 @@ def _diamond_dag_nodes() -> list[ResolvedChainNode]:
     """Diamond DAG: reverb + delay -> mix."""
     return [
         _make_resolved_node(
-            "reverb", "gigaverb", 0, 2, 2, 5,
+            "reverb",
+            "gigaverb",
+            0,
+            2,
+            2,
+            5,
             params=[ParamInfo(i, f"param{i}", True, 0.0, 1.0, 0.5) for i in range(5)],
         ),
         _make_resolved_node(
-            "delay", "spectraldelayfb", 1, 3, 2, 3,
+            "delay",
+            "spectraldelayfb",
+            1,
+            3,
+            2,
+            3,
             params=[ParamInfo(i, f"param{i}", True, 0.0, 1.0, 0.5) for i in range(3)],
         ),
         _make_resolved_node(
-            "mix", "mix", 2, 2, 2, 2,
+            "mix",
+            "mix",
+            2,
+            2,
+            2,
+            2,
             params=[
                 ParamInfo(0, "gain_0", True, 0.0, 2.0, 1.0),
                 ParamInfo(1, "gain_1", True, 0.0, 2.0, 1.0),
@@ -113,9 +128,7 @@ def _diamond_graph() -> GraphConfig:
     """Graph matching _diamond_dag_nodes()."""
     return GraphConfig(
         nodes={
-            "reverb": ChainNodeConfig(
-                id="reverb", export="gigaverb", midi_channel=1
-            ),
+            "reverb": ChainNodeConfig(id="reverb", export="gigaverb", midi_channel=1),
             "delay": ChainNodeConfig(
                 id="delay", export="spectraldelayfb", midi_channel=2
             ),
@@ -136,16 +149,41 @@ def _diamond_graph() -> GraphConfig:
 def _diamond_edge_buffers() -> tuple[list[EdgeBuffer], int]:
     """Edge buffers for the diamond DAG."""
     edges = [
-        EdgeBuffer(buffer_id=-1, src_node="audio_in", dst_node="reverb",
-                   dst_input_index=None, num_channels=2),
-        EdgeBuffer(buffer_id=-1, src_node="audio_in", dst_node="delay",
-                   dst_input_index=None, num_channels=2),
-        EdgeBuffer(buffer_id=0, src_node="reverb", dst_node="mix",
-                   dst_input_index=0, num_channels=2),
-        EdgeBuffer(buffer_id=1, src_node="delay", dst_node="mix",
-                   dst_input_index=1, num_channels=2),
-        EdgeBuffer(buffer_id=2, src_node="mix", dst_node="audio_out",
-                   dst_input_index=None, num_channels=2),
+        EdgeBuffer(
+            buffer_id=-1,
+            src_node="audio_in",
+            dst_node="reverb",
+            dst_input_index=None,
+            num_channels=2,
+        ),
+        EdgeBuffer(
+            buffer_id=-1,
+            src_node="audio_in",
+            dst_node="delay",
+            dst_input_index=None,
+            num_channels=2,
+        ),
+        EdgeBuffer(
+            buffer_id=0,
+            src_node="reverb",
+            dst_node="mix",
+            dst_input_index=0,
+            num_channels=2,
+        ),
+        EdgeBuffer(
+            buffer_id=1,
+            src_node="delay",
+            dst_node="mix",
+            dst_input_index=1,
+            num_channels=2,
+        ),
+        EdgeBuffer(
+            buffer_id=2,
+            src_node="mix",
+            dst_node="audio_out",
+            dst_input_index=None,
+            num_channels=2,
+        ),
     ]
     return edges, 3
 
@@ -191,7 +229,7 @@ class TestDAGCodeGenerationHelpers:
         assert '#include "_ext_circle_0.h"' in result
         assert '#include "_ext_circle_1.h"' in result
         # Mixer (index 2) should NOT have an include
-        assert '_ext_circle_2' not in result
+        assert "_ext_circle_2" not in result
 
     def test_dag_io_defines_skip_mixer(self):
         """Test that mixer nodes are excluded from I/O defines."""
@@ -301,8 +339,7 @@ class TestDAGProjectGeneration:
 
         platform = CirclePlatform()
         platform.generate_dag_project(
-            dag_nodes, graph, edge_buffers, num_buffers,
-            output_dir, "mydag"
+            dag_nodes, graph, edge_buffers, num_buffers, output_dir, "mydag"
         )
 
         # Static files
@@ -340,8 +377,7 @@ class TestDAGProjectGeneration:
 
         platform = CirclePlatform()
         platform.generate_dag_project(
-            dag_nodes, graph, edge_buffers, num_buffers,
-            output_dir, "mydag"
+            dag_nodes, graph, edge_buffers, num_buffers, output_dir, "mydag"
         )
 
         kernel = (output_dir / "gen_ext_circle.cpp").read_text(encoding="utf-8")
@@ -363,8 +399,7 @@ class TestDAGProjectGeneration:
 
         platform = CirclePlatform()
         platform.generate_dag_project(
-            dag_nodes, graph, edge_buffers, num_buffers,
-            output_dir, "mydag"
+            dag_nodes, graph, edge_buffers, num_buffers, output_dir, "mydag"
         )
 
         makefile = (output_dir / "Makefile").read_text(encoding="utf-8")
@@ -386,8 +421,7 @@ class TestDAGProjectGeneration:
 
         platform = CirclePlatform()
         platform.generate_dag_project(
-            dag_nodes, graph, edge_buffers, num_buffers,
-            output_dir, "mydag"
+            dag_nodes, graph, edge_buffers, num_buffers, output_dir, "mydag"
         )
 
         kernel = (output_dir / "gen_ext_circle.cpp").read_text(encoding="utf-8")
@@ -408,8 +442,7 @@ class TestDAGProjectGeneration:
         config = ProjectConfig(name="mydag", platform="circle", board="pi4-usb")
         platform = CirclePlatform()
         platform.generate_dag_project(
-            dag_nodes, graph, edge_buffers, num_buffers,
-            output_dir, "mydag", config
+            dag_nodes, graph, edge_buffers, num_buffers, output_dir, "mydag", config
         )
 
         kernel = (output_dir / "gen_ext_circle.cpp").read_text(encoding="utf-8")

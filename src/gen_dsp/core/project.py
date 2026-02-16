@@ -103,9 +103,6 @@ class ProjectConfig:
 class ProjectGenerator:
     """Generate new project from gen~ export."""
 
-    # Version string for generated projects
-    GENEXT_VERSION = "0.8.0"
-
     def __init__(self, export_info: ExportInfo, config: ProjectConfig):
         """
         Initialize generator with export info and configuration.
@@ -134,6 +131,7 @@ class ProjectGenerator:
         """
         from gen_dsp.core.manifest import manifest_from_export_info
         from gen_dsp.platforms import get_platform, list_platforms
+        from gen_dsp.platforms.base import Platform
 
         # Validate configuration
         errors = self.config.validate()
@@ -159,7 +157,7 @@ class ProjectGenerator:
 
         # Build manifest
         manifest = manifest_from_export_info(
-            self.export_info, buffers, self.GENEXT_VERSION
+            self.export_info, buffers, Platform.GENEXT_VERSION
         )
 
         # Generate for each platform using the registry

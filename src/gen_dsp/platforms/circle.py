@@ -629,9 +629,7 @@ def _build_dag_buffer_init(num_buffers: int) -> str:
     """Build pointer array initialization for constructor."""
     lines = []
     for i in range(num_buffers):
-        lines.append(
-            "        for (int ch = 0; ch < DAG_MAX_CHANNELS; ch++) {"
-        )
+        lines.append("        for (int ch = 0; ch < DAG_MAX_CHANNELS; ch++) {")
         lines.append(f"            m_pDagBuf_{i}[ch] = m_DagBufStorage_{i}[ch];")
         lines.append("        }")
     return "\n".join(lines)
@@ -662,12 +660,8 @@ def _build_dag_io_defines(dag_nodes: "list[ResolvedChainNode]") -> str:
     for node in dag_nodes:
         if node.config.node_type == "gen":
             prefix = f"NODE_{node.index}"
-            lines.append(
-                f"#define {prefix}_NUM_INPUTS  {node.manifest.num_inputs}"
-            )
-            lines.append(
-                f"#define {prefix}_NUM_OUTPUTS {node.manifest.num_outputs}"
-            )
+            lines.append(f"#define {prefix}_NUM_INPUTS  {node.manifest.num_inputs}")
+            lines.append(f"#define {prefix}_NUM_OUTPUTS {node.manifest.num_outputs}")
     return "\n".join(lines)
 
 
@@ -721,9 +715,7 @@ def _build_dag_set_param(dag_nodes: "list[ResolvedChainNode]") -> str:
             # Mixer: dispatch by paramIndex to gain members
             for p in node.manifest.params:
                 lines.append(f"            if (paramIndex == {p.index}) {{")
-                lines.append(
-                    f"                m_{node.config.id}_{p.name} = value;"
-                )
+                lines.append(f"                m_{node.config.id}_{p.name} = value;")
                 lines.append("            }")
         lines.append("        }")
     return "\n".join(lines)
@@ -808,8 +800,7 @@ def _build_dag_perform(
         elif node.config.node_type == "mixer":
             # Inline weighted sum
             lines.append(
-                f"        // Node {node.index}: {nid} (mixer, "
-                f"{len(incoming)} inputs)"
+                f"        // Node {node.index}: {nid} (mixer, {len(incoming)} inputs)"
             )
 
             # Determine output buffer
@@ -818,12 +809,8 @@ def _build_dag_perform(
             else:
                 out_buf = "nullptr"
 
-            lines.append(
-                f"        for (int ch = 0; ch < {n_out}; ch++) {{"
-            )
-            lines.append(
-                "            for (unsigned s = 0; s < nFrames; s++) {"
-            )
+            lines.append(f"        for (int ch = 0; ch < {n_out}; ch++) {{")
+            lines.append("            for (unsigned s = 0; s < nFrames; s++) {")
 
             # Build weighted sum expression
             terms = []
@@ -861,10 +848,7 @@ def _build_dag_midi_dispatch(
             midi_ch = node.index + 1
         n_params = node.manifest.num_params
 
-        lines.append(
-            f"    // Node {node.index}: {node.config.id} "
-            f"(MIDI ch {midi_ch})"
-        )
+        lines.append(f"    // Node {node.index}: {node.config.id} (MIDI ch {midi_ch})")
         lines.append(f"    if (channel == {midi_ch}) {{")
 
         if node.config.cc_map:
@@ -1464,8 +1448,7 @@ class CirclePlatform(Platform):
 
         # Compute max channels across all nodes
         max_channels = max(
-            max(n.manifest.num_inputs, n.manifest.num_outputs, 1)
-            for n in dag_nodes
+            max(n.manifest.num_inputs, n.manifest.num_outputs, 1) for n in dag_nodes
         )
 
         # Generate per-node wrapper shims (gen~ nodes only)
@@ -1551,15 +1534,15 @@ class CirclePlatform(Platform):
             final_output_ptr = f"m_pDagBuf_{out_edges[0].buffer_id}"
         else:
             # Fallback: use the last allocated buffer
-            final_output_ptr = f"m_pDagBuf_{num_buffers - 1}" if num_buffers > 0 else "m_pHwInput"
+            final_output_ptr = (
+                f"m_pDagBuf_{num_buffers - 1}" if num_buffers > 0 else "m_pHwInput"
+            )
 
         # Build clear-buffers code
         clear_lines = []
         for i in range(num_buffers):
             for ch in range(max_channels):
-                clear_lines.append(
-                    f"            m_DagBufStorage_{i}[{ch}][i] = 0.0f;"
-                )
+                clear_lines.append(f"            m_DagBufStorage_{i}[{ch}][i] = 0.0f;")
         dag_clear_buffers = "\n".join(clear_lines)
 
         content = template.safe_substitute(
@@ -1601,9 +1584,7 @@ class CirclePlatform(Platform):
         """Generate Makefile for DAG project (reuses chain Makefile template)."""
         template_path = templates_dir / "Makefile_chain.template"
         if not template_path.exists():
-            raise ProjectError(
-                f"Chain Makefile template not found at {template_path}"
-            )
+            raise ProjectError(f"Chain Makefile template not found at {template_path}")
 
         template_content = template_path.read_text(encoding="utf-8")
         template = Template(template_content)

@@ -16,7 +16,7 @@ from typing import Optional
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest
 from gen_dsp.core.project import ProjectConfig
-from gen_dsp.errors import BuildError, ProjectError
+from gen_dsp.errors import ProjectError
 from gen_dsp.platforms.base import Platform
 from gen_dsp.templates import get_vst3_templates_dir
 
@@ -108,13 +108,6 @@ class Vst3Platform(Platform):
         digest = hashlib.md5(f"com.gen-dsp.vst3.{lib_name}".encode()).digest()
         return struct.unpack(">IIII", digest)
 
-    def _detect_plugin_type(self, num_inputs: int) -> str:
-        """Detect VST3 plugin type from number of inputs.
-
-        Returns 'effect' if inputs > 0, 'instrument' if inputs == 0.
-        """
-        return "effect" if num_inputs > 0 else "instrument"
-
     def _generate_cmakelists(
         self,
         template_path: Path,
@@ -155,52 +148,11 @@ class Vst3Platform(Platform):
         verbose: bool = False,
     ) -> BuildResult:
         """Build VST3 plugin using CMake."""
-        cmakelists = project_dir / "CMakeLists.txt"
-        if not cmakelists.exists():
-            raise BuildError(f"CMakeLists.txt not found in {project_dir}")
-
-        build_dir = project_dir / "build"
-
-        # Clean if requested
-        if clean and build_dir.exists():
-            shutil.rmtree(build_dir)
-
-        build_dir.mkdir(exist_ok=True)
-
-        # Configure with CMake
-        configure_result = self.run_command(["cmake", ".."], build_dir, verbose=verbose)
-        if configure_result.returncode != 0:
-            return BuildResult(
-                success=False,
-                platform="vst3",
-                output_file=None,
-                stdout=configure_result.stdout,
-                stderr=configure_result.stderr,
-                return_code=configure_result.returncode,
-            )
-
-        # Build
-        build_result = self.run_command(
-            ["cmake", "--build", "."], build_dir, verbose=verbose
-        )
-
-        # Find output file
-        output_file = self.find_output(project_dir)
-
-        return BuildResult(
-            success=build_result.returncode == 0,
-            platform="vst3",
-            output_file=output_file,
-            stdout=build_result.stdout,
-            stderr=build_result.stderr,
-            return_code=build_result.returncode,
-        )
+        return self._build_with_cmake(project_dir, clean, verbose)
 
     def clean(self, project_dir: Path) -> None:
         """Clean build artifacts."""
-        build_dir = project_dir / "build"
-        if build_dir.exists():
-            shutil.rmtree(build_dir)
+        self._clean_build_dir(project_dir)
 
     def find_output(self, project_dir: Path) -> Optional[Path]:
         """Find the built VST3 plugin bundle."""
