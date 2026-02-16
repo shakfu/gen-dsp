@@ -17,15 +17,14 @@ from pathlib import Path
 from string import Template
 from typing import Optional
 
-from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, ParamInfo
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import ProjectError
-from gen_dsp.platforms.base import Platform
+from gen_dsp.platforms.cmake_platform import CMakePlatform
 from gen_dsp.templates import get_sc_templates_dir
 
 
-class SuperColliderPlatform(Platform):
+class SuperColliderPlatform(CMakePlatform):
     """SuperCollider UGen platform implementation using CMake."""
 
     name = "sc"
@@ -36,12 +35,6 @@ class SuperColliderPlatform(Platform):
         if sys.platform == "darwin" or sys.platform == "win32":
             return ".scx"
         return ".so"
-
-    def get_build_instructions(self) -> list[str]:
-        """Get build instructions for SuperCollider UGens."""
-        return [
-            "cmake -B build && cmake --build build",
-        ]
 
     def generate_project(
         self,
@@ -60,13 +53,14 @@ class SuperColliderPlatform(Platform):
             "gen_ext_sc.cpp",
             "gen_ext_common_sc.h",
             "_ext_sc.cpp",
-            "_ext_sc.h",
             "sc_buffer.h",
         ]
         for filename in static_files:
             src = templates_dir / filename
             if src.exists():
                 shutil.copy2(src, output_dir / filename)
+
+        self.generate_ext_header(output_dir, "sc")
 
         # UGen name (first letter capitalized, required by SC)
         ugen_name = self._capitalize_name(lib_name)
@@ -83,13 +77,7 @@ class SuperColliderPlatform(Platform):
         )
 
         # Resolve shared cache settings
-        shared_cache = config is not None and config.shared_cache
-        if shared_cache:
-            from gen_dsp.core.cache import get_cache_dir
-
-            cache_dir = get_cache_dir().as_posix()
-        else:
-            cache_dir = ""
+        use_shared_cache, cache_dir = self.resolve_shared_cache(config)
 
         # Generate CMakeLists.txt
         self._generate_cmakelists(
@@ -101,7 +89,7 @@ class SuperColliderPlatform(Platform):
             manifest.num_inputs,
             manifest.num_outputs,
             manifest.num_params,
-            use_shared_cache="ON" if shared_cache else "OFF",
+            use_shared_cache=use_shared_cache,
             cache_dir=cache_dir,
         )
 
@@ -258,19 +246,6 @@ class SuperColliderPlatform(Platform):
             cache_dir=cache_dir,
         )
         output_path.write_text(content, encoding="utf-8")
-
-    def build(
-        self,
-        project_dir: Path,
-        clean: bool = False,
-        verbose: bool = False,
-    ) -> BuildResult:
-        """Build SuperCollider UGen using CMake."""
-        return self._build_with_cmake(project_dir, clean, verbose)
-
-    def clean(self, project_dir: Path) -> None:
-        """Clean build artifacts."""
-        self._clean_build_dir(project_dir)
 
     def find_output(self, project_dir: Path) -> Optional[Path]:
         """Find the built SC UGen binary."""

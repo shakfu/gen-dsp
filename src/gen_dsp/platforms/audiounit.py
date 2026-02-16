@@ -16,11 +16,11 @@ from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
-from gen_dsp.platforms.base import Platform
+from gen_dsp.platforms.cmake_platform import CMakePlatform
 from gen_dsp.templates import get_au_templates_dir
 
 
-class AudioUnitPlatform(Platform):
+class AudioUnitPlatform(CMakePlatform):
     """AudioUnit v2 platform implementation using CMake."""
 
     name = "au"
@@ -33,12 +33,6 @@ class AudioUnitPlatform(Platform):
     def extension(self) -> str:
         """Get the file extension for AudioUnit plugins."""
         return ".component"
-
-    def get_build_instructions(self) -> list[str]:
-        """Get build instructions for AudioUnit."""
-        return [
-            "cmake -B build && cmake --build build",
-        ]
 
     def generate_project(
         self,
@@ -57,7 +51,6 @@ class AudioUnitPlatform(Platform):
             "gen_ext_au.cpp",
             "gen_ext_common_au.h",
             "_ext_au.cpp",
-            "_ext_au.h",
             "au_buffer.h",
         ]
 
@@ -65,6 +58,8 @@ class AudioUnitPlatform(Platform):
             src = templates_dir / filename
             if src.exists():
                 shutil.copy2(src, output_dir / filename)
+
+        self.generate_ext_header(output_dir, "au")
 
         # Detect AU type from I/O configuration
         au_type = self._detect_au_type(manifest.num_inputs)
@@ -182,10 +177,6 @@ class AudioUnitPlatform(Platform):
         if sys_platform.system() != "Darwin":
             raise BuildError("AudioUnit plugins can only be built on macOS")
         return self._build_with_cmake(project_dir, clean, verbose)
-
-    def clean(self, project_dir: Path) -> None:
-        """Clean build artifacts."""
-        self._clean_build_dir(project_dir)
 
     def find_output(self, project_dir: Path) -> Optional[Path]:
         """Find the built AudioUnit .component bundle."""

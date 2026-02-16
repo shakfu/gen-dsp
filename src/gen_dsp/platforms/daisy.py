@@ -368,7 +368,6 @@ class DaisyPlatform(Platform):
         static_files = [
             "gen_ext_common_daisy.h",
             "_ext_daisy.cpp",
-            "_ext_daisy.h",
             "daisy_buffer.h",
             "genlib_daisy.h",
             "genlib_daisy.cpp",
@@ -377,6 +376,8 @@ class DaisyPlatform(Platform):
             src = templates_dir / filename
             if src.exists():
                 shutil.copy2(src, output_dir / filename)
+
+        self.generate_ext_header(output_dir, "daisy")
 
         # Generate gen_ext_daisy.cpp from template (board-specific)
         self._generate_ext_daisy(

@@ -977,7 +977,6 @@ class CirclePlatform(Platform):
         static_files = [
             "gen_ext_common_circle.h",
             "_ext_circle.cpp",
-            "_ext_circle.h",
             "circle_buffer.h",
             "genlib_circle.h",
             "genlib_circle.cpp",
@@ -987,6 +986,8 @@ class CirclePlatform(Platform):
             src = templates_dir / filename
             if src.exists():
                 shutil.copy2(src, output_dir / filename)
+
+        self.generate_ext_header(output_dir, "circle")
 
         # Select template based on audio device type
         if board.audio_device == "usb":

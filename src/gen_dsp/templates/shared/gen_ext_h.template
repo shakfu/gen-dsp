@@ -1,10 +1,10 @@
-// _ext_daisy.h - Minimal interface for Daisy wrapper
+// _ext_$platform_lower.h - Minimal interface for $platform_upper wrapper
 // Provides forward declarations and wrapper functions without exposing genlib types
 
-#ifndef _EXT_DAISY_H
-#define _EXT_DAISY_H
+#ifndef _EXT_${platform_upper}_H
+#define _EXT_${platform_upper}_H
 
-#include "gen_ext_common_daisy.h"
+#include "gen_ext_common_$platform_lower.h"
 
 // Forward declaration - actual type is CommonState from genlib
 // We use void* to avoid including genlib headers
@@ -40,4 +40,4 @@ const char* wrapper_buffer_name(int index);
 
 } // namespace WRAPPER_NAMESPACE
 
-#endif // _EXT_DAISY_H
+#endif // _EXT_${platform_upper}_H

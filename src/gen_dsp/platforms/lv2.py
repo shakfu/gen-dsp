@@ -18,15 +18,14 @@ from pathlib import Path
 from string import Template
 from typing import Optional
 
-from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, ParamInfo
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import ProjectError
-from gen_dsp.platforms.base import Platform
+from gen_dsp.platforms.cmake_platform import CMakePlatform
 from gen_dsp.templates import get_lv2_templates_dir
 
 
-class Lv2Platform(Platform):
+class Lv2Platform(CMakePlatform):
     """LV2 plugin platform implementation using CMake."""
 
     name = "lv2"
@@ -36,12 +35,6 @@ class Lv2Platform(Platform):
     def extension(self) -> str:
         """Get the extension for LV2 bundles."""
         return ".lv2"
-
-    def get_build_instructions(self) -> list[str]:
-        """Get build instructions for LV2."""
-        return [
-            "cmake -B build && cmake --build build",
-        ]
 
     def generate_project(
         self,
@@ -60,13 +53,14 @@ class Lv2Platform(Platform):
             "gen_ext_lv2.cpp",
             "gen_ext_common_lv2.h",
             "_ext_lv2.cpp",
-            "_ext_lv2.h",
             "lv2_buffer.h",
         ]
         for filename in static_files:
             src = templates_dir / filename
             if src.exists():
                 shutil.copy2(src, output_dir / filename)
+
+        self.generate_ext_header(output_dir, "lv2")
 
         # Generate TTL files
         plugin_uri = f"{self.LV2_URI_BASE}/{lib_name}"
@@ -82,13 +76,7 @@ class Lv2Platform(Platform):
         )
 
         # Resolve shared cache settings
-        shared_cache = config is not None and config.shared_cache
-        if shared_cache:
-            from gen_dsp.core.cache import get_cache_dir
-
-            cache_dir = get_cache_dir().as_posix()
-        else:
-            cache_dir = ""
+        use_shared_cache, cache_dir = self.resolve_shared_cache(config)
 
         # Generate CMakeLists.txt
         self._generate_cmakelists(
@@ -99,7 +87,7 @@ class Lv2Platform(Platform):
             manifest.num_inputs,
             manifest.num_outputs,
             manifest.num_params,
-            use_shared_cache="ON" if shared_cache else "OFF",
+            use_shared_cache=use_shared_cache,
             cache_dir=cache_dir,
         )
 
@@ -273,19 +261,6 @@ class Lv2Platform(Platform):
             cache_dir=cache_dir,
         )
         output_path.write_text(content, encoding="utf-8")
-
-    def build(
-        self,
-        project_dir: Path,
-        clean: bool = False,
-        verbose: bool = False,
-    ) -> BuildResult:
-        """Build LV2 plugin using CMake."""
-        return self._build_with_cmake(project_dir, clean, verbose)
-
-    def clean(self, project_dir: Path) -> None:
-        """Clean build artifacts."""
-        self._clean_build_dir(project_dir)
 
     def find_output(self, project_dir: Path) -> Optional[Path]:
         """Find the built LV2 bundle directory."""

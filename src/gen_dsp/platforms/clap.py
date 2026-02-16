@@ -11,15 +11,14 @@ from pathlib import Path
 from string import Template
 from typing import Optional
 
-from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import ProjectError
-from gen_dsp.platforms.base import Platform
+from gen_dsp.platforms.cmake_platform import CMakePlatform
 from gen_dsp.templates import get_clap_templates_dir
 
 
-class ClapPlatform(Platform):
+class ClapPlatform(CMakePlatform):
     """CLAP plugin platform implementation using CMake."""
 
     name = "clap"
@@ -28,12 +27,6 @@ class ClapPlatform(Platform):
     def extension(self) -> str:
         """Get the file extension for CLAP plugins."""
         return ".clap"
-
-    def get_build_instructions(self) -> list[str]:
-        """Get build instructions for CLAP."""
-        return [
-            "cmake -B build && cmake --build build",
-        ]
 
     def generate_project(
         self,
@@ -52,7 +45,6 @@ class ClapPlatform(Platform):
             "gen_ext_clap.cpp",
             "gen_ext_common_clap.h",
             "_ext_clap.cpp",
-            "_ext_clap.h",
             "clap_buffer.h",
         ]
 
@@ -61,14 +53,10 @@ class ClapPlatform(Platform):
             if src.exists():
                 shutil.copy2(src, output_dir / filename)
 
-        # Resolve shared cache settings
-        shared_cache = config is not None and config.shared_cache
-        if shared_cache:
-            from gen_dsp.core.cache import get_cache_dir
+        self.generate_ext_header(output_dir, "clap")
 
-            cache_dir = get_cache_dir().as_posix()
-        else:
-            cache_dir = ""
+        # Resolve shared cache settings
+        use_shared_cache, cache_dir = self.resolve_shared_cache(config)
 
         # Generate CMakeLists.txt
         self._generate_cmakelists(
@@ -78,7 +66,7 @@ class ClapPlatform(Platform):
             lib_name,
             manifest.num_inputs,
             manifest.num_outputs,
-            use_shared_cache="ON" if shared_cache else "OFF",
+            use_shared_cache=use_shared_cache,
             cache_dir=cache_dir,
         )
 
@@ -120,19 +108,6 @@ class ClapPlatform(Platform):
             cache_dir=cache_dir,
         )
         output_path.write_text(content, encoding="utf-8")
-
-    def build(
-        self,
-        project_dir: Path,
-        clean: bool = False,
-        verbose: bool = False,
-    ) -> BuildResult:
-        """Build CLAP plugin using CMake."""
-        return self._build_with_cmake(project_dir, clean, verbose)
-
-    def clean(self, project_dir: Path) -> None:
-        """Clean build artifacts."""
-        self._clean_build_dir(project_dir)
 
     def find_output(self, project_dir: Path) -> Optional[Path]:
         """Find the built CLAP plugin file."""

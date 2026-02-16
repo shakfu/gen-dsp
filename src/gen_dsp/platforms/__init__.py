@@ -11,6 +11,7 @@ making it easy to add new backends without modifying multiple files.
 from typing import Type
 
 from gen_dsp.platforms.base import Platform
+from gen_dsp.platforms.cmake_platform import CMakePlatform
 from gen_dsp.platforms.puredata import PureDataPlatform
 from gen_dsp.platforms.max import MaxPlatform
 from gen_dsp.platforms.chuck import ChuckPlatform
@@ -107,6 +108,7 @@ def is_valid_platform(name: str) -> bool:
 
 __all__ = [
     "Platform",
+    "CMakePlatform",
     "PureDataPlatform",
     "MaxPlatform",
     "ChuckPlatform",

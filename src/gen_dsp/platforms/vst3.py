@@ -13,15 +13,14 @@ from pathlib import Path
 from string import Template
 from typing import Optional
 
-from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import ProjectError
-from gen_dsp.platforms.base import Platform
+from gen_dsp.platforms.cmake_platform import CMakePlatform
 from gen_dsp.templates import get_vst3_templates_dir
 
 
-class Vst3Platform(Platform):
+class Vst3Platform(CMakePlatform):
     """VST3 plugin platform implementation using CMake."""
 
     name = "vst3"
@@ -30,12 +29,6 @@ class Vst3Platform(Platform):
     def extension(self) -> str:
         """Get the file extension for VST3 plugins."""
         return ".vst3"
-
-    def get_build_instructions(self) -> list[str]:
-        """Get build instructions for VST3."""
-        return [
-            "cmake -B build && cmake --build build",
-        ]
 
     def generate_project(
         self,
@@ -54,7 +47,6 @@ class Vst3Platform(Platform):
             "gen_ext_vst3.cpp",
             "gen_ext_common_vst3.h",
             "_ext_vst3.cpp",
-            "_ext_vst3.h",
             "vst3_buffer.h",
         ]
 
@@ -63,17 +55,13 @@ class Vst3Platform(Platform):
             if src.exists():
                 shutil.copy2(src, output_dir / filename)
 
+        self.generate_ext_header(output_dir, "vst3")
+
         # Generate FUID from lib_name
         fuid = self._generate_fuid(lib_name)
 
         # Resolve shared cache settings
-        shared_cache = config is not None and config.shared_cache
-        if shared_cache:
-            from gen_dsp.core.cache import get_cache_dir
-
-            cache_dir = get_cache_dir().as_posix()
-        else:
-            cache_dir = ""
+        use_shared_cache, cache_dir = self.resolve_shared_cache(config)
 
         # Generate CMakeLists.txt
         self._generate_cmakelists(
@@ -84,7 +72,7 @@ class Vst3Platform(Platform):
             manifest.num_inputs,
             manifest.num_outputs,
             fuid,
-            use_shared_cache="ON" if shared_cache else "OFF",
+            use_shared_cache=use_shared_cache,
             cache_dir=cache_dir,
         )
 
@@ -140,19 +128,6 @@ class Vst3Platform(Platform):
             cache_dir=cache_dir,
         )
         output_path.write_text(content, encoding="utf-8")
-
-    def build(
-        self,
-        project_dir: Path,
-        clean: bool = False,
-        verbose: bool = False,
-    ) -> BuildResult:
-        """Build VST3 plugin using CMake."""
-        return self._build_with_cmake(project_dir, clean, verbose)
-
-    def clean(self, project_dir: Path) -> None:
-        """Clean build artifacts."""
-        self._clean_build_dir(project_dir)
 
     def find_output(self, project_dir: Path) -> Optional[Path]:
         """Find the built VST3 plugin bundle."""

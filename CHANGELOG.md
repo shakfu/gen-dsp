@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Refactoring: `CMakePlatform` intermediate base class** (`platforms/cmake_platform.py`) -- the 6 CMake-based platforms (AU, CLAP, VST3, LV2, SC, Max) now inherit from `CMakePlatform` instead of `Platform` directly. Shared `build()`, `clean()`, `get_build_instructions()`, and `resolve_shared_cache()` implementations eliminate ~60 lines of duplication. AU keeps its `build()` override (macOS guard), Max keeps `build()` (SDK setup) and `get_build_instructions()` (git clone step).
+- **Refactoring: parameterized `_ext*.h` templates** -- the 8 identical 44-line `_ext_{platform}.h` header files (CLAP, VST3, LV2, SC, AU, VCV Rack, Daisy, Circle) are now generated from a single shared template (`templates/shared/gen_ext_h.template`) via `Platform.generate_ext_header()`. ChucK, Max, and PD retain their genuinely different headers. Removes ~350 lines of duplication.
+- **Refactoring: extracted graph init logic from CLI** (`core/graph_init.py`) -- the 4 functions handling `--graph` chain/DAG initialization (~180 lines) moved from `cli.py` to `core/graph_init.py` with explicit parameters instead of `argparse.Namespace`. Functions: `resolve_export_dirs()`, `copy_and_patch_exports()`, `init_chain_linear()`, `init_chain_dag()`.
 - **Refactoring: extracted `_build_with_cmake()` into `Platform` base class** -- the identical CMake configure+build sequence previously duplicated across 5 platforms (CLAP, VST3, LV2, SC, AU) is now a single 30-line method in `platforms/base.py`. AU and Max retain platform-specific pre-checks before delegating. Uses `self.name` for the `BuildResult.platform` field, eliminating hardcoded platform name strings.
 - **Refactoring: extracted `_clean_build_dir()` into `Platform` base class** -- the identical `rm -rf build/` logic duplicated in 6 platforms (CLAP, VST3, LV2, SC, AU, Max) is now a 3-line method in `platforms/base.py`.
 - **Refactoring: collapsed `templates/__init__.py`** -- replaced 274 lines of 22 repetitive getter/lister functions with a single generic `get_templates_dir(platform)` function plus 11 one-liner backward-compatible aliases. Removed all `list_*_templates()` functions (zero callers). Removed `get_max_templates_dir()` side effect (directory creation).
@@ -17,9 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - Dead `_detect_plugin_type()` methods from CLAP, VST3, LV2, and SuperCollider platforms (defined but never called; AU and VCV Rack still use their detection methods)
+- 8 identical static `_ext_{platform}.h` template files (replaced by shared parameterized template)
 
 ### Added
 
+- **Parametrized cross-platform tests** -- `TestCrossPlatformGeneration` class in `test_platforms.py` with 5 `@pytest.mark.parametrize` tests x 11 platforms = 55 new tests validating common invariants (directory creation, gen~ export copy, buffer header, build system file, buffer declarations)
 - **Circle: DAG topology for multi-plugin mode (Phase 2)** -- the `--graph` flag now supports arbitrary directed acyclic graphs, lifting the Phase 1 linear-chain-only restriction
   - Fan-out: a single node's output can feed multiple downstream nodes (zero-copy, shared buffer)
   - Fan-in via mixer nodes: built-in `"type": "mixer"` node type combines multiple inputs with per-input gain parameters (weighted sum)

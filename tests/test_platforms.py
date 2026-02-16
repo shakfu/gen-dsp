@@ -2,6 +2,8 @@
 
 import pytest
 
+from gen_dsp.core.parser import GenExportParser
+from gen_dsp.core.project import ProjectGenerator, ProjectConfig
 from gen_dsp.platforms import (
     PLATFORM_REGISTRY,
     PureDataPlatform,
@@ -140,3 +142,92 @@ class TestMaxPlatform:
         instructions = platform.get_build_instructions()
         assert any("cmake" in instr for instr in instructions)
         assert any("max-sdk-base" in instr for instr in instructions)
+
+
+# Map platform keys to the build system file they generate.
+_BUILD_SYSTEM_FILES = {
+    "pd": "Makefile",
+    "max": "CMakeLists.txt",
+    "chuck": "makefile",
+    "au": "CMakeLists.txt",
+    "clap": "CMakeLists.txt",
+    "vst3": "CMakeLists.txt",
+    "lv2": "CMakeLists.txt",
+    "sc": "CMakeLists.txt",
+    "vcvrack": "Makefile",
+    "daisy": "Makefile",
+    "circle": "Makefile",
+}
+
+
+def _generate_project(platform_key, export_path, tmp_path, buffers=None):
+    """Helper: generate a project for the given platform and export."""
+    parser = GenExportParser(export_path)
+    export_info = parser.parse()
+    config = ProjectConfig(
+        name="testlib",
+        platform=platform_key,
+        buffers=buffers or [],
+    )
+    generator = ProjectGenerator(export_info, config)
+    return generator.generate(tmp_path / platform_key)
+
+
+class TestCrossPlatformGeneration:
+    """Parametrized tests validating common invariants across all platforms."""
+
+    @pytest.mark.parametrize("platform_key", sorted(PLATFORM_REGISTRY.keys()))
+    def test_generate_project_creates_directory(
+        self, platform_key, gigaverb_export, tmp_path
+    ):
+        """Every platform must create a project directory."""
+        project_dir = _generate_project(platform_key, gigaverb_export, tmp_path)
+        assert project_dir.is_dir()
+
+    @pytest.mark.parametrize("platform_key", sorted(PLATFORM_REGISTRY.keys()))
+    def test_generate_project_copies_gen_export(
+        self, platform_key, gigaverb_export, tmp_path
+    ):
+        """Every platform must copy the gen~ export files into gen/ subdir."""
+        project_dir = _generate_project(platform_key, gigaverb_export, tmp_path)
+        gen_dir = project_dir / "gen"
+        assert gen_dir.is_dir(), f"{platform_key}: gen/ subdirectory not found"
+        gen_files = list(gen_dir.glob("*.cpp"))
+        assert len(gen_files) > 0, f"{platform_key}: no .cpp files in gen/"
+
+    @pytest.mark.parametrize("platform_key", sorted(PLATFORM_REGISTRY.keys()))
+    def test_generate_project_creates_buffer_header(
+        self, platform_key, gigaverb_export, tmp_path
+    ):
+        """Every platform must generate gen_buffer.h."""
+        project_dir = _generate_project(platform_key, gigaverb_export, tmp_path)
+        buffer_h = project_dir / "gen_buffer.h"
+        assert buffer_h.is_file(), f"{platform_key}: gen_buffer.h not found"
+        content = buffer_h.read_text()
+        assert "WRAPPER_BUFFER_COUNT 0" in content
+
+    @pytest.mark.parametrize("platform_key", sorted(PLATFORM_REGISTRY.keys()))
+    def test_generate_project_has_build_system_file(
+        self, platform_key, gigaverb_export, tmp_path
+    ):
+        """Every platform must produce its build system entry point."""
+        project_dir = _generate_project(platform_key, gigaverb_export, tmp_path)
+        build_file = _BUILD_SYSTEM_FILES.get(platform_key)
+        assert build_file is not None, f"No build file mapping for {platform_key}"
+        assert (project_dir / build_file).is_file(), (
+            f"{platform_key}: {build_file} not found"
+        )
+
+    @pytest.mark.parametrize("platform_key", sorted(PLATFORM_REGISTRY.keys()))
+    def test_generate_project_with_buffers(
+        self, platform_key, rampleplayer_export, tmp_path
+    ):
+        """Every platform must handle buffer declarations."""
+        project_dir = _generate_project(
+            platform_key, rampleplayer_export, tmp_path, buffers=["sample"]
+        )
+        buffer_h = project_dir / "gen_buffer.h"
+        assert buffer_h.is_file()
+        content = buffer_h.read_text()
+        assert "WRAPPER_BUFFER_COUNT 1" in content
+        assert "WRAPPER_BUFFER_NAME_0 sample" in content

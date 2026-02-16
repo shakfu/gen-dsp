@@ -15,11 +15,11 @@ from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
-from gen_dsp.platforms.base import Platform
+from gen_dsp.platforms.cmake_platform import CMakePlatform
 from gen_dsp.templates import get_max_templates_dir
 
 
-class MaxPlatform(Platform):
+class MaxPlatform(CMakePlatform):
     """Max/MSP platform implementation using CMake and max-sdk-base."""
 
     name = "max"
@@ -151,10 +151,6 @@ class MaxPlatform(Platform):
                 f"  git clone {self.MAX_SDK_REPO}"
             )
         return self._build_with_cmake(project_dir, clean, verbose)
-
-    def clean(self, project_dir: Path) -> None:
-        """Clean build artifacts."""
-        self._clean_build_dir(project_dir)
 
     def find_output(self, project_dir: Path) -> Optional[Path]:
         """Find the built Max external file."""

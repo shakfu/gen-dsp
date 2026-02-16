@@ -191,7 +191,6 @@ class VcvRackPlatform(Platform):
             "gen_ext_vcvrack.cpp",
             "gen_ext_common_vcvrack.h",
             "_ext_vcvrack.cpp",
-            "_ext_vcvrack.h",
             "vcvrack_buffer.h",
             "plugin.cpp",
             "plugin.hpp",
@@ -200,6 +199,8 @@ class VcvRackPlatform(Platform):
             src = templates_dir / filename
             if src.exists():
                 shutil.copy2(src, output_dir / filename)
+
+        self.generate_ext_header(output_dir, "vcvrack")
 
         # Compute panel HP
         total_components = (

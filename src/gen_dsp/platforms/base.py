@@ -161,6 +161,22 @@ class Platform(ABC):
         if build_dir.exists():
             shutil.rmtree(build_dir)
 
+    def generate_ext_header(self, output_dir: Path, platform_key: str) -> None:
+        """Generate the standard _ext_{platform}.h header from shared template.
+
+        Used by platforms with the identical wrapper interface (all except
+        PD, Max, and ChucK which have genuinely different headers).
+        """
+        from gen_dsp.templates import get_templates_dir
+
+        shared_template = get_templates_dir("shared") / "gen_ext_h.template"
+        template = Template(shared_template.read_text(encoding="utf-8"))
+        content = template.safe_substitute(
+            platform_upper=platform_key.upper(),
+            platform_lower=platform_key,
+        )
+        (output_dir / f"_ext_{platform_key}.h").write_text(content, encoding="utf-8")
+
     def generate_buffer_header(
         self,
         template_path: Path,
