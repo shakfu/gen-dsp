@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.10]
+
 ### Changed
 
 - **Refactoring: `CMakePlatform` intermediate base class** (`platforms/cmake_platform.py`) -- the 6 CMake-based platforms (AU, CLAP, VST3, LV2, SC, Max) now inherit from `CMakePlatform` instead of `Platform` directly. Shared `build()`, `clean()`, `get_build_instructions()`, and `resolve_shared_cache()` implementations eliminate ~60 lines of duplication. AU keeps its `build()` override (macOS guard), Max keeps `build()` (SDK setup) and `get_build_instructions()` (git clone step).

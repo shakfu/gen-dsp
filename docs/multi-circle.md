@@ -20,7 +20,7 @@ Both phases use the same JSON configuration format. A serial chain is just a lin
 
 The JSON file is an input to `gen-dsp init` at project generation time. The Python code generator reads it, validates the graph, resolves processing order, allocates intermediate buffers, and emits C code. No JSON parsing happens at runtime on the Pi -- the graph is "compiled" into a flat sequence of C function calls.
 
-Parameter *values* and MIDI CC mappings are baked into the generated code from the JSON, but can optionally be overridden by an INI file on the SD card at boot (for presets and controller remapping without recompilation).
+Parameter *values* and MIDI CC mappings are baked into the generated code from the JSON. **(Not yet implemented:** optional override via an INI file on the SD card at boot, for presets and controller remapping without recompilation.**)**
 
 ### Schema
 
@@ -225,7 +225,7 @@ The same `ParamMapping` table can be driven by other input sources using the sam
 
 - **GPIO/ADC knobs** via external MCP3008 (SPI) or ADS1115 (I2C) -- polled in `Run()`, mapped to a fixed param
 - **Network control** via HTTP API or MQTT -- parsed in `Run()`, dispatched to mapping table
-- **MIDI program change** -- switch parameter presets (load a saved set of values from SD card)
+- **MIDI program change** -- switch parameter presets (load a saved set of values from SD card) **(not yet implemented)**
 
 ---
 
@@ -290,8 +290,8 @@ The JSON graph is a **compile-time** input. It is read by `gen-dsp init` in Pyth
 
 This means:
 - Changing the graph topology requires re-running `gen-dsp init` + `build`
-- Changing parameter values does not -- presets can be loaded from SD card at boot
-- Changing MIDI CC mappings could go either way; baked-in defaults with optional SD card overrides is the pragmatic choice
+- Changing parameter values does not -- presets could be loaded from SD card at boot **(not yet implemented)**
+- Changing MIDI CC mappings could go either way; baked-in defaults with optional SD card overrides is the pragmatic choice **(SD card overrides not yet implemented)**
 
 ### Why Not Runtime Graph Configuration?
 
@@ -342,7 +342,7 @@ Not needed for Phase 1 or 2 (single-core is sufficient for typical gen~ patch co
 
 ### Filesystem
 
-FatFs addon provides full FAT32 with long filenames and subdirectories. Sufficient for reading preset files and MIDI CC override configs from SD card at boot.
+FatFs addon provides full FAT32 with long filenames and subdirectories. Sufficient for reading preset files and MIDI CC override configs from SD card at boot. **(Not yet used by gen-dsp.)**
 
 ### Networking
 

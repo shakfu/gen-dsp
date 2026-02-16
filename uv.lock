@@ -329,7 +329,7 @@ wheels = [
 
 [[package]]
 name = "gen-dsp"
-version = "0.1.9"
+version = "0.1.10"
 source = { editable = "." }
 
 [package.dev-dependencies]
