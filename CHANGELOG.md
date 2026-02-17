@@ -12,19 +12,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Refactoring: `CMakePlatform` intermediate base class** (`platforms/cmake_platform.py`) -- the 6 CMake-based platforms (AU, CLAP, VST3, LV2, SC, Max) now inherit from `CMakePlatform` instead of `Platform` directly. Shared `build()`, `clean()`, `get_build_instructions()`, and `resolve_shared_cache()` implementations eliminate ~60 lines of duplication. AU keeps its `build()` override (macOS guard), Max keeps `build()` (SDK setup) and `get_build_instructions()` (git clone step).
+
 - **Refactoring: parameterized `_ext*.h` templates** -- the 8 identical 44-line `_ext_{platform}.h` header files (CLAP, VST3, LV2, SC, AU, VCV Rack, Daisy, Circle) are now generated from a single shared template (`templates/shared/gen_ext_h.template`) via `Platform.generate_ext_header()`. ChucK, Max, and PD retain their genuinely different headers. Removes ~350 lines of duplication.
+
 - **Refactoring: extracted graph init logic from CLI** (`core/graph_init.py`) -- the 4 functions handling `--graph` chain/DAG initialization (~180 lines) moved from `cli.py` to `core/graph_init.py` with explicit parameters instead of `argparse.Namespace`. Functions: `resolve_export_dirs()`, `copy_and_patch_exports()`, `init_chain_linear()`, `init_chain_dag()`.
+
 - **Refactoring: extracted `_build_with_cmake()` into `Platform` base class** -- the identical CMake configure+build sequence previously duplicated across 5 platforms (CLAP, VST3, LV2, SC, AU) is now a single 30-line method in `platforms/base.py`. AU and Max retain platform-specific pre-checks before delegating. Uses `self.name` for the `BuildResult.platform` field, eliminating hardcoded platform name strings.
+
 - **Refactoring: extracted `_clean_build_dir()` into `Platform` base class** -- the identical `rm -rf build/` logic duplicated in 6 platforms (CLAP, VST3, LV2, SC, AU, Max) is now a 3-line method in `platforms/base.py`.
+
 - **Refactoring: collapsed `templates/__init__.py`** -- replaced 274 lines of 22 repetitive getter/lister functions with a single generic `get_templates_dir(platform)` function plus 11 one-liner backward-compatible aliases. Removed all `list_*_templates()` functions (zero callers). Removed `get_max_templates_dir()` side effect (directory creation).
+
 - **Refactoring: consolidated dual `GENEXT_VERSION`** -- removed the duplicate `GENEXT_VERSION = "0.8.0"` from `ProjectGenerator` in `core/project.py`. All references now use `Platform.GENEXT_VERSION` from `platforms/base.py` as the single source of truth.
+
 - **Refactoring: `PluginCategory` enum** (`platforms/base.py`) -- replaced string-based plugin type detection across AU, LV2, and VCV Rack with a structured `PluginCategory` enum (`EFFECT`, `GENERATOR`). Each platform maps enum values to platform-specific strings via `_AU_TYPE_MAP`, `_LV2_TYPE_MAP`, `_VCR_TAG_MAP`. Factory method `PluginCategory.from_num_inputs()` centralizes the 0-inputs-means-generator logic.
+
 - **Renamed `gen_buffer_max.h` to `max_buffer.h`** -- consistency with other platforms' buffer header naming convention (`{platform}_buffer.h`).
 
 ### Removed
 
 - Dead `_detect_plugin_type()` methods from CLAP, VST3, LV2, and SuperCollider platforms (defined but never called)
+
 - `_detect_plugin_type()` from VCV Rack and `_detect_au_type()` from AudioUnit (replaced by `PluginCategory` enum)
+
 - 8 identical static `_ext_{platform}.h` template files (replaced by shared parameterized template)
 
 ### Added
