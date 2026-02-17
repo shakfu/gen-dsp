@@ -1,8 +1,8 @@
 # gen-dsp
 
-This project is a friendly fork of Michael Spears' [gen_ext](https://github.com/samesimilar/gen_ext) which was originally created to "compile code exported from a Max gen~ object into an "external" object that can be loaded into a PureData patch." 
+gen-dsp is a zero-dependency pure Python package that generates buildable audio plugin projects from Max/MSP gen~ code exports, targeting PureData, Max/MSP, ChucK, AudioUnit (AUv2), CLAP, VST3, LV2, SuperCollider, VCV Rack, Daisy, and Circle. It handles project scaffolding, I/O and buffer detection, parameter metadata extraction, and platform-specific patching.
 
-Building on this excellent original idea and implementation, gen-dsp compiles code exported from Max gen~ objects into external objects for PureData, Max/MSP, ChucK, AudioUnit (AUv2), CLAP, VST3, LV2, SuperCollider, VCV Rack, Daisy (Electrosmith), and Circle (Raspberry Pi bare metal). It automates project setup, buffer detection, and platform-specific patches.
+This project is a friendly fork of Michael Spears' [gen_ext](https://github.com/samesimilar/gen_ext) which was originally created to "compile code exported from a Max gen~ object into an "external" object that can be loaded into a PureData patch."
 
 ## Cross-Platform Support
 

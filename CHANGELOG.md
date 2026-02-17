@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Parametrized cross-platform tests** -- `TestCrossPlatformGeneration` class in `test_platforms.py` with 5 `@pytest.mark.parametrize` tests x 11 platforms = 55 new tests validating common invariants (directory creation, gen~ export copy, buffer header, build system file, buffer declarations)
+
 - **Circle: DAG topology for multi-plugin mode (Phase 2)** -- the `--graph` flag now supports arbitrary directed acyclic graphs, lifting the Phase 1 linear-chain-only restriction
   - Fan-out: a single node's output can feed multiple downstream nodes (zero-copy, shared buffer)
   - Fan-in via mixer nodes: built-in `"type": "mixer"` node type combines multiple inputs with per-input gain parameters (weighted sum)
@@ -79,6 +80,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Test infrastructure: FetchContent stale cache** -- build/subbuild directories in the shared FetchContent cache are now cleaned at session start to prevent stale absolute paths from previous pytest temp directories causing CMake build failures
+
 - **Test infrastructure: AU auval resilience** -- `_validate_au()` now verifies codesign success and retries auval with a longer sleep if CoreAudio component discovery is slow under load
 
 ## [0.1.9]
@@ -113,7 +115,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **CLI: `--board` flag accepted for Circle platform** -- previously `--board` was only valid for Daisy; now accepts both `daisy` and `circle` with updated help text listing Circle board variants
+
 - **AudioUnit: parameter default clamping** -- gen~ initial values that exceed the declared `[outputmin, outputmax]` range are now clamped before reporting to the host (e.g. gigaverb `revtime` init=11, max=1 now reports default=1.0 instead of 12.1). Matches the existing clamping in VST3 and CLAP backends.
+
 - **Manifest: parameter defaults from gen~ initial values** -- `parse_params_from_export()` now extracts actual default values from gen~ exports by parsing `pi->defaultvalue` member variable references and looking up their initialization in `reset()`. Previously all defaults were set to `outputmin`, causing incorrect metadata in LV2 TTL files and any backend consuming `manifest.params`. Defaults are clamped to `[min, max]` to handle gen~ values that exceed the declared range.
 
 ## [0.1.8]
@@ -129,11 +133,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Audio flow validation: feeds Noise (effects) or Phasor (position-controlled sample players) through the chugin and asserts non-zero energy in the output
   - Buffer loading validation: RamplePlayer test loads a WAV file via `loadBuffer()` and verifies audio playback from the internal gen~ buffer
   - Parameter metadata validation: verifies `numParams()` and `paramName()` return expected values
+
 - **LV2: lilv-based runtime validation in build integration tests** -- all 4 build tests now instantiate the plugin via a custom C validator that uses the lilv API to load, connect ports, process 8 blocks of audio, and verify non-zero output energy
   - Validator compiled once from C source using `pkg-config lilv-0` and cached in `build/.lv2_validator/`
   - Validates port counts (audio in/out, control params), successful instantiation, and audio flow
   - Bundle copied to isolated temp directory to avoid lilv scanning noise
   - Gracefully skipped when `lilv-0` pkg-config is not available
+
 - **SuperCollider: sclang + scsynth NRT runtime validation in build integration tests** -- all 4 build tests now compile a SynthDef via sclang and render audio via scsynth in non-realtime mode
   - Two-phase validation: sclang compiles the `.sc` class and builds a binary SynthDef, then scsynth renders NRT audio using the `.scx` plugin
   - Verifies: class compilation, UGen binary loading, audio processing with non-zero output energy
@@ -141,10 +147,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - sclang library config (`-l`) includes standard SCClassLibrary + custom class directory
   - Tool discovery: PATH > `SCLANG`/`SCSYNTH` env vars > standard macOS app bundle
   - Gracefully skipped when sclang, scsynth, or SCClassLibrary not available
+
 - **PureData: build integration tests and runtime validation** -- new `test_pd.py` with 12 tests covering all 3 fixtures
   - Build tests: generate and compile PD externals (gigaverb, RamplePlayer, spectraldelayfb) plus clean/rebuild
   - Runtime validation: loads each compiled external in headless PD (`pd -nogui -verbose`) and verifies successful instantiation (no "couldn't create" errors)
   - Gated by `pd` availability on PATH
+
 - **VCV Rack: headless runtime validation in build integration tests** -- all 3 build tests now load the compiled plugin in VCV Rack headless mode and verify correct operation
   - Plugin copied to isolated temp user dir (`--user <tmpdir>`) with minimal autosave patch that instantiates the module
   - `/dev/null` stdin causes Rack to load plugins, process the patch, then exit cleanly (~0.6s)
