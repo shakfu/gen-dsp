@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.11]
+
 ### Fixed
 
 - **VST3: parameters not visible in hosts (e.g. Bitwig)** -- `RangeParameter` instances were created with `flags = 0` (`kNoFlags`), which tells VST3 hosts that parameters are not automatable and should not be exposed in the host UI or automation lanes. Fixed to `ParameterInfo::kCanAutomate`. CLAP and AU backends already had the correct flags (`CLAP_PARAM_IS_AUTOMATABLE`, `kAudioUnitParameterFlag_IsWritable`).
