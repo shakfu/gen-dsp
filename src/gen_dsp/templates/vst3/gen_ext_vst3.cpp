@@ -198,7 +198,7 @@ tresult PLUGIN_API GenVst3Plugin::initialize(FUnknown* context) {
             (ParamValue)pmax,   // maxPlain
             (ParamValue)pdefault, // defaultValuePlain
             0,              // stepCount (0 = continuous)
-            0,              // flags
+            ParameterInfo::kCanAutomate, // flags
             0               // unitId (kRootUnitId -- no unit hierarchy)
         );
         parameters.addParameter(param);
