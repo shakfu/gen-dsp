@@ -18,13 +18,54 @@
 using namespace WRAPPER_NAMESPACE;
 
 // ---------------------------------------------------------------------------
+// Polyphony support (NUM_VOICES > 1) or monophonic MIDI helpers
+// ---------------------------------------------------------------------------
+
+#ifdef MIDI_ENABLED
+#if NUM_VOICES > 1
+#include "voice_alloc.h"
+#else
+static inline float mtof(int note) {
+    return 440.0f * powf(2.0f, (note - 69) / 12.0f);
+}
+
+static inline void handle_note_on(GenState* state, int key, float velocity) {
+    (void)velocity;
+#ifdef MIDI_GATE_IDX
+    wrapper_set_param(state, MIDI_GATE_IDX, 1.0f);
+#endif
+#ifdef MIDI_FREQ_IDX
+#if MIDI_FREQ_UNIT_HZ
+    wrapper_set_param(state, MIDI_FREQ_IDX, mtof(key));
+#else
+    wrapper_set_param(state, MIDI_FREQ_IDX, (float)key);
+#endif
+#endif
+#ifdef MIDI_VEL_IDX
+    wrapper_set_param(state, MIDI_VEL_IDX, velocity);
+#endif
+}
+
+static inline void handle_note_off(GenState* state) {
+#ifdef MIDI_GATE_IDX
+    wrapper_set_param(state, MIDI_GATE_IDX, 0.0f);
+#endif
+}
+#endif // NUM_VOICES > 1
+#endif // MIDI_ENABLED
+
+// ---------------------------------------------------------------------------
 // Plugin state
 // ---------------------------------------------------------------------------
 
 struct ClapGenPlugin {
     clap_plugin_t       plugin;
     const clap_host_t*  host;
+#if NUM_VOICES > 1
+    VoiceAllocator      voiceAlloc;
+#else
     GenState*           genState;
+#endif
     float               sampleRate;
     uint32_t            maxFrames;
     int                 numInputs;
@@ -94,26 +135,31 @@ static bool params_get_info(const clap_plugin_t* plugin,
     info->flags = CLAP_PARAM_IS_AUTOMATABLE;
 
     // Get metadata from gen~ wrapper
-    if (plug->genState) {
-        const char* pname = wrapper_param_name(plug->genState, (int)param_index);
+#if NUM_VOICES > 1
+    GenState* queryState = plug->voiceAlloc.states[0];
+#else
+    GenState* queryState = plug->genState;
+#endif
+    if (queryState) {
+        const char* pname = wrapper_param_name(queryState, (int)param_index);
         if (pname) {
             strncpy(info->name, pname, sizeof(info->name) - 1);
         }
 
-        const char* punits = wrapper_param_units(plug->genState, (int)param_index);
+        const char* punits = wrapper_param_units(queryState, (int)param_index);
         if (punits) {
             strncpy(info->module, punits, sizeof(info->module) - 1);
         }
 
-        if (wrapper_param_hasminmax(plug->genState, (int)param_index)) {
-            info->min_value = (double)wrapper_param_min(plug->genState, (int)param_index);
-            info->max_value = (double)wrapper_param_max(plug->genState, (int)param_index);
+        if (wrapper_param_hasminmax(queryState, (int)param_index)) {
+            info->min_value = (double)wrapper_param_min(queryState, (int)param_index);
+            info->max_value = (double)wrapper_param_max(queryState, (int)param_index);
         } else {
             info->min_value = 0.0;
             info->max_value = 1.0;
         }
 
-        double def = (double)wrapper_get_param(plug->genState, (int)param_index);
+        double def = (double)wrapper_get_param(queryState, (int)param_index);
         // Clamp default to declared range -- gen~ initial values may exceed it
         if (def < info->min_value) def = info->min_value;
         if (def > info->max_value) def = info->max_value;
@@ -133,8 +179,13 @@ static bool params_get_value(const clap_plugin_t* plugin,
                              double* value) {
     ClapGenPlugin* plug = (ClapGenPlugin*)plugin->plugin_data;
     int idx = (int)param_id;
-    if (idx < 0 || idx >= plug->numParams || !plug->genState) return false;
+    if (idx < 0 || idx >= plug->numParams) return false;
+#if NUM_VOICES > 1
+    *value = (double)voice_alloc_get_param(&plug->voiceAlloc, idx);
+#else
+    if (!plug->genState) return false;
     *value = (double)wrapper_get_param(plug->genState, idx);
+#endif
     return true;
 }
 
@@ -167,7 +218,6 @@ static void params_flush(const clap_plugin_t* plugin,
                          const clap_output_events_t* out) {
     ClapGenPlugin* plug = (ClapGenPlugin*)plugin->plugin_data;
     (void)out;
-    if (!plug->genState) return;
 
     uint32_t count = in->size(in);
     for (uint32_t i = 0; i < count; i++) {
@@ -177,9 +227,31 @@ static void params_flush(const clap_plugin_t* plugin,
             const clap_event_param_value_t* ev = (const clap_event_param_value_t*)hdr;
             int idx = (int)ev->param_id;
             if (idx >= 0 && idx < plug->numParams) {
+#if NUM_VOICES > 1
+                voice_alloc_set_global_param(&plug->voiceAlloc, idx, (float)ev->value);
+#else
                 wrapper_set_param(plug->genState, idx, (float)ev->value);
+#endif
             }
         }
+#ifdef MIDI_ENABLED
+        else if (hdr->type == CLAP_EVENT_NOTE_ON) {
+            const clap_event_note_t* ev = (const clap_event_note_t*)hdr;
+#if NUM_VOICES > 1
+            voice_alloc_note_on(&plug->voiceAlloc, ev->key, (float)ev->velocity);
+#else
+            handle_note_on(plug->genState, ev->key, (float)ev->velocity);
+#endif
+        }
+        else if (hdr->type == CLAP_EVENT_NOTE_OFF) {
+            const clap_event_note_t* ev = (const clap_event_note_t*)hdr;
+#if NUM_VOICES > 1
+            voice_alloc_note_off(&plug->voiceAlloc, ev->key);
+#else
+            handle_note_off(plug->genState);
+#endif
+        }
+#endif
     }
 }
 
@@ -193,6 +265,34 @@ static const clap_plugin_params_t s_params = {
 };
 
 // ---------------------------------------------------------------------------
+// Note ports extension (MIDI input for instruments)
+// ---------------------------------------------------------------------------
+
+#ifdef MIDI_ENABLED
+static uint32_t note_ports_count(const clap_plugin_t* plugin, bool is_input) {
+    (void)plugin;
+    return is_input ? 1 : 0;
+}
+
+static bool note_ports_get(const clap_plugin_t* plugin, uint32_t index,
+                           bool is_input, clap_note_port_info_t* info) {
+    (void)plugin;
+    if (!is_input || index != 0) return false;
+    memset(info, 0, sizeof(clap_note_port_info_t));
+    info->id = 0;
+    info->supported_dialects = CLAP_NOTE_DIALECT_CLAP | CLAP_NOTE_DIALECT_MIDI;
+    info->preferred_dialect = CLAP_NOTE_DIALECT_CLAP;
+    strncpy(info->name, "Note Input", sizeof(info->name) - 1);
+    return true;
+}
+
+static const clap_plugin_note_ports_t s_note_ports = {
+    .count = note_ports_count,
+    .get   = note_ports_get,
+};
+#endif // MIDI_ENABLED
+
+// ---------------------------------------------------------------------------
 // Plugin lifecycle
 // ---------------------------------------------------------------------------
 
@@ -203,10 +303,14 @@ static bool clap_gen_init(const clap_plugin_t* plugin) {
 
 static void clap_gen_destroy(const clap_plugin_t* plugin) {
     ClapGenPlugin* plug = (ClapGenPlugin*)plugin->plugin_data;
+#if NUM_VOICES > 1
+    voice_alloc_destroy(&plug->voiceAlloc);
+#else
     if (plug->genState) {
         wrapper_destroy(plug->genState);
         plug->genState = nullptr;
     }
+#endif
     free(plug);
 }
 
@@ -220,11 +324,16 @@ static bool clap_gen_activate(const clap_plugin_t* plugin,
     plug->sampleRate = (float)sample_rate;
     plug->maxFrames = max_frames;
 
+#if NUM_VOICES > 1
+    voice_alloc_create_voices(&plug->voiceAlloc, plug->sampleRate, (long)max_frames);
+    plug->active = (plug->voiceAlloc.states[0] != nullptr);
+#else
     if (plug->genState) {
         wrapper_destroy(plug->genState);
     }
     plug->genState = wrapper_create(plug->sampleRate, (long)max_frames);
     plug->active = (plug->genState != nullptr);
+#endif
     return plug->active;
 }
 
@@ -237,7 +346,11 @@ static void clap_gen_deactivate(const clap_plugin_t* plugin) {
 
 static bool clap_gen_start_processing(const clap_plugin_t* plugin) {
     ClapGenPlugin* plug = (ClapGenPlugin*)plugin->plugin_data;
+#if NUM_VOICES > 1
+    return plug->active && plug->voiceAlloc.states[0] != nullptr;
+#else
     return plug->active && plug->genState != nullptr;
+#endif
 }
 
 static void clap_gen_stop_processing(const clap_plugin_t* plugin) {
@@ -246,9 +359,13 @@ static void clap_gen_stop_processing(const clap_plugin_t* plugin) {
 
 static void clap_gen_reset(const clap_plugin_t* plugin) {
     ClapGenPlugin* plug = (ClapGenPlugin*)plugin->plugin_data;
+#if NUM_VOICES > 1
+    voice_alloc_reset(&plug->voiceAlloc);
+#else
     if (plug->genState) {
         wrapper_reset(plug->genState);
     }
+#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -259,9 +376,11 @@ static clap_process_status clap_gen_process(const clap_plugin_t* plugin,
                                             const clap_process_t* process) {
     ClapGenPlugin* plug = (ClapGenPlugin*)plugin->plugin_data;
 
-    if (!plug->genState) {
-        return CLAP_PROCESS_ERROR;
-    }
+#if NUM_VOICES > 1
+    if (!plug->voiceAlloc.states[0]) return CLAP_PROCESS_ERROR;
+#else
+    if (!plug->genState) return CLAP_PROCESS_ERROR;
+#endif
 
     uint32_t nframes = process->frames_count;
 
@@ -275,9 +394,31 @@ static clap_process_status clap_gen_process(const clap_plugin_t* plugin,
             const clap_event_param_value_t* ev = (const clap_event_param_value_t*)hdr;
             int idx = (int)ev->param_id;
             if (idx >= 0 && idx < plug->numParams) {
+#if NUM_VOICES > 1
+                voice_alloc_set_global_param(&plug->voiceAlloc, idx, (float)ev->value);
+#else
                 wrapper_set_param(plug->genState, idx, (float)ev->value);
+#endif
             }
         }
+#ifdef MIDI_ENABLED
+        else if (hdr->type == CLAP_EVENT_NOTE_ON) {
+            const clap_event_note_t* ev = (const clap_event_note_t*)hdr;
+#if NUM_VOICES > 1
+            voice_alloc_note_on(&plug->voiceAlloc, ev->key, (float)ev->velocity);
+#else
+            handle_note_on(plug->genState, ev->key, (float)ev->velocity);
+#endif
+        }
+        else if (hdr->type == CLAP_EVENT_NOTE_OFF) {
+            const clap_event_note_t* ev = (const clap_event_note_t*)hdr;
+#if NUM_VOICES > 1
+            voice_alloc_note_off(&plug->voiceAlloc, ev->key);
+#else
+            handle_note_off(plug->genState);
+#endif
+        }
+#endif
     }
 
     // Get input buffers (zero-copy: CLAP data32 is already float**)
@@ -296,11 +437,17 @@ static clap_process_status clap_gen_process(const clap_plugin_t* plugin,
         return CLAP_PROCESS_ERROR;
     }
 
-    // Call gen~ perform directly with CLAP buffers
+#if NUM_VOICES > 1
+    voice_alloc_perform(&plug->voiceAlloc,
+                        ins, plug->numInputs,
+                        outs, plug->numOutputs,
+                        (long)nframes);
+#else
     wrapper_perform(plug->genState,
                     ins, plug->numInputs,
                     outs, plug->numOutputs,
                     (long)nframes);
+#endif
 
     return CLAP_PROCESS_CONTINUE;
 }
@@ -314,6 +461,9 @@ static const void* clap_gen_get_extension(const clap_plugin_t* plugin,
     (void)plugin;
     if (strcmp(id, CLAP_EXT_AUDIO_PORTS) == 0) return &s_audio_ports;
     if (strcmp(id, CLAP_EXT_PARAMS) == 0)      return &s_params;
+#ifdef MIDI_ENABLED
+    if (strcmp(id, CLAP_EXT_NOTE_PORTS) == 0)  return &s_note_ports;
+#endif
     return nullptr;
 }
 
@@ -391,7 +541,12 @@ static const clap_plugin_t* factory_create_plugin(
     plug->active     = false;
 
     // Create gen state eagerly so params are queryable before activation
+#if NUM_VOICES > 1
+    voice_alloc_init(&plug->voiceAlloc, plug->numOutputs, (long)plug->maxFrames);
+    voice_alloc_create_voices(&plug->voiceAlloc, plug->sampleRate, (long)plug->maxFrames);
+#else
     plug->genState   = wrapper_create(plug->sampleRate, (long)plug->maxFrames);
+#endif
 
     plug->plugin.desc            = &s_descriptor;
     plug->plugin.plugin_data     = plug;

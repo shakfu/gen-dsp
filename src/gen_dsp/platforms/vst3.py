@@ -14,6 +14,7 @@ from string import Template
 from typing import Optional
 
 from gen_dsp.core.manifest import Manifest
+from gen_dsp.core.midi import build_midi_defines
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import ProjectError
 from gen_dsp.platforms.cmake_platform import CMakePlatform
@@ -56,12 +57,17 @@ class Vst3Platform(CMakePlatform):
                 shutil.copy2(src, output_dir / filename)
 
         self.generate_ext_header(output_dir, "vst3")
+        self.copy_voice_alloc_header(output_dir, config)
 
         # Generate FUID from lib_name
         fuid = self._generate_fuid(lib_name)
 
         # Resolve shared cache settings
         use_shared_cache, cache_dir = self.resolve_shared_cache(config)
+
+        # Build MIDI compile definitions
+        midi_mapping = config.midi_mapping if config else None
+        midi_defines = build_midi_defines(midi_mapping)
 
         # Generate CMakeLists.txt
         self._generate_cmakelists(
@@ -74,6 +80,7 @@ class Vst3Platform(CMakePlatform):
             fuid,
             use_shared_cache=use_shared_cache,
             cache_dir=cache_dir,
+            midi_defines=midi_defines,
         )
 
         # Generate gen_buffer.h using base class method
@@ -107,6 +114,7 @@ class Vst3Platform(CMakePlatform):
         fuid: tuple[int, int, int, int],
         use_shared_cache: str = "OFF",
         cache_dir: str = "",
+        midi_defines: str = "",
     ) -> None:
         """Generate CMakeLists.txt from template."""
         if not template_path.exists():
@@ -126,6 +134,7 @@ class Vst3Platform(CMakePlatform):
             fuid_3=f"0x{fuid[3]:08X}",
             use_shared_cache=use_shared_cache,
             cache_dir=cache_dir,
+            midi_defines=midi_defines,
         )
         output_path.write_text(content, encoding="utf-8")
 

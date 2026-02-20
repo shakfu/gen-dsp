@@ -14,6 +14,12 @@ from typing import Optional
 from gen_dsp.core.parser import ExportInfo
 from gen_dsp.errors import ValidationError
 
+# TYPE_CHECKING avoids circular import at runtime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from gen_dsp.core.midi import MidiMapping
+
 
 @dataclass
 class ProjectConfig:
@@ -41,6 +47,17 @@ class ProjectConfig:
     #   Daisy: seed, pod, patch, patch_sm, field, petal, legio, versio
     #   Circle: pi3-i2s, pi4-i2s
     board: Optional[str] = None
+
+    # MIDI-to-CV configuration
+    no_midi: bool = False
+    midi_gate: Optional[str] = None
+    midi_freq: Optional[str] = None
+    midi_vel: Optional[str] = None
+    midi_freq_unit: str = "hz"
+    num_voices: int = 1
+
+    # Computed MIDI mapping (populated by ProjectGenerator.generate())
+    midi_mapping: Optional["MidiMapping"] = None
 
     def validate(self) -> list[str]:
         """
@@ -159,6 +176,21 @@ class ProjectGenerator:
         manifest = manifest_from_export_info(
             self.export_info, buffers, Platform.GENEXT_VERSION
         )
+
+        # Compute MIDI mapping (used by platforms that support MIDI)
+        from gen_dsp.core.midi import detect_midi_mapping
+
+        self.config.midi_mapping = detect_midi_mapping(
+            manifest,
+            no_midi=self.config.no_midi,
+            midi_gate=self.config.midi_gate,
+            midi_freq=self.config.midi_freq,
+            midi_vel=self.config.midi_vel,
+            midi_freq_unit=self.config.midi_freq_unit,
+        )
+        # Set polyphony voice count on the mapping
+        if self.config.midi_mapping.enabled and self.config.num_voices > 1:
+            self.config.midi_mapping.num_voices = self.config.num_voices
 
         # Generate for each platform using the registry
         if self.config.platform == "both":

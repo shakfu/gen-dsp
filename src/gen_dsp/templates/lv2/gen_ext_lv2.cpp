@@ -6,11 +6,19 @@
 
 #include "lv2/core/lv2.h"
 
+#ifdef MIDI_ENABLED
+#include "lv2/atom/atom.h"
+#include "lv2/atom/util.h"
+#include "lv2/midi/midi.h"
+#include "lv2/urid/urid.h"
+#endif
+
 #include "gen_ext_common_lv2.h"
 #include "_ext_lv2.h"
 
 #include <cstring>
 #include <cstdlib>
+#include <cmath>
 
 using namespace WRAPPER_NAMESPACE;
 
@@ -24,17 +32,65 @@ using namespace WRAPPER_NAMESPACE;
 #define LV2_PORT_PARAM_START     0
 #define LV2_PORT_AUDIO_IN_START  LV2_NUM_PARAMS
 #define LV2_PORT_AUDIO_OUT_START (LV2_NUM_PARAMS + LV2_NUM_INPUTS)
-#define LV2_PORT_COUNT           (LV2_NUM_PARAMS + LV2_NUM_INPUTS + LV2_NUM_OUTPUTS)
+#define LV2_PORT_AUDIO_END       (LV2_NUM_PARAMS + LV2_NUM_INPUTS + LV2_NUM_OUTPUTS)
+
+#ifdef MIDI_ENABLED
+#define LV2_MIDI_PORT_INDEX      LV2_PORT_AUDIO_END
+#define LV2_PORT_COUNT           (LV2_PORT_AUDIO_END + 1)
+#else
+#define LV2_PORT_COUNT           LV2_PORT_AUDIO_END
+#endif
 
 // Maximum channel count for static arrays
 #define LV2_MAX_CHANNELS 64
+
+// ---------------------------------------------------------------------------
+// Polyphony support (NUM_VOICES > 1) or monophonic MIDI helpers
+// ---------------------------------------------------------------------------
+
+#ifdef MIDI_ENABLED
+#if NUM_VOICES > 1
+#include "voice_alloc.h"
+#else
+static inline float mtof(int note) {
+    return 440.0f * powf(2.0f, (note - 69) / 12.0f);
+}
+
+static inline void handle_note_on(GenState* state, int key, float velocity) {
+    (void)velocity;
+#ifdef MIDI_GATE_IDX
+    wrapper_set_param(state, MIDI_GATE_IDX, 1.0f);
+#endif
+#ifdef MIDI_FREQ_IDX
+#if MIDI_FREQ_UNIT_HZ
+    wrapper_set_param(state, MIDI_FREQ_IDX, mtof(key));
+#else
+    wrapper_set_param(state, MIDI_FREQ_IDX, (float)key);
+#endif
+#endif
+#ifdef MIDI_VEL_IDX
+    wrapper_set_param(state, MIDI_VEL_IDX, velocity);
+#endif
+}
+
+static inline void handle_note_off(GenState* state) {
+#ifdef MIDI_GATE_IDX
+    wrapper_set_param(state, MIDI_GATE_IDX, 0.0f);
+#endif
+}
+#endif // NUM_VOICES > 1
+#endif // MIDI_ENABLED
 
 // ---------------------------------------------------------------------------
 // Plugin state
 // ---------------------------------------------------------------------------
 
 struct Lv2GenPlugin {
+#if NUM_VOICES > 1
+    VoiceAllocator voiceAlloc;
+#else
     GenState*  genState;
+#endif
     float      sampleRate;
     int        numInputs;
     int        numOutputs;
@@ -45,6 +101,10 @@ struct Lv2GenPlugin {
     const float* control_in[LV2_NUM_PARAMS];
 #else
     const float* control_in[1];  // placeholder to avoid zero-length array
+#endif
+#ifdef MIDI_ENABLED
+    LV2_URID   midi_event_urid;
+    const LV2_Atom_Sequence* midi_in;
 #endif
 };
 
@@ -60,7 +120,6 @@ lv2_gen_instantiate(const LV2_Descriptor* descriptor,
 {
     (void)descriptor;
     (void)bundle_path;
-    (void)features;
 
     Lv2GenPlugin* plug = (Lv2GenPlugin*)calloc(1, sizeof(Lv2GenPlugin));
     if (!plug) return nullptr;
@@ -70,8 +129,26 @@ lv2_gen_instantiate(const LV2_Descriptor* descriptor,
     plug->numOutputs = wrapper_num_outputs();
     plug->numParams  = wrapper_num_params();
 
+#ifdef MIDI_ENABLED
+    // Extract URID map feature for MIDI event type identification
+    for (int i = 0; features[i]; i++) {
+        if (!strcmp(features[i]->URI, LV2_URID__map)) {
+            LV2_URID_Map* map = (LV2_URID_Map*)features[i]->data;
+            plug->midi_event_urid = map->map(map->handle, LV2_MIDI__MidiEvent);
+            break;
+        }
+    }
+#else
+    (void)features;
+#endif
+
     // Create gen~ state with a reasonable default block size
+#if NUM_VOICES > 1
+    voice_alloc_init(&plug->voiceAlloc, plug->numOutputs, 4096);
+    voice_alloc_create_voices(&plug->voiceAlloc, plug->sampleRate, 4096);
+#else
     plug->genState = wrapper_create(plug->sampleRate, 4096);
+#endif
 
     return (LV2_Handle)plug;
 }
@@ -93,34 +170,81 @@ lv2_gen_connect_port(LV2_Handle instance, uint32_t port, void* data)
         if (idx >= 0 && idx < plug->numInputs && idx < LV2_MAX_CHANNELS) {
             plug->audio_in[idx] = (float*)data;
         }
-    } else {
+    } else if (port < (uint32_t)LV2_PORT_AUDIO_END) {
         // Audio output port
         int idx = (int)port - LV2_PORT_AUDIO_OUT_START;
         if (idx >= 0 && idx < plug->numOutputs && idx < LV2_MAX_CHANNELS) {
             plug->audio_out[idx] = (float*)data;
         }
     }
+#ifdef MIDI_ENABLED
+    else if (port == LV2_MIDI_PORT_INDEX) {
+        plug->midi_in = (const LV2_Atom_Sequence*)data;
+    }
+#endif
 }
 
 static void
 lv2_gen_activate(LV2_Handle instance)
 {
     Lv2GenPlugin* plug = (Lv2GenPlugin*)instance;
+#if NUM_VOICES > 1
+    voice_alloc_reset(&plug->voiceAlloc);
+#else
     if (plug->genState) {
         wrapper_reset(plug->genState);
     }
+#endif
 }
 
 static void
 lv2_gen_run(LV2_Handle instance, uint32_t sample_count)
 {
     Lv2GenPlugin* plug = (Lv2GenPlugin*)instance;
+#if NUM_VOICES > 1
+    if (!plug->voiceAlloc.states[0]) return;
+#else
     if (!plug->genState) return;
+#endif
+
+#ifdef MIDI_ENABLED
+    // Process MIDI events from atom sequence
+    if (plug->midi_in) {
+        LV2_ATOM_SEQUENCE_FOREACH(plug->midi_in, ev) {
+            if (ev->body.type == plug->midi_event_urid) {
+                const uint8_t* msg = (const uint8_t*)(ev + 1);
+                uint32_t size = ev->body.size;
+                if (size >= 3) {
+                    uint8_t cmd = msg[0] & 0xF0;
+                    if (cmd == 0x90 && msg[2] > 0) {
+#if NUM_VOICES > 1
+                        voice_alloc_note_on(&plug->voiceAlloc, (int)msg[1],
+                                            (float)msg[2] / 127.0f);
+#else
+                        handle_note_on(plug->genState, (int)msg[1],
+                                       (float)msg[2] / 127.0f);
+#endif
+                    } else if (cmd == 0x80 || (cmd == 0x90 && msg[2] == 0)) {
+#if NUM_VOICES > 1
+                        voice_alloc_note_off(&plug->voiceAlloc, (int)msg[1]);
+#else
+                        handle_note_off(plug->genState);
+#endif
+                    }
+                }
+            }
+        }
+    }
+#endif
 
     // Apply control port values to gen~ parameters
     for (int i = 0; i < plug->numParams; i++) {
         if (plug->control_in[i]) {
+#if NUM_VOICES > 1
+            voice_alloc_set_global_param(&plug->voiceAlloc, i, *(plug->control_in[i]));
+#else
             wrapper_set_param(plug->genState, i, *(plug->control_in[i]));
+#endif
         }
     }
 
@@ -129,10 +253,17 @@ lv2_gen_run(LV2_Handle instance, uint32_t sample_count)
     float** ins  = (plug->numInputs > 0)  ? plug->audio_in  : nullptr;
     float** outs = (plug->numOutputs > 0) ? plug->audio_out : nullptr;
 
+#if NUM_VOICES > 1
+    voice_alloc_perform(&plug->voiceAlloc,
+                        ins, plug->numInputs,
+                        outs, plug->numOutputs,
+                        (long)sample_count);
+#else
     wrapper_perform(plug->genState,
                     ins, plug->numInputs,
                     outs, plug->numOutputs,
                     (long)sample_count);
+#endif
 }
 
 static void
@@ -145,9 +276,13 @@ static void
 lv2_gen_cleanup(LV2_Handle instance)
 {
     Lv2GenPlugin* plug = (Lv2GenPlugin*)instance;
+#if NUM_VOICES > 1
+    voice_alloc_destroy(&plug->voiceAlloc);
+#else
     if (plug->genState) {
         wrapper_destroy(plug->genState);
     }
+#endif
     free(plug);
 }
 

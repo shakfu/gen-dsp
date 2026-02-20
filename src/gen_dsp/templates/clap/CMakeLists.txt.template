@@ -60,6 +60,7 @@ target_compile_definitions($${PROJECT_NAME} PRIVATE
     GEN_EXPORTED_CPP="$gen_name.cpp"
     CLAP_NUM_INPUTS=$num_inputs
     CLAP_NUM_OUTPUTS=$num_outputs
+    $midi_defines
 )
 
 # Compiler options

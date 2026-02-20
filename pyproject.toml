@@ -31,6 +31,7 @@ dependencies = []
 
 [dependency-groups]
 dev = [
+    "minihost>=0.1.2",
     "mypy>=1.19.1",
     "pytest>=8.4.2",
     "pytest-cov>=7.0.0",

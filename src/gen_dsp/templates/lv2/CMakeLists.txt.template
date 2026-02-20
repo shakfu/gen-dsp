@@ -73,6 +73,7 @@ target_compile_definitions($${PROJECT_NAME} PRIVATE
     LV2_NUM_INPUTS=$num_inputs
     LV2_NUM_OUTPUTS=$num_outputs
     LV2_NUM_PARAMS=$num_params
+    $midi_defines
 )
 
 # Compiler options

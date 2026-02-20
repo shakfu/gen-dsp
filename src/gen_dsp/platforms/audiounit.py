@@ -14,6 +14,7 @@ from typing import Optional
 
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest
+from gen_dsp.core.midi import build_midi_defines
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import PluginCategory
@@ -34,6 +35,9 @@ class AudioUnitPlatform(CMakePlatform):
         PluginCategory.EFFECT: "aufx",
         PluginCategory.GENERATOR: "augn",
     }
+
+    # Music Device type for MIDI-enabled generators
+    AU_TYPE_MUSIC_DEVICE = "aumu"
 
     @property
     def extension(self) -> str:
@@ -66,11 +70,20 @@ class AudioUnitPlatform(CMakePlatform):
                 shutil.copy2(src, output_dir / filename)
 
         self.generate_ext_header(output_dir, "au")
+        self.copy_voice_alloc_header(output_dir, config)
 
         # Detect AU type from I/O configuration
         category = PluginCategory.from_num_inputs(manifest.num_inputs)
         au_type = self._AU_TYPE_MAP[category]
         au_subtype = self._generate_subtype(lib_name)
+
+        # Build MIDI compile definitions
+        midi_mapping = config.midi_mapping if config else None
+        midi_defines = build_midi_defines(midi_mapping)
+
+        # Override AU type to aumu (music device) when MIDI is enabled
+        if midi_mapping and midi_mapping.enabled:
+            au_type = self.AU_TYPE_MUSIC_DEVICE
 
         # Generate CMakeLists.txt
         self._generate_cmakelists(
@@ -80,6 +93,7 @@ class AudioUnitPlatform(CMakePlatform):
             lib_name,
             manifest.num_inputs,
             manifest.num_outputs,
+            midi_defines=midi_defines,
         )
 
         # Generate Info.plist
@@ -118,6 +132,7 @@ class AudioUnitPlatform(CMakePlatform):
         lib_name: str,
         num_inputs: int,
         num_outputs: int,
+        midi_defines: str = "",
     ) -> None:
         """Generate CMakeLists.txt from template."""
         if not template_path.exists():
@@ -131,6 +146,7 @@ class AudioUnitPlatform(CMakePlatform):
             genext_version=self.GENEXT_VERSION,
             num_inputs=num_inputs,
             num_outputs=num_outputs,
+            midi_defines=midi_defines,
         )
         output_path.write_text(content, encoding="utf-8")
 

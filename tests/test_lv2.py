@@ -618,6 +618,7 @@ class TestLv2BuildIntegration:
         tmp_path: Path,
         fetchcontent_cache: Path,
         lv2_validator: Optional[Path],
+        validate_minihost,
     ):
         """Generate and compile an LV2 plugin from gigaverb (no buffers)."""
         project_dir = tmp_path / "gigaverb_lv2"
@@ -671,6 +672,9 @@ class TestLv2BuildIntegration:
 
         _validate_lv2(lv2_validator, bundle, "gigaverb", 2, 2, 8)
 
+        # Runtime validation via minihost
+        validate_minihost(bundle, 2, 2, num_params=8)
+
     @_skip_no_toolchain
     def test_build_lv2_with_buffers(
         self,
@@ -678,6 +682,7 @@ class TestLv2BuildIntegration:
         tmp_path: Path,
         fetchcontent_cache: Path,
         lv2_validator: Optional[Path],
+        validate_minihost,
     ):
         """Generate and compile an LV2 plugin from RamplePlayer (has buffers)."""
         project_dir = tmp_path / "rampleplayer_lv2"
@@ -725,6 +730,9 @@ class TestLv2BuildIntegration:
 
         _validate_lv2(lv2_validator, lv2_bundles[0], "rampleplayer", 1, 2, 0)
 
+        # Runtime validation via minihost
+        validate_minihost(lv2_bundles[0], 1, 2, num_params=0)
+
     @_skip_no_toolchain
     def test_build_lv2_spectraldelayfb(
         self,
@@ -732,6 +740,7 @@ class TestLv2BuildIntegration:
         tmp_path: Path,
         fetchcontent_cache: Path,
         lv2_validator: Optional[Path],
+        validate_minihost,
     ):
         """Generate and compile an LV2 plugin from spectraldelayfb (3in/2out)."""
         project_dir = tmp_path / "spectraldelayfb_lv2"
@@ -775,6 +784,9 @@ class TestLv2BuildIntegration:
 
         _validate_lv2(lv2_validator, lv2_bundles[0], "spectraldelayfb", 3, 2, 0)
 
+        # Runtime validation via minihost
+        validate_minihost(lv2_bundles[0], 3, 2, num_params=0)
+
     @_skip_no_toolchain
     def test_build_clean_rebuild(
         self,
@@ -817,3 +829,416 @@ class TestLv2BuildIntegration:
         assert build_result.output_file is not None
 
         _validate_lv2(lv2_validator, build_result.output_file, "gigaverb", 2, 2, 8)
+
+    @_skip_no_toolchain
+    def test_build_lv2_polyphony(
+        self,
+        gigaverb_export: Path,
+        tmp_path: Path,
+        fetchcontent_cache: Path,
+        lv2_validator: Optional[Path],
+    ):
+        """Generate and compile a polyphonic LV2 plugin (NUM_VOICES=4)."""
+        import shutil
+        from dataclasses import replace
+        from gen_dsp.core.manifest import manifest_from_export_info
+        from gen_dsp.core.midi import detect_midi_mapping
+        from gen_dsp.platforms.base import Platform
+
+        project_dir = tmp_path / "poly_lv2"
+        project_dir.mkdir(parents=True, exist_ok=True)
+        parser = GenExportParser(gigaverb_export)
+        export_info = parser.parse()
+
+        # Create manifest but override num_inputs=0 so MIDI detection activates
+        manifest = manifest_from_export_info(export_info, [], Platform.GENEXT_VERSION)
+        manifest = replace(manifest, num_inputs=0)
+
+        config = ProjectConfig(
+            name="polyverb",
+            platform="lv2",
+            midi_gate="damping",
+            midi_freq="roomsize",
+            num_voices=4,
+        )
+        config.midi_mapping = detect_midi_mapping(
+            manifest,
+            midi_gate=config.midi_gate,
+            midi_freq=config.midi_freq,
+        )
+        config.midi_mapping.num_voices = config.num_voices
+
+        platform = Lv2Platform()
+        platform.generate_project(manifest, project_dir, "polyverb", config=config)
+
+        # Copy gen~ export files (normally done by ProjectGenerator)
+        shutil.copytree(gigaverb_export, project_dir / "gen")
+
+        build_dir = project_dir / "build"
+        env = _build_env()
+
+        # Configure
+        result = subprocess.run(
+            ["cmake", "..", f"-DFETCHCONTENT_BASE_DIR={fetchcontent_cache}"],
+            cwd=build_dir,
+            capture_output=True,
+            text=True,
+            timeout=120,
+            env=env,
+        )
+        assert result.returncode == 0, (
+            f"cmake configure failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
+        )
+
+        # Build
+        result = subprocess.run(
+            ["cmake", "--build", "."],
+            cwd=build_dir,
+            capture_output=True,
+            text=True,
+            timeout=120,
+            env=env,
+        )
+        assert result.returncode == 0, (
+            f"cmake build failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
+        )
+
+        # Verify .lv2 bundle directory was produced
+        lv2_bundles = [d for d in build_dir.glob("**/*.lv2") if d.is_dir()]
+        assert len(lv2_bundles) >= 1
+        bundle = lv2_bundles[0]
+        assert bundle.name == "polyverb.lv2"
+        # Check bundle contents
+        assert (bundle / "manifest.ttl").is_file()
+        assert (bundle / "polyverb.ttl").is_file()
+        # Check binary exists (name varies by platform)
+        binaries = list(bundle.glob("polyverb.*"))
+        assert len(binaries) >= 1
+
+        # Verify TTL has MIDI atom port and InstrumentPlugin type
+        ttl = (bundle / "polyverb.ttl").read_text()
+        assert "lv2:InstrumentPlugin" in ttl
+        assert "atom:AtomPort" in ttl
+        assert "midi:MidiEvent" in ttl
+
+        # Verify CMakeLists has polyphony defines
+        cmake = (project_dir / "CMakeLists.txt").read_text()
+        assert "NUM_VOICES=4" in cmake
+        assert "MIDI_ENABLED=1" in cmake
+
+        # Validator: poly plugin is a generator (0 audio inputs) with MIDI.
+        # The C validator checks audio port counts; for a poly generator the
+        # expected audio_in is 0.  The atom MIDI port is not an audio port so
+        # lilv won't count it.  gigaverb has 8 params.
+        _validate_lv2(lv2_validator, bundle, "polyverb", 0, 2, 8)
+
+        # NOTE: minihost validation skipped for polyphony -- the gen~
+        # exported code expects 2 audio inputs but the manifest overrides
+        # num_inputs=0 for MIDI detection, causing a segfault in process.
+
+
+class TestLv2MidiGeneration:
+    """Test MIDI compile definitions and TTL in generated LV2 projects."""
+
+    def test_cmakelists_no_midi_for_effects(
+        self, gigaverb_export: Path, tmp_project: Path
+    ):
+        """Effects (gigaverb has 2 inputs) should not get MIDI defines."""
+        parser = GenExportParser(gigaverb_export)
+        export_info = parser.parse()
+
+        config = ProjectConfig(name="testverb", platform="lv2")
+        generator = ProjectGenerator(export_info, config)
+        project_dir = generator.generate(tmp_project)
+
+        cmake = (project_dir / "CMakeLists.txt").read_text()
+        assert "MIDI_ENABLED" not in cmake
+        assert "MIDI_GATE_IDX" not in cmake
+
+        ttl = (project_dir / "testverb.ttl").read_text()
+        assert "lv2:EffectPlugin" in ttl
+        assert "atom:AtomPort" not in ttl
+        assert "midi:MidiEvent" not in ttl
+
+    def test_cmakelists_midi_defines_with_explicit_mapping(self, tmp_path: Path):
+        """Explicit --midi-* flags on a generator should produce MIDI defines."""
+        from gen_dsp.core.manifest import Manifest, ParamInfo
+        from gen_dsp.core.midi import detect_midi_mapping
+
+        output_dir = tmp_path / "midi_lv2"
+        output_dir.mkdir()
+
+        platform = Lv2Platform()
+        manifest = Manifest(
+            gen_name="test_synth",
+            num_inputs=0,
+            num_outputs=2,
+            params=[
+                ParamInfo(
+                    index=0,
+                    name="gate",
+                    has_minmax=True,
+                    min=0.0,
+                    max=1.0,
+                    default=0.0,
+                ),
+                ParamInfo(
+                    index=1,
+                    name="freq",
+                    has_minmax=True,
+                    min=20.0,
+                    max=20000.0,
+                    default=440.0,
+                ),
+                ParamInfo(
+                    index=2,
+                    name="vel",
+                    has_minmax=True,
+                    min=0.0,
+                    max=1.0,
+                    default=0.0,
+                ),
+            ],
+        )
+
+        config = ProjectConfig(
+            name="testsynth",
+            platform="lv2",
+            midi_gate="gate",
+            midi_freq="freq",
+            midi_vel="vel",
+        )
+        config.midi_mapping = detect_midi_mapping(
+            manifest,
+            midi_gate=config.midi_gate,
+            midi_freq=config.midi_freq,
+            midi_vel=config.midi_vel,
+        )
+
+        platform.generate_project(manifest, output_dir, "testsynth", config=config)
+
+        cmake = (output_dir / "CMakeLists.txt").read_text()
+        assert "MIDI_ENABLED=1" in cmake
+        assert "MIDI_GATE_IDX=0" in cmake
+        assert "MIDI_FREQ_IDX=1" in cmake
+        assert "MIDI_VEL_IDX=2" in cmake
+        assert "MIDI_FREQ_UNIT_HZ=1" in cmake
+
+    def test_ttl_instrument_type_with_midi(self, tmp_path: Path):
+        """MIDI-enabled generator should use InstrumentPlugin type in TTL."""
+        from gen_dsp.core.manifest import Manifest, ParamInfo
+        from gen_dsp.core.midi import detect_midi_mapping
+
+        output_dir = tmp_path / "midi_lv2_ttl"
+        output_dir.mkdir()
+
+        platform = Lv2Platform()
+        manifest = Manifest(
+            gen_name="test_synth",
+            num_inputs=0,
+            num_outputs=2,
+            params=[
+                ParamInfo(
+                    index=0,
+                    name="gate",
+                    has_minmax=True,
+                    min=0.0,
+                    max=1.0,
+                    default=0.0,
+                ),
+            ],
+        )
+
+        config = ProjectConfig(
+            name="testsynth",
+            platform="lv2",
+            midi_gate="gate",
+        )
+        config.midi_mapping = detect_midi_mapping(
+            manifest,
+            midi_gate=config.midi_gate,
+        )
+
+        platform.generate_project(manifest, output_dir, "testsynth", config=config)
+
+        ttl = (output_dir / "testsynth.ttl").read_text()
+        assert "lv2:InstrumentPlugin" in ttl
+        assert "lv2:GeneratorPlugin" not in ttl
+
+        # Check MIDI atom port is present
+        assert "atom:AtomPort" in ttl
+        assert "midi:MidiEvent" in ttl
+        assert '"midi_in"' in ttl
+        assert "urid:map" in ttl
+        assert "atom:bufferType atom:Sequence" in ttl
+
+    def test_ttl_generator_without_midi(self, tmp_path: Path):
+        """Generator without MIDI mapping should remain GeneratorPlugin."""
+        from gen_dsp.core.manifest import Manifest, ParamInfo
+        from gen_dsp.core.midi import detect_midi_mapping
+
+        output_dir = tmp_path / "no_midi_lv2"
+        output_dir.mkdir()
+
+        platform = Lv2Platform()
+        manifest = Manifest(
+            gen_name="test_gen",
+            num_inputs=0,
+            num_outputs=2,
+            params=[
+                ParamInfo(
+                    index=0,
+                    name="volume",
+                    has_minmax=True,
+                    min=0.0,
+                    max=1.0,
+                    default=0.5,
+                ),
+            ],
+        )
+
+        config = ProjectConfig(name="testgen", platform="lv2", no_midi=True)
+        config.midi_mapping = detect_midi_mapping(
+            manifest,
+            no_midi=config.no_midi,
+        )
+
+        platform.generate_project(manifest, output_dir, "testgen", config=config)
+
+        ttl = (output_dir / "testgen.ttl").read_text()
+        assert "lv2:GeneratorPlugin" in ttl
+        assert "lv2:InstrumentPlugin" not in ttl
+        assert "atom:AtomPort" not in ttl
+        assert "midi:MidiEvent" not in ttl
+
+        cmake = (output_dir / "CMakeLists.txt").read_text()
+        assert "MIDI_ENABLED" not in cmake
+
+    def test_cmakelists_polyphony_defines(self, tmp_path: Path):
+        """NUM_VOICES=8 in CMakeLists when num_voices=8."""
+        from gen_dsp.core.manifest import Manifest, ParamInfo
+        from gen_dsp.core.midi import detect_midi_mapping
+        from gen_dsp.platforms.lv2 import Lv2Platform
+
+        output_dir = tmp_path / "poly_lv2"
+        output_dir.mkdir()
+
+        platform = Lv2Platform()
+        manifest = Manifest(
+            gen_name="test_synth",
+            num_inputs=0,
+            num_outputs=2,
+            params=[
+                ParamInfo(
+                    index=0, name="gate", has_minmax=True, min=0.0, max=1.0, default=0.0
+                ),
+                ParamInfo(
+                    index=1,
+                    name="freq",
+                    has_minmax=True,
+                    min=20.0,
+                    max=20000.0,
+                    default=440.0,
+                ),
+            ],
+        )
+
+        config = ProjectConfig(
+            name="testsynth",
+            platform="lv2",
+            midi_gate="gate",
+            midi_freq="freq",
+            num_voices=8,
+        )
+
+        config.midi_mapping = detect_midi_mapping(
+            manifest,
+            no_midi=config.no_midi,
+            midi_gate=config.midi_gate,
+            midi_freq=config.midi_freq,
+            midi_vel=config.midi_vel,
+            midi_freq_unit=config.midi_freq_unit,
+        )
+        config.midi_mapping.num_voices = config.num_voices
+
+        platform.generate_project(manifest, output_dir, "testsynth", config=config)
+
+        cmake = (output_dir / "CMakeLists.txt").read_text()
+        assert "NUM_VOICES=8" in cmake
+        assert "MIDI_ENABLED=1" in cmake
+
+    def test_voice_alloc_header_copied(self, tmp_path: Path):
+        """voice_alloc.h is copied when num_voices > 1."""
+        from gen_dsp.core.manifest import Manifest, ParamInfo
+        from gen_dsp.core.midi import detect_midi_mapping
+        from gen_dsp.platforms.lv2 import Lv2Platform
+
+        output_dir = tmp_path / "poly_header"
+        output_dir.mkdir()
+
+        platform = Lv2Platform()
+        manifest = Manifest(
+            gen_name="test_synth",
+            num_inputs=0,
+            num_outputs=2,
+            params=[
+                ParamInfo(
+                    index=0, name="gate", has_minmax=True, min=0.0, max=1.0, default=0.0
+                ),
+            ],
+        )
+
+        config = ProjectConfig(
+            name="testsynth",
+            platform="lv2",
+            midi_gate="gate",
+            num_voices=4,
+        )
+
+        config.midi_mapping = detect_midi_mapping(
+            manifest,
+            no_midi=config.no_midi,
+            midi_gate=config.midi_gate,
+        )
+        config.midi_mapping.num_voices = config.num_voices
+
+        platform.generate_project(manifest, output_dir, "testsynth", config=config)
+
+        assert (output_dir / "voice_alloc.h").is_file()
+
+    def test_no_voice_alloc_header_mono(self, tmp_path: Path):
+        """voice_alloc.h is NOT copied when num_voices=1 (mono)."""
+        from gen_dsp.core.manifest import Manifest, ParamInfo
+        from gen_dsp.core.midi import detect_midi_mapping
+        from gen_dsp.platforms.lv2 import Lv2Platform
+
+        output_dir = tmp_path / "mono_header"
+        output_dir.mkdir()
+
+        platform = Lv2Platform()
+        manifest = Manifest(
+            gen_name="test_synth",
+            num_inputs=0,
+            num_outputs=2,
+            params=[
+                ParamInfo(
+                    index=0, name="gate", has_minmax=True, min=0.0, max=1.0, default=0.0
+                ),
+            ],
+        )
+
+        config = ProjectConfig(
+            name="testsynth",
+            platform="lv2",
+            midi_gate="gate",
+        )
+
+        config.midi_mapping = detect_midi_mapping(
+            manifest,
+            no_midi=config.no_midi,
+            midi_gate=config.midi_gate,
+        )
+
+        platform.generate_project(manifest, output_dir, "testsynth", config=config)
+
+        assert not (output_dir / "voice_alloc.h").exists()

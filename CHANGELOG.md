@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **MIDI-to-CV monophonic note handling** for all four DAW plugin formats (CLAP, VST3, AudioUnit, LV2)
+  - Auto-detects gen~ parameters named `gate`, `freq`/`frequency`/`pitch`, `vel`/`velocity` on 0-input (generator/instrument) plugins
+  - Maps MIDI note-on/off events to `wrapper_set_param()` calls: gate (0/1), frequency (mtof or raw MIDI note), velocity (0-1 normalized)
+  - Gate parameter is required for auto-detection; frequency and velocity are optional
+  - CLI flags for explicit control: `--midi-gate <name>`, `--midi-freq <name>`, `--midi-vel <name>`, `--midi-freq-unit hz|midi`, `--no-midi`
+  - All MIDI code guarded by `#ifdef MIDI_ENABLED` compile definitions -- zero overhead for effects
+  - Shared detection logic in `core/midi.py` (`MidiMapping` dataclass, `detect_midi_mapping()`, `build_midi_defines()`)
+- **Polyphonic voice allocation** for all four DAW plugin formats (CLAP, VST3, AudioUnit, LV2)
+  - `--voices N` CLI flag sets compile-time voice count (default 1 = monophonic)
+  - Shared `voice_alloc.h` header with round-robin allocation and oldest-steal when all voices are occupied
+  - Each voice is an independent `GenState*` instance; outputs summed without normalization (matches hardware polysynth behavior)
+  - Note-off matches by MIDI note number; stolen voices receive gate-off before reuse
+  - Non-MIDI parameters (e.g. filter cutoff) broadcast to all voices; MIDI params (gate/freq/vel) routed per-voice
+  - Per-voice scratch buffers allocated eagerly at plugin init; first voice renders directly into host buffer (zero-copy), remaining voices summed in
+  - All polyphony code guarded by `#if NUM_VOICES > 1` -- zero overhead for monophonic plugins
+  - Validation: `--voices > 1` requires MIDI to be enabled (errors with `--no-midi`)
+  - **CLAP**: note port extension (`CLAP_EXT_NOTE_PORTS`), CLAP note events in both `process()` and `params_flush()`
+  - **VST3**: event input bus, VST3 `NoteOnEvent`/`NoteOffEvent` handling in `process()`
+  - **AudioUnit**: AU type changed from `augn` (generator) to `aumu` (music device) for MIDI-enabled instruments, raw MIDI bytes via `kMusicDeviceMIDIEventSelect`
+  - **LV2**: `InstrumentPlugin` type, atom input port with `midi:MidiEvent` support, URID map feature for MIDI event type identification, `urid:map` required feature in TTL
+- **Polyphony build integration tests** for all four DAW plugin formats -- verifies that `voice_alloc.h` and all `#if NUM_VOICES > 1` code paths compile cleanly across CLAP, VST3, AudioUnit, and LV2
+
 ## [0.1.11]
 
 ### Fixed

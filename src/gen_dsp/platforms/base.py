@@ -178,6 +178,24 @@ class Platform(ABC):
         if build_dir.exists():
             shutil.rmtree(build_dir)
 
+    def copy_voice_alloc_header(
+        self, output_dir: Path, config: Optional[ProjectConfig] = None
+    ) -> None:
+        """Copy voice_alloc.h to output_dir when polyphony is enabled (NUM_VOICES > 1).
+
+        Only copies when the config has a MIDI mapping with num_voices > 1.
+        """
+        if config is None or config.midi_mapping is None:
+            return
+        if config.midi_mapping.num_voices <= 1:
+            return
+
+        from gen_dsp.templates import get_templates_dir
+
+        src = get_templates_dir("shared") / "voice_alloc.h"
+        if src.exists():
+            shutil.copy2(src, output_dir / "voice_alloc.h")
+
     def generate_ext_header(self, output_dir: Path, platform_key: str) -> None:
         """Generate the standard _ext_{platform}.h header from shared template.
 

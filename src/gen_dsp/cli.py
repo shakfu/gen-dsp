@@ -114,6 +114,39 @@ Examples:
         "Circle: pi3-i2s, pi4-usb, pi5-hdmi, etc. (default: pi3-i2s)",
     )
     init_parser.add_argument(
+        "--no-midi",
+        action="store_true",
+        help="Disable MIDI note handling even if gate/freq params are detected",
+    )
+    init_parser.add_argument(
+        "--midi-gate",
+        metavar="NAME",
+        help="Parameter name to use as MIDI gate (implies MIDI enabled)",
+    )
+    init_parser.add_argument(
+        "--midi-freq",
+        metavar="NAME",
+        help="Parameter name to use as MIDI frequency (implies MIDI enabled)",
+    )
+    init_parser.add_argument(
+        "--midi-vel",
+        metavar="NAME",
+        help="Parameter name to use as MIDI velocity (implies MIDI enabled)",
+    )
+    init_parser.add_argument(
+        "--midi-freq-unit",
+        choices=["hz", "midi"],
+        default="hz",
+        help="Frequency unit: hz (mtof conversion, default) or midi (raw note number)",
+    )
+    init_parser.add_argument(
+        "--voices",
+        type=int,
+        default=1,
+        metavar="N",
+        help="Number of polyphony voices (default: 1 = monophonic, requires MIDI)",
+    )
+    init_parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Show what would be done without creating files",
@@ -279,6 +312,17 @@ def cmd_init(args: argparse.Namespace) -> int:
         )
         return 1
 
+    # Validate --voices
+    if args.voices < 1:
+        print("Error: --voices must be >= 1", file=sys.stderr)
+        return 1
+    if args.voices > 1 and args.no_midi:
+        print(
+            "Error: --voices > 1 requires MIDI (incompatible with --no-midi)",
+            file=sys.stderr,
+        )
+        return 1
+
     # Create config
     config = ProjectConfig(
         name=args.name,
@@ -288,6 +332,12 @@ def cmd_init(args: argparse.Namespace) -> int:
         output_dir=args.output,
         shared_cache=args.shared_cache,
         board=args.board,
+        no_midi=args.no_midi,
+        midi_gate=args.midi_gate,
+        midi_freq=args.midi_freq,
+        midi_vel=args.midi_vel,
+        midi_freq_unit=args.midi_freq_unit,
+        num_voices=args.voices,
     )
 
     # Validate

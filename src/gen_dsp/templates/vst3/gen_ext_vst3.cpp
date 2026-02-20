@@ -10,6 +10,7 @@
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "pluginterfaces/vst/ivstaudioprocessor.h"
 #include "pluginterfaces/vst/ivstprocesscontext.h"
+#include "pluginterfaces/vst/ivstevents.h"
 #include "public.sdk/source/main/pluginfactory.h"
 #include "pluginterfaces/base/futils.h"
 #include "base/source/fstreamer.h"
@@ -42,6 +43,43 @@ static void asciiToString128(Steinberg::Vst::String128 dest, const char* src) {
     }
     dest[i] = 0;
 }
+
+// ---------------------------------------------------------------------------
+// Polyphony support (NUM_VOICES > 1) or monophonic MIDI helpers
+// ---------------------------------------------------------------------------
+
+#ifdef MIDI_ENABLED
+#if NUM_VOICES > 1
+#include "voice_alloc.h"
+#else
+static inline float mtof(int note) {
+    return 440.0f * powf(2.0f, (note - 69) / 12.0f);
+}
+
+static inline void handle_note_on(GenState* state, int key, float velocity) {
+    (void)velocity;
+#ifdef MIDI_GATE_IDX
+    wrapper_set_param(state, MIDI_GATE_IDX, 1.0f);
+#endif
+#ifdef MIDI_FREQ_IDX
+#if MIDI_FREQ_UNIT_HZ
+    wrapper_set_param(state, MIDI_FREQ_IDX, mtof(key));
+#else
+    wrapper_set_param(state, MIDI_FREQ_IDX, (float)key);
+#endif
+#endif
+#ifdef MIDI_VEL_IDX
+    wrapper_set_param(state, MIDI_VEL_IDX, velocity);
+#endif
+}
+
+static inline void handle_note_off(GenState* state) {
+#ifdef MIDI_GATE_IDX
+    wrapper_set_param(state, MIDI_GATE_IDX, 0.0f);
+#endif
+}
+#endif // NUM_VOICES > 1
+#endif // MIDI_ENABLED
 
 // ---------------------------------------------------------------------------
 // FUID (defined via preprocessor from CMakeLists.txt)
@@ -90,7 +128,11 @@ public:
     }
 
 private:
+#if NUM_VOICES > 1
+    VoiceAllocator mVoiceAlloc;
+#else
     GenState* mGenState;
+#endif
     float mSampleRate;
     int32 mMaxFrames;
 
@@ -108,19 +150,30 @@ private:
 // ---------------------------------------------------------------------------
 
 GenVst3Plugin::GenVst3Plugin()
+#if NUM_VOICES <= 1
     : mGenState(nullptr)
     , mSampleRate(44100.0f)
+#else
+    : mSampleRate(44100.0f)
+#endif
     , mMaxFrames(1024)
     , mNumParams(0)
 {
     memset(mParamRanges, 0, sizeof(mParamRanges));
+#if NUM_VOICES > 1
+    memset(&mVoiceAlloc, 0, sizeof(mVoiceAlloc));
+#endif
 }
 
 GenVst3Plugin::~GenVst3Plugin() {
+#if NUM_VOICES > 1
+    voice_alloc_destroy(&mVoiceAlloc);
+#else
     if (mGenState) {
         wrapper_destroy(mGenState);
         mGenState = nullptr;
     }
+#endif
 }
 
 tresult PLUGIN_API GenVst3Plugin::initialize(FUnknown* context) {
@@ -143,8 +196,20 @@ tresult PLUGIN_API GenVst3Plugin::initialize(FUnknown* context) {
     }
     addAudioOutput(STR16("Output"), speakerArrForCount(VST3_NUM_OUTPUTS));
 
+#ifdef MIDI_ENABLED
+    // Add event input bus for MIDI note events
+    addEventInput(STR16("MIDI In"), 1);
+#endif
+
     // Create a temporary gen state to query parameter metadata
+#if NUM_VOICES > 1
+    // For poly mode, init the voice allocator here so we have a state to query
+    voice_alloc_init(&mVoiceAlloc, VST3_NUM_OUTPUTS, 512);
+    voice_alloc_create_voices(&mVoiceAlloc, 44100.0f, 512);
+    GenState* tmpState = mVoiceAlloc.states[0];
+#else
     GenState* tmpState = wrapper_create(44100.0f, 512);
+#endif
     if (!tmpState) return kResultFalse;
 
     mNumParams = wrapper_num_params();
@@ -204,20 +269,40 @@ tresult PLUGIN_API GenVst3Plugin::initialize(FUnknown* context) {
         parameters.addParameter(param);
     }
 
+#if NUM_VOICES <= 1
     wrapper_destroy(tmpState);
+#endif
+    // For poly mode, voices survive -- they'll be recreated in setActive()
     return kResultOk;
 }
 
 tresult PLUGIN_API GenVst3Plugin::terminate() {
+#if NUM_VOICES > 1
+    voice_alloc_destroy(&mVoiceAlloc);
+#else
     if (mGenState) {
         wrapper_destroy(mGenState);
         mGenState = nullptr;
     }
+#endif
     return SingleComponentEffect::terminate();
 }
 
 tresult PLUGIN_API GenVst3Plugin::setActive(TBool state) {
     if (state) {
+#if NUM_VOICES > 1
+        voice_alloc_init(&mVoiceAlloc, VST3_NUM_OUTPUTS, (long)mMaxFrames);
+        voice_alloc_create_voices(&mVoiceAlloc, mSampleRate, (long)mMaxFrames);
+        if (!mVoiceAlloc.states[0]) return kResultFalse;
+
+        // Broadcast current parameter values to all voices
+        for (int i = 0; i < mNumParams; i++) {
+            ParamValue normValue = getParamNormalized((ParamID)i);
+            float range = mParamRanges[i].max - mParamRanges[i].min;
+            float plain = mParamRanges[i].min + (float)normValue * range;
+            voice_alloc_set_global_param(&mVoiceAlloc, i, plain);
+        }
+#else
         if (mGenState) {
             wrapper_destroy(mGenState);
         }
@@ -231,11 +316,16 @@ tresult PLUGIN_API GenVst3Plugin::setActive(TBool state) {
             float plain = mParamRanges[i].min + (float)normValue * range;
             wrapper_set_param(mGenState, i, plain);
         }
+#endif
     } else {
+#if NUM_VOICES > 1
+        voice_alloc_destroy(&mVoiceAlloc);
+#else
         if (mGenState) {
             wrapper_destroy(mGenState);
             mGenState = nullptr;
         }
+#endif
     }
     return SingleComponentEffect::setActive(state);
 }
@@ -264,7 +354,11 @@ tresult PLUGIN_API GenVst3Plugin::setBusArrangements(
 }
 
 tresult PLUGIN_API GenVst3Plugin::process(ProcessData& data) {
+#if NUM_VOICES > 1
+    if (!mVoiceAlloc.states[0]) return kResultFalse;
+#else
     if (!mGenState) return kResultFalse;
+#endif
 
     // Handle sample rate changes
     if (data.processContext && data.processContext->sampleRate > 0) {
@@ -295,10 +389,41 @@ tresult PLUGIN_API GenVst3Plugin::process(ProcessData& data) {
                 // Convert normalized (0-1) to plain using stored ranges
                 float range = mParamRanges[paramId].max - mParamRanges[paramId].min;
                 float plain = mParamRanges[paramId].min + (float)normValue * range;
+#if NUM_VOICES > 1
+                voice_alloc_set_global_param(&mVoiceAlloc, (int)paramId, plain);
+#else
                 wrapper_set_param(mGenState, (int)paramId, plain);
+#endif
             }
         }
     }
+
+#ifdef MIDI_ENABLED
+    // Handle note events
+    IEventList* inputEvents = data.inputEvents;
+    if (inputEvents) {
+        int32 eventCount = inputEvents->getEventCount();
+        for (int32 i = 0; i < eventCount; i++) {
+            Event event;
+            if (inputEvents->getEvent(i, event) != kResultOk) continue;
+            if (event.type == Event::kNoteOnEvent) {
+#if NUM_VOICES > 1
+                voice_alloc_note_on(&mVoiceAlloc, event.noteOn.pitch,
+                                    event.noteOn.velocity);
+#else
+                handle_note_on(mGenState, event.noteOn.pitch,
+                               event.noteOn.velocity);
+#endif
+            } else if (event.type == Event::kNoteOffEvent) {
+#if NUM_VOICES > 1
+                voice_alloc_note_off(&mVoiceAlloc, event.noteOff.pitch);
+#else
+                handle_note_off(mGenState);
+#endif
+            }
+        }
+    }
+#endif
 
     int32 nframes = data.numSamples;
     if (nframes <= 0) return kResultOk;
@@ -316,10 +441,17 @@ tresult PLUGIN_API GenVst3Plugin::process(ProcessData& data) {
 
     if (!outs) return kResultOk;
 
+#if NUM_VOICES > 1
+    voice_alloc_perform(&mVoiceAlloc,
+                        ins, VST3_NUM_INPUTS,
+                        outs, VST3_NUM_OUTPUTS,
+                        (long)nframes);
+#else
     wrapper_perform(mGenState,
                     ins, VST3_NUM_INPUTS,
                     outs, VST3_NUM_OUTPUTS,
                     (long)nframes);
+#endif
 
     return kResultOk;
 }
@@ -333,9 +465,13 @@ tresult PLUGIN_API GenVst3Plugin::setState(IBStream* state) {
     for (int i = 0; i < mNumParams; i++) {
         float value = 0.0f;
         if (!streamer.readFloat(value)) break;
+#if NUM_VOICES > 1
+        voice_alloc_set_global_param(&mVoiceAlloc, i, value);
+#else
         if (mGenState) {
             wrapper_set_param(mGenState, i, value);
         }
+#endif
         // Normalize and update controller
         float range = mParamRanges[i].max - mParamRanges[i].min;
         double normValue = 0.0;
@@ -356,11 +492,15 @@ tresult PLUGIN_API GenVst3Plugin::getState(IBStream* state) {
     // Write current parameter values (plain, not normalized)
     for (int i = 0; i < mNumParams; i++) {
         float value = 0.0f;
+#if NUM_VOICES > 1
+        value = voice_alloc_get_param(&mVoiceAlloc, i);
+#else
         if (mGenState) {
             value = wrapper_get_param(mGenState, i);
         } else {
             value = mParamRanges[i].defaultVal;
         }
+#endif
         streamer.writeFloat(value);
     }
 

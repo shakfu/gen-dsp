@@ -19,6 +19,7 @@ from string import Template
 from typing import Optional
 
 from gen_dsp.core.manifest import Manifest, ParamInfo
+from gen_dsp.core.midi import build_midi_defines
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import ProjectError
 from gen_dsp.platforms.base import PluginCategory
@@ -36,6 +37,8 @@ class Lv2Platform(CMakePlatform):
         PluginCategory.EFFECT: "lv2:Plugin ,\n      lv2:EffectPlugin",
         PluginCategory.GENERATOR: "lv2:Plugin ,\n      lv2:GeneratorPlugin",
     }
+
+    LV2_TYPE_INSTRUMENT = "lv2:Plugin ,\n      lv2:InstrumentPlugin"
 
     @property
     def extension(self) -> str:
@@ -67,6 +70,12 @@ class Lv2Platform(CMakePlatform):
                 shutil.copy2(src, output_dir / filename)
 
         self.generate_ext_header(output_dir, "lv2")
+        self.copy_voice_alloc_header(output_dir, config)
+
+        # Build MIDI compile definitions
+        midi_mapping = config.midi_mapping if config else None
+        midi_enabled = midi_mapping is not None and midi_mapping.enabled
+        midi_defines = build_midi_defines(midi_mapping)
 
         # Generate TTL files
         plugin_uri = f"{self.LV2_URI_BASE}/{lib_name}"
@@ -79,6 +88,7 @@ class Lv2Platform(CMakePlatform):
             manifest.num_outputs,
             manifest.num_params,
             manifest.params,
+            midi_enabled=midi_enabled,
         )
 
         # Resolve shared cache settings
@@ -95,6 +105,7 @@ class Lv2Platform(CMakePlatform):
             manifest.num_params,
             use_shared_cache=use_shared_cache,
             cache_dir=cache_dir,
+            midi_defines=midi_defines,
         )
 
         # Generate gen_buffer.h using base class method
@@ -142,6 +153,7 @@ class Lv2Platform(CMakePlatform):
         num_outputs: int,
         num_params: int,
         params: list[ParamInfo],
+        midi_enabled: bool = False,
     ) -> None:
         """Generate <plugin>.ttl with full port descriptions.
 
@@ -149,14 +161,25 @@ class Lv2Platform(CMakePlatform):
           indices 0..num_params-1   = ControlPort InputPort
           indices num_params..+nin  = AudioPort InputPort
           indices above..+nout      = AudioPort OutputPort
+          (if MIDI) last index      = AtomPort InputPort (MIDI events)
         """
         # Plugin type
-        category = PluginCategory.from_num_inputs(num_inputs)
-        plugin_type = self._LV2_TYPE_MAP[category]
+        if midi_enabled:
+            plugin_type = self.LV2_TYPE_INSTRUMENT
+        else:
+            category = PluginCategory.from_num_inputs(num_inputs)
+            plugin_type = self._LV2_TYPE_MAP[category]
 
-        lines = [
+        prefixes = [
             "@prefix doap: <http://usefulinc.com/ns/doap#> .",
             "@prefix lv2:  <http://lv2plug.in/ns/lv2core#> .",
+        ]
+        if midi_enabled:
+            prefixes.append("@prefix atom: <http://lv2plug.in/ns/ext/atom#> .")
+            prefixes.append("@prefix midi: <http://lv2plug.in/ns/ext/midi#> .")
+            prefixes.append("@prefix urid: <http://lv2plug.in/ns/ext/urid#> .")
+
+        lines = prefixes + [
             "",
             f"<{plugin_uri}>",
             f"    a {plugin_type} ;",
@@ -165,7 +188,12 @@ class Lv2Platform(CMakePlatform):
             "    lv2:optionalFeature lv2:hardRTCapable ;",
         ]
 
+        if midi_enabled:
+            lines.append("    lv2:requiredFeature urid:map ;")
+
         total_ports = num_params + num_inputs + num_outputs
+        if midi_enabled:
+            total_ports += 1  # atom port for MIDI
         port_index = 0
 
         # Control input ports (parameters)
@@ -225,6 +253,18 @@ class Lv2Platform(CMakePlatform):
             lines.append(f"    ]{terminator}")
             port_index += 1
 
+        # MIDI atom input port (appended at the end)
+        if midi_enabled:
+            lines.append("    lv2:port [")
+            lines.append("        a lv2:InputPort , atom:AtomPort ;")
+            lines.append(f"        lv2:index {port_index} ;")
+            lines.append('        lv2:symbol "midi_in" ;')
+            lines.append('        lv2:name "MIDI In" ;')
+            lines.append("        atom:bufferType atom:Sequence ;")
+            lines.append("        atom:supports midi:MidiEvent")
+            lines.append("    ] .")
+            port_index += 1
+
         content = "\n".join(lines) + "\n"
         (output_dir / f"{lib_name}.ttl").write_text(content, encoding="utf-8")
 
@@ -247,6 +287,7 @@ class Lv2Platform(CMakePlatform):
         num_params: int,
         use_shared_cache: str = "OFF",
         cache_dir: str = "",
+        midi_defines: str = "",
     ) -> None:
         """Generate CMakeLists.txt from template."""
         if not template_path.exists():
@@ -263,6 +304,7 @@ class Lv2Platform(CMakePlatform):
             num_params=num_params,
             use_shared_cache=use_shared_cache,
             cache_dir=cache_dir,
+            midi_defines=midi_defines,
         )
         output_path.write_text(content, encoding="utf-8")
 

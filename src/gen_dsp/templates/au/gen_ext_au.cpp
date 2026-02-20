@@ -21,6 +21,45 @@
 
 using namespace WRAPPER_NAMESPACE;
 
+// ---------------------------------------------------------------------------
+// Polyphony support (NUM_VOICES > 1) or monophonic MIDI helpers
+// ---------------------------------------------------------------------------
+
+#ifdef MIDI_ENABLED
+#include <cmath>
+
+#if NUM_VOICES > 1
+#include "voice_alloc.h"
+#else
+static inline float mtof(int note) {
+    return 440.0f * powf(2.0f, (note - 69) / 12.0f);
+}
+
+static inline void handle_note_on(GenState* state, int key, float velocity) {
+    (void)velocity;
+#ifdef MIDI_GATE_IDX
+    wrapper_set_param(state, MIDI_GATE_IDX, 1.0f);
+#endif
+#ifdef MIDI_FREQ_IDX
+#if MIDI_FREQ_UNIT_HZ
+    wrapper_set_param(state, MIDI_FREQ_IDX, mtof(key));
+#else
+    wrapper_set_param(state, MIDI_FREQ_IDX, (float)key);
+#endif
+#endif
+#ifdef MIDI_VEL_IDX
+    wrapper_set_param(state, MIDI_VEL_IDX, velocity);
+#endif
+}
+
+static inline void handle_note_off(GenState* state) {
+#ifdef MIDI_GATE_IDX
+    wrapper_set_param(state, MIDI_GATE_IDX, 0.0f);
+#endif
+}
+#endif // NUM_VOICES > 1
+#endif // MIDI_ENABLED
+
 // Maximum number of parameters we support for save/restore
 static const int kMaxParams = 256;
 // Maximum number of property listeners
@@ -41,7 +80,11 @@ struct AUGenPlugin {
     AudioComponentInstance       instance;
     Float64                      sampleRate;
     UInt32                       maxFramesPerSlice;
+#if NUM_VOICES > 1
+    VoiceAllocator               voiceAlloc;
+#else
     GenState*                    genState;
+#endif
     int                          numInputs;
     int                          numOutputs;
     int                          numParams;
@@ -114,18 +157,31 @@ static void AllocateBufferFrames(float** buffers, int count, UInt32 frames) {
 
 // Save current parameter values from gen state into array
 static void SaveParams(AUGenPlugin* plug, float* saved, int count) {
+#if NUM_VOICES > 1
+    if (!plug->voiceAlloc.states[0]) return;
+    for (int i = 0; i < count && i < kMaxParams; i++) {
+        saved[i] = wrapper_get_param(plug->voiceAlloc.states[0], i);
+    }
+#else
     if (!plug->genState) return;
     for (int i = 0; i < count && i < kMaxParams; i++) {
         saved[i] = wrapper_get_param(plug->genState, i);
     }
+#endif
 }
 
 // Restore parameter values from array into gen state
 static void RestoreParams(AUGenPlugin* plug, const float* saved, int count) {
+#if NUM_VOICES > 1
+    for (int i = 0; i < count && i < kMaxParams; i++) {
+        voice_alloc_set_global_param(&plug->voiceAlloc, i, saved[i]);
+    }
+#else
     if (!plug->genState) return;
     for (int i = 0; i < count && i < kMaxParams; i++) {
         wrapper_set_param(plug->genState, i, saved[i]);
     }
+#endif
 }
 
 // Fire property change notifications to all registered listeners
@@ -152,10 +208,14 @@ static OSStatus AUGenOpen(void* self, AudioUnit instance) {
 
 static OSStatus AUGenClose(void* self) {
     AUGenPlugin* plug = (AUGenPlugin*)self;
+#if NUM_VOICES > 1
+    voice_alloc_destroy(&plug->voiceAlloc);
+#else
     if (plug->genState) {
         wrapper_destroy(plug->genState);
         plug->genState = nullptr;
     }
+#endif
     FreeBuffers(plug->inBuffers, plug->numInputs);
     FreeBuffers(plug->outBuffers, plug->numOutputs);
     plug->inBuffers = nullptr;
@@ -173,11 +233,22 @@ static OSStatus AUGenInitialize(void* self) {
 
     // Save parameter values across re-initialization
     float savedParams[kMaxParams];
+#if NUM_VOICES > 1
+    bool hasParams = plug->voiceAlloc.states[0] && plug->numParams > 0;
+#else
     bool hasParams = plug->genState && plug->numParams > 0;
+#endif
     if (hasParams) {
         SaveParams(plug, savedParams, plug->numParams);
     }
 
+#if NUM_VOICES > 1
+    voice_alloc_init(&plug->voiceAlloc, plug->numOutputs, (long)plug->maxFramesPerSlice);
+    voice_alloc_create_voices(&plug->voiceAlloc, (float)plug->sampleRate, (long)plug->maxFramesPerSlice);
+    if (!plug->voiceAlloc.states[0]) {
+        return kAudioUnitErr_FailedInitialization;
+    }
+#else
     if (plug->genState) {
         wrapper_destroy(plug->genState);
     }
@@ -186,6 +257,7 @@ static OSStatus AUGenInitialize(void* self) {
     if (!plug->genState) {
         return kAudioUnitErr_FailedInitialization;
     }
+#endif
 
     // Restore parameter values
     if (hasParams) {
@@ -349,11 +421,16 @@ static CFMutableDictionaryRef CreateClassInfo(AUGenPlugin* plug) {
     CFDictionarySetValue(dict, CFSTR("name"), CFSTR(""));
 
     // Store parameter values as CFData blob
-    if (plug->genState && plug->numParams > 0) {
+#if NUM_VOICES > 1
+    GenState* saveState = plug->voiceAlloc.states[0];
+#else
+    GenState* saveState = plug->genState;
+#endif
+    if (saveState && plug->numParams > 0) {
         int nParams = plug->numParams < kMaxParams ? plug->numParams : kMaxParams;
         float values[kMaxParams];
         for (int i = 0; i < nParams; i++) {
-            values[i] = wrapper_get_param(plug->genState, i);
+            values[i] = wrapper_get_param(saveState, i);
         }
         CFDataRef data = CFDataCreate(kCFAllocatorDefault,
             (const UInt8*)values, (CFIndex)(nParams * sizeof(float)));
@@ -378,11 +455,19 @@ static OSStatus RestoreClassInfo(AUGenPlugin* plug, CFPropertyListRef plist) {
         CFIndex dataSize = CFDataGetLength(data);
         CFIndex expectedSize = (CFIndex)(nParams * sizeof(float));
 
-        if (dataSize >= expectedSize && plug->genState) {
+        if (dataSize >= expectedSize) {
             const float* values = (const float*)CFDataGetBytePtr(data);
+#if NUM_VOICES > 1
             for (int i = 0; i < nParams; i++) {
-                wrapper_set_param(plug->genState, i, values[i]);
+                voice_alloc_set_global_param(&plug->voiceAlloc, i, values[i]);
             }
+#else
+            if (plug->genState) {
+                for (int i = 0; i < nParams; i++) {
+                    wrapper_set_param(plug->genState, i, values[i]);
+                }
+            }
+#endif
         }
     }
 
@@ -458,8 +543,13 @@ static OSStatus AUGenGetProperty(void* self,
             memset(info, 0, sizeof(AudioUnitParameterInfo));
 
             // Get parameter metadata from gen~ wrapper
-            const char* pname = plug->genState
-                ? wrapper_param_name(plug->genState, (int)elem)
+#if NUM_VOICES > 1
+            GenState* queryState = plug->voiceAlloc.states[0];
+#else
+            GenState* queryState = plug->genState;
+#endif
+            const char* pname = queryState
+                ? wrapper_param_name(queryState, (int)elem)
                 : nullptr;
             if (pname) {
                 info->cfNameString = CFStringCreateWithCString(
@@ -473,10 +563,10 @@ static OSStatus AUGenGetProperty(void* self,
             info->flags |= kAudioUnitParameterFlag_IsReadable
                          | kAudioUnitParameterFlag_IsWritable;
 
-            if (plug->genState && wrapper_param_hasminmax(plug->genState, (int)elem)) {
-                info->minValue     = wrapper_param_min(plug->genState, (int)elem);
-                info->maxValue     = wrapper_param_max(plug->genState, (int)elem);
-                float pdefault     = wrapper_get_param(plug->genState, (int)elem);
+            if (queryState && wrapper_param_hasminmax(queryState, (int)elem)) {
+                info->minValue     = wrapper_param_min(queryState, (int)elem);
+                info->maxValue     = wrapper_param_max(queryState, (int)elem);
+                float pdefault     = wrapper_get_param(queryState, (int)elem);
                 // Clamp default to [min, max] -- gen~ initial values may exceed
                 // the declared range (e.g. gigaverb revtime init=11, max=1)
                 if (pdefault < info->minValue) pdefault = info->minValue;
@@ -628,12 +718,22 @@ static OSStatus AUGenSetProperty(void* self,
             // Recreate gen state and reallocate buffers if already initialized
             if (plug->initialized) {
                 float savedParams[kMaxParams];
+#if NUM_VOICES > 1
+                bool hasParams = plug->voiceAlloc.states[0] && plug->numParams > 0;
+#else
                 bool hasParams = plug->genState && plug->numParams > 0;
+#endif
                 if (hasParams) SaveParams(plug, savedParams, plug->numParams);
 
+#if NUM_VOICES > 1
+                voice_alloc_init(&plug->voiceAlloc, plug->numOutputs, (long)newMax);
+                voice_alloc_create_voices(&plug->voiceAlloc, (float)plug->sampleRate, (long)newMax);
+                if (hasParams) RestoreParams(plug, savedParams, plug->numParams);
+#else
                 if (plug->genState) wrapper_destroy(plug->genState);
                 plug->genState = wrapper_create((float)plug->sampleRate, (long)newMax);
                 if (hasParams && plug->genState) RestoreParams(plug, savedParams, plug->numParams);
+#endif
 
                 AllocateBufferFrames(plug->inBuffers, plug->numInputs, newMax);
                 AllocateBufferFrames(plug->outBuffers, plug->numOutputs, newMax);
@@ -698,10 +798,16 @@ static OSStatus AUGenGetParameter(void* self,
         return kAudioUnitErr_InvalidParameter;
     if ((int)param >= plug->numParams)
         return kAudioUnitErr_InvalidParameter;
+
+#if NUM_VOICES > 1
+    if (!plug->voiceAlloc.states[0])
+        return kAudioUnitErr_Uninitialized;
+    *outValue = voice_alloc_get_param(&plug->voiceAlloc, (int)param);
+#else
     if (!plug->genState)
         return kAudioUnitErr_Uninitialized;
-
     *outValue = wrapper_get_param(plug->genState, (int)param);
+#endif
     return noErr;
 }
 
@@ -717,10 +823,14 @@ static OSStatus AUGenSetParameter(void* self,
         return kAudioUnitErr_InvalidParameter;
     if ((int)param >= plug->numParams)
         return kAudioUnitErr_InvalidParameter;
+
+#if NUM_VOICES > 1
+    voice_alloc_set_global_param(&plug->voiceAlloc, (int)param, value);
+#else
     if (!plug->genState)
         return kAudioUnitErr_Uninitialized;
-
     wrapper_set_param(plug->genState, (int)param, value);
+#endif
     return noErr;
 }
 
@@ -736,8 +846,13 @@ static OSStatus AUGenRender(void* self,
                             AudioBufferList* ioData) {
     AUGenPlugin* plug = (AUGenPlugin*)self;
 
+#if NUM_VOICES > 1
+    if (!plug->initialized || !plug->voiceAlloc.states[0])
+        return kAudioUnitErr_Uninitialized;
+#else
     if (!plug->initialized || !plug->genState)
         return kAudioUnitErr_Uninitialized;
+#endif
 
     if (inOutputBusNumber != 0)
         return kAudioUnitErr_InvalidElement;
@@ -826,12 +941,21 @@ static OSStatus AUGenRender(void* self,
     }
 
     // Call gen~ perform
+#if NUM_VOICES > 1
+    voice_alloc_perform(
+        &plug->voiceAlloc,
+        plug->inBuffers, plug->numInputs,
+        outPtrs, outCount,
+        (long)inNumberFrames
+    );
+#else
     wrapper_perform(
         plug->genState,
         plug->inBuffers, plug->numInputs,
         outPtrs, outCount,
         (long)inNumberFrames
     );
+#endif
 
     // If we used our own outBuffers (not ioData directly), copy to ioData
     for (int i = 0; i < outCount; i++) {
@@ -850,6 +974,15 @@ static OSStatus AUGenRender(void* self,
 
 static OSStatus AUGenReset(void* self, AudioUnitScope scope, AudioUnitElement elem) {
     AUGenPlugin* plug = (AUGenPlugin*)self;
+#if NUM_VOICES > 1
+    if (plug->voiceAlloc.states[0]) {
+        float savedParams[kMaxParams];
+        int nParams = plug->numParams < kMaxParams ? plug->numParams : kMaxParams;
+        voice_alloc_save_params(&plug->voiceAlloc, savedParams, nParams);
+        voice_alloc_reset(&plug->voiceAlloc);
+        voice_alloc_restore_params(&plug->voiceAlloc, savedParams, nParams);
+    }
+#else
     if (plug->genState) {
         // Save parameter values, reset DSP state, restore parameters
         float savedParams[kMaxParams];
@@ -858,6 +991,7 @@ static OSStatus AUGenReset(void* self, AudioUnitScope scope, AudioUnitElement el
         wrapper_reset(plug->genState);
         RestoreParams(plug, savedParams, nParams);
     }
+#endif
     return noErr;
 }
 
@@ -917,6 +1051,39 @@ static OSStatus AUGenRemoveRenderNotify(void* self,
 }
 
 // ---------------------------------------------------------------------------
+// MIDI Event (kMusicDeviceMIDIEventSelect)
+// ---------------------------------------------------------------------------
+
+#ifdef MIDI_ENABLED
+static OSStatus AUGenMIDIEvent(void* self,
+                               UInt32 inStatus,
+                               UInt32 inData1,
+                               UInt32 inData2,
+                               UInt32 inOffsetSampleFrame) {
+    (void)inOffsetSampleFrame;
+    AUGenPlugin* plug = (AUGenPlugin*)self;
+
+    UInt32 cmd = inStatus & 0xF0;
+    if (cmd == 0x90 && inData2 > 0) {
+#if NUM_VOICES > 1
+        voice_alloc_note_on(&plug->voiceAlloc, (int)inData1, (float)inData2 / 127.0f);
+#else
+        if (!plug->genState) return kAudioUnitErr_Uninitialized;
+        handle_note_on(plug->genState, (int)inData1, (float)inData2 / 127.0f);
+#endif
+    } else if (cmd == 0x80 || (cmd == 0x90 && inData2 == 0)) {
+#if NUM_VOICES > 1
+        voice_alloc_note_off(&plug->voiceAlloc, (int)inData1);
+#else
+        if (!plug->genState) return kAudioUnitErr_Uninitialized;
+        handle_note_off(plug->genState);
+#endif
+    }
+    return noErr;
+}
+#endif // MIDI_ENABLED
+
+// ---------------------------------------------------------------------------
 // Selector Lookup - returns function pointers for each AU selector
 //
 // The AudioComponentPlugInInterface.Lookup field is called by the host to
@@ -953,6 +1120,10 @@ static AudioComponentMethod AUGenLookup(SInt16 selector) {
             return (AudioComponentMethod)AUGenAddRenderNotify;
         case kAudioUnitRemoveRenderNotifySelect:
             return (AudioComponentMethod)AUGenRemoveRenderNotify;
+#ifdef MIDI_ENABLED
+        case kMusicDeviceMIDIEventSelect:
+            return (AudioComponentMethod)AUGenMIDIEvent;
+#endif
         default:
             return nullptr;
     }
@@ -995,7 +1166,12 @@ extern "C" void* AUGenFactory(const AudioComponentDescription* desc) {
     InitStreamFormat(&plug->streamFormat, plug->sampleRate, (UInt32)plug->numOutputs);
 
     // Create gen state eagerly so parameter metadata is available before Initialize
+#if NUM_VOICES > 1
+    voice_alloc_init(&plug->voiceAlloc, plug->numOutputs, (long)plug->maxFramesPerSlice);
+    voice_alloc_create_voices(&plug->voiceAlloc, (float)plug->sampleRate, (long)plug->maxFramesPerSlice);
+#else
     plug->genState = wrapper_create((float)plug->sampleRate, (long)plug->maxFramesPerSlice);
+#endif
 
     return plug;
 }

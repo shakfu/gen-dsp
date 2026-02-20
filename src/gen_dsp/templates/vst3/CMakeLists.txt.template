@@ -82,6 +82,7 @@ target_compile_definitions($${PROJECT_NAME} PRIVATE
     VST3_FUID_1=$fuid_1
     VST3_FUID_2=$fuid_2
     VST3_FUID_3=$fuid_3
+    $midi_defines
 )
 
 # Include directories
@@ -99,4 +100,24 @@ if(MSVC)
     target_compile_options($${PROJECT_NAME} PRIVATE /wd4101 /wd4244)
 else()
     target_compile_options($${PROJECT_NAME} PRIVATE -Wno-unused-function -Wno-unused-variable)
+endif()
+
+# Post-build: fix moduleinfo.json and Info.plist for DAW compatibility
+if(APPLE)
+    add_custom_command(TARGET $${PROJECT_NAME} POST_BUILD
+        # Fix trailing commas in moduleinfo.json (SDK's moduleinfotool emits invalid JSON)
+        COMMAND python3 -c "import re,sys$<SEMICOLON>p=sys.argv[1]$<SEMICOLON>t=open(p).read()$<SEMICOLON>open(p,'w').write(re.sub(r',(\\s*[}\\]])',r'\\1',t))"
+            "$$<TARGET_BUNDLE_DIR:$${PROJECT_NAME}>/Contents/Resources/moduleinfo.json"
+        # Fix Info.plist: CFBundlePackageType and CFBundleIdentifier
+        COMMAND /usr/bin/plutil -replace CFBundlePackageType -string BNDL
+            "$$<TARGET_BUNDLE_DIR:$${PROJECT_NAME}>/Contents/Info.plist"
+        COMMAND /usr/bin/plutil -replace CFBundleIdentifier -string "com.gen-dsp.vst3.$lib_name"
+            "$$<TARGET_BUNDLE_DIR:$${PROJECT_NAME}>/Contents/Info.plist"
+        COMMAND /usr/bin/plutil -replace CFBundleName -string "$lib_name"
+            "$$<TARGET_BUNDLE_DIR:$${PROJECT_NAME}>/Contents/Info.plist"
+        # Re-sign after modifications
+        COMMAND /usr/bin/codesign --force --sign - "$$<TARGET_BUNDLE_DIR:$${PROJECT_NAME}>"
+        COMMENT "Fixing moduleinfo.json and Info.plist for DAW compatibility"
+        VERBATIM
+    )
 endif()
