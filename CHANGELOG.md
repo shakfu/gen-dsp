@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.12]
 
+### Changed
+
+- **VST3: `setState`/`getState` robustness** -- added magic header validation; `setState` now returns `kResultFalse` on empty/invalid streams (previously returned `kResultOk` and silently accepted garbage)
+- **AU: `ClassInfo` state robustness** -- `CreateClassInfo` always writes magic header (even for 0-param plugins); `RestoreClassInfo` validates magic before reading params, returns `kAudioUnitErr_InvalidPropertyValue` on invalid data
+
 ### Added
 
 - **CLAP: state save/restore extension** (`clap_plugin_state_t`) -- hosts can now save and recall plugin presets and session state
@@ -20,13 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `state:interface` declared in plugin TTL; `state:` and `urid:` prefixes added to all LV2 TTL files
   - Gracefully degrades when host doesn't provide `urid:map` (state ops return error, plugin still instantiates)
 - **State magic header** (`0x47445350` / "GDSP") across all four DAW plugin backends (CLAP, VST3, LV2, AU) -- rejects empty or invalid state data on load, ensuring save-load-save roundtrips produce byte-identical output
-
-### Changed
-
-- **VST3: `setState`/`getState` robustness** -- added magic header validation; `setState` now returns `kResultFalse` on empty/invalid streams (previously returned `kResultOk` and silently accepted garbage)
-- **AU: `ClassInfo` state robustness** -- `CreateClassInfo` always writes magic header (even for 0-param plugins); `RestoreClassInfo` validates magic before reading params, returns `kAudioUnitErr_InvalidPropertyValue` on invalid data
-
-### Added
 
 - **MIDI-to-CV monophonic note handling** for all four DAW plugin formats (CLAP, VST3, AudioUnit, LV2)
   - Auto-detects gen~ parameters named `gate`, `freq`/`frequency`/`pitch`, `vel`/`velocity` on 0-input (generator/instrument) plugins
