@@ -57,6 +57,10 @@ All gen~ parameters are exposed as LV2 control input ports. Parameter names and 
 - **Plugin URI:** `http://gen-dsp.com/plugins/<lib_name>`
 - **Symbol sanitization:** parameter names are converted to valid LV2 symbols (C identifiers) -- non-alphanumeric characters become underscores
 
+## State Save/Restore
+
+The plugin implements the LV2 State extension (`LV2_State_Interface`), allowing hosts to save and recall presets and session state. Parameters are serialized as a flat binary blob (4-byte magic header + one float per parameter) stored as an `atom:Chunk` property. The state property URI is `http://gen-dsp.com/plugins/state#params`. Invalid or empty state data is rejected on restore.
+
 ## Buffers
 
 Buffer support follows the standard gen-dsp pattern. Up to 5 single-channel buffers are supported.
@@ -131,4 +135,4 @@ The `.lv2` bundle is a directory containing the shared library and both TTL file
 - **CMake configure fails on first run:** Network access is required to fetch LV2 headers. Ensure you have internet connectivity.
 - **Plugin not found by host:** Ensure the entire `.lv2` directory (not just the binary) is copied to the install path. The host needs both the binary and the TTL files.
 - **Parameter ranges look wrong:** Parameter min/max values are parsed from the gen~ export source code at project creation time. If you modify parameter ranges in your gen~ patch and re-export, re-run `gen-dsp init` to regenerate the TTL files.
-- **`lv2:default` vs actual default:** The TTL generator currently uses `output_min` as the default value. If your parameters have a different intended default, edit the generated `<name>.ttl` file.
+- **`lv2:default` vs actual default:** The TTL generator parses actual default values from the gen~ export source code. Defaults are clamped to the declared [min, max] range. If your parameters have a different intended default, edit the generated `<name>.ttl` file.

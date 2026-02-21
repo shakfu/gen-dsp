@@ -54,7 +54,11 @@ gen-dsp uses **header isolation** to separate CLAP API code from genlib code:
 All gen~ parameters are exposed via the CLAP params extension. Parameters are automatable by the host.
 
 - **Plugin ID:** `com.gen-dsp.<lib_name>`
-- **Extensions:** `audio-ports`, `params`
+- **Extensions:** `audio-ports`, `params`, `state`
+
+## State Save/Restore
+
+The plugin implements the CLAP state extension (`clap_plugin_state_t`), allowing hosts to save and recall presets and session state. Parameters are serialized as a flat binary blob (4-byte magic header + one float per parameter). Stream helpers handle partial reads/writes as required by the CLAP spec. Empty or invalid state data is rejected on load.
 
 ## Buffers
 

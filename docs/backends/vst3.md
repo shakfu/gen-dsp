@@ -55,6 +55,10 @@ All gen~ parameters are exposed as `RangeParameter` instances with real names, m
 
 **Plugin FUID:** A deterministic 128-bit ID generated from the MD5 hash of `com.gen-dsp.vst3.<lib_name>`, split into 4 x uint32 and passed to CMake as hex values.
 
+## State Save/Restore
+
+The plugin implements `setState()`/`getState()` on the `SingleComponentEffect`, allowing hosts to save and recall presets and session state. Parameters are serialized as a flat binary blob (4-byte magic header + one float per parameter) using `IBStreamer`. Invalid or empty state data is rejected on load.
+
 ## Buffers
 
 Buffer support follows the standard gen-dsp pattern. Up to 5 single-channel buffers are supported.

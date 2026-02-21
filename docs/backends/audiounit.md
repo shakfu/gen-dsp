@@ -70,6 +70,10 @@ The plugin implements `AudioComponentPlugInInterface` directly using the raw C A
 
 All gen~ parameters are exposed as AU parameters with their original names, minimum, maximum, and default values. Parameters are automatable by the host DAW.
 
+## State Save/Restore
+
+The plugin implements ClassInfo (state save/restore) via CFDictionary serialization. Parameters are stored as a CFData blob (4-byte magic header + one float per parameter) under a `data` key. This allows hosts to save and recall presets and session state. Parameters are preserved across Initialize and Reset cycles. Invalid or empty state data is rejected on restore.
+
 ## Buffers
 
 Buffer support follows the standard gen-dsp pattern. Up to 5 single-channel buffers are supported.
