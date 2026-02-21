@@ -580,6 +580,7 @@ class TestAudioUnitBuildIntegration:
         self,
         gigaverb_export: Path,
         tmp_path: Path,
+        validate_minihost,
     ):
         """Generate and compile a polyphonic AudioUnit plugin (NUM_VOICES=4)."""
         from dataclasses import replace
@@ -648,9 +649,16 @@ class TestAudioUnitBuildIntegration:
         assert len(component_files) >= 1
         assert component_files[0].name == "polyverb.component"
 
-        # NOTE: minihost validation skipped for polyphony -- the gen~
-        # exported code expects 2 audio inputs but the manifest overrides
-        # num_inputs=0 for MIDI detection, causing a segfault in process.
+        # Runtime validation via minihost (check_energy=False: generator with no audio input)
+        _validate_au_with_minihost(
+            validate_minihost,
+            component_files[0],
+            "polyverb",
+            0,
+            2,
+            num_params=8,
+            check_energy=False,
+        )
 
 
 class TestAudioUnitMidiGeneration:

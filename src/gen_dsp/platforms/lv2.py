@@ -171,13 +171,14 @@ class Lv2Platform(CMakePlatform):
             plugin_type = self._LV2_TYPE_MAP[category]
 
         prefixes = [
-            "@prefix doap: <http://usefulinc.com/ns/doap#> .",
-            "@prefix lv2:  <http://lv2plug.in/ns/lv2core#> .",
+            "@prefix doap:  <http://usefulinc.com/ns/doap#> .",
+            "@prefix lv2:   <http://lv2plug.in/ns/lv2core#> .",
+            "@prefix state: <http://lv2plug.in/ns/ext/state#> .",
+            "@prefix urid:  <http://lv2plug.in/ns/ext/urid#> .",
         ]
         if midi_enabled:
             prefixes.append("@prefix atom: <http://lv2plug.in/ns/ext/atom#> .")
             prefixes.append("@prefix midi: <http://lv2plug.in/ns/ext/midi#> .")
-            prefixes.append("@prefix urid: <http://lv2plug.in/ns/ext/urid#> .")
 
         lines = prefixes + [
             "",
@@ -186,6 +187,7 @@ class Lv2Platform(CMakePlatform):
             f'    doap:name "{lib_name}" ;',
             "    doap:license <http://opensource.org/licenses/isc> ;",
             "    lv2:optionalFeature lv2:hardRTCapable ;",
+            "    lv2:extensionData state:interface ;",
         ]
 
         if midi_enabled:

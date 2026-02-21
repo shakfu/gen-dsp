@@ -5,12 +5,13 @@
 // Audio port pointers are collected into arrays and passed to wrapper_perform().
 
 #include "lv2/core/lv2.h"
+#include "lv2/urid/urid.h"
+#include "lv2/state/state.h"
+#include "lv2/atom/atom.h"
 
 #ifdef MIDI_ENABLED
-#include "lv2/atom/atom.h"
 #include "lv2/atom/util.h"
 #include "lv2/midi/midi.h"
-#include "lv2/urid/urid.h"
 #endif
 
 #include "gen_ext_common_lv2.h"
@@ -85,6 +86,9 @@ static inline void handle_note_off(GenState* state) {
 // Plugin state
 // ---------------------------------------------------------------------------
 
+// State property URI and magic
+#define LV2_GEN_STATE_URI "http://gen-dsp.com/plugins/state#params"
+
 struct Lv2GenPlugin {
 #if NUM_VOICES > 1
     VoiceAllocator voiceAlloc;
@@ -102,6 +106,9 @@ struct Lv2GenPlugin {
 #else
     const float* control_in[1];  // placeholder to avoid zero-length array
 #endif
+    LV2_URID_Map* urid_map;
+    LV2_URID   state_params_urid;
+    LV2_URID   atom_chunk_urid;
 #ifdef MIDI_ENABLED
     LV2_URID   midi_event_urid;
     const LV2_Atom_Sequence* midi_in;
@@ -129,18 +136,23 @@ lv2_gen_instantiate(const LV2_Descriptor* descriptor,
     plug->numOutputs = wrapper_num_outputs();
     plug->numParams  = wrapper_num_params();
 
-#ifdef MIDI_ENABLED
-    // Extract URID map feature for MIDI event type identification
+    // Extract URID map feature (needed for state; also used by MIDI)
     for (int i = 0; features[i]; i++) {
         if (!strcmp(features[i]->URI, LV2_URID__map)) {
-            LV2_URID_Map* map = (LV2_URID_Map*)features[i]->data;
-            plug->midi_event_urid = map->map(map->handle, LV2_MIDI__MidiEvent);
+            plug->urid_map = (LV2_URID_Map*)features[i]->data;
             break;
         }
     }
-#else
-    (void)features;
+    if (plug->urid_map) {
+        plug->state_params_urid = plug->urid_map->map(
+            plug->urid_map->handle, LV2_GEN_STATE_URI);
+        plug->atom_chunk_urid = plug->urid_map->map(
+            plug->urid_map->handle, LV2_ATOM__Chunk);
+#ifdef MIDI_ENABLED
+        plug->midi_event_urid = plug->urid_map->map(
+            plug->urid_map->handle, LV2_MIDI__MidiEvent);
 #endif
+    }
 
     // Create gen~ state with a reasonable default block size
 #if NUM_VOICES > 1
@@ -286,10 +298,108 @@ lv2_gen_cleanup(LV2_Handle instance)
     free(plug);
 }
 
+// ---------------------------------------------------------------------------
+// State extension
+// ---------------------------------------------------------------------------
+
+// 4-byte magic so restore rejects empty/invalid data
+static const uint32_t kStateMagic = 0x47445350; // "GDSP"
+
+static LV2_State_Status
+lv2_gen_save(LV2_Handle instance,
+             LV2_State_Store_Function store,
+             LV2_State_Handle handle,
+             uint32_t flags,
+             const LV2_Feature* const* features)
+{
+    (void)flags;
+    (void)features;
+    Lv2GenPlugin* plug = (Lv2GenPlugin*)instance;
+
+    if (!plug->urid_map || !plug->state_params_urid || !plug->atom_chunk_urid)
+        return LV2_STATE_ERR_UNKNOWN;
+
+    // Build blob: magic + float per param
+    uint32_t blob_size = sizeof(uint32_t) + (uint32_t)plug->numParams * sizeof(float);
+    uint8_t* blob = (uint8_t*)malloc(blob_size);
+    if (!blob) return LV2_STATE_ERR_UNKNOWN;
+
+    memcpy(blob, &kStateMagic, sizeof(uint32_t));
+    float* params = (float*)(blob + sizeof(uint32_t));
+    for (int i = 0; i < plug->numParams; i++) {
+#if NUM_VOICES > 1
+        params[i] = voice_alloc_get_param(&plug->voiceAlloc, i);
+#else
+        params[i] = plug->genState ? wrapper_get_param(plug->genState, i) : 0.0f;
+#endif
+    }
+
+    LV2_State_Status status = store(
+        handle,
+        plug->state_params_urid,
+        blob,
+        blob_size,
+        plug->atom_chunk_urid,
+        LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+
+    free(blob);
+    return status;
+}
+
+static LV2_State_Status
+lv2_gen_restore(LV2_Handle instance,
+                LV2_State_Retrieve_Function retrieve,
+                LV2_State_Handle handle,
+                uint32_t flags,
+                const LV2_Feature* const* features)
+{
+    (void)flags;
+    (void)features;
+    Lv2GenPlugin* plug = (Lv2GenPlugin*)instance;
+
+    if (!plug->urid_map || !plug->state_params_urid)
+        return LV2_STATE_ERR_UNKNOWN;
+
+    size_t size = 0;
+    uint32_t type = 0;
+    uint32_t valflags = 0;
+    const void* data = retrieve(handle, plug->state_params_urid,
+                                &size, &type, &valflags);
+    if (!data) return LV2_STATE_ERR_NO_PROPERTY;
+
+    // Validate magic header
+    if (size < sizeof(uint32_t)) return LV2_STATE_ERR_BAD_TYPE;
+    uint32_t magic;
+    memcpy(&magic, data, sizeof(uint32_t));
+    if (magic != kStateMagic) return LV2_STATE_ERR_BAD_TYPE;
+
+    // Read parameter values
+    const float* params = (const float*)((const uint8_t*)data + sizeof(uint32_t));
+    uint32_t available = ((uint32_t)size - sizeof(uint32_t)) / sizeof(float);
+
+    for (int i = 0; i < plug->numParams && (uint32_t)i < available; i++) {
+#if NUM_VOICES > 1
+        voice_alloc_set_global_param(&plug->voiceAlloc, i, params[i]);
+#else
+        if (plug->genState) {
+            wrapper_set_param(plug->genState, i, params[i]);
+        }
+#endif
+    }
+
+    return LV2_STATE_SUCCESS;
+}
+
+static const LV2_State_Interface s_state_interface = {
+    lv2_gen_save,
+    lv2_gen_restore,
+};
+
 static const void*
 lv2_gen_extension_data(const char* uri)
 {
-    (void)uri;
+    if (!strcmp(uri, LV2_STATE__interface))
+        return &s_state_interface;
     return nullptr;
 }
 

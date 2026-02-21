@@ -97,8 +97,20 @@ void wrapper_reset(GenState* state) {
     reset((CommonState*)state);
 }
 
+static float _silence[8192] = {0};
+
 void wrapper_perform(GenState* state, float** ins, long numins, float** outs, long numouts, long n) {
     // t_sample is float (GENLIB_USE_FLOAT32), so we can cast directly
+    long gen_ins = (long)num_inputs();
+    float* safe_ins[64];
+
+    if (numins < gen_ins) {
+        for (long i = 0; i < gen_ins; i++)
+            safe_ins[i] = (i < numins && ins) ? ins[i] : _silence;
+        ins = safe_ins;
+        numins = gen_ins;
+    }
+
     perform((CommonState*)state, (t_sample**)ins, numins, (t_sample**)outs, numouts, n);
 }
 

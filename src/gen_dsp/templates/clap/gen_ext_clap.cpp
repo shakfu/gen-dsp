@@ -265,6 +265,86 @@ static const clap_plugin_params_t s_params = {
 };
 
 // ---------------------------------------------------------------------------
+// State extension
+// ---------------------------------------------------------------------------
+
+// Stream helpers that handle partial reads/writes (CLAP spec allows them)
+static bool stream_write_all(const clap_ostream_t* stream,
+                             const void* buffer, uint64_t size) {
+    const uint8_t* p = (const uint8_t*)buffer;
+    uint64_t remaining = size;
+    while (remaining > 0) {
+        int64_t written = stream->write(stream, p, remaining);
+        if (written <= 0) return false;
+        p += written;
+        remaining -= (uint64_t)written;
+    }
+    return true;
+}
+
+static bool stream_read_all(const clap_istream_t* stream,
+                            void* buffer, uint64_t size) {
+    uint8_t* p = (uint8_t*)buffer;
+    uint64_t remaining = size;
+    while (remaining > 0) {
+        int64_t nread = stream->read(stream, p, remaining);
+        if (nread <= 0) return false;
+        p += nread;
+        remaining -= (uint64_t)nread;
+    }
+    return true;
+}
+
+// 4-byte magic so load() rejects empty/invalid streams
+static const uint32_t STATE_MAGIC = 0x47445350; // "GDSP"
+
+static bool state_save(const clap_plugin_t* plugin,
+                       const clap_ostream_t* stream) {
+    ClapGenPlugin* plug = (ClapGenPlugin*)plugin->plugin_data;
+    if (!stream_write_all(stream, &STATE_MAGIC, sizeof(STATE_MAGIC)))
+        return false;
+    for (int i = 0; i < plug->numParams; i++) {
+        float val;
+#if NUM_VOICES > 1
+        val = voice_alloc_get_param(&plug->voiceAlloc, i);
+#else
+        if (!plug->genState) return false;
+        val = wrapper_get_param(plug->genState, i);
+#endif
+        if (!stream_write_all(stream, &val, sizeof(float)))
+            return false;
+    }
+    return true;
+}
+
+static bool state_load(const clap_plugin_t* plugin,
+                       const clap_istream_t* stream) {
+    ClapGenPlugin* plug = (ClapGenPlugin*)plugin->plugin_data;
+    uint32_t magic = 0;
+    if (!stream_read_all(stream, &magic, sizeof(magic)))
+        return false;
+    if (magic != STATE_MAGIC)
+        return false;
+    for (int i = 0; i < plug->numParams; i++) {
+        float val;
+        if (!stream_read_all(stream, &val, sizeof(float)))
+            return false;
+#if NUM_VOICES > 1
+        voice_alloc_set_global_param(&plug->voiceAlloc, i, val);
+#else
+        if (!plug->genState) return false;
+        wrapper_set_param(plug->genState, i, val);
+#endif
+    }
+    return true;
+}
+
+static const clap_plugin_state_t s_state = {
+    .save = state_save,
+    .load = state_load,
+};
+
+// ---------------------------------------------------------------------------
 // Note ports extension (MIDI input for instruments)
 // ---------------------------------------------------------------------------
 
@@ -461,6 +541,7 @@ static const void* clap_gen_get_extension(const clap_plugin_t* plugin,
     (void)plugin;
     if (strcmp(id, CLAP_EXT_AUDIO_PORTS) == 0) return &s_audio_ports;
     if (strcmp(id, CLAP_EXT_PARAMS) == 0)      return &s_params;
+    if (strcmp(id, CLAP_EXT_STATE) == 0)        return &s_state;
 #ifdef MIDI_ENABLED
     if (strcmp(id, CLAP_EXT_NOTE_PORTS) == 0)  return &s_note_ports;
 #endif

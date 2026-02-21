@@ -392,6 +392,9 @@ static OSStatus AUGenGetPropertyInfo(void* self,
 // ClassInfo helpers (state save/restore)
 // ---------------------------------------------------------------------------
 
+// 4-byte magic so RestoreClassInfo rejects empty/invalid data blobs
+static const uint32_t kStateMagic = 0x47445350; // "GDSP"
+
 static CFMutableDictionaryRef CreateClassInfo(AUGenPlugin* plug) {
     CFMutableDictionaryRef dict = CFDictionaryCreateMutable(
         kCFAllocatorDefault, 0,
@@ -420,20 +423,24 @@ static CFMutableDictionaryRef CreateClassInfo(AUGenPlugin* plug) {
 
     CFDictionarySetValue(dict, CFSTR("name"), CFSTR(""));
 
-    // Store parameter values as CFData blob
+    // Store parameter values as CFData blob: magic + float per param
 #if NUM_VOICES > 1
     GenState* saveState = plug->voiceAlloc.states[0];
 #else
     GenState* saveState = plug->genState;
 #endif
-    if (saveState && plug->numParams > 0) {
-        int nParams = plug->numParams < kMaxParams ? plug->numParams : kMaxParams;
-        float values[kMaxParams];
+    {
+        int nParams = (saveState && plug->numParams > 0)
+            ? (plug->numParams < kMaxParams ? plug->numParams : kMaxParams)
+            : 0;
+        CFIndex blobSize = (CFIndex)(sizeof(uint32_t) + nParams * sizeof(float));
+        uint8_t blob[sizeof(uint32_t) + kMaxParams * sizeof(float)];
+        memcpy(blob, &kStateMagic, sizeof(uint32_t));
+        float* values = (float*)(blob + sizeof(uint32_t));
         for (int i = 0; i < nParams; i++) {
             values[i] = wrapper_get_param(saveState, i);
         }
-        CFDataRef data = CFDataCreate(kCFAllocatorDefault,
-            (const UInt8*)values, (CFIndex)(nParams * sizeof(float)));
+        CFDataRef data = CFDataCreate(kCFAllocatorDefault, blob, blobSize);
         CFDictionarySetValue(dict, CFSTR("data"), data);
         CFRelease(data);
     }
@@ -451,24 +458,32 @@ static OSStatus RestoreClassInfo(AUGenPlugin* plug, CFPropertyListRef plist) {
     CFDataRef data = nullptr;
     if (CFDictionaryGetValueIfPresent(dict, CFSTR("data"), (const void**)&data) &&
         data && CFGetTypeID(data) == CFDataGetTypeID()) {
-        int nParams = plug->numParams < kMaxParams ? plug->numParams : kMaxParams;
         CFIndex dataSize = CFDataGetLength(data);
-        CFIndex expectedSize = (CFIndex)(nParams * sizeof(float));
+        const uint8_t* bytes = CFDataGetBytePtr(data);
 
-        if (dataSize >= expectedSize) {
-            const float* values = (const float*)CFDataGetBytePtr(data);
+        // Validate magic header
+        if (dataSize < (CFIndex)sizeof(uint32_t))
+            return kAudioUnitErr_InvalidPropertyValue;
+        uint32_t magic;
+        memcpy(&magic, bytes, sizeof(uint32_t));
+        if (magic != kStateMagic)
+            return kAudioUnitErr_InvalidPropertyValue;
+
+        int nParams = plug->numParams < kMaxParams ? plug->numParams : kMaxParams;
+        const float* values = (const float*)(bytes + sizeof(uint32_t));
+        CFIndex available = (dataSize - (CFIndex)sizeof(uint32_t)) / (CFIndex)sizeof(float);
+
 #if NUM_VOICES > 1
-            for (int i = 0; i < nParams; i++) {
-                voice_alloc_set_global_param(&plug->voiceAlloc, i, values[i]);
-            }
-#else
-            if (plug->genState) {
-                for (int i = 0; i < nParams; i++) {
-                    wrapper_set_param(plug->genState, i, values[i]);
-                }
-            }
-#endif
+        for (int i = 0; i < nParams && i < (int)available; i++) {
+            voice_alloc_set_global_param(&plug->voiceAlloc, i, values[i]);
         }
+#else
+        if (plug->genState) {
+            for (int i = 0; i < nParams && i < (int)available; i++) {
+                wrapper_set_param(plug->genState, i, values[i]);
+            }
+        }
+#endif
     }
 
     return noErr;

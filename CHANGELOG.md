@@ -5,7 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.12]
+
+### Added
+
+- **CLAP: state save/restore extension** (`clap_plugin_state_t`) -- hosts can now save and recall plugin presets and session state
+  - Stream helpers (`stream_write_all`/`stream_read_all`) handle partial reads/writes per CLAP spec
+  - Passes all 4 clap-validator state tests (state-invalid, state-buffered-streams, state-reproducibility-basic, state-reproducibility-flush, state-reproducibility-null-cookies)
+  - Validator results: 14 passed (up from 10), 6 skipped (preset-discovery + note-ports on non-MIDI plugins)
+- **LV2: state save/restore extension** (`LV2_State_Interface`) -- hosts can now save and recall plugin presets and session state
+  - Parameters serialized as `atom:Chunk` binary blob via `LV2_State_Store_Function`/`LV2_State_Retrieve_Function`
+  - State property URI: `http://gen-dsp.com/plugins/state#params`
+  - URID map extraction moved out of `MIDI_ENABLED` guard so it's always available for state
+  - `state:interface` declared in plugin TTL; `state:` and `urid:` prefixes added to all LV2 TTL files
+  - Gracefully degrades when host doesn't provide `urid:map` (state ops return error, plugin still instantiates)
+- **State magic header** (`0x47445350` / "GDSP") across all four DAW plugin backends (CLAP, VST3, LV2, AU) -- rejects empty or invalid state data on load, ensuring save-load-save roundtrips produce byte-identical output
+
+### Changed
+
+- **VST3: `setState`/`getState` robustness** -- added magic header validation; `setState` now returns `kResultFalse` on empty/invalid streams (previously returned `kResultOk` and silently accepted garbage)
+- **AU: `ClassInfo` state robustness** -- `CreateClassInfo` always writes magic header (even for 0-param plugins); `RestoreClassInfo` validates magic before reading params, returns `kAudioUnitErr_InvalidPropertyValue` on invalid data
 
 ### Added
 

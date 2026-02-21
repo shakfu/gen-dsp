@@ -456,15 +456,23 @@ tresult PLUGIN_API GenVst3Plugin::process(ProcessData& data) {
     return kResultOk;
 }
 
+// 4-byte magic so setState rejects empty/invalid streams
+static const uint32_t kStateMagic = 0x47445350; // "GDSP"
+
 tresult PLUGIN_API GenVst3Plugin::setState(IBStream* state) {
     if (!state) return kResultFalse;
 
     IBStreamer streamer(state, kLittleEndian);
 
+    // Validate magic header
+    uint32_t magic = 0;
+    if (!streamer.readInt32u(magic)) return kResultFalse;
+    if (magic != kStateMagic) return kResultFalse;
+
     // Read parameters
     for (int i = 0; i < mNumParams; i++) {
         float value = 0.0f;
-        if (!streamer.readFloat(value)) break;
+        if (!streamer.readFloat(value)) return kResultFalse;
 #if NUM_VOICES > 1
         voice_alloc_set_global_param(&mVoiceAlloc, i, value);
 #else
@@ -488,6 +496,9 @@ tresult PLUGIN_API GenVst3Plugin::getState(IBStream* state) {
     if (!state) return kResultFalse;
 
     IBStreamer streamer(state, kLittleEndian);
+
+    // Write magic header
+    streamer.writeInt32u(kStateMagic);
 
     // Write current parameter values (plain, not normalized)
     for (int i = 0; i < mNumParams; i++) {

@@ -837,6 +837,7 @@ class TestLv2BuildIntegration:
         tmp_path: Path,
         fetchcontent_cache: Path,
         lv2_validator: Optional[Path],
+        validate_minihost,
     ):
         """Generate and compile a polyphonic LV2 plugin (NUM_VOICES=4)."""
         import shutil
@@ -932,9 +933,8 @@ class TestLv2BuildIntegration:
         # lilv won't count it.  gigaverb has 8 params.
         _validate_lv2(lv2_validator, bundle, "polyverb", 0, 2, 8)
 
-        # NOTE: minihost validation skipped for polyphony -- the gen~
-        # exported code expects 2 audio inputs but the manifest overrides
-        # num_inputs=0 for MIDI detection, causing a segfault in process.
+        # Runtime validation via minihost (check_energy=False: generator with no audio input)
+        validate_minihost(bundle, 0, 2, num_params=8, check_energy=False)
 
 
 class TestLv2MidiGeneration:
