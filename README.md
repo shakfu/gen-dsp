@@ -2,6 +2,8 @@
 
 gen-dsp is a zero-dependency pure Python package that generates buildable audio plugin projects from Max/MSP gen~ code exports, targeting PureData, Max/MSP, ChucK, AudioUnit (AUv2), CLAP, VST3, LV2, SuperCollider, VCV Rack, Daisy, and Circle. It handles project scaffolding, I/O and buffer detection, parameter metadata extraction, and platform-specific patching.
 
+gen-dsp also includes an optional **dsp-graph** frontend (`pip install gen-dsp[graph]`) that lets you define DSP graphs in Python or JSON and compile them to the same plugin targets -- no Max/MSP required.
+
 This project is a friendly fork of Michael Spears' [gen_ext](https://github.com/samesimilar/gen_ext) which was originally created to "compile code exported from a Max gen~ object into an "external" object that can be loaded into a PureData patch."
 
 ## Cross-Platform Support
@@ -74,10 +76,24 @@ Each platform has a detailed guide covering prerequisites, build details, SDK co
 
 - **Platform registry**: To make it easy to discover new backends
 
+- **dsp-graph frontend** (optional): Define DSP signal-processing graphs in Python or JSON using 39 built-in node types (oscillators, filters, delays, buffers, math ops, etc.), then compile to C++ and generate buildable plugin projects -- no Max/MSP required. Includes graph validation, optimization (dead-code elimination, constant folding), FAUST-style algebra combinators (`series`, `parallel`, `split`, `merge`), Graphviz visualization, and numpy-based simulation.
+
 ## Installation
 
 ```bash
 pip install gen-dsp
+```
+
+With dsp-graph support (requires pydantic):
+
+```bash
+pip install gen-dsp[graph]
+```
+
+With dsp-graph simulation (requires pydantic + numpy):
+
+```bash
+pip install gen-dsp[sim]
 ```
 
 Or install from source:
@@ -85,7 +101,8 @@ Or install from source:
 ```bash
 git clone https://github.com/shakfu/gen-dsp.git
 cd gen-dsp
-pip install -e .
+pip install -e .          # core only
+pip install -e ".[graph]" # with dsp-graph
 ```
 
 ## Quick Start
@@ -121,6 +138,7 @@ Options:
 - `--buffers` - Explicit buffer names (overrides auto-detection)
 - `--shared-cache` - Use a shared OS cache for FetchContent downloads (clap, vst3, lv2, sc only)
 - `--board` - Board variant for embedded platforms (Daisy: `seed`, `pod`, etc.; Circle: `pi3-i2s`, `pi4-usb`, etc.)
+- `--from-graph` - Create project from a dsp-graph JSON file instead of a gen~ export (requires `gen-dsp[graph]`)
 - `--graph` - JSON graph file for multi-plugin chain mode (Circle only; see [Chain Mode](#circle-chain-mode) below)
 - `--export` - Additional export path for chain node resolution (repeatable; use with `--graph`)
 - `--no-patch` - Skip automatic exp2f fix
@@ -163,6 +181,88 @@ gen-dsp patch <target-path> [--dry-run]
 ```
 
 Currently applies the `exp2f -> exp2` fix for macOS compatibility with Max 9 exports.
+
+### graph (requires `gen-dsp[graph]`)
+
+Work with DSP signal graphs defined as JSON:
+
+```bash
+gen-dsp graph compile <file> [-o DIR] [--optimize] [--gen-dsp PLATFORM]
+gen-dsp graph validate <file>
+gen-dsp graph dot <file> [-o DIR]
+gen-dsp graph simulate <file> [-i INPUT] [-o DIR] [-n SAMPLES] [--param K=V]
+```
+
+## dsp-graph: Define DSP Graphs in Python/JSON
+
+The optional dsp-graph subpackage (`pip install gen-dsp[graph]`) provides a Python DSL for defining audio DSP graphs that compile to C++ and generate buildable plugin projects -- no Max/MSP required.
+
+### Quick Start (JSON)
+
+Define a graph as JSON:
+
+```json
+{
+  "name": "gain",
+  "inputs": [{"id": "in1"}],
+  "outputs": [{"id": "out1", "source": "mul1"}],
+  "params": [{"name": "volume", "min": 0.0, "max": 1.0, "default": 0.5}],
+  "nodes": [{"op": "mul", "id": "mul1", "a": "in1", "b": "volume"}]
+}
+```
+
+Then generate a plugin project:
+
+```bash
+gen-dsp init --from-graph gain.json -n gain -p clap -o ./gain_clap
+cd gain_clap && cmake -B build && cmake --build build
+```
+
+### Quick Start (Python)
+
+```python
+from gen_dsp.dsp_graph import (
+    Graph, AudioInput, AudioOutput, Param, BinOp, OnePole,
+    compile_graph, validate_graph
+)
+
+graph = Graph(
+    name="lowpass",
+    inputs=[AudioInput(id="in1")],
+    outputs=[AudioOutput(id="out1", source="lp")],
+    params=[Param(name="cutoff", min=0.0, max=0.999, default=0.5)],
+    nodes=[OnePole(id="lp", a="in1", coeff="cutoff")],
+)
+
+errors = validate_graph(graph)
+assert not errors
+
+cpp = compile_graph(graph)
+print(cpp)  # standalone C++ -- no genlib dependency
+```
+
+### Graph Algebra
+
+Compose graphs using FAUST-style combinators:
+
+```python
+from gen_dsp.dsp_graph import series, parallel
+
+chain = lowpass >> highpass    # series (>> operator)
+stack = lowpass // highpass    # parallel (// operator)
+```
+
+### Simulation
+
+Run graphs in Python with numpy (requires `pip install gen-dsp[sim]`):
+
+```bash
+gen-dsp graph simulate lowpass.json -i in1=input.wav -o ./output/ --param cutoff=0.8
+```
+
+### Available Node Types
+
+39 built-in node types: `BinOp` (add/sub/mul/div/pow/mod/min/max), `UnaryOp` (abs/neg/sqrt/exp/log/sin/cos/tan/tanh/floor/ceil/round), `SinOsc`, `SawOsc`, `PulseOsc`, `TriOsc`, `Phasor`, `Noise`, `OnePole`, `Biquad`, `SVF`, `Allpass`, `DCBlock`, `History`, `DelayLine`/`DelayRead`/`DelayWrite`, `Buffer`/`BufRead`/`BufWrite`/`BufSize`/`Peek`, `Accum`, `Counter`, `Clamp`, `Wrap`, `Fold`, `Scale`, `Mix`, `Select`, `Compare`, `Change`, `Delta`, `Latch`, `SampleHold`, `RateDiv`, `SmoothParam`, `Constant`, `Subgraph`.
 
 ## Features
 
@@ -433,6 +533,7 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 - VCV Rack: first build requires network access to fetch Rack SDK (cached afterward); `RACK_DIR` env var can override auto-download; per-sample `perform(n=1)` has higher CPU overhead than block-based processing
 - Daisy: requires `arm-none-eabi-gcc` cross-compiler; first clone of libDaisy requires network access and `git`; v1 targets Daisy Seed only (no board-specific knob/CV mapping)
 - Circle: requires `aarch64-none-elf-gcc` (or `arm-none-eabi-gcc` for Pi Zero) cross-compiler; first clone of Circle SDK requires network access and `git`; output-only (no audio input capture); single-plugin mode requires manual GPIO/ADC code for parameter control; multi-plugin mode (`--graph`) supports linear chains and arbitrary DAGs (fan-out, fan-in via mixer nodes) but no buffers
+- dsp-graph: requires pydantic >= 2.0; simulation additionally requires numpy >= 1.24; Daisy, Circle, and VCV Rack platforms not yet supported via `--from-graph`
 
 ## Requirements
 
@@ -440,6 +541,11 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 
 - Python >= 3.10
 - C/C++ compiler (gcc, clang)
+
+### dsp-graph (optional)
+
+- pydantic >= 2.0 (`pip install gen-dsp[graph]`)
+- numpy >= 1.24 for simulation (`pip install gen-dsp[sim]`)
 
 ### PureData builds
 

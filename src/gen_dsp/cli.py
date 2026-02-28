@@ -71,7 +71,16 @@ Examples:
     init_parser.add_argument(
         "export_path",
         type=Path,
-        help="Path to the gen~ export directory",
+        nargs="?",
+        default=None,
+        help="Path to the gen~ export directory (not needed with --from-graph)",
+    )
+    init_parser.add_argument(
+        "--from-graph",
+        type=Path,
+        dest="from_graph",
+        metavar="GRAPH_JSON",
+        help="Create project from a dsp-graph JSON file instead of a gen~ export",
     )
     init_parser.add_argument(
         "-n",
@@ -262,14 +271,30 @@ Examples:
         help="Buffer names (overrides auto-detection)",
     )
 
+    # graph command (only available when pydantic is installed)
+    try:
+        from gen_dsp.dsp_graph.cli import add_graph_subparser
+
+        add_graph_subparser(subparsers)
+    except ImportError:
+        pass
+
     return parser
 
 
 def cmd_init(args: argparse.Namespace) -> int:
     """Handle the init command."""
+    # Branch to dsp-graph mode if --from-graph is provided
+    if getattr(args, "from_graph", None):
+        return cmd_init_from_graph(args)
+
     # Branch to chain mode if --graph is provided
     if args.graph:
         return cmd_init_chain(args)
+
+    if args.export_path is None:
+        print("Error: export_path is required (or use --from-graph)", file=sys.stderr)
+        return 1
 
     export_path = args.export_path.resolve()
 
@@ -390,6 +415,102 @@ def cmd_init(args: argparse.Namespace) -> int:
             for instruction in platform_impl.get_build_instructions():
                 print(f"  {instruction}")
     except GenExtError as e:
+        print(f"Error creating project: {e}", file=sys.stderr)
+        return 1
+
+    return 0
+
+
+def cmd_init_from_graph(args: argparse.Namespace) -> int:
+    """Handle init command with --from-graph (dsp-graph JSON)."""
+    import json
+
+    try:
+        from gen_dsp.dsp_graph import _require_dsp_graph
+
+        _require_dsp_graph()
+    except ImportError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+    from gen_dsp.dsp_graph.models import Graph
+    from gen_dsp.dsp_graph.validate import validate_graph
+    from gen_dsp.core.project import ProjectGenerator, ProjectConfig
+
+    graph_path = args.from_graph.resolve()
+    if not graph_path.is_file():
+        print(f"Error: graph file not found: {graph_path}", file=sys.stderr)
+        return 1
+
+    # Load and validate graph
+    try:
+        text = graph_path.read_text()
+        data = json.loads(text)
+        graph = Graph.model_validate(data)
+    except (json.JSONDecodeError, Exception) as e:
+        print(f"Error loading graph: {e}", file=sys.stderr)
+        return 1
+
+    errors = validate_graph(graph)
+    if errors:
+        print("Graph validation errors:", file=sys.stderr)
+        for err in errors:
+            print(f"  - {err}", file=sys.stderr)
+        return 1
+
+    # Optionally optimize
+    if getattr(args, "optimize_graph", False):
+        from gen_dsp.dsp_graph.optimize import optimize_graph
+
+        graph, _stats = optimize_graph(graph)
+
+    # Create config
+    config = ProjectConfig(
+        name=args.name,
+        platform=args.platform,
+        buffers=[],
+        apply_patches=False,
+        output_dir=args.output,
+        shared_cache=getattr(args, "shared_cache", False),
+    )
+
+    # Validate
+    config_errors = config.validate()
+    if config_errors:
+        print("Configuration errors:", file=sys.stderr)
+        for config_err in config_errors:
+            print(f"  - {config_err}", file=sys.stderr)
+        return 1
+
+    # Determine output directory
+    output_dir = args.output if args.output else Path.cwd() / args.name
+
+    if getattr(args, "dry_run", False):
+        print(f"Would create project at: {output_dir}")
+        print(f"  Source: dsp-graph ({graph_path.name})")
+        print(f"  Graph: {graph.name}")
+        print(f"  Platform: {args.platform}")
+        print(f"  Inputs: {len(graph.inputs)}")
+        print(f"  Outputs: {len(graph.outputs)}")
+        print(f"  Parameters: {len(graph.params)}")
+        return 0
+
+    # Generate project
+    try:
+        generator = ProjectGenerator.from_graph(graph, config)
+        project_dir = generator.generate(output_dir)
+        print(f"Project created at: {project_dir}")
+        print("  Source: dsp-graph")
+        print(f"  Platform: {args.platform}")
+        if graph.params:
+            print(f"  Parameters: {', '.join(p.name for p in graph.params)}")
+        print()
+        print("Next steps:")
+        print(f"  cd {project_dir}")
+        platform_impl = get_platform(args.platform)
+        for instruction in platform_impl.get_build_instructions():
+            print(f"  {instruction}")
+    except Exception as e:
         print(f"Error creating project: {e}", file=sys.stderr)
         return 1
 
@@ -704,6 +825,14 @@ def main(argv: Optional[list[str]] = None) -> int:
         "cache": cmd_cache,
         "manifest": cmd_manifest,
     }
+
+    # Add graph command if dsp-graph is available
+    try:
+        from gen_dsp.dsp_graph.cli import cmd_graph
+
+        commands["graph"] = cmd_graph
+    except ImportError:
+        pass
 
     handler = commands.get(args.command)
     if handler:

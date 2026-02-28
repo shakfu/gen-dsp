@@ -18,7 +18,9 @@ from gen_dsp.errors import ValidationError
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from gen_dsp.core.manifest import Manifest
     from gen_dsp.core.midi import MidiMapping
+    from gen_dsp.dsp_graph.models import Graph
 
 
 @dataclass
@@ -118,7 +120,7 @@ class ProjectConfig:
 
 
 class ProjectGenerator:
-    """Generate new project from gen~ export."""
+    """Generate new project from gen~ export or dsp-graph."""
 
     def __init__(self, export_info: ExportInfo, config: ProjectConfig):
         """
@@ -128,8 +130,31 @@ class ProjectGenerator:
             export_info: Parsed information from gen~ export.
             config: Configuration for the new project.
         """
-        self.export_info = export_info
+        self.export_info: Optional[ExportInfo] = export_info
         self.config = config
+        self._graph: Optional[Graph] = None
+        self._manifest: Optional[Manifest] = None
+
+    @classmethod
+    def from_graph(cls, graph: "Graph", config: ProjectConfig) -> "ProjectGenerator":
+        """Create a ProjectGenerator from a dsp-graph Graph object.
+
+        Args:
+            graph: A ``gen_dsp.dsp_graph.models.Graph`` instance.
+            config: Project configuration.
+
+        Returns:
+            A ProjectGenerator configured for the dsp-graph path.
+        """
+        from gen_dsp.dsp_graph.adapter import generate_manifest_obj
+
+        # Create instance without ExportInfo
+        instance = cls.__new__(cls)
+        instance.export_info = None
+        instance.config = config
+        instance._graph = graph
+        instance._manifest = generate_manifest_obj(graph)
+        return instance
 
     def generate(self, output_dir: Optional[Path] = None) -> Path:
         """
@@ -146,10 +171,6 @@ class ProjectGenerator:
             ProjectError: If project cannot be generated.
             ValidationError: If configuration is invalid.
         """
-        from gen_dsp.core.manifest import manifest_from_export_info
-        from gen_dsp.platforms import get_platform, list_platforms
-        from gen_dsp.platforms.base import Platform
-
         # Validate configuration
         errors = self.config.validate()
         if errors:
@@ -166,6 +187,18 @@ class ProjectGenerator:
 
         # Create output directory
         output_dir.mkdir(parents=True, exist_ok=True)
+
+        if self._graph is not None:
+            return self._generate_from_graph(output_dir)
+        else:
+            return self._generate_from_export(output_dir)
+
+    def _generate_from_export(self, output_dir: Path) -> Path:
+        """Generate project from gen~ export (original path)."""
+        assert self.export_info is not None
+        from gen_dsp.core.manifest import manifest_from_export_info
+        from gen_dsp.platforms import get_platform, list_platforms
+        from gen_dsp.platforms.base import Platform
 
         # Determine buffers to use
         buffers = (
@@ -229,8 +262,76 @@ class ProjectGenerator:
 
         return output_dir
 
+    def _generate_from_graph(self, output_dir: Path) -> Path:
+        """Generate project from dsp-graph (new path)."""
+        from gen_dsp.dsp_graph.adapter import (
+            _copy_platform_templates,
+            _generate_buffer_header,
+            generate_adapter_cpp,
+            generate_graph_build_file,
+        )
+        from gen_dsp.dsp_graph.compile import compile_graph
+        from gen_dsp.platforms.base import Platform
+
+        assert self._graph is not None
+        assert self._manifest is not None
+        graph = self._graph
+        manifest = self._manifest
+        platform = self.config.platform
+
+        # 1. Compile graph to C++
+        code = compile_graph(graph)
+        (output_dir / f"{graph.name}.cpp").write_text(code)
+
+        # 2. Generate adapter _ext_{platform}.cpp
+        adapter = generate_adapter_cpp(graph, platform)
+        (output_dir / f"_ext_{platform}.cpp").write_text(adapter)
+
+        # 3. Copy platform template files (gen_ext_{platform}.cpp, etc.)
+        _copy_platform_templates(output_dir, platform)
+
+        # 3b. Generate _ext_{platform}.h if not already present
+        ext_header = output_dir / f"_ext_{platform}.h"
+        if not ext_header.is_file():
+            from gen_dsp.platforms import get_platform
+
+            get_platform(platform).generate_ext_header(output_dir, platform)
+
+        # 4. Generate gen_buffer.h
+        _generate_buffer_header(output_dir)
+
+        # 6. Copy platform-specific buffer header if exists
+        import gen_dsp.templates as templates
+
+        getter = getattr(templates, f"get_{platform}_templates_dir", None)
+        if getter:
+            tmpl_dir = getter()
+            buf_header = tmpl_dir / f"{platform}_buffer.h"
+            if buf_header.is_file():
+                shutil.copy2(buf_header, output_dir / f"{platform}_buffer.h")
+
+        # 7. Generate simplified build file
+        generate_graph_build_file(
+            output_dir=output_dir,
+            platform=platform,
+            lib_name=self.config.name,
+            gen_name=graph.name,
+            num_inputs=manifest.num_inputs,
+            num_outputs=manifest.num_outputs,
+            num_params=manifest.num_params,
+            genext_version=Platform.GENEXT_VERSION,
+            shared_cache=self.config.shared_cache,
+        )
+
+        # 8. Write manifest.json
+        manifest_path = output_dir / "manifest.json"
+        manifest_path.write_text(manifest.to_json(), encoding="utf-8")
+
+        return output_dir
+
     def _copy_export(self, output_dir: Path) -> None:
         """Copy the gen~ export to the project's gen/ directory."""
+        assert self.export_info is not None
         gen_dir = output_dir / "gen"
 
         # Remove existing gen/ if present

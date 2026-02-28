@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.13]
+
+### Added
+
+- **dsp-graph subpackage** (`gen_dsp.dsp_graph`) -- optional Python DSL for defining audio DSP graphs that compile to C++ and generate buildable plugin projects, available via `pip install gen-dsp[graph]`
+  - Pydantic-based graph model with 39 node types (BinOp, SinOsc, OnePole, DelayLine, Buffer, SVF, Biquad, etc.)
+  - `compile_graph()`: compiles Graph to standalone C++ (no genlib dependency)
+  - `validate_graph()`: checks graph connectivity and type correctness
+  - `optimize_graph()`: dead-code elimination, constant folding
+  - `simulate()`: runs graph in Python (requires numpy, `pip install gen-dsp[sim]`)
+  - `series()`, `parallel()`, `split()`, `merge()` FAUST-style block diagram algebra combinators
+  - `graph_to_dot()` / `graph_to_dot_file()` Graphviz visualization
+  - Pydantic import guard: `gen_dsp.dsp_graph` raises clear error with install instructions when pydantic is missing; zero-dependency core path unaffected
+- **`gen-dsp graph` CLI subcommand group** for dsp-graph workflows
+  - `gen-dsp graph compile <file>` -- compile graph JSON to C++
+  - `gen-dsp graph validate <file>` -- validate graph connectivity
+  - `gen-dsp graph dot <file>` -- generate Graphviz DOT visualization
+  - `gen-dsp graph simulate <file>` -- simulate graph and write WAV output
+- **`gen-dsp init --from-graph <file>`** -- create buildable plugin projects directly from dsp-graph JSON definitions
+  - `ProjectGenerator.from_graph()` classmethod creates projects without gen~ exports
+  - Simplified build files: no genlib.cpp, no json.c, no `gen/` subdirectory
+  - Supported platforms: CLAP, VST3, AudioUnit, LV2, SuperCollider, Max, PureData, ChucK
+  - Per-platform CMakeLists.txt/Makefile generated programmatically in Python
+- **dsp-graph test suite** (`tests/dsp_graph/`) -- 644 tests covering models, compilation, validation, optimization, simulation, algebra, subgraphs, visualization, CLI, and adapter
+  - All tests guarded with `pytest.importorskip("pydantic")`; simulation tests additionally require numpy
+- **dsp-graph integration tests** (`tests/dsp_graph/test_integration.py`) -- 13 tests covering project structure for 8 platforms, manifest content, CLI `--from-graph` invocation, and end-to-end CLAP build from graph JSON
+
+### Changed
+
+- `pyproject.toml`: added optional dependencies `graph = ["pydantic>=2.0"]` and `sim = ["pydantic>=2.0", "numpy>=1.24"]`; added pydantic and numpy to dev dependency group; added ruff per-file-ignores for `tests/dsp_graph/` (E402)
+- `ProjectGenerator`: `export_info` now typed as `Optional[ExportInfo]` to support both gen~ export and dsp-graph paths; `_graph` and `_manifest` attributes added with proper Optional typing
+- `CLAUDE.md`: updated with dsp-graph subpackage documentation, dual data flow diagram, and new conventions
+
 ## [0.1.12]
 
 ### Changed
