@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from gen_dsp.core.manifest import Manifest
     from gen_dsp.core.midi import MidiMapping
-    from gen_dsp.dsp_graph.models import Graph
+    from gen_dsp.graph.models import Graph
 
 
 @dataclass
@@ -140,13 +140,13 @@ class ProjectGenerator:
         """Create a ProjectGenerator from a dsp-graph Graph object.
 
         Args:
-            graph: A ``gen_dsp.dsp_graph.models.Graph`` instance.
+            graph: A ``gen_dsp.graph.models.Graph`` instance.
             config: Project configuration.
 
         Returns:
             A ProjectGenerator configured for the dsp-graph path.
         """
-        from gen_dsp.dsp_graph.adapter import generate_manifest_obj
+        from gen_dsp.graph.adapter import generate_manifest_obj
 
         # Create instance without ExportInfo
         instance = cls.__new__(cls)
@@ -264,13 +264,13 @@ class ProjectGenerator:
 
     def _generate_from_graph(self, output_dir: Path) -> Path:
         """Generate project from dsp-graph (new path)."""
-        from gen_dsp.dsp_graph.adapter import (
+        from gen_dsp.graph.adapter import (
             _copy_platform_templates,
             _generate_buffer_header,
             generate_adapter_cpp,
             generate_graph_build_file,
         )
-        from gen_dsp.dsp_graph.compile import compile_graph
+        from gen_dsp.graph.compile import compile_graph
         from gen_dsp.platforms.base import Platform
 
         assert self._graph is not None

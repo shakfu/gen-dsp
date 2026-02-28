@@ -55,7 +55,7 @@ Changelog = "https://github.com/shakfu/gen-dsp/blob/master/CHANGELOG.md"
 Issues = "https://github.com/shakfu/gen-dsp/issues"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/dsp_graph/*.py" = ["E402"]
+"tests/graph/*.py" = ["E402"]
 
 [build-system]
 requires = ["uv_build>=0.9.29,<0.10.0"]

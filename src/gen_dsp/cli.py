@@ -273,7 +273,7 @@ Examples:
 
     # graph command (only available when pydantic is installed)
     try:
-        from gen_dsp.dsp_graph.cli import add_graph_subparser
+        from gen_dsp.graph.cli import add_graph_subparser
 
         add_graph_subparser(subparsers)
     except ImportError:
@@ -426,15 +426,15 @@ def cmd_init_from_graph(args: argparse.Namespace) -> int:
     import json
 
     try:
-        from gen_dsp.dsp_graph import _require_dsp_graph
+        from gen_dsp.graph import _require_dsp_graph
 
         _require_dsp_graph()
     except ImportError as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
 
-    from gen_dsp.dsp_graph.models import Graph
-    from gen_dsp.dsp_graph.validate import validate_graph
+    from gen_dsp.graph.models import Graph
+    from gen_dsp.graph.validate import validate_graph
     from gen_dsp.core.project import ProjectGenerator, ProjectConfig
 
     graph_path = args.from_graph.resolve()
@@ -460,7 +460,7 @@ def cmd_init_from_graph(args: argparse.Namespace) -> int:
 
     # Optionally optimize
     if getattr(args, "optimize_graph", False):
-        from gen_dsp.dsp_graph.optimize import optimize_graph
+        from gen_dsp.graph.optimize import optimize_graph
 
         graph, _stats = optimize_graph(graph)
 
@@ -828,7 +828,7 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     # Add graph command if dsp-graph is available
     try:
-        from gen_dsp.dsp_graph.cli import cmd_graph
+        from gen_dsp.graph.cli import cmd_graph
 
         commands["graph"] = cmd_graph
     except ImportError:
