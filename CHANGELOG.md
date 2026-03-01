@@ -40,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Graph: AU Info.plist generation** -- graph-path AU projects were missing Info.plist entirely (no `AudioComponents` dict, `CFBundlePackageType` was `APPL` instead of `BNDL`), causing CoreAudio and DAWs like Ableton Live to not discover the plugin. Fixed by generating Info.plist from the existing AU template and pointing CMake to it via `MACOSX_BUNDLE_INFO_PLIST`
 - **AU: auval connection semantics for generators** -- generators (0 inputs) returned a stream format for non-existent input buses, causing auval to attempt an impossible AU-to-AU connection test. Fixed by returning `kAudioUnitErr_InvalidProperty` for `StreamFormat` Get/Set on input scope when `numInputs == 0`, consistent with `ElementCount` already returning 0
+- **Graph: VST3 build failures** -- graph-path VST3 projects failed to configure and build due to missing `VERSION` in `project()` (required by VST3 SDK), missing `CMAKE_BUILD_TYPE Release` default (required by `fdebug.h`), missing platform entry point sources (`macmain.cpp`/`linuxmain.cpp`/`dllmain.cpp`), missing `target_link_libraries(sdk)` for SDK include paths, and missing `SMTG_CREATE_PLUGIN_LINK OFF`. Also added post-build fixes for moduleinfo.json and Info.plist on macOS for DAW compatibility
+- **Graph: LV2 build failures** -- graph-path LV2 projects failed at the post-build bundle step because TTL metadata files (`manifest.ttl`, `<name>.ttl`) were not generated. Fixed by calling `Lv2Platform._generate_manifest_ttl()` and `_generate_plugin_ttl()` from `_generate_from_graph()`
 
 ## [0.1.13]
 

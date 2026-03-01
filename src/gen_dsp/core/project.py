@@ -363,6 +363,28 @@ class ProjectGenerator:
                 )
                 (output_dir / "Info.plist").write_text(plist, encoding="utf-8")
 
+        # 6c. Generate TTL metadata for LV2
+        if platform == "lv2":
+            from gen_dsp.platforms.lv2 import Lv2Platform
+
+            lv2 = Lv2Platform()
+            plugin_uri = f"{lv2.LV2_URI_BASE}/{self.config.name}"
+            midi_enabled = (
+                self.config.midi_mapping is not None
+                and self.config.midi_mapping.enabled
+            )
+            lv2._generate_manifest_ttl(output_dir, self.config.name, plugin_uri)
+            lv2._generate_plugin_ttl(
+                output_dir,
+                self.config.name,
+                plugin_uri,
+                manifest.num_inputs,
+                manifest.num_outputs,
+                manifest.num_params,
+                manifest.params,
+                midi_enabled=midi_enabled,
+            )
+
         # 7. Generate simplified build file
         generate_graph_build_file(
             output_dir=output_dir,
