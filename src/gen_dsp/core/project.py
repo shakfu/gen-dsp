@@ -385,6 +385,343 @@ class ProjectGenerator:
                 midi_enabled=midi_enabled,
             )
 
+        # 6d. Generate VCV Rack extras (plugin.json, panel SVG)
+        if platform == "vcvrack":
+            from gen_dsp.platforms.vcvrack import VcvRackPlatform
+
+            vcv = VcvRackPlatform()
+            total = manifest.num_inputs + manifest.num_outputs + manifest.num_params
+            panel_hp = vcv._compute_panel_hp(total)
+
+            vcv._generate_plugin_json(
+                output_dir, self.config.name, manifest.num_inputs
+            )
+
+            res_dir = output_dir / "res"
+            res_dir.mkdir(parents=True, exist_ok=True)
+            vcv._generate_panel_svg(
+                res_dir / f"{self.config.name}.svg", self.config.name, panel_hp
+            )
+
+        # 6e. Generate simplified gen_ext_daisy.cpp for graph path
+        if platform == "daisy":
+            board_key = "seed"
+            if self.config.board is not None:
+                board_key = self.config.board
+
+            from gen_dsp.platforms.daisy import DAISY_BOARDS
+
+            board = DAISY_BOARDS[board_key]
+
+            gen_ext_daisy = f"""\
+// gen_ext_daisy.cpp - Daisy wrapper for dsp-graph compiled code
+// Board: {board_key} ({board.hw_class})
+// This file includes ONLY libDaisy headers - graph code is isolated in _ext_daisy.cpp
+
+#include "{board.header}"
+
+#include "gen_ext_common_daisy.h"
+#include "_ext_daisy.h"
+
+using namespace WRAPPER_NAMESPACE;
+using namespace daisy;
+{board.extra_using}
+
+// ---------------------------------------------------------------------------
+// Hardware and state
+// ---------------------------------------------------------------------------
+
+static {board.hw_class} hw;
+static GenState* genState = nullptr;
+
+// ---------------------------------------------------------------------------
+// Scratch buffers for I/O channel mismatch
+// ---------------------------------------------------------------------------
+
+#define DAISY_MAX_BLOCK_SIZE 256
+#define DAISY_HW_CHANNELS {board.hw_channels}
+#define DAISY_MAPPED_INPUTS  ((DAISY_NUM_INPUTS < DAISY_HW_CHANNELS) ? DAISY_NUM_INPUTS : DAISY_HW_CHANNELS)
+#define DAISY_MAPPED_OUTPUTS ((DAISY_NUM_OUTPUTS < DAISY_HW_CHANNELS) ? DAISY_NUM_OUTPUTS : DAISY_HW_CHANNELS)
+
+static float scratch_zero[DAISY_MAX_BLOCK_SIZE] = {{0}};
+static float scratch_discard[DAISY_MAX_BLOCK_SIZE];
+
+static float* gen_ins[DAISY_NUM_INPUTS > 0 ? DAISY_NUM_INPUTS : 1];
+static float* gen_outs[DAISY_NUM_OUTPUTS > 0 ? DAISY_NUM_OUTPUTS : 1];
+
+// ---------------------------------------------------------------------------
+// Audio callback
+// ---------------------------------------------------------------------------
+
+static void AudioCallback(const float* const* in, float** out, size_t size) {{
+    if (!genState) {{
+        genState = wrapper_create(hw.AudioSampleRate(), (long)size);
+    }}
+
+    for (int i = 0; i < DAISY_NUM_INPUTS; i++) {{
+        if (i < DAISY_HW_CHANNELS) {{
+            gen_ins[i] = const_cast<float*>(in[i]);
+        }} else {{
+            gen_ins[i] = scratch_zero;
+        }}
+    }}
+
+    for (int i = 0; i < DAISY_NUM_OUTPUTS; i++) {{
+        if (i < DAISY_HW_CHANNELS) {{
+            gen_outs[i] = out[i];
+        }} else {{
+            gen_outs[i] = scratch_discard;
+        }}
+    }}
+
+    wrapper_perform(genState, gen_ins, DAISY_NUM_INPUTS,
+                    gen_outs, DAISY_NUM_OUTPUTS, (long)size);
+}}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+
+int main(void) {{
+    hw.Init();
+    hw.SetAudioSampleRate(SaiHandle::Config::SampleRate::SAI_48KHZ);
+    hw.SetAudioBlockSize(48);
+    hw.StartAudio(AudioCallback);
+
+    for (;;) {{
+        // Audio runs in interrupt
+    }}
+}}
+"""
+            (output_dir / "gen_ext_daisy.cpp").write_text(gen_ext_daisy)
+
+        # 6f. Generate simplified gen_ext_circle.cpp for graph path
+        if platform == "circle":
+            board_key = "pi3-i2s"
+            if self.config.board is not None:
+                board_key = self.config.board
+
+            from gen_dsp.platforms.circle import (
+                CIRCLE_BOARDS,
+                _get_audio_base_class,
+                _get_audio_include,
+                _get_audio_label,
+            )
+
+            board = CIRCLE_BOARDS[board_key]
+            audio_include = _get_audio_include(board.audio_device)
+            audio_base_class = _get_audio_base_class(board.audio_device)
+            audio_label = _get_audio_label(board.audio_device)
+
+            gen_ext_circle = f"""\
+// gen_ext_circle.cpp - Circle bare metal wrapper for dsp-graph compiled code
+// Board: {board_key} (Raspberry Pi {board.rasppi})
+// Audio: {audio_label} output
+// This file includes ONLY Circle headers - graph code is isolated in _ext_circle.cpp
+
+#include <circle/actled.h>
+#include <circle/koptions.h>
+#include <circle/devicenameservice.h>
+#include <circle/exceptionhandler.h>
+#include <circle/interrupt.h>
+#include <circle/logger.h>
+#include <circle/startup.h>
+#include <circle/timer.h>
+#include <circle/types.h>
+{audio_include}
+
+#include "gen_ext_common_circle.h"
+#include "_ext_circle.h"
+
+using namespace WRAPPER_NAMESPACE;
+
+#define CIRCLE_SAMPLE_RATE     48000
+#define CIRCLE_CHUNK_SIZE      256
+#define CIRCLE_AUDIO_CHANNELS  2
+
+#define CIRCLE_NUM_INPUTS  {manifest.num_inputs}
+#define CIRCLE_NUM_OUTPUTS {manifest.num_outputs}
+
+class CGenDSPSoundDevice : public {audio_base_class}
+{{
+public:
+    CGenDSPSoundDevice(CInterruptSystem* pInterrupt)
+        : {audio_base_class}(pInterrupt, CIRCLE_SAMPLE_RATE, CIRCLE_CHUNK_SIZE),
+          m_genState(nullptr)
+    {{
+        for (int i = 0; i < CIRCLE_NUM_INPUTS || i < 1; i++) {{
+            m_pInputBuffers[i] = m_InputStorage[i];
+        }}
+        for (int i = 0; i < CIRCLE_NUM_OUTPUTS || i < 1; i++) {{
+            m_pOutputBuffers[i] = m_OutputStorage[i];
+        }}
+    }}
+
+    ~CGenDSPSoundDevice(void)
+    {{
+        if (m_genState) {{
+            wrapper_destroy(m_genState);
+            m_genState = nullptr;
+        }}
+    }}
+
+    boolean Initialize(void)
+    {{
+        m_genState = wrapper_create((float)CIRCLE_SAMPLE_RATE, (long)CIRCLE_CHUNK_SIZE);
+        if (!m_genState) {{
+            return FALSE;
+        }}
+        return Start();
+    }}
+
+protected:
+    unsigned GetChunk(u32* pBuffer, unsigned nChunkSize) override
+    {{
+        if (!m_genState) {{
+            for (unsigned i = 0; i < nChunkSize; i++) {{
+                pBuffer[i] = 0;
+            }}
+            return nChunkSize;
+        }}
+
+        unsigned nFrames = nChunkSize / CIRCLE_AUDIO_CHANNELS;
+
+#if CIRCLE_NUM_INPUTS > 0
+        for (int ch = 0; ch < CIRCLE_NUM_INPUTS; ch++) {{
+            for (unsigned i = 0; i < nFrames; i++) {{
+                m_InputStorage[ch][i] = 0.0f;
+            }}
+        }}
+#endif
+
+        wrapper_perform(
+            m_genState,
+#if CIRCLE_NUM_INPUTS > 0
+            m_pInputBuffers,
+#else
+            nullptr,
+#endif
+            CIRCLE_NUM_INPUTS,
+            m_pOutputBuffers,
+            CIRCLE_NUM_OUTPUTS,
+            (long)nFrames
+        );
+
+        int nRangeMin = GetRangeMin();
+        int nRangeMax = GetRangeMax();
+
+        for (unsigned i = 0; i < nFrames; i++) {{
+            for (int ch = 0; ch < CIRCLE_AUDIO_CHANNELS; ch++) {{
+                float sample = 0.0f;
+                if (ch < CIRCLE_NUM_OUTPUTS) {{
+                    sample = m_pOutputBuffers[ch][i];
+                }}
+                if (sample > 1.0f) sample = 1.0f;
+                if (sample < -1.0f) sample = -1.0f;
+                int nSample = (int)((sample + 1.0f) / 2.0f
+                    * (nRangeMax - nRangeMin) + nRangeMin);
+                pBuffer[i * CIRCLE_AUDIO_CHANNELS + ch] = (u32)nSample;
+            }}
+        }}
+
+        return nChunkSize;
+    }}
+
+private:
+    GenState* m_genState;
+    float m_InputStorage[CIRCLE_NUM_INPUTS > 0 ? CIRCLE_NUM_INPUTS : 1][CIRCLE_CHUNK_SIZE];
+    float m_OutputStorage[CIRCLE_NUM_OUTPUTS > 0 ? CIRCLE_NUM_OUTPUTS : 1][CIRCLE_CHUNK_SIZE];
+    float* m_pInputBuffers[CIRCLE_NUM_INPUTS > 0 ? CIRCLE_NUM_INPUTS : 1];
+    float* m_pOutputBuffers[CIRCLE_NUM_OUTPUTS > 0 ? CIRCLE_NUM_OUTPUTS : 1];
+}};
+
+class CKernel
+{{
+public:
+    CKernel(void)
+        : m_Timer(&m_Interrupt),
+          m_Logger(m_Options.GetLogLevel(), &m_Timer),
+          m_pSound(nullptr)
+    {{
+    }}
+
+    ~CKernel(void)
+    {{
+        delete m_pSound;
+    }}
+
+    boolean Initialize(void)
+    {{
+        if (!m_Interrupt.Initialize()) {{
+            return FALSE;
+        }}
+        if (!m_Timer.Initialize()) {{
+            return FALSE;
+        }}
+        if (!m_Logger.Initialize(nullptr)) {{
+            return FALSE;
+        }}
+
+        m_pSound = new CGenDSPSoundDevice(&m_Interrupt);
+        if (!m_pSound->Initialize()) {{
+            m_Logger.Write("gen-dsp", LogError, "Failed to initialize {audio_label} sound device");
+            return FALSE;
+        }}
+
+        m_Logger.Write("gen-dsp", LogNotice,
+            "gen-dsp Circle audio started: %uHz, %u frames/chunk, {audio_label} output",
+            CIRCLE_SAMPLE_RATE, CIRCLE_CHUNK_SIZE);
+
+        return TRUE;
+    }}
+
+    void Run(void)
+    {{
+        for (;;) {{
+        }}
+    }}
+
+private:
+    CActLED             m_ActLED;
+    CKernelOptions      m_Options;
+    CDeviceNameService  m_DeviceNameService;
+    CExceptionHandler   m_ExceptionHandler;
+    CInterruptSystem    m_Interrupt;
+    CTimer              m_Timer;
+    CLogger             m_Logger;
+    CGenDSPSoundDevice* m_pSound;
+}};
+
+int main(void)
+{{
+    CKernel Kernel;
+    if (!Kernel.Initialize()) {{
+        halt();
+        return EXIT_HALT;
+    }}
+    Kernel.Run();
+    halt();
+    return EXIT_HALT;
+}}
+"""
+            (output_dir / "gen_ext_circle.cpp").write_text(gen_ext_circle)
+
+            # Generate config.txt from template
+            from string import Template as StrTemplate
+
+            from gen_dsp.platforms.circle import _get_boot_config
+
+            import gen_dsp.templates as templates
+
+            circle_tmpl_dir = templates.get_circle_templates_dir()
+            config_template_path = circle_tmpl_dir / "config.txt.template"
+            if config_template_path.is_file():
+                config_content = config_template_path.read_text(encoding="utf-8")
+                config_txt = StrTemplate(config_content).safe_substitute(
+                    audio_boot_config=_get_boot_config(board.audio_device),
+                )
+                (output_dir / "config.txt").write_text(config_txt, encoding="utf-8")
+
         # 7. Generate simplified build file
         generate_graph_build_file(
             output_dir=output_dir,

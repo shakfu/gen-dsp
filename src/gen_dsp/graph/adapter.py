@@ -59,6 +59,9 @@ def generate_adapter_cpp(graph: Graph, platform: str) -> str:
 
     name = graph.name
     struct = _to_pascal(name) + "State"
+    # Max uses t_sample = double; all other platforms use float.
+    use_double = platform == "max"
+    st = "double" if use_double else "float"
 
     lines: list[str] = []
     w = lines.append
@@ -77,9 +80,9 @@ def generate_adapter_cpp(graph: Graph, platform: str) -> str:
     w("")
 
     # -- lifecycle
-    w("GenState* wrapper_create(float sr, long bs) {")
+    w(f"GenState* wrapper_create({st} sr, long bs) {{")
     w("    (void)bs;")
-    w(f"    return (GenState*){name}_create(sr);")
+    w(f"    return (GenState*){name}_create((float)sr);")
     w("}")
     w("")
     w("void wrapper_destroy(GenState* state) {")
@@ -92,11 +95,36 @@ def generate_adapter_cpp(graph: Graph, platform: str) -> str:
     w("")
 
     # -- perform
-    w("void wrapper_perform(GenState* state, float** ins, long numins,")
-    w("                     float** outs, long numouts, long n) {")
-    w("    (void)numins; (void)numouts;")
-    w(f"    {name}_perform(({struct}*)state, ins, outs, (int)n);")
-    w("}")
+    if use_double:
+        # Max passes double** I/O buffers; graph processes float internally.
+        # Convert at the boundary.
+        num_inputs = len(graph.inputs)
+        num_outputs = len(graph.outputs)
+        w(f"void wrapper_perform(GenState* state, {st}** ins, long numins,")
+        w(f"                     {st}** outs, long numouts, long n) {{")
+        w("    (void)numins; (void)numouts;")
+        # Allocate float scratch buffers on the stack for small block sizes.
+        for i in range(num_inputs):
+            w(f"    float in{i}[n];")
+        for i in range(num_outputs):
+            w(f"    float out{i}[n];")
+        w(f"    float* fins[{max(num_inputs, 1)}];")
+        w(f"    float* fouts[{max(num_outputs, 1)}];")
+        for i in range(num_inputs):
+            w(f"    fins[{i}] = in{i};")
+            w(f"    for (long j = 0; j < n; j++) in{i}[j] = (float)ins[{i}][j];")
+        for i in range(num_outputs):
+            w(f"    fouts[{i}] = out{i};")
+        w(f"    {name}_perform(({struct}*)state, fins, fouts, (int)n);")
+        for i in range(num_outputs):
+            w(f"    for (long j = 0; j < n; j++) outs[{i}][j] = (double)out{i}[j];")
+        w("}")
+    else:
+        w(f"void wrapper_perform(GenState* state, {st}** ins, long numins,")
+        w(f"                     {st}** outs, long numouts, long n) {{")
+        w("    (void)numins; (void)numouts;")
+        w(f"    {name}_perform(({struct}*)state, ins, outs, (int)n);")
+        w("}")
     w("")
 
     # -- I/O counts
@@ -116,14 +144,14 @@ def generate_adapter_cpp(graph: Graph, platform: str) -> str:
     w('    return "";')
     w("}")
     w("")
-    w("float wrapper_param_min(GenState* state, int index) {")
+    w(f"{st} wrapper_param_min(GenState* state, int index) {{")
     w("    (void)state;")
-    w(f"    return {name}_param_min(index);")
+    w(f"    return ({st}){name}_param_min(index);")
     w("}")
     w("")
-    w("float wrapper_param_max(GenState* state, int index) {")
+    w(f"{st} wrapper_param_max(GenState* state, int index) {{")
     w("    (void)state;")
-    w(f"    return {name}_param_max(index);")
+    w(f"    return ({st}){name}_param_max(index);")
     w("}")
     w("")
     w("char wrapper_param_hasminmax(GenState* state, int index) {")
@@ -131,12 +159,12 @@ def generate_adapter_cpp(graph: Graph, platform: str) -> str:
     w("    return 1;")
     w("}")
     w("")
-    w("void wrapper_set_param(GenState* state, int index, float value) {")
-    w(f"    {name}_set_param(({struct}*)state, index, value);")
+    w(f"void wrapper_set_param(GenState* state, int index, {st} value) {{")
+    w(f"    {name}_set_param(({struct}*)state, index, (float)value);")
     w("}")
     w("")
-    w("float wrapper_get_param(GenState* state, int index) {")
-    w(f"    return {name}_get_param(({struct}*)state, index);")
+    w(f"{st} wrapper_get_param(GenState* state, int index) {{")
+    w(f"    return ({st}){name}_get_param(({struct}*)state, index);")
     w("}")
     w("")
 
@@ -145,6 +173,11 @@ def generate_adapter_cpp(graph: Graph, platform: str) -> str:
     w("")
     w("const char* wrapper_buffer_name(int index) {")
     w(f"    return {name}_buffer_name(index);")
+    w("}")
+    w("")
+    w("int wrapper_load_buffer(int index, const char* path) {")
+    w("    (void)index; (void)path;")
+    w("    return -1;  // graph-compiled code does not support runtime buffer loading")
     w("}")
     w("")
     w("} // namespace WRAPPER_NAMESPACE")
@@ -302,6 +335,9 @@ def generate_graph_build_file(
         "pd": _makefile_pd,
         "chuck": _makefile_chuck,
         "max": _cmake_max,
+        "vcvrack": _makefile_vcvrack,
+        "daisy": _makefile_daisy,
+        "circle": _makefile_circle,
     }
 
     generator = cmake_platforms.get(platform) or make_platforms.get(platform)
@@ -780,13 +816,23 @@ cmake_minimum_required(VERSION 3.19)
 # Max/MSP external for {lib_name}
 # Generated by gen-dsp (dsp-graph source)
 
+# Set output directory before including max-sdk-base
+set(C74_LIBRARY_OUTPUT_DIRECTORY "${{CMAKE_CURRENT_SOURCE_DIR}}/externals")
+
 set(PROJECT_NAME {lib_name})
 project(${{PROJECT_NAME}})
+
+# Include max-sdk-base pre-target configuration
+include(${{CMAKE_CURRENT_SOURCE_DIR}}/max-sdk-base/script/max-pretarget.cmake)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include_directories("${{CMAKE_CURRENT_SOURCE_DIR}}")
+include_directories(
+    "${{MAX_SDK_INCLUDES}}"
+    "${{MAX_SDK_MSP_INCLUDES}}"
+    "${{CMAKE_CURRENT_SOURCE_DIR}}"
+)
 
 add_library(${{PROJECT_NAME}} MODULE
     gen_ext_max.cpp
@@ -805,20 +851,13 @@ target_compile_definitions(${{PROJECT_NAME}} PRIVATE
     {midi_defines}
 )
 
-target_compile_options(${{PROJECT_NAME}} PRIVATE -Wno-unused-function -Wno-unused-variable)
-
-set_target_properties(${{PROJECT_NAME}} PROPERTIES
-    PREFIX ""
-    BUNDLE TRUE
-    BUNDLE_EXTENSION "mxo"
-)
-
 if(APPLE)
-    add_custom_command(TARGET ${{PROJECT_NAME}} POST_BUILD
-        COMMAND codesign --force --sign - "$<TARGET_BUNDLE_DIR:${{PROJECT_NAME}}>"
-        COMMENT "Ad-hoc signing ${{PROJECT_NAME}}.mxo"
-    )
+    target_compile_definitions(${{PROJECT_NAME}} PRIVATE MSP_ON_CLANG)
+    target_compile_options(${{PROJECT_NAME}} PRIVATE -Wno-unused-function -Wno-unused-variable)
 endif()
+
+# Include max-sdk-base post-target configuration (handles linking, bundle creation, signing)
+include(${{CMAKE_CURRENT_SOURCE_DIR}}/max-sdk-base/script/max-posttarget.cmake)
 """
     path = output_dir / "CMakeLists.txt"
     path.write_text(content)
@@ -838,7 +877,7 @@ def _makefile_pd(**kwargs: object) -> Path:
 
 lib.name = {lib_name}~
 
-{lib_name}~.class.sources = gen_dsp.cpp _ext_pd.cpp
+{lib_name}~.class.sources = gen_ext_pd.cpp _ext_pd.cpp
 
 cflags = -I. \\
     -DGENLIB_USE_FLOAT32 \\
@@ -879,10 +918,10 @@ current:
 	@echo "[chugin build]: please use one of the following configurations:"
 	@echo "   make linux, make mac, or make win32"
 
-ifneq ($$(CK_TARGET),)
-.DEFAULT_GOAL:=$$(CK_TARGET)
-ifeq ($$(MAKECMDGOALS),)
-MAKECMDGOALS:=$$(.DEFAULT_GOAL)
+ifneq ($(CK_TARGET),)
+.DEFAULT_GOAL:=$(CK_TARGET)
+ifeq ($(MAKECMDGOALS),)
+MAKECMDGOALS:=$(.DEFAULT_GOAL)
 endif
 endif
 
@@ -893,27 +932,27 @@ CC=gcc
 CXX=gcc
 LD=g++
 
-ifneq (,$$(strip $$(filter mac osx,$$(MAKECMDGOALS))))
+ifneq (,$(strip $(filter mac osx,$(MAKECMDGOALS))))
 include makefile.mac
 endif
 
-ifneq (,$$(strip $$(filter linux,$$(MAKECMDGOALS))))
+ifneq (,$(strip $(filter linux,$(MAKECMDGOALS))))
 include makefile.linux
 endif
 
-ifneq (,$$(strip $$(filter linux-oss,$$(MAKECMDGOALS))))
+ifneq (,$(strip $(filter linux-oss,$(MAKECMDGOALS))))
 include makefile.linux
 endif
 
-ifneq (,$$(strip $$(filter linux-pulse,$$(MAKECMDGOALS))))
+ifneq (,$(strip $(filter linux-pulse,$(MAKECMDGOALS))))
 include makefile.linux
 endif
 
-ifneq (,$$(strip $$(filter linux-jack,$$(MAKECMDGOALS))))
+ifneq (,$(strip $(filter linux-jack,$(MAKECMDGOALS))))
 include makefile.linux
 endif
 
-ifneq (,$$(strip $$(filter linux-alsa,$$(MAKECMDGOALS))))
+ifneq (,$(strip $(filter linux-alsa,$(MAKECMDGOALS))))
 include makefile.linux
 endif
 
@@ -928,50 +967,249 @@ FLAGS+=-Wno-unused-function -Wno-unused-variable
 
 CXXFLAGS+=-std=c++11
 
-ifneq ($$(CHUCK_DEBUG),)
+ifneq ($(CHUCK_DEBUG),)
 FLAGS+= -g
 else
 FLAGS+= -O3
 endif
 
-ifneq ($$(CHUCK_STRICT),)
+ifneq ($(CHUCK_STRICT),)
 FLAGS+= -Werror
 endif
 
 CK_CHUGIN_STATIC?=0
 
-ifeq ($$(CK_CHUGIN_STATIC),0)
+ifeq ($(CK_CHUGIN_STATIC),0)
 SUFFIX=.chug
 else
 SUFFIX=.schug
 FLAGS+= -D__CK_DLL_STATIC__
 endif
 
-C_OBJECTS=$$(addsuffix .o,$$(basename $$(C_MODULES)))
-CXX_OBJECTS=$$(addsuffix .o,$$(basename $$(CXX_MODULES)))
+C_OBJECTS=$(addsuffix .o,$(basename $(C_MODULES)))
+CXX_OBJECTS=$(addsuffix .o,$(basename $(CXX_MODULES)))
 
-CHUG=$$(addsuffix $$(SUFFIX),$$(CHUGIN_NAME))
+CHUG=$(addsuffix $(SUFFIX),$(CHUGIN_NAME))
 
-all: $$(CHUG)
+all: $(CHUG)
 
-$$(CHUG): $$(C_OBJECTS) $$(CXX_OBJECTS)
-ifeq ($$(CK_CHUGIN_STATIC),0)
-	$$(LD) $$(LDFLAGS) -o $$@ $$^
+$(CHUG): $(C_OBJECTS) $(CXX_OBJECTS)
+ifeq ($(CK_CHUGIN_STATIC),0)
+	$(LD) $(LDFLAGS) -o $@ $^
 else
-	ar rv $$@ $$^
-	ranlib $$@
+	ar rv $@ $^
+	ranlib $@
 endif
 
-$$(C_OBJECTS): %.o: %.c
-	$$(CC) $$(FLAGS) -c -o $$@ $$<
+$(C_OBJECTS): %.o: %.c
+	$(CC) $(FLAGS) -c -o $@ $<
 
-$$(CXX_OBJECTS): %.o: %.cpp
-	$$(CXX) $$(FLAGS) $$(CXXFLAGS) -c -o $$@ $$<
+$(CXX_OBJECTS): %.o: %.cpp
+	$(CXX) $(FLAGS) $(CXXFLAGS) -c -o $@ $<
 
 clean:
-	rm -rf $$(C_OBJECTS) $$(CXX_OBJECTS) $$(CHUG) Release Debug
+	rm -rf $(C_OBJECTS) $(CXX_OBJECTS) $(CHUG) Release Debug
 """
     path = output_dir / "makefile"
+    path.write_text(content)
+    return path
+
+
+def _makefile_vcvrack(**kwargs: object) -> Path:
+    from gen_dsp.platforms.vcvrack import _get_default_rack_sdk_dir
+
+    output_dir = kwargs["output_dir"]
+    assert isinstance(output_dir, Path)
+    lib_name = str(kwargs["lib_name"])
+    gen_name = str(kwargs["gen_name"])
+    num_inputs = int(kwargs["num_inputs"])  # type: ignore[call-overload]
+    num_outputs = int(kwargs["num_outputs"])  # type: ignore[call-overload]
+    num_params = int(kwargs["num_params"])  # type: ignore[call-overload]
+    genext_version = str(kwargs["genext_version"])
+
+    default_rack_dir = str(_get_default_rack_sdk_dir())
+    total_components = num_inputs + num_outputs + num_params
+
+    # Same HP computation as VcvRackPlatform._compute_panel_hp
+    if total_components <= 6:
+        panel_hp = 6
+    elif total_components <= 12:
+        panel_hp = 10
+    elif total_components <= 20:
+        panel_hp = 16
+    else:
+        panel_hp = 24
+
+    content = f"""\
+# VCV Rack plugin for {lib_name}
+# Generated by gen-dsp (dsp-graph source)
+
+RACK_DIR ?= $(shell \\
+    if [ -n "$$RACK_DIR" ]; then echo "$$RACK_DIR"; \\
+    elif [ -n "$$GEN_DSP_CACHE_DIR" ]; then echo "$$GEN_DSP_CACHE_DIR/rack-sdk-src/Rack-SDK"; \\
+    else echo "{default_rack_dir}"; fi)
+
+SOURCES += gen_ext_vcvrack.cpp _ext_vcvrack.cpp plugin.cpp
+
+FLAGS += -I.
+FLAGS += -DGENLIB_USE_FLOAT32
+FLAGS += -DVCR_EXT_NAME={lib_name}
+FLAGS += -DGEN_EXT_VERSION=\\"{genext_version}\\"
+FLAGS += -DGEN_EXPORTED_NAME={gen_name}
+FLAGS += -DGEN_EXPORTED_HEADER=\\"{gen_name}.h\\"
+FLAGS += -DGEN_EXPORTED_CPP=\\"{gen_name}.cpp\\"
+FLAGS += -DVCR_NUM_INPUTS={num_inputs}
+FLAGS += -DVCR_NUM_OUTPUTS={num_outputs}
+FLAGS += -DVCR_NUM_PARAMS={num_params}
+FLAGS += -DVCR_PANEL_HP={panel_hp}
+FLAGS += -Wno-unused-function -Wno-unused-variable
+
+DISTRIBUTABLES += res plugin.json
+
+include $(RACK_DIR)/plugin.mk
+"""
+    path = output_dir / "Makefile"
+    path.write_text(content)
+    return path
+
+
+def _makefile_daisy(**kwargs: object) -> Path:
+    from gen_dsp.platforms.daisy import _get_default_libdaisy_dir
+
+    output_dir = kwargs["output_dir"]
+    assert isinstance(output_dir, Path)
+    lib_name = str(kwargs["lib_name"])
+    gen_name = str(kwargs["gen_name"])
+    num_inputs = int(kwargs["num_inputs"])  # type: ignore[call-overload]
+    num_outputs = int(kwargs["num_outputs"])  # type: ignore[call-overload]
+    num_params = int(kwargs["num_params"])  # type: ignore[call-overload]
+    genext_version = str(kwargs["genext_version"])
+
+    default_libdaisy_dir = str(_get_default_libdaisy_dir())
+
+    content = f"""\
+# Daisy firmware for {lib_name}
+# Generated by gen-dsp (dsp-graph source)
+
+TARGET = {lib_name}
+
+# Resolve libDaisy directory (priority: env LIBDAISY_DIR > GEN_DSP_CACHE_DIR > default)
+ifdef LIBDAISY_DIR
+  # Use explicit env var
+else ifdef GEN_DSP_CACHE_DIR
+  LIBDAISY_DIR = $(GEN_DSP_CACHE_DIR)/libdaisy-src/libDaisy
+else
+  LIBDAISY_DIR = {default_libdaisy_dir}
+endif
+
+CPP_SOURCES = gen_ext_daisy.cpp _ext_daisy.cpp
+
+# No genlib sources in graph path (graph-compiled code uses standard C++ new/delete)
+
+OPT = -O3
+SYSTEM_FILES_DIR = $(LIBDAISY_DIR)/core
+include $(SYSTEM_FILES_DIR)/Makefile
+
+# Append gen-dsp flags after libDaisy's Makefile (so they're not overwritten)
+CFLAGS += -I.
+CFLAGS += -DGENLIB_USE_FLOAT32
+CFLAGS += -DGENLIB_NO_JSON
+CFLAGS += -DDAISY_EXT_NAME={lib_name}
+CFLAGS += -DGEN_EXT_VERSION=\\"{genext_version}\\"
+CFLAGS += -DGEN_EXPORTED_NAME={gen_name}
+CFLAGS += -DGEN_EXPORTED_HEADER=\\"{gen_name}.h\\"
+CFLAGS += -DGEN_EXPORTED_CPP=\\"{gen_name}.cpp\\"
+CFLAGS += -DDAISY_NUM_INPUTS={num_inputs}
+CFLAGS += -DDAISY_NUM_OUTPUTS={num_outputs}
+CFLAGS += -DDAISY_NUM_PARAMS={num_params}
+CFLAGS += -Wno-unused-function -Wno-unused-variable
+
+CPPFLAGS += -I.
+CPPFLAGS += -DGENLIB_USE_FLOAT32
+CPPFLAGS += -DGENLIB_NO_JSON
+CPPFLAGS += -DDAISY_EXT_NAME={lib_name}
+CPPFLAGS += -DGEN_EXT_VERSION=\\"{genext_version}\\"
+CPPFLAGS += -DGEN_EXPORTED_NAME={gen_name}
+CPPFLAGS += -DGEN_EXPORTED_HEADER=\\"{gen_name}.h\\"
+CPPFLAGS += -DGEN_EXPORTED_CPP=\\"{gen_name}.cpp\\"
+CPPFLAGS += -DDAISY_NUM_INPUTS={num_inputs}
+CPPFLAGS += -DDAISY_NUM_OUTPUTS={num_outputs}
+CPPFLAGS += -DDAISY_NUM_PARAMS={num_params}
+CPPFLAGS += -Wno-unused-function -Wno-unused-variable
+"""
+    path = output_dir / "Makefile"
+    path.write_text(content)
+    return path
+
+
+def _makefile_circle(**kwargs: object) -> Path:
+    from gen_dsp.platforms.circle import _get_default_circle_dir
+
+    output_dir = kwargs["output_dir"]
+    assert isinstance(output_dir, Path)
+    lib_name = str(kwargs["lib_name"])
+    gen_name = str(kwargs["gen_name"])
+    num_inputs = int(kwargs["num_inputs"])  # type: ignore[call-overload]
+    num_outputs = int(kwargs["num_outputs"])  # type: ignore[call-overload]
+    num_params = int(kwargs["num_params"])  # type: ignore[call-overload]
+    genext_version = str(kwargs["genext_version"])
+
+    default_circle_dir = str(_get_default_circle_dir())
+
+    # Default board: pi3-i2s (rasppi=3, aarch=64, prefix=aarch64-none-elf-)
+    content = f"""\
+# Circle bare-metal firmware for {lib_name}
+# Generated by gen-dsp (dsp-graph source)
+# Default board: Raspberry Pi 3, I2S audio
+
+# Resolve Circle directory
+ifdef CIRCLE_DIR
+  CIRCLEHOME = $(CIRCLE_DIR)
+else ifdef GEN_DSP_CACHE_DIR
+  CIRCLEHOME = $(GEN_DSP_CACHE_DIR)/circle-src/circle
+else
+  CIRCLEHOME ?= {default_circle_dir}
+endif
+
+override RASPPI = 3
+override AARCH = 64
+override PREFIX = aarch64-none-elf-
+
+OBJS = gen_ext_circle.o _ext_circle.o
+
+# No genlib sources in graph path (graph-compiled code uses standard C++ new/delete)
+
+include $(CIRCLEHOME)/Rules.mk
+
+CFLAGS += -I.
+CFLAGS += -DGENLIB_USE_FLOAT32
+CFLAGS += -DGENLIB_NO_JSON
+CFLAGS += -DCIRCLE_EXT_NAME={lib_name}
+CFLAGS += -DGEN_EXT_VERSION=\\"{genext_version}\\"
+CFLAGS += -DGEN_EXPORTED_NAME={gen_name}
+CFLAGS += -DGEN_EXPORTED_HEADER=\\"{gen_name}.h\\"
+CFLAGS += -DGEN_EXPORTED_CPP=\\"{gen_name}.cpp\\"
+CFLAGS += -DCIRCLE_NUM_INPUTS={num_inputs}
+CFLAGS += -DCIRCLE_NUM_OUTPUTS={num_outputs}
+CFLAGS += -DCIRCLE_NUM_PARAMS={num_params}
+CFLAGS += -Wno-unused-function -Wno-unused-variable
+
+CPPFLAGS += -I.
+CPPFLAGS += -DGENLIB_USE_FLOAT32
+CPPFLAGS += -DGENLIB_NO_JSON
+CPPFLAGS += -DCIRCLE_EXT_NAME={lib_name}
+CPPFLAGS += -DGEN_EXT_VERSION=\\"{genext_version}\\"
+CPPFLAGS += -DGEN_EXPORTED_NAME={gen_name}
+CPPFLAGS += -DGEN_EXPORTED_HEADER=\\"{gen_name}.h\\"
+CPPFLAGS += -DGEN_EXPORTED_CPP=\\"{gen_name}.cpp\\"
+CPPFLAGS += -DCIRCLE_NUM_INPUTS={num_inputs}
+CPPFLAGS += -DCIRCLE_NUM_OUTPUTS={num_outputs}
+CPPFLAGS += -DCIRCLE_NUM_PARAMS={num_params}
+CPPFLAGS += -Wno-unused-function -Wno-unused-variable
+
+LIBS += $(CIRCLEHOME)/lib/sound/libsound.a $(CIRCLEHOME)/lib/libcircle.a
+"""
+    path = output_dir / "Makefile"
     path.write_text(content)
     return path
 
@@ -1001,7 +1239,24 @@ def _copy_platform_templates(output_dir: Path, platform: str) -> None:
             shutil.copy2(src, output_dir / fname)
 
     # Copy platform-specific extras
-    if platform == "chuck":
+    if platform == "pd":
+        # pd-lib-builder directory
+        pd_lib_builder_src = tmpl_dir / "pd-lib-builder"
+        if pd_lib_builder_src.is_dir():
+            shutil.copytree(
+                pd_lib_builder_src,
+                output_dir / "pd-lib-builder",
+                dirs_exist_ok=True,
+            )
+
+        # m_pd.h into pd-include/ (graph template uses pd-include/ path)
+        m_pd_src = tmpl_dir / "m_pd.h"
+        if m_pd_src.is_file():
+            dest = output_dir / "pd-include"
+            dest.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(m_pd_src, dest / "m_pd.h")
+
+    elif platform == "chuck":
         # chugin.h bundle
         chugin_src = tmpl_dir / "chuck" / "include" / "chugin.h"
         if chugin_src.is_file():
@@ -1014,6 +1269,20 @@ def _copy_platform_templates(output_dir: Path, platform: str) -> None:
             src = tmpl_dir / mf
             if src.is_file():
                 shutil.copy2(src, output_dir / mf)
+
+    elif platform == "vcvrack":
+        # plugin.cpp and plugin.hpp entry point files
+        for fname in ("plugin.cpp", "plugin.hpp"):
+            src = tmpl_dir / fname
+            if src.is_file():
+                shutil.copy2(src, output_dir / fname)
+
+    elif platform == "circle":
+        # C++ stdlib shims for bare-metal builds (Circle's -nostdinc++ strips them)
+        for shim in ("cmath", "cstdlib", "cstdint", "cstring"):
+            src = tmpl_dir / shim
+            if src.is_file():
+                shutil.copy2(src, output_dir / shim)
 
 
 def _generate_buffer_header(output_dir: Path) -> None:

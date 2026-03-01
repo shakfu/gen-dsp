@@ -1,0 +1,7 @@
+// cstring shim for Circle bare-metal builds
+// Circle's Rules.mk adds -nostdinc++ which strips C++ stdlib include paths.
+// dsp-graph compiled code includes <cstring> for memset/memcpy.
+#ifndef _CIRCLE_CSTRING_SHIM
+#define _CIRCLE_CSTRING_SHIM
+#include <string.h>
+#endif

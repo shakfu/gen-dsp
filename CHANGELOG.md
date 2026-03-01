@@ -75,9 +75,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **ChucK: single-channel UGens produce no audio** -- `add_ugen_funcf` (multi-frame tick) is silently never called by ChucK for UGens with <=1 input and <=1 output. Fixed by conditionally registering `add_ugen_func` (single-sample `CK_DLL_TICK`) for single-channel UGens and `add_ugen_funcf` (`CK_DLL_TICKF`) only for multi-channel UGens. Affects both gen~ export and graph-compiled chugins.
+
+- **Graph: ChucK build failures** -- graph-path ChucK projects failed to build due to two issues: (1) the generated makefile used `$$` for Make variable references, but since the makefile is emitted via Python f-string (not `string.Template`), `$$` passed through literally, causing Make syntax errors; fixed by using single `$`. (2) `wrapper_load_buffer` was declared in `_ext_chuck.h` and called in `gen_ext_chuck.cpp` but never defined in the graph-generated `_ext_chuck.cpp`; fixed by adding a stub returning -1 (graph-compiled code does not support runtime buffer loading).
+
+- **Graph: PD build path** -- Graph-based PD projects now use wrapper interface pattern (`gen_ext_pd.cpp` + `_ext_pd.h`) consistent with all other platforms. Copies `pd-lib-builder/` and `m_pd.h` for graph builds. Existing gen~ export PD path unchanged.
+
+- **Graph: Daisy, Circle, VCV Rack build paths** -- Graph-based projects now support Daisy, Circle, and VCV Rack platforms. Generates simplified Makefiles (no genlib sources), platform-specific `gen_ext_*.cpp` (no genlib memory init), and platform extras (plugin.json/SVG for VCV Rack, config.txt for Circle). Daisy/Circle graph paths skip `genlib_daisy.cpp`/`genlib_circle.cpp` since graph-compiled code uses standard C++ `new`/`delete`.
+
 - **Graph: AU Info.plist generation** -- graph-path AU projects were missing Info.plist entirely (no `AudioComponents` dict, `CFBundlePackageType` was `APPL` instead of `BNDL`), causing CoreAudio and DAWs like Ableton Live to not discover the plugin. Fixed by generating Info.plist from the existing AU template and pointing CMake to it via `MACOSX_BUNDLE_INFO_PLIST`
 - **AU: auval connection semantics for generators** -- generators (0 inputs) returned a stream format for non-existent input buses, causing auval to attempt an impossible AU-to-AU connection test. Fixed by returning `kAudioUnitErr_InvalidProperty` for `StreamFormat` Get/Set on input scope when `numInputs == 0`, consistent with `ElementCount` already returning 0
+
 - **Graph: VST3 build failures** -- graph-path VST3 projects failed to configure and build due to missing `VERSION` in `project()` (required by VST3 SDK), missing `CMAKE_BUILD_TYPE Release` default (required by `fdebug.h`), missing platform entry point sources (`macmain.cpp`/`linuxmain.cpp`/`dllmain.cpp`), missing `target_link_libraries(sdk)` for SDK include paths, and missing `SMTG_CREATE_PLUGIN_LINK OFF`. Also added post-build fixes for moduleinfo.json and Info.plist on macOS for DAW compatibility
+
 - **Graph: LV2 build failures** -- graph-path LV2 projects failed at the post-build bundle step because TTL metadata files (`manifest.ttl`, `<name>.ttl`) were not generated. Fixed by calling `Lv2Platform._generate_manifest_ttl()` and `_generate_plugin_ttl()` from `_generate_from_graph()`
 
 ## [0.1.12]

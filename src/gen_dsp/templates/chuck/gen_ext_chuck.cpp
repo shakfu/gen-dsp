@@ -30,6 +30,7 @@ static t_CKINT genext_data_offset = 0;
 // Forward declarations
 CK_DLL_CTOR(genext_ctor);
 CK_DLL_DTOR(genext_dtor);
+CK_DLL_TICK(genext_tick);
 CK_DLL_TICKF(genext_tickf);
 CK_DLL_MFUN(genext_param_set);
 CK_DLL_MFUN(genext_param_get);
@@ -66,10 +67,16 @@ CK_DLL_QUERY(CHUCK_EXT_NAME)
     QUERY->add_ctor(QUERY, genext_ctor);
     QUERY->add_dtor(QUERY, genext_dtor);
 
-    // Register multi-channel tick function
+    // Register tick function
+    // ChucK's add_ugen_funcf (multi-frame) is only called for multi-channel
+    // UGens. For <=1 input and <=1 output, use add_ugen_func (single-sample).
     int num_in = wrapper_num_inputs();
     int num_out = wrapper_num_outputs();
-    QUERY->add_ugen_funcf(QUERY, genext_tickf, NULL, num_in, num_out);
+    if (num_in <= 1 && num_out <= 1) {
+        QUERY->add_ugen_func(QUERY, genext_tick, NULL, num_in, num_out);
+    } else {
+        QUERY->add_ugen_funcf(QUERY, genext_tickf, NULL, num_in, num_out);
+    }
 
     // param(string, float) -> float : set parameter by name
     QUERY->add_mfun(QUERY, genext_param_set, "float", "param");
@@ -165,6 +172,40 @@ CK_DLL_DTOR(genext_dtor)
         delete data;
     }
     OBJ_MEMBER_INT(SELF, genext_data_offset) = 0;
+}
+
+
+//-----------------------------------------------------------------------------
+// single-sample tick function (for <=1 input, <=1 output UGens)
+// CK_DLL_TICK provides: SAMPLE in, SAMPLE *out
+//-----------------------------------------------------------------------------
+CK_DLL_TICK(genext_tick)
+{
+    GenExtData* data = (GenExtData*)OBJ_MEMBER_INT(SELF, genext_data_offset);
+    if (!data || !data->gen_state) {
+        *out = 0.0f;
+        return TRUE;
+    }
+
+    // Feed input (if any)
+    if (data->num_inputs > 0) {
+        data->in_buffers[0][0] = (float)in;
+    }
+
+    // Process one sample
+    wrapper_perform(data->gen_state,
+                    data->in_buffers, data->num_inputs,
+                    data->out_buffers, data->num_outputs,
+                    1);
+
+    // Read output (if any)
+    if (data->num_outputs > 0) {
+        *out = (SAMPLE)data->out_buffers[0][0];
+    } else {
+        *out = 0.0f;
+    }
+
+    return TRUE;
 }
 
 
