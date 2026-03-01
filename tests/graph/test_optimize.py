@@ -483,7 +483,7 @@ class TestOptimizeGraph:
         assert stats == OptimizeStats(0, 0, 0, 0)
 
     def test_v04_buffer_stateful_never_folded(self) -> None:
-        """All v0.4 buffer-related stateful nodes are never constant-folded."""
+        """Buffer, BufRead, BufWrite are stateful and never folded. BufSize is folded."""
         g = Graph(
             name="test",
             outputs=[AudioOutput(id="out1", source="br")],
@@ -499,7 +499,23 @@ class TestOptimizeGraph:
         assert types["buf"] == "Buffer"
         assert types["br"] == "BufRead"
         assert types["bw"] == "BufWrite"
-        assert types["bs"] == "BufSize"
+        assert types["bs"] == "Constant"
+
+    def test_bufsize_folded_to_constant(self) -> None:
+        """BufSize resolves to a Constant with the buffer's size value."""
+        g = Graph(
+            name="test",
+            outputs=[AudioOutput(id="out1", source="bs")],
+            nodes=[
+                Buffer(id="buf", size=512),
+                BufSize(id="bs", buffer="buf"),
+            ],
+        )
+        folded = constant_fold(g)
+        node_map = {n.id: n for n in folded.nodes}
+        bs = node_map["bs"]
+        assert isinstance(bs, Constant)
+        assert bs.value == 512.0
 
     def test_buffer_dead_node_elimination_preserved(self) -> None:
         """BufWrite kept alive when BufRead on same buffer is reachable."""

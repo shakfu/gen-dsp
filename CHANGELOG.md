@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.13]
+
 ### Added
+
+- **Examples: `--dot` flag** -- All graph examples (`examples/graph/*.py`) now accept `-d`/`--dot` to generate a Graphviz DOT graph as PDF. Works without `-p`/`--platform`; output directory defaults to `.` unless `-o` is given.
 
 - **Graph: ADSR envelope node** -- `ADSR` node type for attack-decay-sustain-release envelope generation with gate-triggered edge detection, linear ramp phases (times in ms), retrigger from current level, and min 1-sample clamp to avoid division by zero. Full support across compile (C++ codegen), simulate (Python), optimize (stateful -- never folded), and visualize (DOT)
 - **Graph: MIDI wiring in graph project path** -- `_generate_from_graph()` now runs `detect_midi_mapping()` and passes `midi_defines` to `generate_graph_build_file()`, enabling auto-detection of MIDI gate/freq/vel params for graph-based projects (e.g., fm_synth with `gate` + `freq` params generates CLAP/VST3 with MIDI enabled)
@@ -36,17 +40,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `signal_router.py` -- signal routing with `GateRoute`/`GateOut` (1-to-N demux) and `Selector` (N-to-1 mux)
   - `fm_synth.py` -- two-operator FM synthesis with `Cycle` wavetable oscillators and `Phasor`
 
-### Fixed
-
-- **Graph: AU Info.plist generation** -- graph-path AU projects were missing Info.plist entirely (no `AudioComponents` dict, `CFBundlePackageType` was `APPL` instead of `BNDL`), causing CoreAudio and DAWs like Ableton Live to not discover the plugin. Fixed by generating Info.plist from the existing AU template and pointing CMake to it via `MACOSX_BUNDLE_INFO_PLIST`
-- **AU: auval connection semantics for generators** -- generators (0 inputs) returned a stream format for non-existent input buses, causing auval to attempt an impossible AU-to-AU connection test. Fixed by returning `kAudioUnitErr_InvalidProperty` for `StreamFormat` Get/Set on input scope when `numInputs == 0`, consistent with `ElementCount` already returning 0
-- **Graph: VST3 build failures** -- graph-path VST3 projects failed to configure and build due to missing `VERSION` in `project()` (required by VST3 SDK), missing `CMAKE_BUILD_TYPE Release` default (required by `fdebug.h`), missing platform entry point sources (`macmain.cpp`/`linuxmain.cpp`/`dllmain.cpp`), missing `target_link_libraries(sdk)` for SDK include paths, and missing `SMTG_CREATE_PLUGIN_LINK OFF`. Also added post-build fixes for moduleinfo.json and Info.plist on macOS for DAW compatibility
-- **Graph: LV2 build failures** -- graph-path LV2 projects failed at the post-build bundle step because TTL metadata files (`manifest.ttl`, `<name>.ttl`) were not generated. Fixed by calling `Lv2Platform._generate_manifest_ttl()` and `_generate_plugin_ttl()` from `_generate_from_graph()`
-
-## [0.1.13]
-
-### Added
-
 - **Graph frontend subpackage** (`gen_dsp.graph`) -- enables testing gen-dsp's platform backends without needing gen~ exports by defining DSP graphs in Python/JSON and compiling them to C++; available via `pip install gen-dsp[graph]`
   - Pydantic-based graph model with 42 node types (BinOp, SinOsc, OnePole, DelayLine, Buffer, SVF, Biquad, GateRoute, GateOut, Selector, etc.)
   - `compile_graph()`: compiles Graph to standalone C++ (no genlib dependency)
@@ -74,9 +67,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Graph: BufSize constant folding** -- `BufSize` nodes are now constant-folded to `Constant` nodes during optimization, since buffer sizes are static integers known at graph definition time. This eliminates a runtime struct field read and produces a float literal in generated code.
+
 - `pyproject.toml`: added optional dependencies `graph = ["pydantic>=2.0"]` and `sim = ["pydantic>=2.0", "numpy>=1.24"]`; added pydantic and numpy to dev dependency group; added ruff per-file-ignores for `tests/graph/` (E402)
 - `ProjectGenerator`: `export_info` now typed as `Optional[ExportInfo]` to support both gen~ export and graph frontend paths; `_graph` and `_manifest` attributes added with proper Optional typing
 - `CLAUDE.md`: updated with graph frontend subpackage documentation, dual data flow diagram, and new conventions
+
+### Fixed
+
+- **Graph: AU Info.plist generation** -- graph-path AU projects were missing Info.plist entirely (no `AudioComponents` dict, `CFBundlePackageType` was `APPL` instead of `BNDL`), causing CoreAudio and DAWs like Ableton Live to not discover the plugin. Fixed by generating Info.plist from the existing AU template and pointing CMake to it via `MACOSX_BUNDLE_INFO_PLIST`
+- **AU: auval connection semantics for generators** -- generators (0 inputs) returned a stream format for non-existent input buses, causing auval to attempt an impossible AU-to-AU connection test. Fixed by returning `kAudioUnitErr_InvalidProperty` for `StreamFormat` Get/Set on input scope when `numInputs == 0`, consistent with `ElementCount` already returning 0
+- **Graph: VST3 build failures** -- graph-path VST3 projects failed to configure and build due to missing `VERSION` in `project()` (required by VST3 SDK), missing `CMAKE_BUILD_TYPE Release` default (required by `fdebug.h`), missing platform entry point sources (`macmain.cpp`/`linuxmain.cpp`/`dllmain.cpp`), missing `target_link_libraries(sdk)` for SDK include paths, and missing `SMTG_CREATE_PLUGIN_LINK OFF`. Also added post-build fixes for moduleinfo.json and Info.plist on macOS for DAW compatibility
+- **Graph: LV2 build failures** -- graph-path LV2 projects failed at the post-build bundle step because TTL metadata files (`manifest.ttl`, `<name>.ttl`) were not generated. Fixed by calling `Lv2Platform._generate_manifest_ttl()` and `_generate_plugin_ttl()` from `_generate_from_graph()`
 
 ## [0.1.12]
 

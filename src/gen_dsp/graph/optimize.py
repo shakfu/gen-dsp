@@ -97,7 +97,6 @@ _STATEFUL_TYPES = (
     BufRead,
     BufWrite,
     Splat,
-    BufSize,
     Cycle,
     Wave,
     Lookup,
@@ -358,7 +357,22 @@ def constant_fold(graph: Graph) -> Graph:
     constants: dict[str, float] = {}
     new_nodes: list[Node] = []
 
+    # Pre-resolve BufSize nodes to constants (buffer sizes are static integers).
+    buf_sizes: dict[str, int] = {
+        node.id: node.size for node in sorted_nodes if isinstance(node, Buffer)
+    }
+    bufsize_values: dict[str, float] = {}
     for node in sorted_nodes:
+        if isinstance(node, BufSize) and node.buffer in buf_sizes:
+            bufsize_values[node.id] = float(buf_sizes[node.buffer])
+
+    for node in sorted_nodes:
+        # Replace BufSize with pre-resolved constant.
+        if node.id in bufsize_values:
+            bs_val = bufsize_values[node.id]
+            constants[node.id] = bs_val
+            new_nodes.append(Constant(id=node.id, value=bs_val))
+            continue
         val = _try_fold(node, constants)
         if val is not None and not isinstance(node, Constant):
             constants[node.id] = val

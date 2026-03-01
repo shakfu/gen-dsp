@@ -52,15 +52,21 @@ def main() -> None:
     parser.add_argument("-l", "--list", action="store_true", help="List available platforms")
     parser.add_argument("-b", "--build", action="store_true", help="Build after generating")
     parser.add_argument("-o", "--output", type=Path, default=None)
+    parser.add_argument("-d", "--dot", action="store_true", help="Generate Graphviz DOT graph as PDF")
     args = parser.parse_args()
 
     if args.list:
         print("Available platforms:", ", ".join(ProjectConfig.list_platforms()))
         return
+    graph = make_graph()
+    if args.dot:
+        from gen_dsp.graph.visualize import graph_to_dot_file
+        dot_path = graph_to_dot_file(graph, args.output or Path("."))
+        print(f"DOT: {dot_path}")
+        return
     if not args.platform:
         parser.error("-p/--platform is required (use -l to list available platforms)")
 
-    graph = make_graph()
     output = args.output or Path(f"build/examples/{graph.name}_{args.platform}")
     config = ProjectConfig(name=graph.name, platform=args.platform)
     gen = ProjectGenerator.from_graph(graph, config)
