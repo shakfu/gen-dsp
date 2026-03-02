@@ -111,6 +111,7 @@ public:
     tresult PLUGIN_API terminate() override;
 
     // IAudioProcessor
+    tresult PLUGIN_API setupProcessing(ProcessSetup& setup) override;
     tresult PLUGIN_API setActive(TBool state) override;
     tresult PLUGIN_API canProcessSampleSize(int32 symbolicSize) override;
     tresult PLUGIN_API setBusArrangements(
@@ -286,6 +287,12 @@ tresult PLUGIN_API GenVst3Plugin::terminate() {
     }
 #endif
     return SingleComponentEffect::terminate();
+}
+
+tresult PLUGIN_API GenVst3Plugin::setupProcessing(ProcessSetup& setup) {
+    mSampleRate = (float)setup.sampleRate;
+    mMaxFrames = setup.maxSamplesPerBlock;
+    return SingleComponentEffect::setupProcessing(setup);
 }
 
 tresult PLUGIN_API GenVst3Plugin::setActive(TBool state) {

@@ -72,15 +72,11 @@ jobs:
       - name: Generate project
         shell: bash
         run: |
-          EXTRA=""
-          case "${{ matrix.platform }}" in
-            clap|vst3|lv2|sc) EXTRA="--shared-cache" ;;
-          esac
-          uv run gen-dsp init tests/fixtures/gigaverb/gen \
+          uv run gen-dsp tests/fixtures/gigaverb/gen \
             -n gigaverb \
             -p ${{ matrix.platform }} \
             -o build/gigaverb \
-            $EXTRA
+            --no-build
 
       - name: Build project
         shell: bash
