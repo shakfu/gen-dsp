@@ -751,6 +751,28 @@ class TestErrors:
         with pytest.raises(GDSPSyntaxError, match="no graph definitions"):
             parse("")
 
+    def test_compile_error_recursive_graph_name(self):
+        """Graph name shadowing a builtin should raise, not infinite-recurse."""
+        with pytest.raises(GDSPCompileError, match="recursive graph reference"):
+            parse("""
+            graph phasor {
+                out output = ph
+                param freq 1..20000 = 440
+                ph = phasor(freq)
+            }
+            """)
+
+    def test_compile_error_self_referencing_graph(self):
+        """A graph calling itself by name should raise a compile error."""
+        with pytest.raises(GDSPCompileError, match="recursive graph reference"):
+            parse("""
+            graph my_filter {
+                in x
+                out output = y
+                y = my_filter(x=x)
+            }
+            """)
+
 
 # =========================================================================
 # Round-trip: parse -> validate

@@ -1039,6 +1039,8 @@ class Compiler:
         # Collect all graph names for deferred resolution
         self.graph_names: set[str] = {g.name for g in ast_graphs}
         self.compiled: dict[str, Graph] = {}
+        # Track graphs currently being compiled to detect recursive calls
+        self._compiling: set[str] = set()
 
     def compile_all(self) -> dict[str, Graph]:
         for ast_g in self.ast_graphs:
@@ -1046,6 +1048,18 @@ class Compiler:
         return self.compiled
 
     def _compile_graph(self, ast_g: ASTGraph) -> Graph:
+        if ast_g.name in self._compiling:
+            raise GDSPCompileError(
+                f"recursive graph reference: '{ast_g.name}' cannot call itself",
+                filename=self.filename,
+            )
+        self._compiling.add(ast_g.name)
+        try:
+            return self._compile_graph_inner(ast_g)
+        finally:
+            self._compiling.discard(ast_g.name)
+
+    def _compile_graph_inner(self, ast_g: ASTGraph) -> Graph:
         ctx = _GraphCtx(
             name=ast_g.name,
             options=ast_g.options,

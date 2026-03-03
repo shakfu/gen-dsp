@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Graph DSL: `graph_to_gdsp()` serializer** -- New `serialize.py` module and `graph_to_gdsp(graph)` function that round-trips a `Graph` object back to `.gdsp` source. Emits infix arithmetic, comparison operators, and named builtin calls; handles all node types including `BinOp`, `UnaryOp`, `Compare`, `BufRead`/`BufWrite`/`BufSize`, `DelayRead`/`DelayWrite`, `History`, `GateOut`/`GateRoute`, `SVF`, `Selector`, `Splat`, `Wave`, `Lookup`, `SampleRate`, and `NamedConstant`. Exported from `gen_dsp.graph`.
+
+### Fixed
+
+- **Graph DSL: recursive graph call raises compile error instead of infinite recursion** -- A graph whose body calls itself (or a graph shadowing a builtin of the same name, e.g. `graph phasor { ... ph = phasor(...) }`) now raises `GDSPCompileError("recursive graph reference: ...")` immediately instead of overflowing the Python call stack.
+- **VST3: polyphonic variable block size crash** -- The VST3 template hardcoded `mMaxFrames = 1024` and never overrode `setupProcessing()` to capture the host's actual `maxSamplesPerBlock`. When the host requested block sizes larger than 1024 samples, per-voice scratch buffers overflowed, crashing the process. Now overrides `setupProcessing()` to store the host-provided max block size before `setActive()` allocates voice buffers.
+- **CI: build-examples workflow used stale CLI syntax** -- The `gen-dsp init` subcommand was removed in 0.1.14 but the workflow still used it. Updated to the current `gen-dsp <source> -p <platform>` syntax. Also removed the non-existent `--shared-cache` flag (shared cache is the default; only `--no-shared-cache` exists).
+
 ## [0.1.14]
 
 ### Fixed

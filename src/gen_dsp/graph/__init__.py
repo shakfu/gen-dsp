@@ -101,6 +101,7 @@ try:
     from gen_dsp.graph.toposort import toposort
     from gen_dsp.graph.validate import GraphValidationError, validate_graph
     from gen_dsp.graph.visualize import graph_to_dot, graph_to_dot_file
+    from gen_dsp.graph.serialize import graph_to_gdsp
     from gen_dsp.graph.dsl import (
         parse,
         parse_file,
@@ -208,6 +209,7 @@ __all__ = [
     "generate_manifest",
     "graph_to_dot",
     "graph_to_dot_file",
+    "graph_to_gdsp",
     "OptimizeResult",
     "OptimizeStats",
     "optimize_graph",
