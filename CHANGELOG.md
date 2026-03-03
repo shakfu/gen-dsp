@@ -7,7 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.15]
+
 ### Added
+
+- **Graph API reference** -- New `docs/graph/api.md` covering every public symbol in `gen_dsp.graph`: DSL parsing, validation, compilation, optimization passes, simulation (`SimState`/`SimResult`), serialization, visualization, graph algebra, subgraph expansion, toposort, and the platform adapter functions. Intended as the stable library contract for downstream consumers such as dsp-graph.
+- **`GraphValidationError`: documented `kind` field as stable public API** -- The class docstring now lists all 14 error-kind values (`"duplicate_id"`, `"dangling_ref"`, `"missing_delay_line"`, `"missing_buffer"`, `"missing_gate_route"`, `"gate_channel_range"`, `"control_audio_dep"`, `"control_rate_dep"`, `"cycle"`, etc.) with descriptions of `node_id`, `field_name`, and `severity`. Consumers can safely branch on `error.kind` and surface per-node highlighting without relying on string parsing.
 
 - **Graph DSL: `graph_to_gdsp()` serializer** -- New `serialize.py` module and `graph_to_gdsp(graph)` function that round-trips a `Graph` object back to `.gdsp` source. Emits infix arithmetic, comparison operators, and named builtin calls; handles all node types including `BinOp`, `UnaryOp`, `Compare`, `BufRead`/`BufWrite`/`BufSize`, `DelayRead`/`DelayWrite`, `History`, `GateOut`/`GateRoute`, `SVF`, `Selector`, `Splat`, `Wave`, `Lookup`, `SampleRate`, and `NamedConstant`. Exported from `gen_dsp.graph`.
 

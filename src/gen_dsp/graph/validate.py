@@ -29,6 +29,49 @@ class GraphValidationError(str):
 
     Subclasses ``str`` so all existing call sites (``== []``, ``in``,
     ``"; ".join(errors)``, ``print(f"error: {err}")``) work unchanged.
+
+    Attributes
+    ----------
+    kind : str
+        Machine-readable error category.  Stable values:
+
+        ``"duplicate_id"``
+            Two nodes share the same ID.
+        ``"id_collision"``
+            A node ID equals an audio input ID or param name.
+        ``"dangling_ref"``
+            A field references an ID that does not exist.
+        ``"bad_output_source"``
+            ``AudioOutput.source`` does not reference a node.
+        ``"missing_delay_line"``
+            ``DelayRead``/``DelayWrite`` references a non-existent ``DelayLine``.
+        ``"missing_buffer"``
+            A buffer consumer (``BufRead``, ``BufWrite``, ``BufSize``, ``Splat``,
+            ``Cycle``, ``Wave``, ``Lookup``) references a non-existent ``Buffer``.
+        ``"missing_gate_route"``
+            ``GateOut.gate`` references a non-existent ``GateRoute``.
+        ``"gate_channel_range"``
+            ``GateOut.channel`` is outside ``[1, gate_route.count]``.
+        ``"invalid_control_node"``
+            An ID in ``Graph.control_nodes`` is not a node ID.
+        ``"control_audio_dep"``
+            A control-rate node depends on an audio input.
+        ``"control_rate_dep"``
+            A control-rate node depends on an audio-rate node.
+        ``"cycle"``
+            Graph contains a pure cycle (not through ``History`` or delay feedback).
+        ``"expansion_error"``
+            ``expand_subgraphs()`` raised a ``ValueError`` (malformed ``Subgraph``).
+        ``"unmapped_param"`` *(warning)*
+            A subgraph param uses its default because it was not mapped at the
+            call site.  Only emitted when ``warn_unmapped_params=True``.
+
+    node_id : str | None
+        ID of the offending node, if applicable.
+    field_name : str | None
+        Name of the offending field, if applicable.
+    severity : str
+        ``"error"`` or ``"warning"``.
     """
 
     kind: str
