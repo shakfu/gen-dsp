@@ -101,8 +101,15 @@ $(addprefix graph-example-,$(GRAPH_PLATFORMS)): graph-example-%:
 	rm -rf $(EXAMPLES_DIR)/$(GRAPH_NAME)_$*
 	$(GEN_DSP) $(GRAPH) -p $* -o $(EXAMPLES_DIR)/$(GRAPH_NAME)_$*
 
+# Web Audio example (standalone generator, uses fm_synth by default)
+WEBAUDIO_GRAPH ?= examples/dsl/fm_synth.gdsp
+WEBAUDIO_GRAPH_NAME = $(basename $(notdir $(WEBAUDIO_GRAPH)))
+graph-example-webaudio:
+	rm -rf $(EXAMPLES_DIR)/$(WEBAUDIO_GRAPH_NAME)_webaudio
+	$(GEN_DSP) $(WEBAUDIO_GRAPH) -p webaudio -o $(EXAMPLES_DIR)/$(WEBAUDIO_GRAPH_NAME)_webaudio
+
 # Build all graph examples appropriate for this platform
-GRAPH_PORTABLE := $(addprefix graph-example-,pd chuck clap vst3 lv2 sc)
+GRAPH_PORTABLE := $(addprefix graph-example-,pd chuck clap vst3 lv2 sc webaudio)
 GRAPH_MACOS := graph-example-au
 ifeq ($(shell uname -s),Darwin)
 graph-examples: $(GRAPH_PORTABLE) $(GRAPH_MACOS)
@@ -156,7 +163,8 @@ help:
 	@echo "  graph-example-vst3  - VST3 from .gdsp/.json"
 	@echo "  graph-example-lv2   - LV2 from .gdsp/.json"
 	@echo "  graph-example-sc    - SuperCollider from .gdsp/.json"
-	@echo "  graph-examples      - Build PD + ChucK + CLAP from graph"
+	@echo "  graph-example-webaudio - Web Audio WASM + demo page (default: fm_synth)"
+	@echo "  graph-examples      - Build all graph examples"
 	@echo ""
 	@echo "  clean            - Remove build artifacts"
 	@echo "  dist             - Build distribution packages"

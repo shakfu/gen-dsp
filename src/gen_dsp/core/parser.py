@@ -61,6 +61,9 @@ class GenExportParser:
     BUFFER_WRITE_PATTERN = re.compile(r"\b(\w+)\.write\s*\(")
     BUFFER_CHANNELS_PATTERN = re.compile(r"\b(\w+)\.channels\b")
 
+    # Valid C identifier
+    C_IDENTIFIER_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+
     # Pattern for I/O counts
     NUMINS_PATTERN = re.compile(r"int\s+gen_kernel_numins\s*=\s*(\d+)")
     NUMOUTS_PATTERN = re.compile(r"int\s+gen_kernel_numouts\s*=\s*(\d+)")
@@ -261,10 +264,8 @@ class GenExportParser:
             List of invalid buffer names (empty if all valid).
         """
         invalid = []
-        identifier_pattern = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
-
         for name in buffer_names:
-            if not identifier_pattern.match(name):
+            if not self.C_IDENTIFIER_PATTERN.match(name):
                 invalid.append(name)
 
         return invalid

@@ -146,7 +146,7 @@ def _make_default_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--no-shared-cache",
         action="store_true",
-        help="Disable shared OS cache for FetchContent downloads (clap, vst3, lv2, sc)",
+        help="Disable shared OS cache for FetchContent downloads (CMake-based platforms)",
     )
     parser.add_argument(
         "--board",

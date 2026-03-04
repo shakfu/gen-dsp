@@ -747,6 +747,25 @@ class TestErrors:
         except GDSPSyntaxError as e:
             assert e.line == 2
 
+    def test_compile_error_has_line_col(self):
+        """GDSPCompileError should carry line and col from the source."""
+        src = "graph t {\n  out o = y\n  y = bad_func(1)\n}"
+        with pytest.raises(GDSPCompileError) as exc_info:
+            parse(src)
+        err = exc_info.value
+        assert err.line == 3
+        assert err.col > 0
+        assert err.filename == "<string>"
+
+    def test_compile_error_arg_count_has_line(self):
+        """Arg count errors should point to the call site."""
+        src = "graph t {\n  in x\n  out o = abs(x, x)\n}"
+        with pytest.raises(GDSPCompileError) as exc_info:
+            parse(src)
+        err = exc_info.value
+        assert err.line == 3
+        assert err.col > 0
+
     def test_empty_source(self):
         with pytest.raises(GDSPSyntaxError, match="no graph definitions"):
             parse("")

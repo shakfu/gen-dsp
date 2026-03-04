@@ -345,11 +345,15 @@ class ASTImportAssign:
 @dataclass
 class ASTNumber:
     value: float
+    line: int = 0
+    col: int = 0
 
 
 @dataclass
 class ASTIdent:
     name: str
+    line: int = 0
+    col: int = 0
 
 
 @dataclass
@@ -357,24 +361,32 @@ class ASTBinExpr:
     op: str
     left: ASTExpr
     right: ASTExpr
+    line: int = 0
+    col: int = 0
 
 
 @dataclass
 class ASTUnaryExpr:
     op: str
     operand: ASTExpr
+    line: int = 0
+    col: int = 0
 
 
 @dataclass
 class ASTCall:
     name: str
     args: list[ASTArg]
+    line: int = 0
+    col: int = 0
 
 
 @dataclass
 class ASTDotAccess:
     obj: ASTExpr
     field_name: str
+    line: int = 0
+    col: int = 0
 
 
 @dataclass
@@ -382,6 +394,8 @@ class ASTCompose:
     op: str  # ">>" or "//"
     left: ASTExpr
     right: ASTExpr
+    line: int = 0
+    col: int = 0
 
 
 @dataclass
@@ -730,9 +744,15 @@ class Parser:
     def _parse_composition(self) -> ASTExpr:
         left = self._parse_comparison()
         while self._at(OP, ">>") or self._at(OP, "//"):
-            op = self._advance().value
+            op_tok = self._advance()
             right = self._parse_comparison()
-            left = ASTCompose(op=op, left=left, right=right)
+            left = ASTCompose(
+                op=op_tok.value,
+                left=left,
+                right=right,
+                line=op_tok.line,
+                col=op_tok.col,
+            )
         return left
 
     def _parse_comparison(self) -> ASTExpr:
@@ -745,7 +765,7 @@ class Parser:
             "==",
             "!=",
         ):
-            op = self._advance().value
+            op_tok = self._advance()
             right = self._parse_addition()
             # Map to Compare op names
             op_map = {
@@ -756,16 +776,24 @@ class Parser:
                 "==": "eq",
                 "!=": "neq",
             }
-            left = ASTBinExpr(op=op_map[op], left=left, right=right)
+            left = ASTBinExpr(
+                op=op_map[op_tok.value],
+                left=left,
+                right=right,
+                line=op_tok.line,
+                col=op_tok.col,
+            )
         return left
 
     def _parse_addition(self) -> ASTExpr:
         left = self._parse_multiply()
         while self._at(OP, "+") or self._at(OP, "-"):
-            op = self._advance().value
-            op_name = "add" if op == "+" else "sub"
+            op_tok = self._advance()
+            op_name = "add" if op_tok.value == "+" else "sub"
             right = self._parse_multiply()
-            left = ASTBinExpr(op=op_name, left=left, right=right)
+            left = ASTBinExpr(
+                op=op_name, left=left, right=right, line=op_tok.line, col=op_tok.col
+            )
         return left
 
     def _parse_multiply(self) -> ASTExpr:
@@ -780,36 +808,48 @@ class Parser:
                 next_ch = self.tokens[self.pos + 1]
                 if next_ch.type == OP and next_ch.value == "/":
                     break  # // is composition, not divide+divide
-            op = self._advance().value
+            op_tok = self._advance()
             op_map = {"*": "mul", "/": "div", "%": "mod"}
             right = self._parse_power()
-            left = ASTBinExpr(op=op_map[op], left=left, right=right)
+            left = ASTBinExpr(
+                op=op_map[op_tok.value],
+                left=left,
+                right=right,
+                line=op_tok.line,
+                col=op_tok.col,
+            )
         return left
 
     def _parse_power(self) -> ASTExpr:
         base = self._parse_unary()
         if self._at(OP, "**"):
-            self._advance()
+            op_tok = self._advance()
             exp = self._parse_power()  # right-assoc
-            base = ASTBinExpr(op="pow", left=base, right=exp)
+            base = ASTBinExpr(
+                op="pow", left=base, right=exp, line=op_tok.line, col=op_tok.col
+            )
         return base
 
     def _parse_unary(self) -> ASTExpr:
         if self._at(OP, "-"):
-            self._advance()
+            op_tok = self._advance()
             operand = self._parse_unary()
             # Fold constant negation
             if isinstance(operand, ASTNumber):
-                return ASTNumber(value=-operand.value)
-            return ASTUnaryExpr(op="neg", operand=operand)
+                return ASTNumber(value=-operand.value, line=op_tok.line, col=op_tok.col)
+            return ASTUnaryExpr(
+                op="neg", operand=operand, line=op_tok.line, col=op_tok.col
+            )
         return self._parse_postfix()
 
     def _parse_postfix(self) -> ASTExpr:
         expr = self._parse_atom()
         while self._at(OP, "."):
-            self._advance()
+            dot_tok = self._advance()
             field = self._expect(IDENT).value
-            expr = ASTDotAccess(obj=expr, field_name=field)
+            expr = ASTDotAccess(
+                obj=expr, field_name=field, line=dot_tok.line, col=dot_tok.col
+            )
         return expr
 
     def _parse_atom(self) -> ASTExpr:
@@ -818,7 +858,7 @@ class Parser:
         # Number
         if tok.type == NUMBER:
             self._advance()
-            return ASTNumber(value=float(tok.value))
+            return ASTNumber(value=float(tok.value), line=tok.line, col=tok.col)
 
         # Parenthesized expression
         if tok.type == OP and tok.value == "(":
@@ -841,8 +881,8 @@ class Parser:
                 if not self._at(OP, ")"):
                     args = self._parse_arg_list()
                 self._expect(OP, ")")
-                return ASTCall(name=tok.value, args=args)
-            return ASTIdent(name=tok.value)
+                return ASTCall(name=tok.value, args=args, line=tok.line, col=tok.col)
+            return ASTIdent(name=tok.value, line=tok.line, col=tok.col)
 
         raise GDSPSyntaxError(
             f"unexpected token {tok.value!r} in expression",
@@ -853,16 +893,23 @@ class Parser:
 
     def _parse_delay_read_expr(self) -> ASTCall:
         """Parse: delay_read NAME (args)"""
-        self._advance()  # consume 'delay_read'
-        delay_name = self._expect(IDENT).value
+        tok = self._advance()  # consume 'delay_read'
+        name_tok = self._expect(IDENT)
         self._expect(OP, "(")
         args: list[ASTArg] = []
         # Inject delay name as first positional arg
-        args.append(ASTArg(name=None, value=ASTIdent(name=delay_name)))
+        args.append(
+            ASTArg(
+                name=None,
+                value=ASTIdent(
+                    name=name_tok.value, line=name_tok.line, col=name_tok.col
+                ),
+            )
+        )
         if not self._at(OP, ")"):
             args.extend(self._parse_arg_list())
         self._expect(OP, ")")
-        return ASTCall(name="delay_read", args=args)
+        return ASTCall(name="delay_read", args=args, line=tok.line, col=tok.col)
 
     def _parse_arg_list(self) -> list[ASTArg]:
         args: list[ASTArg] = []
@@ -1051,6 +1098,7 @@ class Compiler:
         if ast_g.name in self._compiling:
             raise GDSPCompileError(
                 f"recursive graph reference: '{ast_g.name}' cannot call itself",
+                line=ast_g.line,
                 filename=self.filename,
             )
         self._compiling.add(ast_g.name)
@@ -1109,8 +1157,8 @@ class _GraphCtx:
     # Track history declarations for feedback write resolution
     histories: dict[str, int] = field(default_factory=dict)  # name -> node index
 
-    def _err(self, msg: str, line: int = 0) -> GDSPCompileError:
-        return GDSPCompileError(msg, line=line, filename=self.filename)
+    def _err(self, msg: str, line: int = 0, col: int = 0) -> GDSPCompileError:
+        return GDSPCompileError(msg, line=line, col=col, filename=self.filename)
 
     def _auto_id(self, prefix: str) -> str:
         return self.id_counter.next(prefix)
@@ -1206,7 +1254,11 @@ class _GraphCtx:
             raise self._err("external imports not yet supported", stmt.line)
 
         else:
-            raise self._err(f"unknown statement type: {type(stmt).__name__}")
+            raise self._err(
+                f"unknown statement type: {type(stmt).__name__}",
+                getattr(stmt, "line", 0),
+                getattr(stmt, "col", 0),
+            )
 
     def _compile_assign(self, stmt: ASTAssign) -> None:
         targets = stmt.targets
@@ -1369,20 +1421,29 @@ class _GraphCtx:
         if isinstance(expr, ASTCompose):
             return self._compile_compose(expr, target_id)
 
-        raise self._err(f"unknown expression type: {type(expr).__name__}")
+        raise self._err(
+            f"unknown expression type: {type(expr).__name__}",
+            getattr(expr, "line", 0),
+            getattr(expr, "col", 0),
+        )
 
     def _compile_call(self, call: ASTCall, target_id: str | None = None) -> str | float:
         name = call.name
+        line, col = call.line, call.col
         pos_args, kw_args = self._split_args(call.args)
 
         # Deferred resolution: check graph names first
         if name in self.compiler.graph_names:
-            return self._compile_subgraph_call(name, pos_args, kw_args, target_id)
+            return self._compile_subgraph_call(
+                name, pos_args, kw_args, target_id, line, col
+            )
 
         # Unary ops
         if name in _UNARY_OPS:
             if len(pos_args) != 1:
-                raise self._err(f"'{name}' expects 1 argument, got {len(pos_args)}")
+                raise self._err(
+                    f"'{name}' expects 1 argument, got {len(pos_args)}", line, col
+                )
             a_ref = self._compile_expr(pos_args[0])
             nid = target_id or self._auto_id(name)
             self._add_node(
@@ -1393,7 +1454,9 @@ class _GraphCtx:
         # Binary ops via function call
         if name in _BINOP_FUNCS:
             if len(pos_args) != 2:
-                raise self._err(f"'{name}' expects 2 arguments, got {len(pos_args)}")
+                raise self._err(
+                    f"'{name}' expects 2 arguments, got {len(pos_args)}", line, col
+                )
             a_ref = self._compile_expr(pos_args[0])
             b_ref = self._compile_expr(pos_args[1])
             nid = target_id or self._auto_id(name)
@@ -1409,16 +1472,20 @@ class _GraphCtx:
 
         # gate_route (non-destructuring, standalone)
         if name == "gate_route":
-            return self._compile_gate_route_call(pos_args, kw_args, target_id)
+            return self._compile_gate_route_call(
+                pos_args, kw_args, target_id, line, col
+            )
 
         # gate_out
         if name == "gate_out":
             if len(pos_args) != 2:
-                raise self._err("gate_out expects 2 args: gate_node, channel")
+                raise self._err(
+                    "gate_out expects 2 args: gate_node, channel", line, col
+                )
             gate_ref = self._compile_expr(pos_args[0])
             ch_expr = pos_args[1]
             if not isinstance(ch_expr, ASTNumber):
-                raise self._err("gate_out channel must be a literal integer")
+                raise self._err("gate_out channel must be a literal integer", line, col)
             nid = target_id or self._auto_id("gate_out")
             self._add_node(
                 GateOut(
@@ -1431,17 +1498,17 @@ class _GraphCtx:
 
         # selector (variadic)
         if name == "selector":
-            return self._compile_selector(pos_args, kw_args, target_id)
+            return self._compile_selector(pos_args, kw_args, target_id, line, col)
 
         # delay_read (special syntax already parsed with delay name injected)
         if name == "delay_read":
-            return self._compile_delay_read(pos_args, kw_args, target_id)
+            return self._compile_delay_read(pos_args, kw_args, target_id, line, col)
 
         # Builtins registry
         if name in _BUILTINS:
             return self._compile_builtin(name, pos_args, kw_args, target_id)
 
-        raise self._err(f"undefined function '{name}'")
+        raise self._err(f"undefined function '{name}'", line, col)
 
     def _compile_subgraph_call(
         self,
@@ -1449,6 +1516,8 @@ class _GraphCtx:
         pos_args: list[ASTExpr],
         kw_args: dict[str, ASTExpr],
         target_id: str | None = None,
+        line: int = 0,
+        col: int = 0,
     ) -> str:
         # Compile the referenced graph if not already done
         if graph_name not in self.compiler.compiled:
@@ -1473,7 +1542,9 @@ class _GraphCtx:
             elif k in param_names:
                 params_map[k] = self._to_ref(v_ref)
             else:
-                raise self._err(f"subgraph '{graph_name}' has no input or param '{k}'")
+                raise self._err(
+                    f"subgraph '{graph_name}' has no input or param '{k}'", line, col
+                )
 
         # Determine output (first output by default)
         output = sub_graph.outputs[0].id if sub_graph.outputs else ""
@@ -1494,16 +1565,18 @@ class _GraphCtx:
         pos_args: list[ASTExpr],
         kw_args: dict[str, ASTExpr],
         target_id: str | None = None,
+        line: int = 0,
+        col: int = 0,
     ) -> str:
         if len(pos_args) < 3:
             raise self._err(
-                "gate_route requires 3 positional args: signal, index, count"
+                "gate_route requires 3 positional args: signal, index, count", line, col
             )
         signal_ref = self._compile_expr(pos_args[0])
         index_ref = self._compile_expr(pos_args[1])
         count_expr = pos_args[2]
         if not isinstance(count_expr, ASTNumber):
-            raise self._err("gate_route count must be a literal integer")
+            raise self._err("gate_route count must be a literal integer", line, col)
         nid = target_id or self._auto_id("gate")
         self._add_node(
             GateRoute(
@@ -1520,9 +1593,13 @@ class _GraphCtx:
         pos_args: list[ASTExpr],
         kw_args: dict[str, ASTExpr],
         target_id: str | None = None,
+        line: int = 0,
+        col: int = 0,
     ) -> str:
         if len(pos_args) < 2:
-            raise self._err("selector requires at least 2 args: index + inputs")
+            raise self._err(
+                "selector requires at least 2 args: index + inputs", line, col
+            )
 
         # First arg is index, rest are inputs
         index_ref = self._compile_expr(pos_args[0])
@@ -1547,13 +1624,17 @@ class _GraphCtx:
         pos_args: list[ASTExpr],
         kw_args: dict[str, ASTExpr],
         target_id: str | None = None,
+        line: int = 0,
+        col: int = 0,
     ) -> str:
         # pos_args[0] is the delay name (injected by parser as ASTIdent)
         if len(pos_args) < 2:
-            raise self._err("delay_read requires delay name and tap position")
+            raise self._err(
+                "delay_read requires delay name and tap position", line, col
+            )
         delay_name_expr = pos_args[0]
         if not isinstance(delay_name_expr, ASTIdent):
-            raise self._err("delay_read first arg must be delay line name")
+            raise self._err("delay_read first arg must be delay line name", line, col)
         delay_name = delay_name_expr.name
 
         tap_ref = self._compile_expr(pos_args[1])
@@ -1564,7 +1645,7 @@ class _GraphCtx:
             if isinstance(interp_expr, ASTIdent):
                 interp = interp_expr.name
             else:
-                raise self._err("delay_read interp must be an identifier")
+                raise self._err("delay_read interp must be an identifier", line, col)
 
         nid = target_id or self._auto_id("dr")
         self._add_node(
@@ -1700,7 +1781,9 @@ class _GraphCtx:
                         nodes=sub_graph.nodes,
                     )
                 return sub_graph
-            raise self._err(f"'{name}' is not a graph (cannot compose)")
+            raise self._err(
+                f"'{name}' is not a graph (cannot compose)", expr.line, expr.col
+            )
 
         if isinstance(expr, ASTCompose):
             left_graph = self._expr_to_graph(expr.left)
@@ -1716,9 +1799,15 @@ class _GraphCtx:
                     ast_g = next(g for g in self.compiler.ast_graphs if g.name == name)
                     self.compiler.compiled[name] = self.compiler._compile_graph(ast_g)
                 return self.compiler.compiled[name]
-            raise self._err(f"'{name}' is not a graph (cannot compose)")
+            raise self._err(
+                f"'{name}' is not a graph (cannot compose)", expr.line, expr.col
+            )
 
-        raise self._err(f"cannot use {type(expr).__name__} in composition expression")
+        raise self._err(
+            f"cannot use {type(expr).__name__} in composition expression",
+            getattr(expr, "line", 0),
+            getattr(expr, "col", 0),
+        )
 
     def _split_args(
         self, args: list[ASTArg]

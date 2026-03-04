@@ -67,3 +67,7 @@ def get_daisy_templates_dir() -> Path:
 
 def get_circle_templates_dir() -> Path:
     return get_templates_dir("circle")
+
+
+def get_webaudio_templates_dir() -> Path:
+    return get_templates_dir("webaudio")

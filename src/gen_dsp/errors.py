@@ -37,9 +37,3 @@ class PatchError(GenExtError):
     """Error applying patches."""
 
     pass
-
-
-class TemplateError(GenExtError):
-    """Error accessing or processing templates."""
-
-    pass

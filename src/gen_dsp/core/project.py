@@ -30,7 +30,7 @@ class ProjectConfig:
     # Name for the external (used as lib.name in Makefile)
     name: str
 
-    # Target platform: 'pd', 'max', 'both', or any registered platform
+    # Target platform: 'pd', 'max', or any registered platform
     platform: str = "pd"
 
     # Buffer names (if empty, use auto-detected from export)
@@ -42,7 +42,7 @@ class ProjectConfig:
     # Output directory (if None, use current directory)
     output_dir: Optional[Path] = None
 
-    # Use shared FetchContent cache for CMake-based platforms (clap, vst3, lv2, sc)
+    # Use shared FetchContent cache for CMake-based platforms
     shared_cache: bool = True
 
     # Board variant for embedded platforms:
@@ -81,7 +81,7 @@ class ProjectConfig:
             )
 
         # Validate platform
-        valid_platforms = list_platforms() + ["both"]
+        valid_platforms = list_platforms()
         if self.platform not in valid_platforms:
             errors.append(
                 f"Platform must be one of {valid_platforms}, got '{self.platform}'"
@@ -204,7 +204,7 @@ class ProjectGenerator:
         """Generate project from gen~ export (original path)."""
         assert self.export_info is not None
         from gen_dsp.core.manifest import manifest_from_export_info
-        from gen_dsp.platforms import get_platform, list_platforms
+        from gen_dsp.platforms import get_platform
         from gen_dsp.platforms.base import Platform
 
         # Determine buffers to use
@@ -232,26 +232,14 @@ class ProjectGenerator:
         if self.config.midi_mapping.enabled and self.config.num_voices > 1:
             self.config.midi_mapping.num_voices = self.config.num_voices
 
-        # Generate for each platform using the registry
-        if self.config.platform == "both":
-            # Generate for all registered platforms
-            for platform_name in list_platforms():
-                platform_impl = get_platform(platform_name)
-                platform_impl.generate_project(
-                    manifest,
-                    output_dir,
-                    self.config.name,
-                    config=self.config,
-                )
-        else:
-            # Generate for specific platform
-            platform_impl = get_platform(self.config.platform)
-            platform_impl.generate_project(
-                manifest,
-                output_dir,
-                self.config.name,
-                config=self.config,
-            )
+        # Generate for the target platform using the registry
+        platform_impl = get_platform(self.config.platform)
+        platform_impl.generate_project(
+            manifest,
+            output_dir,
+            self.config.name,
+            config=self.config,
+        )
 
         # Write manifest.json to project root
         manifest_path = output_dir / "manifest.json"
@@ -724,6 +712,48 @@ int main(void)
                     audio_boot_config=_get_boot_config(circle_board.audio_device),
                 )
                 (output_dir / "config.txt").write_text(config_txt, encoding="utf-8")
+
+        # 6g. Generate Web Audio bridge, processor.js, and index.html
+        if platform == "webaudio":
+            from gen_dsp.platforms.webaudio import WebAudioPlatform
+
+            wa = WebAudioPlatform()
+
+            import gen_dsp.templates as wa_templates
+
+            wa_tmpl_dir = wa_templates.get_webaudio_templates_dir()
+
+            wa._generate_from_template(
+                wa_tmpl_dir / "gen_ext_webaudio.cpp.template",
+                output_dir / "gen_ext_webaudio.cpp",
+                lib_name=self.config.name,
+                gen_name=graph.name,
+                genext_version=Platform.GENEXT_VERSION,
+            )
+
+            param_descriptors, processor_class, num_outputs_array = (
+                wa._build_processor_vars(manifest, self.config.name)
+            )
+
+            wa._generate_processor_js(
+                wa_tmpl_dir / "processor.js.template",
+                output_dir / "_processor.js",
+                manifest,
+                self.config.name,
+            )
+
+            import json as _json
+
+            wa._generate_from_template(
+                wa_tmpl_dir / "index.html.template",
+                output_dir / "index.html",
+                lib_name=self.config.name,
+                num_inputs=str(manifest.num_inputs),
+                num_outputs=str(manifest.num_outputs),
+                num_params=str(len(manifest.params)),
+                param_descriptors=_json.dumps(param_descriptors, indent=4),
+                num_outputs_array=num_outputs_array,
+            )
 
         # 7. Generate simplified build file
         generate_graph_build_file(

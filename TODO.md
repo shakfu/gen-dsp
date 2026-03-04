@@ -1,6 +1,6 @@
 # TODO
 
-gen-dsp can be consumed as a library by [dsp-graph](https://github.com/shakfu/dsp-graph), a React/FastAPI web IDE that imports `gen_dsp.graph.* `directly. Prioritities in this document reflect both standalone CLI use and the requirements to work as a library (especially with dsp-grap).
+gen-dsp can be consumed as a library by [dsp-graph](https://github.com/shakfu/dsp-graph), a React/FastAPI web IDE that imports `gen_dsp.graph.*`directly. Prioritities in this document reflect both standalone CLI use and the requirements to work as a library (especially with dsp-grap).
 
 ---
 
@@ -16,13 +16,14 @@ gen-dsp can be consumed as a library by [dsp-graph](https://github.com/shakfu/ds
 
 ## Medium Priority
 
-### New backend: Web Audio (AudioWorklet + WASM)
+### Web Audio backend follow-ups
 
-- [ ] **Web Audio (AudioWorklet + WASM)** -- Compile graph C++ to WebAssembly for in-browser
-  execution. High strategic value: dsp-graph is already a web tool, so users could run their
-  compiled graph directly in the browser without installing a plugin. Emscripten target + a
-  thin JS AudioWorkletProcessor wrapper.
-  - Docs: <https://developer.mozilla.org/en-US/docs/Web/API/AudioWorklet>
+- [ ] **Web Audio buffer loading** -- The `webaudio` backend currently stubs buffer support
+  (`WRAPPER_BUFFER_COUNT 0`). Browser file loading is async and browser-specific; needs a
+  `wa_load_buffer()` Emscripten export + JS-side `fetch()` + `decodeAudioData()` bridge.
+
+- [ ] **Web Audio build integration tests** -- Currently gated by `emcc` availability (skipped
+  in CI). Consider adding Emscripten to CI or a lightweight WASM validation step.
 
 ### Testing
 
@@ -49,22 +50,23 @@ gen-dsp can be consumed as a library by [dsp-graph](https://github.com/shakfu/ds
 
 ### Architecture
 
-- [ ] **`cmake_platforms` set hardcoded in CLI** -- The set `{"clap", "vst3", "lv2", "sc"}` at `cli.py` for `--shared-cache` validation should be derived from a class attribute or registry query, not hardcoded.
+- [x] **`cmake_platforms` set hardcoded in CLI** -- Added `list_cmake_platforms()` to `platforms/__init__.py` that derives the set dynamically via `issubclass(cls, CMakePlatform)`. Fixed CLI help text and stale comments. Merged misleading split dict in `adapter.py`.
 
-- [ ] **`"both"` platform mode needs per-platform subdirectories or a warning** --
-  `ProjectGenerator.generate()` iterates all registered platforms when `platform == "both"`, but generates everything into the same output directory. Platforms with same-named files (e.g. `gen_buffer.h`, `CMakeLists.txt`) overwrite each other. May be a stale concern if the refactored CLI no longer exposes "both" mode -- verify first.
+- [x] **`"both"` platform mode needs per-platform subdirectories or a warning** -- Verified "both" was unreachable from CLI (argparse `choices` excluded it). Removed dead code: the `"both"` branch in `_generate_from_export()`, the `+ ["both"]` in `validate()`, and stale comments.
 
 ### Error Handling
 
-- [ ] **`TemplateError` defined but never raised** -- Template-related failures currently raise `ProjectError`. Either use `TemplateError` consistently or remove it.
+- [x] **Structured DSL compile errors** -- Added `line` and `col` fields to all expression AST nodes (`ASTNumber`, `ASTIdent`, `ASTBinExpr`, `ASTUnaryExpr`, `ASTCall`, `ASTDotAccess`, `ASTCompose`). Parser populates them from tokens. All `GDSPCompileError` raise sites now consistently carry source location. dsp-graph can safely access `error.line`, `error.col`, `error.filename` for inline editor markers.
+
+- [x] **`TemplateError` defined but never raised** -- Removed the dead `TemplateError` class from `errors.py`. Template-related failures continue to use `ProjectError`.
 
 ### Minor Code Quality
 
 - [ ] **`builder.py` may be too thin a wrapper** -- adds no logic beyond `get_platform(name).build()`. Note: dsp-graph calls `Builder(project_dir).build(platform)`, so removing the class would require a coordinated change in both repos.
 
-- [ ] **`parser.py`: `validate_buffer_names()` recompiles regex every call** -- Pattern should be a class constant.
+- [x] **`parser.py`: `validate_buffer_names()` recompiles regex every call** -- Hoisted to `C_IDENTIFIER_PATTERN` class constant.
 
-- [ ] **`project.py`: `shared_cache` docstring** says "(clap, vst3)" but also applies to LV2 and SC.
+- [x] **`project.py`: `shared_cache` docstring** says "(clap, vst3)" but also applies to LV2 and SC. Fixed to say "CMake-based platforms".
 
 ### CLI / UX
 
@@ -77,6 +79,7 @@ gen-dsp can be consumed as a library by [dsp-graph](https://github.com/shakfu/ds
 ### Documentation
 
 - [ ] **API documentation for core modules** (`parser`, `manifest`, `project`, `builder`) for CLI library users. Lower priority than graph subpackage docs since dsp-graph doesn't consume these.
+
 - [ ] **Architecture diagram** (visual, not just text in CLAUDE.md).
 - [ ] **`pyproject.toml` keywords** missing newer platform names (chuck, audiounit, clap, vst3, lv2, supercollider, daisy, vcvrack, circle).
 - [ ] **`pyproject.toml` classifiers** missing `"Operating System :: Microsoft :: Windows"` despite Windows support.

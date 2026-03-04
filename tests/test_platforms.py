@@ -157,6 +157,7 @@ _BUILD_SYSTEM_FILES = {
     "vcvrack": "Makefile",
     "daisy": "Makefile",
     "circle": "Makefile",
+    "webaudio": "Makefile",
 }
 
 

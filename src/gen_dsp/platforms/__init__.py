@@ -23,6 +23,7 @@ from gen_dsp.platforms.supercollider import SuperColliderPlatform
 from gen_dsp.platforms.vcvrack import VcvRackPlatform
 from gen_dsp.platforms.daisy import DaisyPlatform
 from gen_dsp.platforms.circle import CirclePlatform
+from gen_dsp.platforms.webaudio import WebAudioPlatform
 
 
 # Registry mapping platform names to their implementation classes.
@@ -42,6 +43,7 @@ PLATFORM_REGISTRY: dict[str, Type[Platform]] = {
     "vcvrack": VcvRackPlatform,
     "daisy": DaisyPlatform,
     "circle": CirclePlatform,
+    "webaudio": WebAudioPlatform,
 }
 
 
@@ -93,6 +95,20 @@ def list_platforms() -> list[str]:
     return sorted(PLATFORM_REGISTRY.keys())
 
 
+def list_cmake_platforms() -> list[str]:
+    """
+    List platform names that use CMake (i.e. subclass CMakePlatform).
+
+    Returns:
+        Sorted list of CMake-based platform identifiers.
+    """
+    return sorted(
+        name
+        for name, cls in PLATFORM_REGISTRY.items()
+        if issubclass(cls, CMakePlatform)
+    )
+
+
 def is_valid_platform(name: str) -> bool:
     """
     Check if a platform name is valid.
@@ -121,9 +137,11 @@ __all__ = [
     "VcvRackPlatform",
     "DaisyPlatform",
     "CirclePlatform",
+    "WebAudioPlatform",
     "PLATFORM_REGISTRY",
     "get_platform",
     "get_platform_class",
     "list_platforms",
+    "list_cmake_platforms",
     "is_valid_platform",
 ]

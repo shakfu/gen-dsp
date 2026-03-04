@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.16]
+
+### Added
+
+- **Web Audio (AudioWorklet + WASM) backend** -- New `webaudio` platform compiles gen~ exports to WebAssembly via Emscripten (`emcc`). Output: `.wasm` + `.js` glue + `processor.js` (AudioWorkletProcessor). Make-based build (direct `emcc` invocation). Follows standard header isolation pattern with `_ext_webaudio.cpp` (genlib side) and `gen_ext_webaudio.cpp` (Emscripten bridge exporting `wa_create`, `wa_destroy`, `wa_perform`, param accessors via `EMSCRIPTEN_KEEPALIVE`). Graph adapter support included (`_makefile_webaudio` in `adapter.py`). Platform key: `"webaudio"`. No buffer loading support yet (browser async file I/O deferred to follow-up).
+
+### Changed
+
+- **`list_cmake_platforms()` registry query** -- New helper in `platforms/__init__.py` derives CMake-based platform names dynamically via `issubclass(cls, CMakePlatform)`, replacing hardcoded sets. CLI help text and `ProjectConfig` comments updated to avoid enumerating specific platforms.
+- **`adapter.py`: merged split dispatch dict** -- The misleading `cmake_platforms` / `make_platforms` split in `generate_graph_build_file()` is now a single `_build_file_generators` dict, since the cmake/make distinction was irrelevant for dispatch (e.g. `max` was in `make_platforms` but called `_cmake_max`).
+
+### Fixed
+
+- **`GDSPCompileError` now consistently carries `line`/`col`** -- All expression AST nodes (`ASTNumber`, `ASTIdent`, `ASTBinExpr`, `ASTUnaryExpr`, `ASTCall`, `ASTDotAccess`, `ASTCompose`) now carry `line` and `col` fields populated from source tokens. Every `GDSPCompileError` raise site passes these through, enabling downstream consumers (e.g. dsp-graph's editor) to show inline error markers at the correct source location.
+- **`validate_buffer_names()` regex recompiled every call** -- Hoisted to `C_IDENTIFIER_PATTERN` class constant on `GenExportParser`.
+
+### Removed
+
+- **Dead `"both"` platform mode** -- The `"both"` value was accepted by `ProjectConfig.validate()` and handled in `_generate_from_export()`, but was unreachable from the CLI (argparse `choices=list_platforms()` excluded it). It would also have silently overwritten same-named files across platforms. Removed the dead branches, stale comments, and unused import.
+- **Dead `TemplateError` class** -- Defined in `errors.py` but never raised anywhere. Template-related failures use `ProjectError`.
+
 ## [0.1.15]
 
 ### Added

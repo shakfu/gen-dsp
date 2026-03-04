@@ -1,6 +1,6 @@
 [project]
 name = "gen-dsp"
-version = "0.1.15"
+version = "0.1.16"
 description = "Generate multiple dsp plugin formats from Max gen~ exports"
 readme = "README.md"
 license = {text = "MIT"}
@@ -58,7 +58,7 @@ Issues = "https://github.com/shakfu/gen-dsp/issues"
 "tests/graph/*.py" = ["E402"]
 
 [build-system]
-requires = ["uv_build>=0.9.29,<0.10.0"]
+requires = ["uv_build>=0.10.8,<0.11.0"]
 build-backend = "uv_build"
 
 [tool.pytest.ini_options]

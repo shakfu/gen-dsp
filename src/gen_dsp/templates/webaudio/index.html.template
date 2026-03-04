@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>$lib_name - Web Audio Demo</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    display: flex;
+    justify-content: center;
+    padding: 40px 20px;
+}
+.container { max-width: 480px; width: 100%; }
+h1 { font-size: 1.4em; margin-bottom: 8px; color: #fff; }
+.subtitle { font-size: 0.85em; color: #888; margin-bottom: 24px; }
+button {
+    background: #16213e;
+    color: #e0e0e0;
+    border: 1px solid #0f3460;
+    padding: 10px 24px;
+    font-size: 1em;
+    cursor: pointer;
+    border-radius: 4px;
+    margin-bottom: 24px;
+}
+button:hover { background: #0f3460; }
+button.active { background: #e94560; border-color: #e94560; color: #fff; }
+.param {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+}
+.param label {
+    width: 120px;
+    font-size: 0.85em;
+    color: #aaa;
+}
+.param input[type=range] {
+    flex: 1;
+    margin: 0 12px;
+    accent-color: #e94560;
+}
+.param .value {
+    width: 60px;
+    text-align: right;
+    font-size: 0.85em;
+    color: #888;
+}
+#status { font-size: 0.8em; color: #555; margin-top: 16px; }
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>$lib_name</h1>
+    <div class="subtitle">$num_inputs in / $num_outputs out | $num_params params | gen-dsp webaudio</div>
+    <button id="toggle" onclick="toggleAudio()">Start Audio</button>
+    <div id="params"></div>
+    <div id="status">Click Start to initialize Web Audio.</div>
+</div>
+<script>
+const LIB_NAME = '$lib_name';
+const NUM_INPUTS = $num_inputs;
+const NUM_OUTPUTS = $num_outputs;
+const PARAMS = $param_descriptors;
+
+let ctx = null;
+let workletNode = null;
+let running = false;
+let sourceNode = null;
+
+async function toggleAudio() {
+    const btn = document.getElementById('toggle');
+    if (running) {
+        if (sourceNode) { sourceNode.disconnect(); sourceNode = null; }
+        if (workletNode) { workletNode.disconnect(); workletNode = null; }
+        if (ctx) { await ctx.close(); ctx = null; }
+        running = false;
+        btn.textContent = 'Start Audio';
+        btn.classList.remove('active');
+        document.getElementById('status').textContent = 'Stopped.';
+        return;
+    }
+
+    try {
+        document.getElementById('status').textContent = 'Initializing...';
+        ctx = new AudioContext();
+
+        // Load processor script
+        await ctx.audioWorklet.addModule('processor.js');
+
+        // Fetch WASM binary in main thread (AudioWorklet can't fetch reliably)
+        document.getElementById('status').textContent = 'Loading WASM...';
+        var wasmResponse = await fetch('build/' + LIB_NAME + '.wasm');
+        if (!wasmResponse.ok) throw new Error('Failed to fetch WASM: ' + wasmResponse.status);
+        var wasmBinary = await wasmResponse.arrayBuffer();
+
+        // Create worklet node
+        workletNode = new AudioWorkletNode(ctx, LIB_NAME, {
+            numberOfInputs: NUM_INPUTS > 0 ? 1 : 0,
+            numberOfOutputs: 1,
+            outputChannelCount: [$num_outputs_array]
+        });
+
+        // Send WASM binary to worklet and wait for ready
+        await new Promise((resolve, reject) => {
+            workletNode.port.onmessage = (e) => {
+                if (e.data.type === 'ready') resolve();
+                else if (e.data.type === 'error') reject(new Error(e.data.message));
+            };
+            workletNode.port.postMessage(
+                { type: 'wasm-binary', binary: wasmBinary },
+                [wasmBinary]
+            );
+            setTimeout(() => reject(new Error('WASM load timeout')), 10000);
+        });
+
+        // Connect input source for effects
+        if (NUM_INPUTS > 0) {
+            // Use noise as default input; replace with mic via getUserMedia if desired
+            const bufSize = 2 * ctx.sampleRate;
+            const noiseBuffer = ctx.createBuffer(NUM_INPUTS, bufSize, ctx.sampleRate);
+            for (let ch = 0; ch < NUM_INPUTS; ch++) {
+                const data = noiseBuffer.getChannelData(ch);
+                for (let i = 0; i < bufSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * 0.3;
+                }
+            }
+            sourceNode = ctx.createBufferSource();
+            sourceNode.buffer = noiseBuffer;
+            sourceNode.loop = true;
+            sourceNode.connect(workletNode);
+            sourceNode.start();
+        }
+
+        workletNode.connect(ctx.destination);
+        running = true;
+        btn.textContent = 'Stop Audio';
+        btn.classList.add('active');
+        document.getElementById('status').textContent =
+            'Running at ' + ctx.sampleRate + ' Hz.';
+
+        // Bind parameter sliders
+        for (const p of PARAMS) {
+            const slider = document.getElementById('slider-' + p._index);
+            if (slider && workletNode.parameters.has(p.name)) {
+                const param = workletNode.parameters.get(p.name);
+                slider.addEventListener('input', () => {
+                    param.setValueAtTime(parseFloat(slider.value), ctx.currentTime);
+                    document.getElementById('val-' + p._index).textContent =
+                        parseFloat(slider.value).toFixed(3);
+                });
+            }
+        }
+    } catch (err) {
+        document.getElementById('status').textContent = 'Error: ' + err.message;
+        console.error(err);
+    }
+}
+
+// Build parameter UI
+const paramsDiv = document.getElementById('params');
+for (const p of PARAMS) {
+    const div = document.createElement('div');
+    div.className = 'param';
+    div.innerHTML =
+        '<label>' + p.name + '</label>' +
+        '<input type="range" id="slider-' + p._index + '"' +
+        ' min="' + p.minValue + '" max="' + p.maxValue + '"' +
+        ' value="' + p.defaultValue + '" step="any">' +
+        '<span class="value" id="val-' + p._index + '">' +
+        p.defaultValue.toFixed(3) + '</span>';
+    paramsDiv.appendChild(div);
+}
+</script>
+</body>
+</html>
