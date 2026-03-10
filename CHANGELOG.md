@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.17]
+
 ### Added
 
 - **`--inputs-as-params`** -- New CLI flag to remap gen~ signal inputs to plugin parameters. In gen~, all external inputs are signal-rate `in` objects with no distinction between audio and control data. This flag intercepts specified inputs and exposes them as host-visible parameters instead, allowing patches like `fm_bells` (where `in 1`/`in 2` are pitch/ratio, not audio) to be classified as instruments/generators rather than effects. Two forms: bare `--inputs-as-params` (remap all inputs) or `--inputs-as-params carrier "c/m ratio"` (remap specific inputs by name from `gen_kernel_innames[]`). Supported on all 11 platforms. See [docs/inputs_as_params.md](docs/inputs_as_params.md).
