@@ -368,16 +368,19 @@ multiple gen~ operators to implement.
 ## Remaining Gaps
 
 ### Out of Scope
+
 - FFT operators (`fftinfo`, `fftsize`, etc.) -- no pfft~ support
 - Max/MSP environment (`voice`, `mc_channel`, etc.) -- host-specific
 - `send`/`receive` -- graph wiring abstraction (nodes reference by ID)
 
 ### Trivially Composable
+
 - `interp` -- functionally equivalent to `Mix`
 - `rate` -- phase multiplication via `BinOp("mul")`
 - `nearest`/`sample` -- `BufRead(interp="none"/"linear")`
 
 ### Not Yet Implemented
+
 - `buffer` -- external buffer~ references
 - `channels` -- multi-channel buffer query
 - `vectorsize` -- block size constant

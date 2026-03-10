@@ -24,12 +24,14 @@ There are three realistic approaches. They are not mutually exclusive.
 On note-on, set `freq`, `gate`, and `vel` parameters via `wrapper_set_param()`. The gen~ patch must expose parameters with these names (or configurable names).
 
 **Pros:**
+
 - Minimal wrapper complexity -- just call `wrapper_set_param()` with 2-3 extra values
 - Works with existing gen~ patches that already have `freq`/`gate` params
 - No change to gen~ state API or `perform()` call signature
 - Parameter values persist between blocks (gate stays high until note-off)
 
 **Cons:**
+
 - Control-rate only -- at most one note transition per audio block (e.g., 512 samples at 48kHz = ~10.7ms granularity)
 - Fast note sequences may be lost or merged (two note-ons in one block = only the last one is seen)
 - Requires convention or configuration for which params are MIDI-mapped
@@ -42,11 +44,13 @@ On note-on, set `freq`, `gate`, and `vel` parameters via `wrapper_set_param()`. 
 Synthesize sample-accurate gate/freq/vel signals and prepend them to the `float** ins` array passed to `perform()`. The gen~ patch declares explicit signal inputs for these (e.g., `in 1` = gate, `in 2` = freq).
 
 **Pros:**
+
 - Sample-accurate note timing -- gate transitions land on the exact sample
 - Natural fit for gen~ patches designed with signal-rate inputs
 - No new API -- just adds channels to the existing `perform()` call
 
 **Cons:**
+
 - Requires the gen~ patch to be designed with specific input channels for MIDI data (not the typical instrument pattern)
 - Breaks the "0 inputs = instrument" heuristic (patch now has 2-3 inputs for note data)
 - Buffer allocation and management overhead for synthesized signals
@@ -66,11 +70,13 @@ void wrapper_note_off(GenState* state, int note, float velocity);
 The `_ext_*.cpp` implementation would translate these into `wrapper_set_param()` calls for the mapped parameters.
 
 **Pros:**
+
 - Clean separation of concerns -- host wrapper handles MIDI protocol, ext layer handles mapping
 - Could support sample-accurate event scheduling by queuing events and applying them during `perform()`
 - Single implementation shared across all platforms
 
 **Cons:**
+
 - More API surface in the ext layer
 - Still fundamentally limited to what gen~ can express (no native event handling)
 - Sample-accurate scheduling would require splitting `perform()` into sub-blocks around event boundaries, adding complexity
@@ -112,7 +118,7 @@ The explicit `--midi-freq` / `--midi-gate` / `--midi-vel` flags serve two purpos
 
 The wrapper template receives the param indices at code generation time and wires them in the process loop:
 
-```
+```text
 MIDI note-on  -> wrapper_set_param(state, MIDI_FREQ_IDX, mtof(note))
                  wrapper_set_param(state, MIDI_GATE_IDX, 1.0)
                  wrapper_set_param(state, MIDI_VEL_IDX, velocity / 127.0)
@@ -130,6 +136,7 @@ Single-voice MIDI instrument. Last-note priority (new note-on steals immediately
 ### Per-platform changes
 
 **VST3:**
+
 - Add event bus: `addEventInput(STR16("MIDI In"), 1)` in `initialize()`
 - In `process()`, iterate `data.inputEvents->getEvent()`, handle `Event::kNoteOnEvent` and `Event::kNoteOffEvent`
 - Convert `event.noteOn.pitch` (MIDI note 0-127) to frequency, `event.noteOn.velocity` (float 0-1) to velocity
@@ -137,23 +144,27 @@ Single-voice MIDI instrument. Last-note priority (new note-on steals immediately
 - Declare `kInstrumentSynth` subcategory (already done for 0-input plugins)
 
 **CLAP:**
+
 - Add note port via `CLAP_EXT_NOTE_PORTS` extension
 - In the event loop inside `clap_gen_process()`, handle `CLAP_EVENT_NOTE_ON` / `CLAP_EVENT_NOTE_OFF`
 - CLAP note events have `key` (MIDI note) and `velocity` (float 0-1)
 - Declare `CLAP_PLUGIN_FEATURE_INSTRUMENT` (already done)
 
 **AU:**
+
 - Change type from `augn` (generator) to `aumu` (music device) for MIDI-capable instruments
 - Implement `kMusicDeviceMIDIEventSelect` handler to receive raw MIDI bytes
 - Parse status byte 0x90 (note-on) / 0x80 (note-off), extract note and velocity
 - `augn` stays available for generators that don't want MIDI
 
 **LV2:**
+
 - Add `atom:AtomPort` with `atom:bufferType atom:Sequence` and `atom:supports midi:MidiEvent`
 - In `run()`, iterate the atom sequence, parse MIDI events from `LV2_MIDI_MSG_NOTE_ON` / `LV2_MIDI_MSG_NOTE_OFF`
 - Declare `lv2:InstrumentPlugin` class
 
 **SC / ChucK / VCV Rack / Daisy:**
+
 - SC: MIDI routing handled in the SC language layer, not the UGen. No change needed.
 - ChucK: MIDI handled by ChucK's `MidiIn` class. No change to the chugin.
 - VCV Rack: V/Oct and gate are CV signals, not MIDI. Could add a "MIDI-to-CV" mode, but VCV's own MIDI-CV module is the standard approach. Low priority.
@@ -199,7 +210,7 @@ The process loop checks `#ifdef MIDI_ENABLED` to conditionally compile the MIDI 
 
 Polyphony requires N independent gen~ states processing in parallel, with a voice allocator distributing notes across them.
 
-```
+```text
                     +-- GenState[0] --+
 MIDI note-on  -->   |   GenState[1]  |  --> mix --> audio output
 voice allocator --> |   ...          |
@@ -286,7 +297,7 @@ For the monophonic case, block-rate note handling is acceptable. For polyphony, 
 
 **Sub-block splitting:** Process the audio block in segments, applying note events at their sample-accurate timestamps:
 
-```
+```text
 Block: [0 .................. 512]
 Events:    ^note-on@42  ^note-off@300  ^note-on@301
 

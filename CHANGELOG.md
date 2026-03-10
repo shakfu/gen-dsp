@@ -262,6 +262,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Linear chains detected automatically and still use the simpler Phase 1 codegen path
   - New DAG kernel templates for both DMA and USB audio devices
   - Example DAG graph with fan-out and mixer:
+
     ```json
     {
       "nodes": {
@@ -278,6 +279,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       ]
     }
     ```
+
 - **Graph data model: DAG support** (`src/gen_dsp/core/graph.py`)
   - `Connection` dataclass replacing raw tuples, with optional `dst_input_index` for mixer input targeting
   - `ChainNodeConfig` extended with `node_type` ("gen" / "mixer") and `mixer_inputs` count
@@ -309,9 +311,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - All 14 board variants supported (I2S, PWM, HDMI, USB audio) with both DMA and USB audio chain templates
   - No buffer support in chain Phase 1 (`WRAPPER_BUFFER_COUNT=0`)
   - Example usage:
+
     ```bash
     gen-dsp init ./exports -n mychain -p circle --graph chain.json -o ./mychain
     ```
+
 - **Graph data model** (`src/gen_dsp/core/graph.py`) -- pure data model for multi-plugin chain configurations
   - `ChainNodeConfig`, `GraphConfig`, `ResolvedChainNode` dataclasses
   - `parse_graph()`: JSON loading with validation (missing fields, bad types, invalid CC keys)
@@ -427,9 +431,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `parse_params_from_export()`: consolidated parameter parsing regex (was duplicated in SC and LV2)
   - `manifest_from_export_info()`: builds a Manifest from a parsed gen~ ExportInfo
 - **`gen-dsp manifest` CLI command** -- emits the parsed Manifest as JSON to stdout without generating a project
+
   ```bash
   gen-dsp manifest ./path/to/export [--buffers ...]
   ```
+
 - **`manifest.json` emitted to project root** on every `gen-dsp init` -- machine-readable provenance file describing I/O, parameters, buffers, and tool version
 - Parameter metadata now available to all 11 platform backends via `manifest.params` (previously only SC and LV2 parsed params)
 

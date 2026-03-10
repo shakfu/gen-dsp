@@ -2,7 +2,7 @@
 
 ## Tools
 
-- [pluginval](https://github.com/Tracktion/pluginval) - AudioUnit, VST3, LV2 --  Cross-platform open-source plugin validation tool made by the company Tracktion.
+- [pluginval](https://github.com/Tracktion/pluginval) - AudioUnit, VST3, LV2 -- Cross-platform open-source plugin validation tool made by the company Tracktion.
 
 - [clap-validator](https://github.com/free-audio/clap-validator) - An open-source CLAP plugin validation tool.
 

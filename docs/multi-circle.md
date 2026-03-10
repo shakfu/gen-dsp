@@ -9,6 +9,7 @@ The Circle backend produces a single-purpose bare-metal kernel image: one gen~ e
 Support multiple gen~ plugins in a single bare-metal Circle image, with compile-time graph configuration via JSON and runtime parameter control via USB MIDI.
 
 The implementation is split into two phases:
+
 - **Phase 1:** Serial chain (single core) -- linear pipeline of effects
 - **Phase 2:** Mixer/router topology -- arbitrary DAGs with splits, parallel paths, and mixing
 
@@ -47,14 +48,17 @@ Parameter *values* and MIDI CC mappings are baked into the generated code from t
 ```
 
 **Reserved node names:**
+
 - `audio_in` -- hardware audio input (channel count from board config, currently stereo)
 - `audio_out` -- hardware audio output
 
 **Connection format:**
+
 - `["A", "B"]` -- connect A's outputs to B's inputs sequentially (out[0]->in[0], out[1]->in[1], zero-pad or truncate on mismatch)
 - `["A", "B:1"]` -- connect A's outputs to B's input starting at index 1 (for mixer input selection)
 
 **MIDI mapping:**
+
 - `channel` assigns a MIDI channel to the node
 - Without `cc`, CCs map to parameters by index (CC 0 -> param 0, CC 1 -> param 1, etc.)
 - With `cc`, explicit CC-to-param-name mappings replace the default index-based mapping
@@ -117,7 +121,7 @@ void process_graph(float** hw_in, float** hw_out, int nframes) {
 
 This represents:
 
-```
+```text
              +-> [reverb] --+
 audio_in --->|              |--> [mix] --> [comp] --> audio_out
              +-> [delay]  --+
@@ -168,7 +172,7 @@ The current single-plugin Circle backend has entirely static parameters -- `CKer
 - `CKernel::Run()` runs in the main loop on core 0 between interrupts -- this is where MIDI/GPIO/network input is polled.
 - `wrapper_set_param()` writes a single aligned 32-bit float, which is atomic on ARM. No lock needed between `Run()` and the ISR.
 
-```
+```text
 CKernel::Run()                          DMA ISR (GetChunk)
   |                                       |
   v                                       v
@@ -289,6 +293,7 @@ Phase 1 uses the same JSON format as Phase 2. The only difference is that Phase 
 The JSON graph is a **compile-time** input. It is read by `gen-dsp` in Python, and the output is generated C code with a hardcoded `process_graph()` function. No JSON parser runs on the Pi.
 
 This means:
+
 - Changing the graph topology requires re-running `gen-dsp` + `build`
 - Changing parameter values does not -- presets could be loaded from SD card at boot **(not yet implemented)**
 - Changing MIDI CC mappings could go either way; baked-in defaults with optional SD card overrides is the pragmatic choice **(SD card overrides not yet implemented)**
@@ -308,10 +313,12 @@ This means:
 ### Channel Mismatch Handling
 
 When plugin A outputs 2 channels but plugin B expects 3 inputs:
+
 - Zero-pad: B's input[2] receives silence
 - Log a warning at generation time so the user is aware
 
 When plugin A outputs 3 channels but plugin B expects 2 inputs:
+
 - Truncate: B only receives A's first 2 channels
 - Log a warning at generation time
 
@@ -324,6 +331,7 @@ This matches how most DAWs handle bus width mismatches.
 ### Multi-Core
 
 Circle's `CMultiCoreSupport` provides:
+
 - `Run(unsigned nCore)` entry point for cores 1-3
 - `CSpinLock` for critical sections
 - `SendIPI()` / `IPIHandler()` for inter-processor interrupts
@@ -336,6 +344,7 @@ Not needed for Phase 1 or 2 (single-core is sufficient for typical gen~ patch co
 ### USB MIDI
 
 `CUSBMIDIDevice` provides:
+
 - `RegisterPacketHandler()` for receiving 4-byte USB-MIDI event packets
 - Hot-plug support (devices can be attached/removed at any time)
 - Multiple devices via USB hub

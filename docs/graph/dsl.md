@@ -65,6 +65,7 @@ graph NAME [(options)] {
 ```
 
 Options (all optional):
+
 - `sr=NUMBER` -- sample rate (default 44100). Makes `sr` available as an implicit `SampleRate` node inside the graph body.
 - `control=NUMBER` -- control interval in samples (default 0 = disabled).
 
@@ -135,6 +136,7 @@ a, b, c = gate_route(signal, index, 3)
 ```
 
 Compiles to:
+
 - `GateRoute(id="_gate_0", a="signal", index="index", count=3)`
 - `GateOut(id="a", gate="_gate_0", channel=1)`
 - `GateOut(id="b", gate="_gate_0", channel=2)`
@@ -211,7 +213,8 @@ Parentheses for grouping: `(a + b) * c`.
 Function-call syntax maps to node constructors -- the function name determines the node type (see [Node Type Inference](#node-type-inference) above). Positional args fill fields in declaration order; keyword args fill by name.
 
 **Unary math** (all `UnaryOp` variants):
-```
+
+```text
 sin(x)  cos(x)  tan(x)  tanh(x)  sinh(x)  cosh(x)
 asin(x) acos(x) atan(x) asinh(x) acosh(x) atanh(x)
 exp(x)  exp2(x) log(x)  log2(x)  log10(x)
@@ -228,14 +231,16 @@ fastsin(x) fastcos(x) fasttan(x) fastexp(x) fastpow(a, b)
 Note: `fastpow(a, b)` is a `BinOp(op="fastpow")`, not unary.
 
 **Binary math** (additional `BinOp` variants not covered by infix):
-```
+
+```text
 min(a, b)     max(a, b)     atan2(a, b)
 hypot(a, b)   absdiff(a, b) step(a, b)
 and(a, b)     or(a, b)      xor(a, b)
 ```
 
 **Oscillators**:
-```
+
+```text
 phasor(freq)                  # 0..1 ramp
 sinosc(freq)                  # sine wave
 triosc(freq)                  # triangle wave
@@ -245,7 +250,8 @@ noise()                       # white noise
 ```
 
 **Filters**:
-```
+
+```text
 onepole(input, coeff)
 svf(input, freq, q, mode=lp)           # mode: lp|hp|bp|notch
 biquad(input, b0, b1, b2, a1, a2)
@@ -254,7 +260,8 @@ allpass(input, coeff)
 ```
 
 **Range / shaping**:
-```
+
+```text
 clamp(x, lo, hi)              # default lo=0 hi=1
 wrap(x, lo, hi)
 fold(x, lo, hi)
@@ -264,7 +271,8 @@ smoothstep(x, edge0, edge1)
 ```
 
 **Control / dynamics**:
-```
+
+```text
 smooth(x, coeff)              # one-pole parameter smoother
 slide(x, up, down)            # slew limiter
 adsr(gate, attack, decay, sustain, release)   # times in ms
@@ -272,7 +280,8 @@ select(cond, a, b)            # cond != 0 ? a : b
 ```
 
 **State**:
-```
+
+```text
 delta(x)                      # difference from previous sample
 change(x)                     # 1 when value changes, else 0
 sample_hold(x, trig)
@@ -284,7 +293,8 @@ rate_div(x, divisor)
 ```
 
 **Routing**:
-```
+
+```text
 gate_route(signal, index, count)    # 1-to-N demux (use with destructuring)
 gate_out(gate_node, channel)        # read one lane (explicit style)
 selector(index, a, b, ...)         # N-to-1 mux, variadic, 1-based index
@@ -295,7 +305,7 @@ pass(x)                            # identity
 
 Bare keywords (no parentheses):
 
-```
+```text
 pi  e  twopi  halfpi  invpi
 degtorad  radtodeg
 sqrt2  sqrt1_2
@@ -365,6 +375,7 @@ graph reverb {
 The compiler resolves function calls using deferred resolution: if the callee name matches a graph defined in the file, it emits a `Subgraph` node; if it matches a built-in DSP function, it emits the corresponding node type; otherwise it's an error. This keeps the parser context-free.
 
 Compiles to:
+
 ```python
 Subgraph(
     id="ap1",
@@ -595,7 +606,7 @@ NEWLINE      = "\n" ;
 
 ## Compilation Pipeline
 
-```
+```text
 .gdsp source
   |
   v

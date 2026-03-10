@@ -131,6 +131,7 @@ gen-dsp <source> -p <platform> [-n <name>] [-o <output>] [--no-build]
 ```
 
 The source type is auto-detected:
+
 - **Directory** -- treated as a gen~ export
 - **`.gdsp` file** -- parsed as GDSP DSL (requires `gen-dsp[graph]`)
 - **`.json` file** -- parsed as graph JSON (requires `gen-dsp[graph]`)
