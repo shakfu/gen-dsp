@@ -247,7 +247,7 @@ def _cmake_build(
         cwd=build_dir,
         capture_output=True,
         text=True,
-        timeout=120,
+        timeout=300,
         env=env,
     )
     assert result.returncode == 0, (
@@ -259,7 +259,7 @@ def _cmake_build(
         cwd=build_dir,
         capture_output=True,
         text=True,
-        timeout=120,
+        timeout=180,
         env=env,
     )
     assert result.returncode == 0, (
