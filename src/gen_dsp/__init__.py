@@ -14,7 +14,7 @@ from gen_dsp.core.patcher import Patcher
 from gen_dsp.core.builder import Builder
 from gen_dsp.errors import GenExtError
 
-__version__ = "0.1.17"
+__version__ = "0.1.18"
 
 __all__ = [
     "__version__",

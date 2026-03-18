@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.18]
+
 ### Added
 
 - **Standalone backend** -- New `standalone` platform (the 13th backend) that generates self-contained CLI audio applications using [miniaudio](https://miniaud.io/) (public domain, single-header, zero-dependency). Processes real-time audio from system default input/output devices. CLI flags: `-sr` (sample rate), `-bs` (block size), `-p <name> <value>` (set parameter), `-l` (list parameters). Works with both gen~ exports and dsp-graph compiled graphs. Cross-platform: macOS (CoreAudio), Linux (ALSA/PulseAudio), Windows (WASAPI). Mono gen~ outputs are automatically duplicated to stereo for device compatibility. miniaudio.h is downloaded at build time (no bundled dependency). Platform key: `"standalone"`.
