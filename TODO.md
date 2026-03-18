@@ -85,9 +85,9 @@ gen-dsp can be consumed as a library by [dsp-graph](https://github.com/shakfu/ds
 
 ### Plugin Frameworks
 
-- [ ] **AUv3 (iOS/macOS)** - Modern Audio Unit API, required for iOS and increasingly preferred
-  on macOS. Obj-C/Swift wrapper around C++ gen~ core. Significantly different from AUv2 (uses
-  AUAudioUnit base class, Cocoa extension model). Large market.
+- [x] **AUv3 (macOS)** - Modern Audio Unit API via AUAudioUnit subclass (Objective-C++).
+  Built with `cmake -G Xcode` to produce the required `.appex`-inside-`.app` bundle structure.
+  Platform key: `"auv3"`.
   - Docs: <https://developer.apple.com/documentation/audiotoolbox/audio_unit_v3_plug-ins>
 
 - [ ] **DISTRHO Plugin Framework (DPF)** - Can build LADSPA, DSSI, LV2, VST2, VST3, and CLAP.

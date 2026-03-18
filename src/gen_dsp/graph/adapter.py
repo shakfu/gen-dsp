@@ -34,6 +34,7 @@ _PLATFORM_INFO: dict[str, tuple[str, str]] = {
     "webaudio": ("WEBAUDIO_EXT_NAME", "_webaudio"),
     "standalone": ("STANDALONE_EXT_NAME", "_standalone"),
     "csound": ("CSOUND_EXT_NAME", "_csound"),
+    "auv3": ("AUV3_EXT_NAME", "_auv3"),
 }
 
 SUPPORTED_PLATFORMS = set(_PLATFORM_INFO.keys())

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleDisplayName</key>
+    <string>$lib_name</string>
+    <key>CFBundleExecutable</key>
+    <string>$lib_name-AUv3</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.gen-dsp.$lib_name.auv3</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>$lib_name AUv3</string>
+    <key>CFBundlePackageType</key>
+    <string>XPC!</string>
+    <key>CFBundleShortVersionString</key>
+    <string>$genext_version</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>NSExtension</key>
+    <dict>
+        <key>NSExtensionAttributes</key>
+        <dict>
+            <key>AudioComponents</key>
+            <array>
+                <dict>
+                    <key>type</key>
+                    <string>$au_type</string>
+                    <key>subtype</key>
+                    <string>$au_subtype</string>
+                    <key>manufacturer</key>
+                    <string>$au_manufacturer</string>
+                    <key>name</key>
+                    <string>gen-dsp: $lib_name</string>
+                    <key>description</key>
+                    <string>$lib_name AUv3 (gen-dsp)</string>
+                    <key>version</key>
+                    <integer>$au_version</integer>
+                    <key>sandboxSafe</key>
+                    <true/>
+                    <key>tags</key>
+                    <array>
+                        <string>$au_tag</string>
+                    </array>
+                </dict>
+            </array>
+        </dict>
+        <key>NSExtensionPointIdentifier</key>
+        <string>com.apple.AudioUnit</string>
+        <key>NSExtensionPrincipalClass</key>
+        <string>GenDspAUv3Factory</string>
+    </dict>
+</dict>
+</plist>

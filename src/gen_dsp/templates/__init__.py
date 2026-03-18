@@ -79,3 +79,7 @@ def get_standalone_templates_dir() -> Path:
 
 def get_csound_templates_dir() -> Path:
     return get_templates_dir("csound")
+
+
+def get_auv3_templates_dir() -> Path:
+    return get_templates_dir("auv3")

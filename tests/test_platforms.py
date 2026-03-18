@@ -160,6 +160,7 @@ _BUILD_SYSTEM_FILES = {
     "webaudio": "Makefile",
     "standalone": "Makefile",
     "csound": "Makefile",
+    "auv3": "CMakeLists.txt",
 }
 
 
