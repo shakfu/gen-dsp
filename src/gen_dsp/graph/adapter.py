@@ -1366,9 +1366,9 @@ def _makefile_csound(**kwargs: object) -> Path:
     lib_name = str(kwargs["lib_name"])
     gen_name = str(kwargs["gen_name"])
     genext_version = str(kwargs["genext_version"])
-    num_inputs = int(kwargs.get("num_inputs", 0))  # type: ignore[arg-type]
-    num_outputs = int(kwargs.get("num_outputs", 1))  # type: ignore[arg-type]
-    num_params = int(kwargs.get("num_params", 0))  # type: ignore[arg-type]
+    num_inputs = int(str(kwargs.get("num_inputs", 0)))
+    num_outputs = int(str(kwargs.get("num_outputs", 1)))
+    num_params = int(str(kwargs.get("num_params", 0)))
 
     from gen_dsp.platforms.csound import _build_type_strings
 

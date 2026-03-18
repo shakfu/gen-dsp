@@ -25,7 +25,9 @@ if _is_macos and _has_cmake:
     try:
         r = subprocess.run(
             ["cmake", "--help"],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         _has_xcode = "Xcode" in r.stdout
     except Exception:
@@ -88,9 +90,7 @@ class TestAuv3ProjectGeneration:
         parser = GenExportParser(rampleplayer_export)
         export_info = parser.parse()
 
-        config = ProjectConfig(
-            name="testsampler", platform="auv3", buffers=["sample"]
-        )
+        config = ProjectConfig(name="testsampler", platform="auv3", buffers=["sample"])
         generator = ProjectGenerator(export_info, config)
         project_dir = generator.generate(tmp_project)
 

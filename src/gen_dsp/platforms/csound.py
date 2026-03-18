@@ -62,9 +62,7 @@ class CsoundPlatform(Platform):
         """Generate Csound opcode project files."""
         templates_dir = get_csound_templates_dir()
         if not templates_dir.is_dir():
-            raise ProjectError(
-                f"Csound templates not found at {templates_dir}"
-            )
+            raise ProjectError(f"Csound templates not found at {templates_dir}")
 
         # Copy static files
         static_files = [

@@ -204,9 +204,7 @@ class TestStandaloneBuildIntegration:
         assert exe.stat().st_size > 0
 
     @_skip_no_build
-    def test_build_spectraldelayfb(
-        self, spectraldelayfb_export: Path, tmp_path: Path
-    ):
+    def test_build_spectraldelayfb(self, spectraldelayfb_export: Path, tmp_path: Path):
         """Generate and compile spectraldelayfb (3in/2out) standalone."""
         project_dir = tmp_path / "spectraldelayfb_standalone"
         parser = GenExportParser(spectraldelayfb_export)

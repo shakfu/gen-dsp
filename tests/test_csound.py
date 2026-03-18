@@ -187,9 +187,7 @@ class TestCsoundProjectGeneration:
         assert 'CSOUND_OUTYPES=\\"aa\\"' in makefile
         assert 'CSOUND_INTYPES=\\"aaa\\"' in makefile
 
-    def test_gen_ext_csound_cpp_content(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_gen_ext_csound_cpp_content(self, gigaverb_export: Path, tmp_project: Path):
         """Test that gen_ext_csound.cpp has correct content."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
@@ -207,9 +205,7 @@ class TestCsoundProjectGeneration:
         assert "wrapper_create" in content
         assert "wrapper_perform" in content
 
-    def test_generate_copies_gen_export(
-        self, gigaverb_export: Path, tmp_project: Path
-    ):
+    def test_generate_copies_gen_export(self, gigaverb_export: Path, tmp_project: Path):
         """Test that gen~ export is copied to project."""
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
@@ -277,9 +273,7 @@ class TestCsoundBuildIntegration:
         assert libs[0].stat().st_size > 0
 
     @_skip_no_build
-    def test_build_spectraldelayfb(
-        self, spectraldelayfb_export: Path, tmp_path: Path
-    ):
+    def test_build_spectraldelayfb(self, spectraldelayfb_export: Path, tmp_path: Path):
         """Generate and compile spectraldelayfb (3in/2out) Csound opcode."""
         project_dir = tmp_path / "spectraldelayfb_csound"
         parser = GenExportParser(spectraldelayfb_export)

@@ -153,9 +153,9 @@ class Auv3Platform(Platform):
     ) -> None:
         if not template_path.exists():
             raise ProjectError(f"Template not found at {template_path}")
-        content = Template(
-            template_path.read_text(encoding="utf-8")
-        ).safe_substitute(**subs)
+        content = Template(template_path.read_text(encoding="utf-8")).safe_substitute(
+            **subs
+        )
         output_path.write_text(content, encoding="utf-8")
 
     def build(
@@ -179,22 +179,29 @@ class Auv3Platform(Platform):
         )
         if configure.returncode != 0:
             return BuildResult(
-                success=False, platform=self.name, output_file=None,
-                stdout=configure.stdout, stderr=configure.stderr,
+                success=False,
+                platform=self.name,
+                output_file=None,
+                stdout=configure.stdout,
+                stderr=configure.stderr,
                 return_code=configure.returncode,
             )
 
         # Build
         result = self.run_command(
             ["cmake", "--build", ".", "--config", "Release"],
-            build_dir, verbose=verbose,
+            build_dir,
+            verbose=verbose,
         )
         output_file = self.find_output(project_dir)
 
         return BuildResult(
-            success=result.returncode == 0, platform=self.name,
-            output_file=output_file, stdout=result.stdout,
-            stderr=result.stderr, return_code=result.returncode,
+            success=result.returncode == 0,
+            platform=self.name,
+            output_file=output_file,
+            stdout=result.stdout,
+            stderr=result.stderr,
+            return_code=result.returncode,
         )
 
     def clean(self, project_dir: Path) -> None:

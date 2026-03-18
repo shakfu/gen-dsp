@@ -48,9 +48,7 @@ class StandalonePlatform(Platform):
         """Generate standalone project files."""
         templates_dir = get_standalone_templates_dir()
         if not templates_dir.is_dir():
-            raise ProjectError(
-                f"Standalone templates not found at {templates_dir}"
-            )
+            raise ProjectError(f"Standalone templates not found at {templates_dir}")
 
         # Copy static files
         static_files = [
