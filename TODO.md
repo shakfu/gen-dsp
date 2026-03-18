@@ -120,6 +120,6 @@ gen-dsp can be consumed as a library by [dsp-graph](https://github.com/shakfu/ds
 
 ### Academic / Music Languages
 
-- [ ] **Csound opcode** - Well-defined C API for custom opcodes. Niche but long-lived community
-  (academic, electroacoustic composition).
+- [x] **Csound opcode** - Well-defined C API for custom opcodes. Niche but long-lived community
+  (academic, electroacoustic composition). Platform key: `"csound"`.
   - Docs: <https://csound.com/docs/manual/OrchTop.html>

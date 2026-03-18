@@ -25,6 +25,7 @@ from gen_dsp.platforms.daisy import DaisyPlatform
 from gen_dsp.platforms.circle import CirclePlatform
 from gen_dsp.platforms.webaudio import WebAudioPlatform
 from gen_dsp.platforms.standalone import StandalonePlatform
+from gen_dsp.platforms.csound import CsoundPlatform
 
 
 # Registry mapping platform names to their implementation classes.
@@ -46,6 +47,7 @@ PLATFORM_REGISTRY: dict[str, Type[Platform]] = {
     "circle": CirclePlatform,
     "webaudio": WebAudioPlatform,
     "standalone": StandalonePlatform,
+    "csound": CsoundPlatform,
 }
 
 
@@ -141,6 +143,7 @@ __all__ = [
     "CirclePlatform",
     "WebAudioPlatform",
     "StandalonePlatform",
+    "CsoundPlatform",
     "PLATFORM_REGISTRY",
     "get_platform",
     "get_platform_class",

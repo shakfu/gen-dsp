@@ -75,3 +75,7 @@ def get_webaudio_templates_dir() -> Path:
 
 def get_standalone_templates_dir() -> Path:
     return get_templates_dir("standalone")
+
+
+def get_csound_templates_dir() -> Path:
+    return get_templates_dir("csound")

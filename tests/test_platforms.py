@@ -159,6 +159,7 @@ _BUILD_SYSTEM_FILES = {
     "circle": "Makefile",
     "webaudio": "Makefile",
     "standalone": "Makefile",
+    "csound": "Makefile",
 }
 
 
