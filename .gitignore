@@ -19,3 +19,4 @@ wheels/
 # agents
 .claude
 CLAUDE.md
+site/

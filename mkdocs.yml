@@ -1,0 +1,97 @@
+site_name: gen-dsp
+site_description: Generate buildable audio DSP plugin projects from Max/MSP gen~ code exports
+site_url: https://shakfu.github.io/gen-dsp/
+repo_url: https://github.com/shakfu/gen-dsp
+repo_name: shakfu/gen-dsp
+
+theme:
+  name: material
+  palette:
+    scheme: slate
+    primary: deep purple
+    accent: amber
+  features:
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+    - search.highlight
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_source: false
+            show_root_heading: true
+            show_root_full_path: false
+            heading_level: 2
+            members_order: source
+            docstring_style: google
+            merge_init_into_class: true
+            show_signature_annotations: true
+            separate_signature: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started: cheatsheet.md
+  - Guides:
+    - MIDI / CV: midi-cv.md
+    - Input Remapping: inputs_as_params.md
+    - Validating Plugins: validating_plugins.md
+    - Adding New Backends: new_backends.md
+    - Multi-Plugin Circle: multi-circle.md
+  - Backends:
+    - PureData: backends/puredata.md
+    - Max/MSP: backends/max.md
+    - ChucK: backends/chuck.md
+    - AudioUnit (AUv2): backends/audiounit.md
+    - AUv3: backends/auv3.md
+    - CLAP: backends/clap.md
+    - VST3: backends/vst3.md
+    - LV2: backends/lv2.md
+    - SuperCollider: backends/supercollider.md
+    - VCV Rack: backends/vcvrack.md
+    - Daisy: backends/daisy.md
+    - Circle: backends/circle.md
+    - Web Audio: backends/webaudio.md
+    - Standalone: backends/standalone.md
+    - Csound: backends/csound.md
+  - Graph Frontend:
+    - Overview: graph/README.md
+    - API Reference: graph/api.md
+    - DSL: graph/dsl.md
+    - Coverage: graph/coverage.md
+  - API Reference:
+    - Overview: api/index.md
+    - Core:
+      - Parser: api/parser.md
+      - Manifest: api/manifest.md
+      - Project: api/project.md
+      - Builder: api/builder.md
+      - Patcher: api/patcher.md
+      - Cache: api/cache.md
+      - MIDI: api/midi.md
+    - Platforms:
+      - Platform Base: api/platforms.md
+    - Errors: api/errors.md
+    - Graph:
+      - Models: api/graph-models.md
+      - Compile: api/graph-compile.md
+      - Validate: api/graph-validate.md
+      - Optimize: api/graph-optimize.md
+      - Simulate: api/graph-simulate.md
+      - Algebra: api/graph-algebra.md
+      - Adapter: api/graph-adapter.md
+  - Changelog: changelog.md

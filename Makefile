@@ -2,7 +2,7 @@
 
 .PHONY: all install install-dev test test-cov clean dist publish-test publish \
        help venv examples graph-examples lint format typecheck qa \
-       gen-export-examples
+       gen-export-examples docs-build docs-serve docs-deploy
 
 VENV := .venv
 UV := uv
@@ -161,6 +161,19 @@ else
 graph-examples: $(GRAPH_PORTABLE)
 endif
 
+# ---------------------------------------------------------------------------
+# Documentation (mkdocs + mkdocstrings)
+# ---------------------------------------------------------------------------
+
+docs-build:
+	$(UV) run mkdocs build
+
+docs-serve:
+	$(UV) run mkdocs serve
+
+docs-deploy:
+	$(UV) run mkdocs gh-deploy --force
+
 # Build distribution
 dist: clean
 	$(UV) build
@@ -220,6 +233,12 @@ help:
 	@echo "  dist             - Build distribution packages"
 	@echo "  publish-test     - Upload to TestPyPI"
 	@echo "  publish          - Upload to PyPI"
+	@echo ""
+	@echo "Documentation:"
+	@echo "  docs-build       - Build mkdocs site to site/"
+	@echo "  docs-serve       - Serve docs locally (http://127.0.0.1:8000)"
+	@echo "  docs-deploy      - Deploy docs to GitHub Pages"
+	@echo ""
 	@echo "  help             - Show this help message"
 	@echo ""
 	@echo "Override variables:"
