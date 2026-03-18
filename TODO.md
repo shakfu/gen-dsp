@@ -70,7 +70,25 @@ gen-dsp can be consumed as a library by [dsp-graph](https://github.com/shakfu/ds
 - [ ] **Teensy Audio Library** - Arduino-compatible, popular for DIY synths.
   - Docs: <https://www.pjrc.com/teensy/td_libs_Audio.html>
 
+- [ ] **OWL (Rebel Technology)** - Programmable guitar pedal platform with a C++ API. Similar to
+  Daisy in concept, small but dedicated community.
+  - Docs: <https://www.rebeltech.org/docs/>
+
+### Standalone
+
+- [x] **Standalone (miniaudio)** - Self-contained CLI executable that processes audio
+  I/O directly. Useful for testing, prototyping, and headless audio appliances (Raspberry Pi,
+  etc.). Minimal API surface -- just open a stream and call `perform()`. miniaudio is a single
+  header file with no dependencies. Platform key: `"standalone"`.
+  - miniaudio: <https://miniaud.io/>
+  - PortAudio: <http://www.portaudio.com/>
+
 ### Plugin Frameworks
+
+- [ ] **AUv3 (iOS/macOS)** - Modern Audio Unit API, required for iOS and increasingly preferred
+  on macOS. Obj-C/Swift wrapper around C++ gen~ core. Significantly different from AUv2 (uses
+  AUAudioUnit base class, Cocoa extension model). Large market.
+  - Docs: <https://developer.apple.com/documentation/audiotoolbox/audio_unit_v3_plug-ins>
 
 - [ ] **DISTRHO Plugin Framework (DPF)** - Can build LADSPA, DSSI, LV2, VST2, VST3, and CLAP.
   Main value-add over current coverage is LADSPA/DSSI. JACK/Standalone mode useful for headless
@@ -80,3 +98,28 @@ gen-dsp can be consumed as a library by [dsp-graph](https://github.com/shakfu/ds
 - [ ] **JUCE (VST/AU/AAX)** - Abstracts plugin formats. AU, CLAP, VST3, and LV2 are already
   covered natively without JUCE, so the only real value-add is AAX (Pro Tools). Requires Avid NDA. Low priority unless Pro Tools support is specifically requested.
   - Docs: <https://juce.com/>
+
+### Hardware Platforms
+
+- [ ] **Move Everything (Ableton Move)** - Unofficial framework for custom DSP on Ableton Move
+  hardware. ARM64 Linux `.so` plugins via C plugin API v2. Key challenges: int16 stereo
+  interleaved audio (not float), cross-compilation, stereo-only I/O. CC BY-NC-SA 4.0 license
+  may constrain template code. Closest analog: Daisy backend.
+  - Repo: <https://github.com/charlesvestal/move-everything>
+  - Assessment: [docs/move-everything.md](docs/move-everything.md)
+
+### Game Audio
+
+- [ ] **FMOD plugin** - Game audio middleware with a clean C DSP plugin API. Taps into game audio
+  market that gen-dsp currently doesn't reach.
+  - Docs: <https://www.fmod.com/docs/2.03/api/plugin-api.html>
+
+- [ ] **Wwise plugin** - Audiokinetic's game audio middleware. C++ plugin API. Similar market to
+  FMOD but different ecosystem (Unreal-heavy).
+  - Docs: <https://www.audiokinetic.com/en/library/edge/?source=SDK>
+
+### Academic / Music Languages
+
+- [ ] **Csound opcode** - Well-defined C API for custom opcodes. Niche but long-lived community
+  (academic, electroacoustic composition).
+  - Docs: <https://csound.com/docs/manual/OrchTop.html>

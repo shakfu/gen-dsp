@@ -71,3 +71,7 @@ def get_circle_templates_dir() -> Path:
 
 def get_webaudio_templates_dir() -> Path:
     return get_templates_dir("webaudio")
+
+
+def get_standalone_templates_dir() -> Path:
+    return get_templates_dir("standalone")

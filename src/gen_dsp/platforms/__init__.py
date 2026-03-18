@@ -24,6 +24,7 @@ from gen_dsp.platforms.vcvrack import VcvRackPlatform
 from gen_dsp.platforms.daisy import DaisyPlatform
 from gen_dsp.platforms.circle import CirclePlatform
 from gen_dsp.platforms.webaudio import WebAudioPlatform
+from gen_dsp.platforms.standalone import StandalonePlatform
 
 
 # Registry mapping platform names to their implementation classes.
@@ -44,6 +45,7 @@ PLATFORM_REGISTRY: dict[str, Type[Platform]] = {
     "daisy": DaisyPlatform,
     "circle": CirclePlatform,
     "webaudio": WebAudioPlatform,
+    "standalone": StandalonePlatform,
 }
 
 
@@ -138,6 +140,7 @@ __all__ = [
     "DaisyPlatform",
     "CirclePlatform",
     "WebAudioPlatform",
+    "StandalonePlatform",
     "PLATFORM_REGISTRY",
     "get_platform",
     "get_platform_class",

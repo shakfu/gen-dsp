@@ -158,6 +158,7 @@ _BUILD_SYSTEM_FILES = {
     "daisy": "Makefile",
     "circle": "Makefile",
     "webaudio": "Makefile",
+    "standalone": "Makefile",
 }
 
 
