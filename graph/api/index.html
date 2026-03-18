@@ -1,0 +1,3613 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Generate buildable audio DSP plugin projects from Max/MSP gen~ code exports">
+      
+      
+      
+        <link rel="canonical" href="https://shakfu.github.io/gen-dsp/graph/api/">
+      
+      
+        <link rel="prev" href="../">
+      
+      
+        <link rel="next" href="../dsl/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+    
+    
+      
+        <title>API Reference - gen-dsp</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#gen_dspgraph-api-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="gen-dsp" class="md-header__button md-logo" aria-label="gen-dsp" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            gen-dsp
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              API Reference
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/shakfu/gen-dsp" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    shakfu/gen-dsp
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="gen-dsp" class="md-nav__button md-logo" aria-label="gen-dsp" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    gen-dsp
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/shakfu/gen-dsp" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    shakfu/gen-dsp
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cheatsheet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../midi-cv/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MIDI / CV
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../inputs_as_params/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Input Remapping
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../validating_plugins/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validating Plugins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../new_backends/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adding New Backends
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../multi-circle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Plugin Circle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backends
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Backends
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backends/puredata/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PureData
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backends/max/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Max/MSP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backends/chuck/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ChucK
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backends/audiounit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AudioUnit (AUv2)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backends/auv3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AUv3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backends/clap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLAP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backends/vst3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    VST3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backends/lv2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LV2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backends/supercollider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SuperCollider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backends/vcvrack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    VCV Rack
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backends/daisy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Daisy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backends/circle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Circle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backends/webaudio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Web Audio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backends/standalone/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Standalone
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backends/csound/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Csound
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Graph Frontend
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Graph Frontend
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#dsl-parsing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DSL Parsing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DSL Parsing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#parsesource-filenamestring-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        parse(source, *, filename="&lt;string&gt;") -&gt; Graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parse_multisource-filenamestring-dictstr-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        parse_multi(source, *, filename="&lt;string&gt;") -&gt; dict[str, Graph]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parse_filepath-multifalse-graph-dictstr-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        parse_file(path, *, multi=False) -&gt; Graph | dict[str, Graph]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#class-gdspsyntaxerrorexception" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        class GDSPSyntaxError(Exception)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#class-gdspcompileerrorexception" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        class GDSPCompileError(Exception)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#validate_graphgraph-warn_unmapped_paramsfalse-listgraphvalidationerror" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        validate_graph(graph, *, warn_unmapped_params=False) -&gt; list[GraphValidationError]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#class-graphvalidationerrorstr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        class GraphValidationError(str)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compilation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compilation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Compilation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#compile_graphgraph-str" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compile_graph(graph) -&gt; str
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compile_graph_to_filegraph-output_dir-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compile_graph_to_file(graph, output_dir) -&gt; Path
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optimization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optimization
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Optimization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#optimize_graphgraph-optimizeresult" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        optimize_graph(graph) -&gt; OptimizeResult
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#constant_foldgraph-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        constant_fold(graph) -&gt; Graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#eliminate_dead_nodesgraph-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        eliminate_dead_nodes(graph) -&gt; Graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#eliminate_csegraph-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        eliminate_cse(graph) -&gt; Graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#promote_control_rategraph-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        promote_control_rate(graph) -&gt; Graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#class-optimizestatsnamedtuple" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        class OptimizeStats(NamedTuple)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#class-optimizeresultnamedtuple" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        class OptimizeResult(NamedTuple)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#simulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Simulation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Simulation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#simulategraph-inputsnone-n_samples0-paramsnone-statenone-sample_rate00-simresult" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        simulate(graph, inputs=None, n_samples=0, params=None, state=None, sample_rate=0.0) -&gt; SimResult
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#class-simstate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        class SimState
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#class-simresult" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        class SimResult
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#serialization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Serialization
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Serialization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#graph_to_gdspgraph-str" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        graph_to_gdsp(graph) -&gt; str
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#visualization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Visualization
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Visualization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#graph_to_dotgraph-str" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        graph_to_dot(graph) -&gt; str
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#graph_to_dot_filegraph-output_dir-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        graph_to_dot_file(graph, output_dir) -&gt; Path
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#graph-algebra" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Graph Algebra
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Graph Algebra">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#seriesa-b-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        series(a, b) -&gt; Graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parallela-b-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        parallel(a, b) -&gt; Graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#splita-b-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        split(a, b) -&gt; Graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mergea-b-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        merge(a, b) -&gt; Graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#subgraph-expansion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Subgraph Expansion
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Subgraph Expansion">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#expand_subgraphsgraph-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        expand_subgraphs(graph) -&gt; Graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#topological-sort" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Topological Sort
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Topological Sort">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#toposortgraph-listnode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        toposort(graph) -&gt; list[Node]
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#platform-adapter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Platform Adapter
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Platform Adapter">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#generate_adapter_cppgraph-platform-str" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        generate_adapter_cpp(graph, platform) -&gt; str
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#generate_manifestgraph-str" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        generate_manifest(graph) -&gt; str
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compile_for_gen_dspgraph-output_dir-platform-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compile_for_gen_dsp(graph, output_dir, platform) -&gt; Path
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#supported_platforms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SUPPORTED_PLATFORMS
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#generating-complete-plugin-projects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generating Complete Plugin Projects
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dsl/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DSL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../coverage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Coverage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_2" id="__nav_6_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Core
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/parser/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parser
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/manifest/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manifest
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/project/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/builder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Builder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/patcher/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Patcher
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/cache/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/midi/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MIDI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3" id="__nav_6_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platforms
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Platforms
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/platforms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform Base
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Errors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_5" id="__nav_6_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Graph
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Graph
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/graph-models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/graph-compile/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compile
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/graph-validate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validate
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/graph-optimize/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Optimize
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/graph-simulate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulate
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/graph-algebra/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algebra
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/graph-adapter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adapter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#dsl-parsing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DSL Parsing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DSL Parsing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#parsesource-filenamestring-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        parse(source, *, filename="&lt;string&gt;") -&gt; Graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parse_multisource-filenamestring-dictstr-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        parse_multi(source, *, filename="&lt;string&gt;") -&gt; dict[str, Graph]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parse_filepath-multifalse-graph-dictstr-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        parse_file(path, *, multi=False) -&gt; Graph | dict[str, Graph]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#class-gdspsyntaxerrorexception" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        class GDSPSyntaxError(Exception)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#class-gdspcompileerrorexception" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        class GDSPCompileError(Exception)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#validate_graphgraph-warn_unmapped_paramsfalse-listgraphvalidationerror" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        validate_graph(graph, *, warn_unmapped_params=False) -&gt; list[GraphValidationError]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#class-graphvalidationerrorstr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        class GraphValidationError(str)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compilation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compilation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Compilation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#compile_graphgraph-str" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compile_graph(graph) -&gt; str
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compile_graph_to_filegraph-output_dir-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compile_graph_to_file(graph, output_dir) -&gt; Path
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optimization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optimization
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Optimization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#optimize_graphgraph-optimizeresult" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        optimize_graph(graph) -&gt; OptimizeResult
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#constant_foldgraph-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        constant_fold(graph) -&gt; Graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#eliminate_dead_nodesgraph-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        eliminate_dead_nodes(graph) -&gt; Graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#eliminate_csegraph-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        eliminate_cse(graph) -&gt; Graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#promote_control_rategraph-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        promote_control_rate(graph) -&gt; Graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#class-optimizestatsnamedtuple" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        class OptimizeStats(NamedTuple)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#class-optimizeresultnamedtuple" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        class OptimizeResult(NamedTuple)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#simulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Simulation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Simulation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#simulategraph-inputsnone-n_samples0-paramsnone-statenone-sample_rate00-simresult" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        simulate(graph, inputs=None, n_samples=0, params=None, state=None, sample_rate=0.0) -&gt; SimResult
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#class-simstate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        class SimState
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#class-simresult" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        class SimResult
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#serialization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Serialization
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Serialization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#graph_to_gdspgraph-str" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        graph_to_gdsp(graph) -&gt; str
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#visualization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Visualization
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Visualization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#graph_to_dotgraph-str" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        graph_to_dot(graph) -&gt; str
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#graph_to_dot_filegraph-output_dir-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        graph_to_dot_file(graph, output_dir) -&gt; Path
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#graph-algebra" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Graph Algebra
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Graph Algebra">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#seriesa-b-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        series(a, b) -&gt; Graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parallela-b-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        parallel(a, b) -&gt; Graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#splita-b-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        split(a, b) -&gt; Graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mergea-b-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        merge(a, b) -&gt; Graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#subgraph-expansion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Subgraph Expansion
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Subgraph Expansion">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#expand_subgraphsgraph-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        expand_subgraphs(graph) -&gt; Graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#topological-sort" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Topological Sort
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Topological Sort">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#toposortgraph-listnode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        toposort(graph) -&gt; list[Node]
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#platform-adapter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Platform Adapter
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Platform Adapter">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#generate_adapter_cppgraph-platform-str" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        generate_adapter_cpp(graph, platform) -&gt; str
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#generate_manifestgraph-str" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        generate_manifest(graph) -&gt; str
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compile_for_gen_dspgraph-output_dir-platform-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compile_for_gen_dsp(graph, output_dir, platform) -&gt; Path
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#supported_platforms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SUPPORTED_PLATFORMS
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#generating-complete-plugin-projects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generating Complete Plugin Projects
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="gen_dspgraph-api-reference">gen_dsp.graph API Reference<a class="headerlink" href="#gen_dspgraph-api-reference" title="Permanent link">&para;</a></h1>
+<p>Public API for the <code>gen_dsp.graph</code> subpackage. Requires <code>pip install gen-dsp[graph]</code> (pydantic).
+Simulation functions additionally require <code>pip install gen-dsp[sim]</code> (numpy).</p>
+<p>All symbols are importable from <code>gen_dsp.graph</code> unless otherwise noted.</p>
+<hr />
+<h2 id="dsl-parsing">DSL Parsing<a class="headerlink" href="#dsl-parsing" title="Permanent link">&para;</a></h2>
+<h3 id="parsesource-filenamestring-graph"><code>parse(source, *, filename="&lt;string&gt;") -&gt; Graph</code><a class="headerlink" href="#parsesource-filenamestring-graph" title="Permanent link">&para;</a></h3>
+<p>Parse a <code>.gdsp</code> source string and return a single <code>Graph</code>.</p>
+<p>If <em>source</em> contains multiple <code>graph</code> blocks, returns the <strong>last</strong> one (which typically uses the
+earlier ones as named subgraphs). Raises <code>GDSPSyntaxError</code> on tokenizer/parser errors and
+<code>GDSPCompileError</code> on semantic errors (e.g. unresolved identifiers, recursive graph calls).</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gen_dsp.graph</span><span class="w"> </span><span class="kn">import</span> <span class="n">parse</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">graph</span> <span class="o">=</span> <span class="n">parse</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="s2">graph lowpass {</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="s2">    in x</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="s2">    out y = onepole(x, coeff=0.9)</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="s2">}</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="parse_multisource-filenamestring-dictstr-graph"><code>parse_multi(source, *, filename="&lt;string&gt;") -&gt; dict[str, Graph]</code><a class="headerlink" href="#parse_multisource-filenamestring-dictstr-graph" title="Permanent link">&para;</a></h3>
+<p>Parse a <code>.gdsp</code> source string and return <strong>all</strong> graphs as <code>{name: Graph}</code>. Use this when you
+need access to library subgraphs defined in the same file.</p>
+<h3 id="parse_filepath-multifalse-graph-dictstr-graph"><code>parse_file(path, *, multi=False) -&gt; Graph | dict[str, Graph]</code><a class="headerlink" href="#parse_filepath-multifalse-graph-dictstr-graph" title="Permanent link">&para;</a></h3>
+<p>Parse a <code>.gdsp</code> file. Equivalent to <code>parse(path.read_text())</code> or <code>parse_multi(...)</code> when
+<code>multi=True</code>. Passes the filename to error messages.</p>
+<h3 id="class-gdspsyntaxerrorexception"><code>class GDSPSyntaxError(Exception)</code><a class="headerlink" href="#class-gdspsyntaxerrorexception" title="Permanent link">&para;</a></h3>
+<p>Raised by the tokenizer and parser for structural errors (unknown tokens, mismatched braces,
+unexpected EOF). Attributes: <code>line: int</code>, <code>col: int</code>, <code>filename: str</code>. The <code>str()</code> representation
+includes the source location: <code>"&lt;file&gt;:&lt;line&gt;:&lt;col&gt;: &lt;message&gt;"</code>.</p>
+<h3 id="class-gdspcompileerrorexception"><code>class GDSPCompileError(Exception)</code><a class="headerlink" href="#class-gdspcompileerrorexception" title="Permanent link">&para;</a></h3>
+<p>Raised by the compiler for semantic errors (undefined ID, recursive graph reference, wrong number
+of arguments, etc.). Same attributes as <code>GDSPSyntaxError</code>.</p>
+<hr />
+<h2 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h2>
+<h3 id="validate_graphgraph-warn_unmapped_paramsfalse-listgraphvalidationerror"><code>validate_graph(graph, *, warn_unmapped_params=False) -&gt; list[GraphValidationError]</code><a class="headerlink" href="#validate_graphgraph-warn_unmapped_paramsfalse-listgraphvalidationerror" title="Permanent link">&para;</a></h3>
+<p>Validate a <code>Graph</code> and return a list of errors. An empty list means the graph is valid.</p>
+<p>Before validation, subgraphs are expanded inline via <code>expand_subgraphs()</code>.</p>
+<p>Checks performed:</p>
+<ol>
+<li><strong>Unique IDs</strong> -- no duplicate node IDs; no node ID collides with an audio input or param name.</li>
+<li><strong>Reference resolution</strong> -- every string field that refers to another node resolves to a known ID.</li>
+<li><strong>Output sources</strong> -- every <code>AudioOutput.source</code> references an existing node.</li>
+<li><strong>Delay consistency</strong> -- <code>DelayRead.delay</code> and <code>DelayWrite.delay</code> reference an existing <code>DelayLine</code>.</li>
+<li><strong>Buffer consistency</strong> -- <code>BufRead</code>, <code>BufWrite</code>, <code>BufSize</code>, <code>Splat</code>, <code>Cycle</code>, <code>Wave</code>, <code>Lookup</code>
+   reference an existing <code>Buffer</code>.</li>
+<li><strong>Gate consistency</strong> -- <code>GateOut.gate</code> references an existing <code>GateRoute</code>; channel is in range.</li>
+<li><strong>Control-rate consistency</strong> -- nodes listed in <code>control_nodes</code> exist; they must not depend on
+   audio inputs or audio-rate nodes.</li>
+<li><strong>No pure cycles</strong> -- topological sort on non-feedback edges must succeed.</li>
+</ol>
+<p>When <code>warn_unmapped_params=True</code>, warnings for subgraph params that fall back to defaults are
+appended after all errors.</p>
+<h3 id="class-graphvalidationerrorstr"><code>class GraphValidationError(str)</code><a class="headerlink" href="#class-graphvalidationerrorstr" title="Permanent link">&para;</a></h3>
+<p>A structured validation error that behaves as a plain string. Subclasses <code>str</code> so existing call
+sites (<code>errors == []</code>, <code>"; ".join(errors)</code>, <code>print(err)</code>) work unchanged.</p>
+<p><strong>Constructor:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">GraphValidationError</span><span class="p">(</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="n">kind</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">node_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">field_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">severity</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span>   <span class="c1"># &quot;error&quot; | &quot;warning&quot;</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="p">)</span>
+</code></pre></div>
+<p><strong>Attributes:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kind</code></td>
+<td><code>str</code></td>
+<td>Machine-readable error category (see below)</td>
+</tr>
+<tr>
+<td><code>node_id</code></td>
+<td><code>str \| None</code></td>
+<td>ID of the offending node, if applicable</td>
+</tr>
+<tr>
+<td><code>field_name</code></td>
+<td><code>str \| None</code></td>
+<td>Name of the offending field, if applicable</td>
+</tr>
+<tr>
+<td><code>severity</code></td>
+<td><code>str</code></td>
+<td><code>"error"</code> or <code>"warning"</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>kind</code> values:</strong></p>
+<table>
+<thead>
+<tr>
+<th><code>kind</code></th>
+<th><code>severity</code></th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"duplicate_id"</code></td>
+<td>error</td>
+<td>Two nodes share the same ID</td>
+</tr>
+<tr>
+<td><code>"id_collision"</code></td>
+<td>error</td>
+<td>A node ID equals an audio input ID or param name</td>
+</tr>
+<tr>
+<td><code>"dangling_ref"</code></td>
+<td>error</td>
+<td>A field references an ID that does not exist</td>
+</tr>
+<tr>
+<td><code>"bad_output_source"</code></td>
+<td>error</td>
+<td><code>AudioOutput.source</code> does not reference a node</td>
+</tr>
+<tr>
+<td><code>"missing_delay_line"</code></td>
+<td>error</td>
+<td><code>DelayRead</code>/<code>DelayWrite</code> references a non-existent <code>DelayLine</code></td>
+</tr>
+<tr>
+<td><code>"missing_buffer"</code></td>
+<td>error</td>
+<td>A buffer consumer references a non-existent <code>Buffer</code></td>
+</tr>
+<tr>
+<td><code>"missing_gate_route"</code></td>
+<td>error</td>
+<td><code>GateOut.gate</code> references a non-existent <code>GateRoute</code></td>
+</tr>
+<tr>
+<td><code>"gate_channel_range"</code></td>
+<td>error</td>
+<td><code>GateOut.channel</code> is outside <code>[1, gate_route.count]</code></td>
+</tr>
+<tr>
+<td><code>"invalid_control_node"</code></td>
+<td>error</td>
+<td>An ID in <code>control_nodes</code> is not a node ID</td>
+</tr>
+<tr>
+<td><code>"control_audio_dep"</code></td>
+<td>error</td>
+<td>A control-rate node depends on an audio input</td>
+</tr>
+<tr>
+<td><code>"control_rate_dep"</code></td>
+<td>error</td>
+<td>A control-rate node depends on an audio-rate node</td>
+</tr>
+<tr>
+<td><code>"cycle"</code></td>
+<td>error</td>
+<td>Graph contains a pure cycle (not through <code>History</code> or delay)</td>
+</tr>
+<tr>
+<td><code>"expansion_error"</code></td>
+<td>error</td>
+<td><code>expand_subgraphs()</code> raised (malformed <code>Subgraph</code> node)</td>
+</tr>
+<tr>
+<td><code>"unmapped_param"</code></td>
+<td>warning</td>
+<td>A subgraph param uses its default (only with <code>warn_unmapped_params=True</code>)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Usage example</strong> (structured access for a UI):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">errors</span> <span class="o">=</span> <span class="n">validate_graph</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="k">for</span> <span class="n">err</span> <span class="ow">in</span> <span class="n">errors</span><span class="p">:</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="k">if</span> <span class="n">err</span><span class="o">.</span><span class="n">node_id</span><span class="p">:</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>        <span class="n">highlight_node</span><span class="p">(</span><span class="n">err</span><span class="o">.</span><span class="n">node_id</span><span class="p">,</span> <span class="n">severity</span><span class="o">=</span><span class="n">err</span><span class="o">.</span><span class="n">severity</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="n">err</span><span class="o">.</span><span class="n">kind</span><span class="p">)</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="nb">print</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>   <span class="c1"># plain-text message with context</span>
+</code></pre></div>
+<hr />
+<h2 id="compilation">Compilation<a class="headerlink" href="#compilation" title="Permanent link">&para;</a></h2>
+<h3 id="compile_graphgraph-str"><code>compile_graph(graph) -&gt; str</code><a class="headerlink" href="#compile_graphgraph-str" title="Permanent link">&para;</a></h3>
+<p>Compile a <code>Graph</code> to a standalone C++ source string. Raises <code>ValueError</code> if the graph fails
+validation or contains IDs that are not valid C identifiers.</p>
+<p>The output is a self-contained <code>.cpp</code> file (no genlib dependency) with:</p>
+<ul>
+<li>State struct <code>{Name}State</code></li>
+<li><code>create(sr)</code> / <code>destroy(self)</code> / <code>reset(self)</code> lifecycle functions</li>
+<li><code>perform(self, ins, outs, n)</code> sample-processing loop</li>
+<li>Param introspection: <code>num_params</code>, <code>param_name</code>, <code>param_min</code>, <code>param_max</code>, <code>set_param</code>, <code>get_param</code></li>
+<li>Buffer introspection: <code>num_buffers</code>, <code>buffer_name</code>, <code>buffer_size</code>, <code>get_buffer</code>, <code>set_buffer</code></li>
+<li>Peek introspection: <code>num_peeks</code>, <code>peek_name</code>, <code>get_peek</code></li>
+</ul>
+<h3 id="compile_graph_to_filegraph-output_dir-path"><code>compile_graph_to_file(graph, output_dir) -&gt; Path</code><a class="headerlink" href="#compile_graph_to_filegraph-output_dir-path" title="Permanent link">&para;</a></h3>
+<p>Compile a <code>Graph</code> and write <code>{name}.cpp</code> to <em>output_dir</em> (created if absent). Returns the path
+to the written file.</p>
+<hr />
+<h2 id="optimization">Optimization<a class="headerlink" href="#optimization" title="Permanent link">&para;</a></h2>
+<h3 id="optimize_graphgraph-optimizeresult"><code>optimize_graph(graph) -&gt; OptimizeResult</code><a class="headerlink" href="#optimize_graphgraph-optimizeresult" title="Permanent link">&para;</a></h3>
+<p>Apply all optimization passes in sequence and return an <code>OptimizeResult(graph, stats)</code>.</p>
+<p>Passes applied:</p>
+<ol>
+<li><strong>Constant folding</strong> (<code>constant_fold</code>) -- pure nodes with all-constant inputs become <code>Constant</code>.</li>
+<li><strong>Common subexpression elimination</strong> (<code>eliminate_cse</code>) -- duplicate pure nodes with identical
+   inputs are merged into one.</li>
+<li><strong>Dead node elimination</strong> (<code>eliminate_dead_nodes</code>) -- nodes not reachable from any output are
+   removed. Respects side-effecting writers: when a <code>DelayRead</code> or <code>BufRead</code>/<code>BufSize</code> is live,
+   the <code>DelayWrite</code>/<code>BufWrite</code>/<code>Splat</code> nodes feeding the same resource are kept.</li>
+</ol>
+<p>All passes return a new <code>Graph</code> (immutable). Stateful nodes (<code>History</code>, <code>DelayLine</code>, oscillators,
+filters, etc.) are never constant-folded.</p>
+<h3 id="constant_foldgraph-graph"><code>constant_fold(graph) -&gt; Graph</code><a class="headerlink" href="#constant_foldgraph-graph" title="Permanent link">&para;</a></h3>
+<p>Constant folding pass only. See <code>optimize_graph</code> for description.</p>
+<h3 id="eliminate_dead_nodesgraph-graph"><code>eliminate_dead_nodes(graph) -&gt; Graph</code><a class="headerlink" href="#eliminate_dead_nodesgraph-graph" title="Permanent link">&para;</a></h3>
+<p>Dead node elimination pass only.</p>
+<h3 id="eliminate_csegraph-graph"><code>eliminate_cse(graph) -&gt; Graph</code><a class="headerlink" href="#eliminate_csegraph-graph" title="Permanent link">&para;</a></h3>
+<p>Common subexpression elimination pass only.</p>
+<h3 id="promote_control_rategraph-graph"><code>promote_control_rate(graph) -&gt; Graph</code><a class="headerlink" href="#promote_control_rategraph-graph" title="Permanent link">&para;</a></h3>
+<p>Promote audio-rate pure nodes to control-rate when all their dependencies are params, literals,
+invariant nodes, or existing control-rate nodes. No-op when <code>graph.control_interval &lt;= 0</code>.</p>
+<h3 id="class-optimizestatsnamedtuple"><code>class OptimizeStats(NamedTuple)</code><a class="headerlink" href="#class-optimizestatsnamedtuple" title="Permanent link">&para;</a></h3>
+<p>Statistics from one <code>optimize_graph()</code> run.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>constants_folded</code></td>
+<td><code>int</code></td>
+<td>Nodes replaced by <code>Constant</code></td>
+</tr>
+<tr>
+<td><code>cse_merges</code></td>
+<td><code>int</code></td>
+<td>Duplicate nodes merged</td>
+</tr>
+<tr>
+<td><code>dead_nodes_removed</code></td>
+<td><code>int</code></td>
+<td>Unreachable nodes removed</td>
+</tr>
+<tr>
+<td><code>control_rate_promoted</code></td>
+<td><code>int</code></td>
+<td>Nodes promoted to control rate</td>
+</tr>
+</tbody>
+</table>
+<h3 id="class-optimizeresultnamedtuple"><code>class OptimizeResult(NamedTuple)</code><a class="headerlink" href="#class-optimizeresultnamedtuple" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>graph</code></td>
+<td><code>Graph</code></td>
+<td>The optimized graph</td>
+</tr>
+<tr>
+<td><code>stats</code></td>
+<td><code>OptimizeStats</code></td>
+<td>Per-pass statistics</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="simulation">Simulation<a class="headerlink" href="#simulation" title="Permanent link">&para;</a></h2>
+<p>Simulation requires numpy (<code>pip install gen-dsp[sim]</code>). Import directly from the submodule:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gen_dsp.graph.simulate</span><span class="w"> </span><span class="kn">import</span> <span class="n">simulate</span><span class="p">,</span> <span class="n">SimState</span><span class="p">,</span> <span class="n">SimResult</span>
+</code></pre></div>
+<h3 id="simulategraph-inputsnone-n_samples0-paramsnone-statenone-sample_rate00-simresult"><code>simulate(graph, inputs=None, n_samples=0, params=None, state=None, sample_rate=0.0) -&gt; SimResult</code><a class="headerlink" href="#simulategraph-inputsnone-n_samples0-paramsnone-statenone-sample_rate00-simresult" title="Permanent link">&para;</a></h3>
+<p>Simulate a <code>Graph</code> in Python and return output arrays.</p>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>graph</code></td>
+<td><code>Graph</code></td>
+<td>The graph to simulate</td>
+</tr>
+<tr>
+<td><code>inputs</code></td>
+<td><code>dict[str, NDArray[float32]] \| None</code></td>
+<td>Audio input arrays keyed by input ID. <code>None</code> for generators. All arrays must have equal length.</td>
+</tr>
+<tr>
+<td><code>n_samples</code></td>
+<td><code>int</code></td>
+<td>Samples to process. Inferred from <code>inputs</code> if 0. Required for generators.</td>
+</tr>
+<tr>
+<td><code>params</code></td>
+<td><code>dict[str, float] \| None</code></td>
+<td>Parameter overrides applied before processing.</td>
+</tr>
+<tr>
+<td><code>state</code></td>
+<td><code>SimState \| None</code></td>
+<td>Reuse existing state for streaming. Created fresh if <code>None</code>.</td>
+</tr>
+<tr>
+<td><code>sample_rate</code></td>
+<td><code>float</code></td>
+<td>Override sample rate. Uses <code>graph.sample_rate</code> if 0.</td>
+</tr>
+</tbody>
+</table>
+<p>Returns a <code>SimResult</code> with <code>outputs: dict[str, NDArray[float32]]</code> and <code>state: SimState</code>.</p>
+<h3 id="class-simstate"><code>class SimState</code><a class="headerlink" href="#class-simstate" title="Permanent link">&para;</a></h3>
+<p>Mutable simulation state. Created automatically by <code>simulate()</code>, or explicitly for direct
+parameter/buffer access.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">state</span> <span class="o">=</span> <span class="n">SimState</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">sample_rate</span><span class="o">=</span><span class="mf">44100.0</span><span class="p">)</span>
+</code></pre></div>
+<p><strong>Methods:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>reset()</code></td>
+<td>Reset all state to initial values (params reset to defaults).</td>
+</tr>
+<tr>
+<td><code>set_param(name, value)</code></td>
+<td>Set a parameter. Raises <code>KeyError</code> if unknown.</td>
+</tr>
+<tr>
+<td><code>get_param(name) -&gt; float</code></td>
+<td>Read a parameter. Raises <code>KeyError</code> if unknown.</td>
+</tr>
+<tr>
+<td><code>set_buffer(buffer_id, data)</code></td>
+<td>Set buffer contents. Data is truncated/zero-padded to buffer size.</td>
+</tr>
+<tr>
+<td><code>get_buffer(buffer_id) -&gt; NDArray[float32]</code></td>
+<td>Get a copy of buffer contents.</td>
+</tr>
+<tr>
+<td><code>get_peek(peek_id) -&gt; float</code></td>
+<td>Read the last value captured by a <code>Peek</code> node.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="class-simresult"><code>class SimResult</code><a class="headerlink" href="#class-simresult" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>outputs</code></td>
+<td><code>dict[str, NDArray[float32]]</code></td>
+<td>Output arrays keyed by <code>AudioOutput.id</code></td>
+</tr>
+<tr>
+<td><code>state</code></td>
+<td><code>SimState</code></td>
+<td>The (possibly new) simulation state</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="serialization">Serialization<a class="headerlink" href="#serialization" title="Permanent link">&para;</a></h2>
+<h3 id="graph_to_gdspgraph-str"><code>graph_to_gdsp(graph) -&gt; str</code><a class="headerlink" href="#graph_to_gdspgraph-str" title="Permanent link">&para;</a></h3>
+<p>Serialize a <code>Graph</code> back to <code>.gdsp</code> DSL source. The output round-trips through <code>parse()</code>.</p>
+<p>Constants are inlined as numeric literals. <code>NamedConstant</code> nodes become bare identifiers (<code>pi</code>,
+<code>e</code>, etc.). <code>History</code> feedback writes use the <code>&lt;-</code> operator. Nodes are emitted in topological
+order.</p>
+<hr />
+<h2 id="visualization">Visualization<a class="headerlink" href="#visualization" title="Permanent link">&para;</a></h2>
+<h3 id="graph_to_dotgraph-str"><code>graph_to_dot(graph) -&gt; str</code><a class="headerlink" href="#graph_to_dotgraph-str" title="Permanent link">&para;</a></h3>
+<p>Convert a <code>Graph</code> to a Graphviz DOT string. Nodes are colored by type, feedback edges are marked
+<code>[style=dashed]</code>.</p>
+<h3 id="graph_to_dot_filegraph-output_dir-path"><code>graph_to_dot_file(graph, output_dir) -&gt; Path</code><a class="headerlink" href="#graph_to_dot_filegraph-output_dir-path" title="Permanent link">&para;</a></h3>
+<p>Write <code>{name}.dot</code> to <em>output_dir</em>. If <code>dot</code> (Graphviz) is on <code>PATH</code>, also renders <code>{name}.pdf</code>.
+Returns the path to the <code>.dot</code> file.</p>
+<hr />
+<h2 id="graph-algebra">Graph Algebra<a class="headerlink" href="#graph-algebra" title="Permanent link">&para;</a></h2>
+<p>FAUST-style block-diagram combinators. All return a new <code>Graph</code>; params are namespaced with the
+subgraph ID prefix to avoid collisions.</p>
+<h3 id="seriesa-b-graph"><code>series(a, b) -&gt; Graph</code><a class="headerlink" href="#seriesa-b-graph" title="Permanent link">&para;</a></h3>
+<p>Pipe <code>a</code>'s outputs into <code>b</code>'s inputs positionally. Requires <code>len(a.outputs) == len(b.inputs)</code>.
+Result: <code>inputs=a.inputs</code>, <code>outputs=b.outputs</code>.</p>
+<p>Operator shorthand: <code>a &gt;&gt; b</code>.</p>
+<h3 id="parallela-b-graph"><code>parallel(a, b) -&gt; Graph</code><a class="headerlink" href="#parallela-b-graph" title="Permanent link">&para;</a></h3>
+<p>Stack graphs side by side. Inputs and outputs are concatenated; params are namespaced.</p>
+<p>Operator shorthand: <code>a // b</code>.</p>
+<h3 id="splita-b-graph"><code>split(a, b) -&gt; Graph</code><a class="headerlink" href="#splita-b-graph" title="Permanent link">&para;</a></h3>
+<p>Fan-out: distribute <code>a</code>'s outputs cyclically across <code>b</code>'s inputs.
+Requires <code>len(b.inputs) % len(a.outputs) == 0</code>.</p>
+<h3 id="mergea-b-graph"><code>merge(a, b) -&gt; Graph</code><a class="headerlink" href="#mergea-b-graph" title="Permanent link">&para;</a></h3>
+<p>Fan-in: group <code>a</code>'s outputs and sum them pairwise into <code>b</code>'s inputs.
+Requires <code>len(a.outputs) % len(b.inputs) == 0</code>.</p>
+<hr />
+<h2 id="subgraph-expansion">Subgraph Expansion<a class="headerlink" href="#subgraph-expansion" title="Permanent link">&para;</a></h2>
+<h3 id="expand_subgraphsgraph-graph"><code>expand_subgraphs(graph) -&gt; Graph</code><a class="headerlink" href="#expand_subgraphsgraph-graph" title="Permanent link">&para;</a></h3>
+<p>Recursively inline all <code>Subgraph</code> nodes, rewriting IDs and param bindings to avoid collisions.
+Returns a flat <code>Graph</code> with no <code>Subgraph</code> nodes.</p>
+<p>Called automatically by <code>compile_graph()</code>, <code>validate_graph()</code>, <code>optimize_graph()</code>, and
+<code>simulate()</code>.</p>
+<hr />
+<h2 id="topological-sort">Topological Sort<a class="headerlink" href="#topological-sort" title="Permanent link">&para;</a></h2>
+<h3 id="toposortgraph-listnode"><code>toposort(graph) -&gt; list[Node]</code><a class="headerlink" href="#toposortgraph-listnode" title="Permanent link">&para;</a></h3>
+<p>Return graph nodes in topological order using Kahn's algorithm with alphabetical tie-breaking for
+determinism. Raises <code>ValueError</code> if the graph contains a pure cycle (cycles through <code>History</code> or
+delay feedback edges are allowed and excluded from the sort).</p>
+<hr />
+<h2 id="platform-adapter">Platform Adapter<a class="headerlink" href="#platform-adapter" title="Permanent link">&para;</a></h2>
+<p>For generating platform-specific plugin projects from a graph (without a gen~ export).</p>
+<h3 id="generate_adapter_cppgraph-platform-str"><code>generate_adapter_cpp(graph, platform) -&gt; str</code><a class="headerlink" href="#generate_adapter_cppgraph-platform-str" title="Permanent link">&para;</a></h3>
+<p>Generate the <code>_ext_{platform}.cpp</code> adapter source that bridges the compiled graph to gen-dsp's
+platform backend. <em>platform</em> must be one of <code>SUPPORTED_PLATFORMS</code>.</p>
+<h3 id="generate_manifestgraph-str"><code>generate_manifest(graph) -&gt; str</code><a class="headerlink" href="#generate_manifestgraph-str" title="Permanent link">&para;</a></h3>
+<p>Generate a <code>manifest.json</code> string compatible with gen-dsp's <code>Manifest</code> dataclass. Contains
+<code>gen_name</code>, <code>num_inputs</code>, <code>num_outputs</code>, <code>params</code> (with min/max/default), and <code>buffers</code>.</p>
+<h3 id="compile_for_gen_dspgraph-output_dir-platform-path"><code>compile_for_gen_dsp(graph, output_dir, platform) -&gt; Path</code><a class="headerlink" href="#compile_for_gen_dspgraph-output_dir-platform-path" title="Permanent link">&para;</a></h3>
+<p>Convenience: compile graph and write three files to <em>output_dir</em>:</p>
+<ul>
+<li><code>{name}.cpp</code> -- compiled C++</li>
+<li><code>_ext_{platform}.cpp</code> -- platform adapter</li>
+<li><code>manifest.json</code> -- gen-dsp manifest</li>
+</ul>
+<p>Returns the output directory path.</p>
+<h3 id="supported_platforms"><code>SUPPORTED_PLATFORMS</code><a class="headerlink" href="#supported_platforms" title="Permanent link">&para;</a></h3>
+<p><code>set[str]</code> -- the set of platform keys accepted by <code>generate_adapter_cpp()</code> and
+<code>compile_for_gen_dsp()</code>. Currently: <code>chuck</code>, <code>clap</code>, <code>au</code>, <code>vst3</code>, <code>lv2</code>, <code>sc</code>, <code>vcvrack</code>,
+<code>daisy</code>, <code>circle</code>, <code>pd</code>, <code>max</code>.</p>
+<hr />
+<h2 id="generating-complete-plugin-projects">Generating Complete Plugin Projects<a class="headerlink" href="#generating-complete-plugin-projects" title="Permanent link">&para;</a></h2>
+<p>Use <code>ProjectGenerator.from_graph()</code> (from <code>gen_dsp.core.project</code>) to produce a fully buildable
+project for any platform:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gen_dsp.graph</span><span class="w"> </span><span class="kn">import</span> <span class="n">Graph</span><span class="p">,</span> <span class="n">AudioInput</span><span class="p">,</span> <span class="n">AudioOutput</span><span class="p">,</span> <span class="n">BinOp</span><span class="p">,</span> <span class="n">Param</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gen_dsp.core.project</span><span class="w"> </span><span class="kn">import</span> <span class="n">ProjectConfig</span><span class="p">,</span> <span class="n">ProjectGenerator</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">graph</span> <span class="o">=</span> <span class="n">Graph</span><span class="p">(</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;gain&quot;</span><span class="p">,</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="n">AudioInput</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;in1&quot;</span><span class="p">),</span> <span class="n">AudioInput</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;in2&quot;</span><span class="p">)],</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>    <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="n">AudioOutput</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;out1&quot;</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="s2">&quot;g1&quot;</span><span class="p">),</span> <span class="n">AudioOutput</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;out2&quot;</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="s2">&quot;g2&quot;</span><span class="p">)],</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    <span class="n">params</span><span class="o">=</span><span class="p">[</span><span class="n">Param</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;gain&quot;</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)],</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>    <span class="n">nodes</span><span class="o">=</span><span class="p">[</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>        <span class="n">BinOp</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;g1&quot;</span><span class="p">,</span> <span class="n">op</span><span class="o">=</span><span class="s2">&quot;mul&quot;</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="s2">&quot;in1&quot;</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="s2">&quot;gain&quot;</span><span class="p">),</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>        <span class="n">BinOp</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;g2&quot;</span><span class="p">,</span> <span class="n">op</span><span class="o">=</span><span class="s2">&quot;mul&quot;</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="s2">&quot;in2&quot;</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="s2">&quot;gain&quot;</span><span class="p">),</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>    <span class="p">],</span>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="p">)</span>
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="n">config</span> <span class="o">=</span> <span class="n">ProjectConfig</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">graph</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">platform</span><span class="o">=</span><span class="s2">&quot;clap&quot;</span><span class="p">)</span>
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="n">gen</span> <span class="o">=</span> <span class="n">ProjectGenerator</span><span class="o">.</span><span class="n">from_graph</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="n">project_dir</span> <span class="o">=</span> <span class="n">gen</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="s2">&quot;build/gain_clap&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>This writes all source files (compiled C++, adapter, platform templates, build files) and runs the
+build by default.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.expand", "content.code.copy", "search.highlight"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

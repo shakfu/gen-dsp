@@ -1,0 +1,361 @@
+%YAML 1.2
+---
+name: GDSP
+scope: source.gdsp
+version: 2
+file_extensions:
+  - gdsp
+
+variables:
+  ident: '[a-zA-Z_][a-zA-Z0-9_]*'
+
+  # Built-in unary math functions (UnaryOp nodes)
+  unary_funcs: |-
+    (?x:
+      sin|cos|tan|tanh|sinh|cosh
+      |asin|acos|atan|asinh|acosh|atanh
+      |exp|exp2|log|log2|log10
+      |abs|sqrt|neg|sign
+      |floor|ceil|round|trunc|fract
+      |not|bool
+      |mtof|ftom|atodb|dbtoa
+      |phasewrap|degrees|radians
+      |mstosamps|sampstoms|t60|t60time
+      |fixdenorm|fixnan|isdenorm|isnan
+      |fastsin|fastcos|fasttan|fastexp
+    )
+
+  # Built-in binary math functions (BinOp nodes)
+  binary_funcs: |-
+    (?x:
+      min|max|atan2|hypot|absdiff|step
+      |and|or|xor|fastpow
+    )
+
+  # Oscillators
+  osc_funcs: |-
+    (?x:
+      phasor|sinosc|triosc|sawosc|pulseosc|noise
+    )
+
+  # Filters
+  filter_funcs: |-
+    (?x:
+      onepole|svf|biquad|dcblock|allpass
+    )
+
+  # Range / shaping
+  shaping_funcs: |-
+    (?x:
+      clamp|wrap|fold|scale|mix|smoothstep
+    )
+
+  # Control / dynamics
+  control_funcs: |-
+    (?x:
+      smooth|slide|adsr|select
+    )
+
+  # State
+  state_funcs: |-
+    (?x:
+      delta|change|sample_hold|latch|accum|counter|elapsed|rate_div
+    )
+
+  # Routing
+  routing_funcs: |-
+    (?x:
+      gate_route|gate_out|selector|pass|peek
+    )
+
+  # Buffer / wavetable access
+  buffer_funcs: |-
+    (?x:
+      cycle|wave|lookup|buf_read|buf_size|samplerate
+    )
+
+  # Named constants
+  named_constants: |-
+    (?x:
+      pi|e|twopi|halfpi|invpi
+      |degtorad|radtodeg
+      |sqrt2|sqrt1_2
+      |ln2|ln10|log2e|log10e|phi
+    )
+
+contexts:
+  prototype:
+    - include: comments
+
+  main:
+    - include: graph-definition
+    - include: expressions
+
+  comments:
+    - match: '#'
+      scope: punctuation.definition.comment.gdsp
+      push: line-comment
+
+  line-comment:
+    - meta_scope: comment.line.number-sign.gdsp
+    - match: $
+      pop: true
+
+  graph-definition:
+    - match: \b(graph)\b
+      scope: keyword.declaration.graph.gdsp
+      push: graph-name
+
+  graph-name:
+    - match: '{{ident}}'
+      scope: entity.name.function.graph.gdsp
+      set: graph-options-or-body
+    - match: (?=\S)
+      pop: true
+
+  graph-options-or-body:
+    - match: \(
+      scope: punctuation.section.parens.begin.gdsp
+      push: graph-options
+    - match: \{
+      scope: punctuation.section.block.begin.gdsp
+      set: graph-body
+    - match: (?=\S)
+      pop: true
+
+  graph-options:
+    - match: \b(sr|control)\b
+      scope: variable.parameter.option.gdsp
+    - match: '='
+      scope: keyword.operator.assignment.gdsp
+    - include: numbers
+    - match: ','
+      scope: punctuation.separator.gdsp
+    - match: \)
+      scope: punctuation.section.parens.end.gdsp
+      pop: true
+
+  graph-body:
+    - meta_scope: meta.block.graph.gdsp
+    - match: \}
+      scope: punctuation.section.block.end.gdsp
+      pop: true
+    - include: statements
+
+  statements:
+    - include: control-annotation
+    - include: io-declarations
+    - include: param-declaration
+    - include: resource-declarations
+    - include: history-declaration
+    - include: delay-write-statement
+    - include: buf-write-statement
+    - include: import-statement
+    - include: feedback-write
+    - include: expressions
+
+  control-annotation:
+    - match: '@(control)\b'
+      scope: storage.modifier.control.gdsp
+
+  io-declarations:
+    - match: \b(in)\b
+      scope: keyword.declaration.input.gdsp
+    - match: \b(out)\b
+      scope: keyword.declaration.output.gdsp
+
+  param-declaration:
+    - match: \b(param)\b
+      scope: keyword.declaration.parameter.gdsp
+      push: param-name
+
+  param-name:
+    - match: '{{ident}}'
+      scope: variable.parameter.gdsp
+      set: param-range
+    - match: (?=\S)
+      pop: true
+
+  param-range:
+    - match: '\.\.'
+      scope: keyword.operator.range.gdsp
+    - match: '='
+      scope: keyword.operator.assignment.gdsp
+      pop: true
+    - include: numbers
+    - match: '-(?=\d)'
+      scope: keyword.operator.arithmetic.gdsp
+    - match: $
+      pop: true
+
+  resource-declarations:
+    - match: \b(buffer)\b
+      scope: keyword.declaration.buffer.gdsp
+      push: resource-name-buffer
+    - match: \b(delay)\b(?!\s*=)
+      scope: keyword.declaration.delay.gdsp
+      push: resource-name
+
+  resource-name-buffer:
+    - match: '{{ident}}'
+      scope: entity.name.variable.buffer.gdsp
+      set: buffer-options
+    - match: (?=\S)
+      pop: true
+
+  buffer-options:
+    - include: numbers
+    - match: \b(fill)\b
+      scope: variable.parameter.option.gdsp
+    - match: '='
+      scope: keyword.operator.assignment.gdsp
+    - match: \b(zeros|sine)\b
+      scope: constant.language.fill.gdsp
+    - match: $
+      pop: true
+
+  resource-name:
+    - match: '{{ident}}'
+      scope: entity.name.variable.delay.gdsp
+      set: resource-size
+    - match: (?=\S)
+      pop: true
+
+  resource-size:
+    - include: numbers
+    - match: $
+      pop: true
+
+  history-declaration:
+    - match: \b(history)\b
+      scope: keyword.declaration.history.gdsp
+
+  delay-write-statement:
+    - match: \b(delay_write)\b
+      scope: keyword.other.delay-write.gdsp
+      push: delay-target
+    - match: \b(delay_read)\b
+      scope: keyword.other.delay-read.gdsp
+      push: delay-target
+
+  delay-target:
+    - match: '{{ident}}'
+      scope: entity.name.variable.delay.gdsp
+      pop: true
+    - match: (?=\S)
+      pop: true
+
+  buf-write-statement:
+    - match: \b(buf_write|splat)\b
+      scope: keyword.other.buffer-write.gdsp
+
+  import-statement:
+    - match: \b(import)\b
+      scope: keyword.control.import.gdsp
+
+  feedback-write:
+    - match: '<-'
+      scope: keyword.operator.feedback.gdsp
+
+  expressions:
+    - include: numbers
+    - include: strings
+    - include: named-constants
+    - include: builtin-functions
+    - include: operators
+    - include: keyword-arguments
+    - include: punctuation
+    - include: identifiers
+
+  numbers:
+    - match: \b\d+(\.\d+)?\b
+      scope: constant.numeric.gdsp
+
+  strings:
+    - match: '"'
+      scope: punctuation.definition.string.begin.gdsp
+      push: string-body
+
+  string-body:
+    - meta_scope: string.quoted.double.gdsp
+    - match: '"'
+      scope: punctuation.definition.string.end.gdsp
+      pop: true
+    - match: $
+      pop: true
+
+  named-constants:
+    - match: \b{{named_constants}}\b
+      scope: constant.language.gdsp
+
+  builtin-functions:
+    - match: \b{{unary_funcs}}(?=\s*\()
+      scope: support.function.math.gdsp
+    - match: \b{{binary_funcs}}(?=\s*\()
+      scope: support.function.math.gdsp
+    - match: \b{{osc_funcs}}(?=\s*\()
+      scope: support.function.oscillator.gdsp
+    - match: \b{{filter_funcs}}(?=\s*\()
+      scope: support.function.filter.gdsp
+    - match: \b{{shaping_funcs}}(?=\s*\()
+      scope: support.function.shaping.gdsp
+    - match: \b{{control_funcs}}(?=\s*\()
+      scope: support.function.control.gdsp
+    - match: \b{{state_funcs}}(?=\s*\()
+      scope: support.function.state.gdsp
+    - match: \b{{routing_funcs}}(?=\s*\()
+      scope: support.function.routing.gdsp
+    - match: \b{{buffer_funcs}}(?=\s*\()
+      scope: support.function.buffer.gdsp
+
+  keyword-arguments:
+    - match: \b(interp)\s*(=)\s*(linear|cubic|spline|none)\b
+      captures:
+        1: variable.parameter.keyword.gdsp
+        2: keyword.operator.assignment.gdsp
+        3: constant.language.interp.gdsp
+    - match: \b(mode)\s*(=)\s*(lp|hp|bp|notch)\b
+      captures:
+        1: variable.parameter.keyword.gdsp
+        2: keyword.operator.assignment.gdsp
+        3: constant.language.mode.gdsp
+
+  operators:
+    - match: '\*\*'
+      scope: keyword.operator.arithmetic.gdsp
+    - match: '>>'
+      scope: keyword.operator.composition.series.gdsp
+    - match: //
+      scope: keyword.operator.composition.parallel.gdsp
+    - match: '[+\-*/%]'
+      scope: keyword.operator.arithmetic.gdsp
+    - match: '[><!]=|[><]|[!=]='
+      scope: keyword.operator.comparison.gdsp
+    - match: '<-'
+      scope: keyword.operator.feedback.gdsp
+    - match: '\.\.'
+      scope: keyword.operator.range.gdsp
+    - match: '='
+      scope: keyword.operator.assignment.gdsp
+
+  punctuation:
+    - match: \(
+      scope: punctuation.section.parens.begin.gdsp
+    - match: \)
+      scope: punctuation.section.parens.end.gdsp
+    - match: \{
+      scope: punctuation.section.block.begin.gdsp
+    - match: \}
+      scope: punctuation.section.block.end.gdsp
+    - match: ','
+      scope: punctuation.separator.gdsp
+    - match: \.
+      scope: punctuation.accessor.dot.gdsp
+    - match: ;
+      scope: punctuation.terminator.gdsp
+
+  identifiers:
+    - match: '{{ident}}(?=\s*\()'
+      scope: variable.function.gdsp
+    - match: '{{ident}}'
+      scope: variable.other.gdsp
