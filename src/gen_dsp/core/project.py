@@ -45,6 +45,9 @@ class ProjectConfig:
     # Use shared FetchContent cache for CMake-based platforms
     shared_cache: bool = True
 
+    # Explicit cache directory override (baked into CMakeLists.txt)
+    cache_dir: Optional[Path] = None
+
     # Board variant for embedded platforms:
     #   Daisy: seed, pod, patch, patch_sm, field, petal, legio, versio
     #   Circle: pi3-i2s, pi4-i2s

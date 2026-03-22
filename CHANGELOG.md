@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **mkdocs documentation site** -- Added [mkdocs-material](https://squidfunk.github.io/mkdocs-material/) documentation with [mkdocstrings](https://mkdocstrings.github.io/) for auto-generated API reference from Python docstrings. Covers all 15 platform backends, core modules (parser, manifest, project, builder, patcher, cache, MIDI), platform base classes, error hierarchy, and the full graph frontend (models, compile, validate, optimize, simulate, algebra, adapter). New Makefile targets: `docs-build`, `docs-serve`, `docs-deploy`. Published at <https://shakfu.github.io/gen-dsp/>.
+- **`--cache-dir` CLI option** -- Explicit FetchContent cache directory override that gets baked into the generated `CMakeLists.txt`. Useful for Docker builds or other environments where you want a specific, fixed cache path. Priority order: `GEN_DSP_CACHE_DIR` env var (at CMake configure time) > `--cache-dir` (baked in) > OS-appropriate default (resolved at configure time).
+
+### Fixed
+
+- **CMake: portable FetchContent cache resolution** -- The generated `CMakeLists.txt` no longer bakes an absolute host-specific cache path (e.g. `/Users/username/Library/Caches/gen-dsp/fetchcontent/`) at project-generation time. Instead, the OS-appropriate cache directory is resolved at CMake configure time, so projects generated on macOS build correctly on Linux (e.g. in Docker containers) without manual `CMakeLists.txt` edits. ([#5](https://github.com/shakfu/gen-dsp/issues/5))
+- **VST3: cross-compilation `moduleinfotool` guard** -- Added `if(CMAKE_CROSSCOMPILING)` guard to disable `SMTG_ENABLE_MODULE_INFO` when cross-compiling. The VST3 SDK's `moduleinfotool` is compiled as a host-architecture binary but fails to run under cross-compilation (e.g. ARM target on x86 Docker host). Native builds are unaffected. ([#5](https://github.com/shakfu/gen-dsp/issues/5))
 
 ## [0.1.18]
 

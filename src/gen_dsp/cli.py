@@ -71,6 +71,7 @@ Default command (auto-detects source type):
   --buffers NAME [NAME ...]
   --no-patch                Skip platform patches
   --no-shared-cache         Disable shared OS cache for FetchContent downloads
+  --cache-dir DIR           Explicit FetchContent cache directory
   --board BOARD             Board variant (daisy, circle)
   --no-midi                 Disable MIDI note handling
   --midi-gate NAME          MIDI gate parameter name
@@ -149,6 +150,12 @@ def _make_default_parser() -> argparse.ArgumentParser:
         "--no-shared-cache",
         action="store_true",
         help="Disable shared OS cache for FetchContent downloads (CMake-based platforms)",
+    )
+    parser.add_argument(
+        "--cache-dir",
+        type=Path,
+        default=None,
+        help="Explicit FetchContent cache directory (baked into CMakeLists.txt)",
     )
     parser.add_argument(
         "--board",
@@ -416,6 +423,7 @@ def _cmd_default_graph(args: argparse.Namespace, graph_path: Path) -> int:
         apply_patches=False,
         output_dir=args.output,
         shared_cache=not getattr(args, "no_shared_cache", False),
+        cache_dir=getattr(args, "cache_dir", None),
     )
 
     config_errors = config.validate()
@@ -538,6 +546,7 @@ def _cmd_default_export(args: argparse.Namespace, export_path: Path) -> int:
         apply_patches=not args.no_patch,
         output_dir=args.output,
         shared_cache=not args.no_shared_cache,
+        cache_dir=args.cache_dir,
         board=args.board,
         no_midi=args.no_midi,
         midi_gate=args.midi_gate,

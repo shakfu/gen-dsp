@@ -371,9 +371,6 @@ def _cmake_common_header(
     shared_cache: bool,
 ) -> str:
     """Generate common CMake header (project, C++ standard, cache)."""
-    from gen_dsp.core.cache import get_cache_dir
-
-    cache_dir = str(get_cache_dir())
     use_cache = "TRUE" if shared_cache else "FALSE"
 
     return f"""\
@@ -392,7 +389,24 @@ if(DEFINED ENV{{GEN_DSP_CACHE_DIR}})
     file(TO_CMAKE_PATH "$ENV{{GEN_DSP_CACHE_DIR}}" _gen_dsp_cache)
     set(FETCHCONTENT_BASE_DIR "${{_gen_dsp_cache}}" CACHE PATH "" FORCE)
 elseif({use_cache})
-    set(FETCHCONTENT_BASE_DIR "{cache_dir}" CACHE PATH "" FORCE)
+    # Resolve OS-appropriate cache dir at configure time (portable across machines)
+    if(APPLE)
+        set(_gen_dsp_cache "$ENV{{HOME}}/Library/Caches/gen-dsp/fetchcontent")
+    elseif(WIN32)
+        if(DEFINED ENV{{LOCALAPPDATA}})
+            set(_gen_dsp_cache "$ENV{{LOCALAPPDATA}}/gen-dsp/fetchcontent")
+        else()
+            set(_gen_dsp_cache "$ENV{{HOME}}/AppData/Local/gen-dsp/fetchcontent")
+        endif()
+    else()
+        if(DEFINED ENV{{XDG_CACHE_HOME}})
+            set(_gen_dsp_cache "$ENV{{XDG_CACHE_HOME}}/gen-dsp/fetchcontent")
+        else()
+            set(_gen_dsp_cache "$ENV{{HOME}}/.cache/gen-dsp/fetchcontent")
+        endif()
+    endif()
+    file(TO_CMAKE_PATH "${{_gen_dsp_cache}}" _gen_dsp_cache)
+    set(FETCHCONTENT_BASE_DIR "${{_gen_dsp_cache}}" CACHE PATH "" FORCE)
 endif()
 """
 

@@ -40,11 +40,11 @@ class CMakePlatform(Platform):
 
         Returns:
             Tuple of (use_shared_cache, cache_dir) where use_shared_cache
-            is "ON" or "OFF" and cache_dir is the path string (or empty).
+            is "ON" or "OFF" and cache_dir is the explicit path string
+            (or empty when the template should resolve at configure time).
         """
-        shared_cache = config is not None and config.shared_cache
-        if shared_cache:
-            from gen_dsp.core.cache import get_cache_dir
-
-            return "ON", get_cache_dir().as_posix()
-        return "OFF", ""
+        if config is None or not config.shared_cache:
+            return "OFF", ""
+        if config.cache_dir is not None:
+            return "ON", config.cache_dir.as_posix()
+        return "ON", ""
