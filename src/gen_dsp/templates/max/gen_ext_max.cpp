@@ -82,6 +82,15 @@ void *WRAPPER_NEW(t_symbol *s, long argc, t_atom *argv)
 #ifdef WRAPPER_BUFFER_NAME_4
     if (WRAPPER_BUFFER_COUNT >= 5) x->x_buffer_symbols[4] = gensym(STR(WRAPPER_BUFFER_NAME_4));
 #endif
+#ifdef WRAPPER_BUFFER_NAME_5
+    if (WRAPPER_BUFFER_COUNT >= 6) x->x_buffer_symbols[5] = gensym(STR(WRAPPER_BUFFER_NAME_5));
+#endif
+#ifdef WRAPPER_BUFFER_NAME_6
+    if (WRAPPER_BUFFER_COUNT >= 7) x->x_buffer_symbols[6] = gensym(STR(WRAPPER_BUFFER_NAME_6));
+#endif
+#ifdef WRAPPER_BUFFER_NAME_7
+    if (WRAPPER_BUFFER_COUNT >= 8) x->x_buffer_symbols[7] = gensym(STR(WRAPPER_BUFFER_NAME_7));
+#endif
 #endif
 
     x->x_sr = sys_getsr();

@@ -238,20 +238,38 @@ class GenExportParser:
 
         Uses two detection strategies:
 
-        1. Direct buffer access patterns (older gen~ exports where buffers
-           are local variables like ``sample.dim``):
-           - buffer.dim, buffer.read(, buffer.write(, buffer.channels
+        1. Data member declarations (exports using codebox ``Data``
+           declarations, which produce ``Data m_XXX;`` C++ members with
+           ``.reset("name", ...)`` calls). When present, this is
+           authoritative and avoids over-counting from function argument
+           aliases (e.g. codebox args that reference the same buffer).
 
-        2. Data member declarations (newer gen~ exports where buffers are
-           ``Data m_XXX;`` members with ``.reset("name", ...)`` calls):
-           - Extracts the user-facing name from the ``.reset()`` call
+        2. Direct buffer access patterns (fallback for exports where
+           buffers appear as local variables like ``sample.dim``):
+           - buffer.dim, buffer.read(, buffer.write(, buffer.channels
 
         Returns:
             List of unique buffer names found.
         """
-        candidates: set[str] = set()
+        # Strategy 1: Data member declarations with .reset("user_name", ...)
+        # Finds buffers like: Data m_storage_3; ... m_storage_3.reset("storage", ...)
+        # Authoritative when present -- avoids over-counting from codebox
+        # function argument aliases (e.g. xn1_arg.read() aliasing xn1).
+        data_members = set(self.DATA_MEMBER_PATTERN.findall(content))
+        data_buffers: set[str] = set()
+        for match in self.DATA_RESET_PATTERN.finditer(content):
+            member_name = match.group(1)
+            user_name = match.group(2)
+            if member_name in data_members:
+                if not member_name.startswith(self.INTERNAL_MEMBER_PREFIXES):
+                    data_buffers.add(user_name)
 
-        # Strategy 1: direct buffer access patterns (non-member identifiers)
+        if data_buffers:
+            return sorted(data_buffers)
+
+        # Strategy 2 (fallback): direct buffer access patterns for exports
+        # where buffers are local variables (e.g. sample.dim, sample.read())
+        candidates: set[str] = set()
         for pattern in [
             self.BUFFER_DIM_PATTERN,
             self.BUFFER_READ_PATTERN,
@@ -263,16 +281,6 @@ class GenExportParser:
                 if name not in self.EXCLUDED_IDENTIFIERS:
                     if not name.startswith(("m_", "__", "gen_")):
                         candidates.add(name)
-
-        # Strategy 2: Data member declarations with .reset("user_name", ...)
-        # Finds buffers like: Data m_storage_3; ... m_storage_3.reset("storage", ...)
-        data_members = set(self.DATA_MEMBER_PATTERN.findall(content))
-        for match in self.DATA_RESET_PATTERN.finditer(content):
-            member_name = match.group(1)
-            user_name = match.group(2)
-            if member_name in data_members:
-                if not member_name.startswith(self.INTERNAL_MEMBER_PREFIXES):
-                    candidates.add(user_name)
 
         return sorted(candidates)
 

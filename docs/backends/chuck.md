@@ -79,7 +79,7 @@ eff.reset();
 
 ## Buffers
 
-Buffer support follows the standard gen-dsp pattern. Up to 5 single-channel buffers are supported. Buffer data is stored in 32-bit float arrays.
+Buffer support follows the standard gen-dsp pattern. Up to 8 single-channel buffers are supported. Buffer data is stored in 32-bit float arrays.
 
 ## Build Details
 

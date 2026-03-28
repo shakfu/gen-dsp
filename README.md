@@ -662,7 +662,7 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 
 ## Limitations
 
-- Maximum of 5 buffers per external
+- Maximum of 8 buffers per external
 - Buffers are single-channel only. Use multiple buffers for multi-channel audio.
 - Max/MSP: Windows builds require Visual Studio or equivalent MSVC toolchain
 - AudioUnit: macOS only

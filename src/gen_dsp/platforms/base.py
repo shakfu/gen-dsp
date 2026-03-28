@@ -251,7 +251,7 @@ class Platform(ABC):
             buffer_defs.append(f"#define WRAPPER_BUFFER_NAME_{i} {buf_name}")
 
         # Pad with commented-out placeholders
-        for i in range(len(buffers), 5):
+        for i in range(len(buffers), 8):
             buffer_defs.append(f"// #define WRAPPER_BUFFER_NAME_{i} array{i + 1}")
 
         if template_path.exists():

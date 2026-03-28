@@ -95,8 +95,8 @@ class ProjectConfig:
             )
 
         # Validate buffer count
-        if len(self.buffers) > 5:
-            errors.append(f"Maximum 5 buffers supported, got {len(self.buffers)}")
+        if len(self.buffers) > 8:
+            errors.append(f"Maximum 8 buffers supported, got {len(self.buffers)}")
 
         # Validate buffer names
         for buf_name in self.buffers:

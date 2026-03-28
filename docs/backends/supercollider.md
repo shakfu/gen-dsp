@@ -57,7 +57,7 @@ All gen~ parameters are exposed as SC UGen inputs with real names and default va
 
 ## Buffers
 
-Buffer support follows the standard gen-dsp pattern. Up to 5 single-channel buffers are supported.
+Buffer support follows the standard gen-dsp pattern. Up to 8 single-channel buffers are supported.
 
 ## Build Details
 

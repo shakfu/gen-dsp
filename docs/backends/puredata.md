@@ -66,7 +66,7 @@ Send `bang` to the first inlet to print all available parameters to the PD conso
 
 ## Buffers
 
-Buffers connect to PureData arrays with matching names. Up to 5 buffers are supported (single-channel each).
+Buffers connect to PureData arrays with matching names. Up to 8 buffers are supported (single-channel each).
 
 To remap a buffer to a different array at runtime:
 

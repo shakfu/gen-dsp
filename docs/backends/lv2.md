@@ -63,7 +63,7 @@ The plugin implements the LV2 State extension (`LV2_State_Interface`), allowing 
 
 ## Buffers
 
-Buffer support follows the standard gen-dsp pattern. Up to 5 single-channel buffers are supported.
+Buffer support follows the standard gen-dsp pattern. Up to 8 single-channel buffers are supported.
 
 ## Build Details
 

@@ -46,19 +46,28 @@ static void *WRAPPER_NEW(void)
 		  x->x_buffer_instances[i] = new PdBuffer;
 	  }
 #ifdef WRAPPER_BUFFER_NAME_0
-	  if (x->x_num_buffers >= 1) { x->x_buffer_symbols[0] = gensym(STR(WRAPPER_BUFFER_NAME_0)); }	 
+	  if (x->x_num_buffers >= 1) { x->x_buffer_symbols[0] = gensym(STR(WRAPPER_BUFFER_NAME_0)); }
 #endif
 #ifdef WRAPPER_BUFFER_NAME_1
-	  if (x->x_num_buffers >= 2) { x->x_buffer_symbols[1] = gensym(STR(WRAPPER_BUFFER_NAME_1)); }	 
+	  if (x->x_num_buffers >= 2) { x->x_buffer_symbols[1] = gensym(STR(WRAPPER_BUFFER_NAME_1)); }
 #endif
 #ifdef WRAPPER_BUFFER_NAME_2
-	  if (x->x_num_buffers >= 3) { x->x_buffer_symbols[2] = gensym(STR(WRAPPER_BUFFER_NAME_2)); }	 
+	  if (x->x_num_buffers >= 3) { x->x_buffer_symbols[2] = gensym(STR(WRAPPER_BUFFER_NAME_2)); }
 #endif
 #ifdef WRAPPER_BUFFER_NAME_3
-	  if (x->x_num_buffers >= 4) { x->x_buffer_symbols[3] = gensym(STR(WRAPPER_BUFFER_NAME_3)); }	 
+	  if (x->x_num_buffers >= 4) { x->x_buffer_symbols[3] = gensym(STR(WRAPPER_BUFFER_NAME_3)); }
 #endif
 #ifdef WRAPPER_BUFFER_NAME_4
-	  if (x->x_num_buffers >= 5) { x->x_buffer_symbols[4] = gensym(STR(WRAPPER_BUFFER_NAME_4)); }	 
+	  if (x->x_num_buffers >= 5) { x->x_buffer_symbols[4] = gensym(STR(WRAPPER_BUFFER_NAME_4)); }
+#endif
+#ifdef WRAPPER_BUFFER_NAME_5
+	  if (x->x_num_buffers >= 6) { x->x_buffer_symbols[5] = gensym(STR(WRAPPER_BUFFER_NAME_5)); }
+#endif
+#ifdef WRAPPER_BUFFER_NAME_6
+	  if (x->x_num_buffers >= 7) { x->x_buffer_symbols[6] = gensym(STR(WRAPPER_BUFFER_NAME_6)); }
+#endif
+#ifdef WRAPPER_BUFFER_NAME_7
+	  if (x->x_num_buffers >= 8) { x->x_buffer_symbols[7] = gensym(STR(WRAPPER_BUFFER_NAME_7)); }
 #endif
   }
   
@@ -143,19 +152,28 @@ static t_int *WRAPPER_PERFORM(t_int *w)
 	// set global object
 	
 #ifdef WRAPPER_BUFFER_NAME_0
-	if (x->x_num_buffers >= 1){ WRAPPER_BUFFER_NAME_0 = *x->x_buffer_instances[0];}
+	if (x->x_num_buffers >= 1) { WRAPPER_BUFFER_NAME_0 = *x->x_buffer_instances[0]; }
 #endif
 #ifdef WRAPPER_BUFFER_NAME_1
-	if (x->x_num_buffers >= 2){ WRAPPER_BUFFER_NAME_1 = *x->x_buffer_instances[1];}
+	if (x->x_num_buffers >= 2) { WRAPPER_BUFFER_NAME_1 = *x->x_buffer_instances[1]; }
 #endif
 #ifdef WRAPPER_BUFFER_NAME_2
-	if (x->x_num_buffers >= 3){WRAPPER_BUFFER_NAME_2 = *x->x_buffer_instances[2];}
+	if (x->x_num_buffers >= 3) { WRAPPER_BUFFER_NAME_2 = *x->x_buffer_instances[2]; }
 #endif
 #ifdef WRAPPER_BUFFER_NAME_3
-	if (x->x_num_buffers >= 4){WRAPPER_BUFFER_NAME_3 = *x->x_buffer_instances[3];}
+	if (x->x_num_buffers >= 4) { WRAPPER_BUFFER_NAME_3 = *x->x_buffer_instances[3]; }
 #endif
 #ifdef WRAPPER_BUFFER_NAME_4
-	if (x->x_num_buffers >= 5){WRAPPER_BUFFER_NAME_4 = *x->x_buffer_instances[4];}
+	if (x->x_num_buffers >= 5) { WRAPPER_BUFFER_NAME_4 = *x->x_buffer_instances[4]; }
+#endif
+#ifdef WRAPPER_BUFFER_NAME_5
+	if (x->x_num_buffers >= 6) { WRAPPER_BUFFER_NAME_5 = *x->x_buffer_instances[5]; }
+#endif
+#ifdef WRAPPER_BUFFER_NAME_6
+	if (x->x_num_buffers >= 7) { WRAPPER_BUFFER_NAME_6 = *x->x_buffer_instances[6]; }
+#endif
+#ifdef WRAPPER_BUFFER_NAME_7
+	if (x->x_num_buffers >= 8) { WRAPPER_BUFFER_NAME_7 = *x->x_buffer_instances[7]; }
 #endif
 	
 	perform(x->m_genObject, (t_sample **)(&w[inputIndex]), x->x_num_inputs, (t_sample **)(&w[outputIndex]), x->x_num_outputs, n);
@@ -258,6 +276,15 @@ static void WRAPPER_BANG(WRAPPER_TYPE *x) {
 #ifdef WRAPPER_BUFFER_NAME_4
 		post(STR(WRAPPER_BUFFER_NAME_4));
 #endif
+#ifdef WRAPPER_BUFFER_NAME_5
+		post(STR(WRAPPER_BUFFER_NAME_5));
+#endif
+#ifdef WRAPPER_BUFFER_NAME_6
+		post(STR(WRAPPER_BUFFER_NAME_6));
+#endif
+#ifdef WRAPPER_BUFFER_NAME_7
+		post(STR(WRAPPER_BUFFER_NAME_7));
+#endif
 		post ("Send `%s original_buffer_name new_buffer_name` to switch out buffers.", STR(MESSAGE_SET));
 	}
 	
@@ -298,6 +325,15 @@ static void WRAPPER_PDSET(WRAPPER_TYPE *x, t_symbol *orig, t_symbol *n)
 #endif
 #ifdef WRAPPER_BUFFER_NAME_4
 		if (orig == gensym(STR(WRAPPER_BUFFER_NAME_4)) && x->x_num_buffers >= 5) {x->x_buffer_symbols[4] = n;}
+#endif
+#ifdef WRAPPER_BUFFER_NAME_5
+		if (orig == gensym(STR(WRAPPER_BUFFER_NAME_5)) && x->x_num_buffers >= 6) {x->x_buffer_symbols[5] = n;}
+#endif
+#ifdef WRAPPER_BUFFER_NAME_6
+		if (orig == gensym(STR(WRAPPER_BUFFER_NAME_6)) && x->x_num_buffers >= 7) {x->x_buffer_symbols[6] = n;}
+#endif
+#ifdef WRAPPER_BUFFER_NAME_7
+		if (orig == gensym(STR(WRAPPER_BUFFER_NAME_7)) && x->x_num_buffers >= 8) {x->x_buffer_symbols[7] = n;}
 #endif
 		set_arrays(x);
 		return;

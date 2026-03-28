@@ -62,7 +62,7 @@ All gen~ parameters are exposed as knobs. Parameter names and ranges are queried
 
 ## Buffers
 
-Buffer support follows the standard gen-dsp pattern. Up to 5 single-channel buffers are supported.
+Buffer support follows the standard gen-dsp pattern. Up to 8 single-channel buffers are supported.
 
 ## Build Details
 

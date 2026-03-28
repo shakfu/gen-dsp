@@ -62,7 +62,7 @@ The plugin implements the CLAP state extension (`clap_plugin_state_t`), allowing
 
 ## Buffers
 
-Buffer support follows the standard gen-dsp pattern. Up to 5 single-channel buffers are supported.
+Buffer support follows the standard gen-dsp pattern. Up to 8 single-channel buffers are supported.
 
 ## Build Details
 

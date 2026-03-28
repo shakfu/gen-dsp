@@ -45,15 +45,15 @@ class TestProjectConfig:
         assert "'invalid'" in errors[0]
 
     def test_too_many_buffers(self):
-        """Test validation rejects more than 5 buffers."""
+        """Test validation rejects more than 8 buffers."""
         config = ProjectConfig(
             name="valid",
             platform="pd",
-            buffers=["b1", "b2", "b3", "b4", "b5", "b6"],
+            buffers=["b1", "b2", "b3", "b4", "b5", "b6", "b7", "b8", "b9"],
         )
         errors = config.validate()
         assert len(errors) == 1
-        assert "Maximum 5 buffers" in errors[0]
+        assert "Maximum 8 buffers" in errors[0]
 
     def test_invalid_buffer_name(self):
         """Test validation rejects invalid buffer names."""

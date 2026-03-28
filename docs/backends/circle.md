@@ -146,7 +146,7 @@ Parameter query functions are available via the wrapper:
 
 ## Buffers
 
-Buffer support follows the standard gen-dsp pattern. Up to 5 single-channel buffers are supported via the `CircleBuffer` class. Buffer data is allocated from the 16MB memory pool.
+Buffer support follows the standard gen-dsp pattern. Up to 8 single-channel buffers are supported via the `CircleBuffer` class. Buffer data is allocated from the 16MB memory pool.
 
 ## Build Details
 

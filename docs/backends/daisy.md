@@ -105,7 +105,7 @@ For the bare Seed (no knobs), modify `gen_ext_daisy.cpp` to add ADC reads for cu
 
 ## Buffers
 
-Buffer support follows the standard gen-dsp pattern. Up to 5 single-channel buffers are supported. Buffer data is allocated from the SRAM/SDRAM memory pools.
+Buffer support follows the standard gen-dsp pattern. Up to 8 single-channel buffers are supported. Buffer data is allocated from the SRAM/SDRAM memory pools.
 
 ## Build Details
 
