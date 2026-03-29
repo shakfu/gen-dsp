@@ -58,7 +58,7 @@ Issues = "https://github.com/shakfu/gen-dsp/issues"
 "tests/graph/*.py" = ["E402"]
 
 [build-system]
-requires = ["uv_build>=0.10.8,<0.11.0"]
+requires = ["uv_build>=0.11.0,<0.12.0"]
 build-backend = "uv_build"
 
 [tool.pytest.ini_options]
