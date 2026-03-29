@@ -1,6 +1,6 @@
 [project]
 name = "gen-dsp"
-version = "0.1.18"
+version = "0.1.19"
 description = "Generate multiple dsp plugin formats from Max gen~ exports"
 readme = "README.md"
 license = "MIT"

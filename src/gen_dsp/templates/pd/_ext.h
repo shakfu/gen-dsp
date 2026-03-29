@@ -21,6 +21,15 @@ namespace WRAPPER_NAMESPACE {
 #ifdef WRAPPER_BUFFER_NAME_4
 	extern PdBuffer WRAPPER_BUFFER_NAME_4;
 #endif
+#ifdef WRAPPER_BUFFER_NAME_5
+	extern PdBuffer WRAPPER_BUFFER_NAME_5;
+#endif
+#ifdef WRAPPER_BUFFER_NAME_6
+	extern PdBuffer WRAPPER_BUFFER_NAME_6;
+#endif
+#ifdef WRAPPER_BUFFER_NAME_7
+	extern PdBuffer WRAPPER_BUFFER_NAME_7;
+#endif
 
 #include GEN_EXPORTED_HEADER
 }

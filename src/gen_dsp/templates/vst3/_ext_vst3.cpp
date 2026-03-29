@@ -58,6 +58,15 @@ namespace WRAPPER_NAMESPACE {
 #ifdef WRAPPER_BUFFER_NAME_4
     Vst3Buffer WRAPPER_BUFFER_NAME_4;
 #endif
+#ifdef WRAPPER_BUFFER_NAME_5
+    Vst3Buffer WRAPPER_BUFFER_NAME_5;
+#endif
+#ifdef WRAPPER_BUFFER_NAME_6
+    Vst3Buffer WRAPPER_BUFFER_NAME_6;
+#endif
+#ifdef WRAPPER_BUFFER_NAME_7
+    Vst3Buffer WRAPPER_BUFFER_NAME_7;
+#endif
 
 // Include the exported gen~ code
 #include GEN_EXPORTED_CPP
@@ -78,6 +87,15 @@ static const char* buffer_names[] = {
 #endif
 #ifdef WRAPPER_BUFFER_NAME_4
     GSTR(WRAPPER_BUFFER_NAME_4),
+#endif
+#ifdef WRAPPER_BUFFER_NAME_5
+    GSTR(WRAPPER_BUFFER_NAME_5),
+#endif
+#ifdef WRAPPER_BUFFER_NAME_6
+    GSTR(WRAPPER_BUFFER_NAME_6),
+#endif
+#ifdef WRAPPER_BUFFER_NAME_7
+    GSTR(WRAPPER_BUFFER_NAME_7),
 #endif
     nullptr
 };

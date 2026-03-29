@@ -58,6 +58,15 @@ namespace WRAPPER_NAMESPACE {
 #ifdef WRAPPER_BUFFER_NAME_4
     Lv2Buffer WRAPPER_BUFFER_NAME_4;
 #endif
+#ifdef WRAPPER_BUFFER_NAME_5
+    Lv2Buffer WRAPPER_BUFFER_NAME_5;
+#endif
+#ifdef WRAPPER_BUFFER_NAME_6
+    Lv2Buffer WRAPPER_BUFFER_NAME_6;
+#endif
+#ifdef WRAPPER_BUFFER_NAME_7
+    Lv2Buffer WRAPPER_BUFFER_NAME_7;
+#endif
 
 // Include the exported gen~ code
 #include GEN_EXPORTED_CPP
@@ -78,6 +87,15 @@ static const char* buffer_names[] = {
 #endif
 #ifdef WRAPPER_BUFFER_NAME_4
     STR(WRAPPER_BUFFER_NAME_4),
+#endif
+#ifdef WRAPPER_BUFFER_NAME_5
+    STR(WRAPPER_BUFFER_NAME_5),
+#endif
+#ifdef WRAPPER_BUFFER_NAME_6
+    STR(WRAPPER_BUFFER_NAME_6),
+#endif
+#ifdef WRAPPER_BUFFER_NAME_7
+    STR(WRAPPER_BUFFER_NAME_7),
 #endif
     nullptr
 };
