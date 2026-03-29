@@ -2435,7 +2435,7 @@
 <h2 id="state-saverestore">State Save/Restore<a class="headerlink" href="#state-saverestore" title="Permanent link">&para;</a></h2>
 <p>The plugin implements <code>setState()</code>/<code>getState()</code> on the <code>SingleComponentEffect</code>, allowing hosts to save and recall presets and session state. Parameters are serialized as a flat binary blob (4-byte magic header + one float per parameter) using <code>IBStreamer</code>. Invalid or empty state data is rejected on load.</p>
 <h2 id="buffers">Buffers<a class="headerlink" href="#buffers" title="Permanent link">&para;</a></h2>
-<p>Buffer support follows the standard gen-dsp pattern. Up to 5 single-channel buffers are supported.</p>
+<p>Buffer support follows the standard gen-dsp pattern. Up to 8 single-channel buffers are supported.</p>
 <h2 id="build-details">Build Details<a class="headerlink" href="#build-details" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Build system:</strong> CMake with FetchContent</li>

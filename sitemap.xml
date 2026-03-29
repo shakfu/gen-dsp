@@ -2,190 +2,190 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://shakfu.github.io/gen-dsp/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/changelog/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/cheatsheet/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/inputs_as_params/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/midi-cv/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/move-everything/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/multi-circle/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/new_backends/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/validating_plugins/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/api/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/api/builder/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/api/cache/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/api/errors/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/api/graph-adapter/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/api/graph-algebra/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/api/graph-compile/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/api/graph-models/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/api/graph-optimize/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/api/graph-simulate/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/api/graph-validate/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/api/manifest/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/api/midi/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/api/parser/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/api/patcher/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/api/platforms/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/api/project/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/backends/audiounit/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/backends/auv3/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/backends/chuck/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/backends/circle/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/backends/clap/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/backends/csound/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/backends/daisy/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/backends/lv2/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/backends/max/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/backends/puredata/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/backends/standalone/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/backends/supercollider/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/backends/vcvrack/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/backends/vst3/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/backends/webaudio/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/graph/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/graph/api/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/graph/coverage/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/graph/dsl/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/graph/dsp_graph/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
     <url>
          <loc>https://shakfu.github.io/gen-dsp/graph/dsp_pydantic/</loc>
-         <lastmod>2026-03-18</lastmod>
+         <lastmod>2026-03-29</lastmod>
     </url>
 </urlset>

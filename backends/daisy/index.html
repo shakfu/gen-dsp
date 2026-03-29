@@ -2572,7 +2572,7 @@
 <p>Parameters retain their gen~ defaults at startup. For boards with hardware knobs, the generated code auto-maps the first N knobs to the first N gen~ parameters, scaling the 0-1 knob range to each parameter's min/max range.</p>
 <p>For the bare Seed (no knobs), modify <code>gen_ext_daisy.cpp</code> to add ADC reads for custom knob/CV circuits.</p>
 <h2 id="buffers">Buffers<a class="headerlink" href="#buffers" title="Permanent link">&para;</a></h2>
-<p>Buffer support follows the standard gen-dsp pattern. Up to 5 single-channel buffers are supported. Buffer data is allocated from the SRAM/SDRAM memory pools.</p>
+<p>Buffer support follows the standard gen-dsp pattern. Up to 8 single-channel buffers are supported. Buffer data is allocated from the SRAM/SDRAM memory pools.</p>
 <h2 id="build-details">Build Details<a class="headerlink" href="#build-details" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Build system:</strong> make using libDaisy's <code>core/Makefile</code> (provides ARM toolchain rules)</li>
