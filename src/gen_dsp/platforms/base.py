@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from pathlib import Path
 from string import Template
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import shutil
 
@@ -17,6 +17,9 @@ from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError
+
+if TYPE_CHECKING:
+    from gen_dsp.graph.models import Graph
 
 
 class PluginCategory(Enum):
@@ -224,6 +227,101 @@ class Platform(ABC):
             platform_lower=platform_key,
         )
         (output_dir / f"_ext_{platform_key}.h").write_text(content, encoding="utf-8")
+
+    # -------------------------------------------------------------------------
+    # Graph frontend path
+    # -------------------------------------------------------------------------
+
+    def generate_from_graph(
+        self,
+        graph: "Graph",
+        manifest: Manifest,
+        output_dir: Path,
+        name: str,
+        config: ProjectConfig,
+        midi_defines: str,
+    ) -> None:
+        """Generate a project from a dsp-graph Graph (graph frontend path).
+
+        Provides the orchestration common to every platform: compile the graph
+        to C++, emit the platform adapter, copy template files, and write the
+        build file. Platform-specific extras (Info.plist, TTL metadata, board
+        wrappers, etc.) are produced by the ``_write_graph_platform_files`` hook,
+        which each platform overrides as needed. This keeps all knowledge of a
+        platform inside its own module, mirroring the export path's
+        ``generate_project``.
+        """
+        from gen_dsp.graph.adapter import (
+            _copy_platform_templates,
+            _generate_buffer_header,
+            generate_adapter_cpp,
+            generate_graph_build_file,
+        )
+        from gen_dsp.graph.compile import compile_graph
+
+        platform = config.platform
+
+        # 1. Compile graph to C++
+        (output_dir / f"{graph.name}.cpp").write_text(compile_graph(graph))
+
+        # 2. Generate adapter _ext_{platform}.cpp
+        (output_dir / f"_ext_{platform}.cpp").write_text(
+            generate_adapter_cpp(graph, platform)
+        )
+
+        # 3. Copy platform template files (gen_ext_{platform}.cpp, etc.)
+        _copy_platform_templates(output_dir, platform)
+
+        # 4. Generate _ext_{platform}.h if not already provided by the templates
+        if not (output_dir / f"_ext_{platform}.h").is_file():
+            self.generate_ext_header(output_dir, platform)
+
+        # 5. Generate gen_buffer.h (graph manages its own buffers)
+        _generate_buffer_header(output_dir)
+
+        # 6. Copy voice_alloc.h when polyphony is enabled
+        self.copy_voice_alloc_header(output_dir, config)
+
+        # 7. Copy platform-specific buffer header if one exists
+        import gen_dsp.templates as templates
+
+        getter = getattr(templates, f"get_{platform}_templates_dir", None)
+        if getter is not None:
+            buf_header = getter() / f"{platform}_buffer.h"
+            if buf_header.is_file():
+                shutil.copy2(buf_header, output_dir / f"{platform}_buffer.h")
+
+        # 8. Platform-specific extra files (plists, TTL, board wrappers, ...)
+        self._write_graph_platform_files(graph, manifest, output_dir, name, config)
+
+        # 9. Generate the simplified build file (no genlib sources)
+        generate_graph_build_file(
+            output_dir=output_dir,
+            platform=platform,
+            lib_name=name,
+            gen_name=graph.name,
+            num_inputs=manifest.num_inputs,
+            num_outputs=manifest.num_outputs,
+            num_params=manifest.num_params,
+            genext_version=self.GENEXT_VERSION,
+            shared_cache=config.shared_cache,
+            midi_defines=midi_defines,
+        )
+
+    def _write_graph_platform_files(
+        self,
+        graph: "Graph",
+        manifest: Manifest,
+        output_dir: Path,
+        name: str,
+        config: ProjectConfig,
+    ) -> None:
+        """Write platform-specific files for the graph path.
+
+        Default implementation writes nothing. Platforms that need extra files
+        (e.g. Info.plist, TTL metadata, a board-specific wrapper) override this.
+        """
+        return None
 
     def generate_buffer_header(
         self,

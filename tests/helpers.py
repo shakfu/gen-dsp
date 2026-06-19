@@ -9,10 +9,110 @@ silently skipped (the function returns immediately).
 """
 
 import shutil
+import socket
 import subprocess
 import tempfile
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
+
+
+# ---------------------------------------------------------------------------
+# Network-reachability gating for SDK-download build tests
+# ---------------------------------------------------------------------------
+#
+# Several build-integration tests fetch a platform SDK on first run (VCV Rack
+# via urllib, Daisy/Circle via git clone, and the CMake FetchContent platforms
+# clap/vst3/lv2/sc via git).  Those downloads hard-fail when offline.  The
+# helpers below let such tests skip cleanly when -- and only when -- a download
+# would actually be required: if the SDK is already cached the test runs offline
+# as normal, and only an uncached SDK combined with an unreachable host triggers
+# a skip.  This preserves coverage for the common offline-but-cached case.
+
+
+# Path that exists once a given platform's SDK is cached locally, plus the host
+# that must be reachable to download it.  Platforms absent from this map need no
+# network access and are never gated.
+def _sdk_sentinel(platform: str, cache: Path) -> Optional[tuple[Path, str]]:
+    if platform == "vcvrack":
+        return cache / "rack-sdk-src" / "Rack-SDK" / "plugin.mk", "vcvrack.com"
+    if platform == "daisy":
+        return cache / "libdaisy-src" / "libDaisy" / "core" / "Makefile", "github.com"
+    if platform == "circle":
+        return cache / "circle-src" / "circle" / "Rules.mk", "github.com"
+    cmake_src = {
+        "clap": "clap-src",
+        "vst3": "vst3sdk-src",
+        "lv2": "lv2-src",
+        "sc": "supercollider-src",
+    }
+    if platform in cmake_src:
+        return cache / cmake_src[platform], "github.com"
+    return None
+
+
+@lru_cache(maxsize=None)
+def _host_reachable(host: str, port: int = 443, timeout: float = 3.0) -> bool:
+    """Return True if a TCP connection to host:port succeeds (cached per host)."""
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def skip_if_sdk_download_needed(platform: str, cache: Path) -> None:
+    """Skip the current test if building `platform` needs an offline SDK download.
+
+    No-op when the platform needs no network access, or when its SDK is already
+    cached.  Only an uncached SDK plus an unreachable host triggers the skip.
+    """
+    import pytest
+
+    sentinel_host = _sdk_sentinel(platform, cache)
+    if sentinel_host is None:
+        return
+    sentinel, host = sentinel_host
+    if sentinel.exists():
+        return
+    if not _host_reachable(host):
+        pytest.skip(
+            f"{host} unreachable and {platform} SDK not cached at {sentinel}; "
+            "skipping download-dependent build test"
+        )
+
+
+# FetchContent_Declare names used by the CMake platform templates (clap, vst3,
+# lv2, sc), mapped to their cached source-tree subdirectory under the shared
+# cache.  Used to point CMake at a pre-populated checkout.
+_FETCHCONTENT_SDKS = ("clap", "vst3sdk", "lv2", "supercollider")
+
+
+def fetchcontent_cmake_args(cache: Path) -> list[str]:
+    """CMake args wiring FetchContent to the shared cache.
+
+    Beyond the base dir, this passes ``-DFETCHCONTENT_SOURCE_DIR_<NAME>`` for
+    every SDK already present in the cache so CMake consumes the cached checkout
+    directly instead of re-running its download/populate step.  That avoids an
+    intermittent FetchContent stamp-file failure seen when the ``-subbuild``
+    state is wiped between sessions while ``-src`` is kept, and lets cached
+    builds run offline.  Overrides for SDKs a project does not declare are
+    ignored by CMake, so passing the full set everywhere is safe.  On a fresh
+    cache (e.g. clean CI) no overrides are added and normal population runs.
+    """
+    args = [f"-DFETCHCONTENT_BASE_DIR={cache}"]
+    for name in _FETCHCONTENT_SDKS:
+        src = cache / f"{name}-src"
+        if src.is_dir() and any(src.iterdir()):
+            args.append(f"-DFETCHCONTENT_SOURCE_DIR_{name.upper()}={src}")
+    # Disable the VST3 SDK's moduleinfotool utility.  It is unnecessary for the
+    # plugin (which loads fine without moduleinfo.json) but pulls the SDK's
+    # vst-hosting sources (validator, tests) into the shared SDK build tree,
+    # where they intermittently fail to build ("No rule to make target
+    # libsdk_hosting.a", missing .o.d files).  Harmless for non-VST3 projects,
+    # which never read this variable.
+    args.append("-DSMTG_ENABLE_MODULE_INFO=OFF")
+    return args
 
 
 # ---------------------------------------------------------------------------

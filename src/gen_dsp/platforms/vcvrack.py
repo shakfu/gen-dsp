@@ -29,7 +29,7 @@ import urllib.request
 import zipfile
 from pathlib import Path
 from string import Template
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines_make
@@ -37,6 +37,9 @@ from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform, PluginCategory
 from gen_dsp.templates import get_vcvrack_templates_dir
+
+if TYPE_CHECKING:
+    from gen_dsp.graph.models import Graph
 
 
 # Rack SDK version and download URLs
@@ -360,6 +363,24 @@ class VcvRackPlatform(Platform):
             f"</svg>\n"
         )
         output_path.write_text(svg)
+
+    def _write_graph_platform_files(
+        self,
+        graph: "Graph",
+        manifest: Manifest,
+        output_dir: Path,
+        name: str,
+        config: ProjectConfig,
+    ) -> None:
+        """Graph path: generate plugin.json and the panel SVG."""
+        total = manifest.num_inputs + manifest.num_outputs + manifest.num_params
+        panel_hp = self._compute_panel_hp(total)
+
+        self._generate_plugin_json(output_dir, name, manifest.num_inputs)
+
+        res_dir = output_dir / "res"
+        res_dir.mkdir(parents=True, exist_ok=True)
+        self._generate_panel_svg(res_dir / f"{name}.svg", name, panel_hp)
 
     def build(
         self,

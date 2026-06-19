@@ -12,6 +12,8 @@ from typing import Optional
 
 import pytest
 
+from tests.helpers import fetchcontent_cmake_args
+
 from gen_dsp.core.parser import GenExportParser
 from gen_dsp.core.project import ProjectGenerator, ProjectConfig
 from gen_dsp.platforms import (
@@ -571,7 +573,7 @@ class TestScBuildIntegration:
 
         # Configure
         result = subprocess.run(
-            ["cmake", "..", f"-DFETCHCONTENT_BASE_DIR={fetchcontent_cache}"],
+            ["cmake", "..", *fetchcontent_cmake_args(fetchcontent_cache)],
             cwd=build_dir,
             capture_output=True,
             text=True,
@@ -626,7 +628,7 @@ class TestScBuildIntegration:
         env = _build_env()
 
         result = subprocess.run(
-            ["cmake", "..", f"-DFETCHCONTENT_BASE_DIR={fetchcontent_cache}"],
+            ["cmake", "..", *fetchcontent_cmake_args(fetchcontent_cache)],
             cwd=build_dir,
             capture_output=True,
             text=True,
@@ -672,7 +674,7 @@ class TestScBuildIntegration:
         env = _build_env()
 
         result = subprocess.run(
-            ["cmake", "..", f"-DFETCHCONTENT_BASE_DIR={fetchcontent_cache}"],
+            ["cmake", "..", *fetchcontent_cmake_args(fetchcontent_cache)],
             cwd=build_dir,
             capture_output=True,
             text=True,

@@ -8,7 +8,7 @@ from typing import Optional
 
 import pytest
 
-from tests.helpers import validate_lv2
+from tests.helpers import fetchcontent_cmake_args, validate_lv2
 
 from gen_dsp.core.parser import GenExportParser
 from gen_dsp.core.project import ProjectGenerator, ProjectConfig
@@ -340,7 +340,7 @@ class TestLv2BuildIntegration:
 
         # Configure
         result = subprocess.run(
-            ["cmake", "..", f"-DFETCHCONTENT_BASE_DIR={fetchcontent_cache}"],
+            ["cmake", "..", *fetchcontent_cmake_args(fetchcontent_cache)],
             cwd=build_dir,
             capture_output=True,
             text=True,
@@ -407,7 +407,7 @@ class TestLv2BuildIntegration:
         env = _build_env()
 
         result = subprocess.run(
-            ["cmake", "..", f"-DFETCHCONTENT_BASE_DIR={fetchcontent_cache}"],
+            ["cmake", "..", *fetchcontent_cmake_args(fetchcontent_cache)],
             cwd=build_dir,
             capture_output=True,
             text=True,
@@ -461,7 +461,7 @@ class TestLv2BuildIntegration:
         env = _build_env()
 
         result = subprocess.run(
-            ["cmake", "..", f"-DFETCHCONTENT_BASE_DIR={fetchcontent_cache}"],
+            ["cmake", "..", *fetchcontent_cmake_args(fetchcontent_cache)],
             cwd=build_dir,
             capture_output=True,
             text=True,
@@ -544,7 +544,7 @@ class TestLv2BuildIntegration:
 
         # Configure
         result = subprocess.run(
-            ["cmake", "..", f"-DFETCHCONTENT_BASE_DIR={fetchcontent_cache}"],
+            ["cmake", "..", *fetchcontent_cmake_args(fetchcontent_cache)],
             cwd=build_dir,
             capture_output=True,
             text=True,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math as _math
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
@@ -299,123 +300,289 @@ def compile_graph_to_file(graph: Graph, output_dir: str | Path) -> Path:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Per-node state emitters
+#
+# Each stateful node type maps to a _StateEmitter describing its contribution to
+# the five state passes: struct fields, create()-time init, reset(), and the
+# per-sample load/save of perform() locals. Keeping all five in one place per
+# node type means adding a stateful node is a single registry entry instead of
+# five coordinated edits across the file.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class _StateField:
+    """One scalar struct member of a stateful node.
+
+    suffix: name suffix appended to the node id ("" for History).
+    ctype:  C type of the struct member and its perform-loop local.
+    init:   value assigned in create(); a literal, a callable(node) -> literal,
+            or None to rely on the calloc-zeroed struct.
+    reset:  value assigned in reset(); same forms, None to skip.
+    save:   whether the perform-loop local is written back to the struct.
+    """
+
+    suffix: str
+    ctype: str
+    init: str | Callable[[Node], str] | None
+    reset: str | Callable[[Node], str] | None
+    save: bool = True
+
+
+def _state_value(v: str | Callable[[Node], str], node: Node) -> str:
+    return v(node) if callable(v) else v
+
+
+class _StateEmitter:
+    """Base state emitter; each method returns the lines for one pass."""
+
+    def fields(self, node: Node) -> list[str]:
+        return []
+
+    def init(self, node: Node) -> list[str]:
+        return []
+
+    def reset(self, node: Node) -> list[str]:
+        return []
+
+    def load(self, node: Node) -> list[str]:
+        return []
+
+    def save(self, node: Node) -> list[str]:
+        return []
+
+
+class _FieldState(_StateEmitter):
+    """State emitter for node types whose state is a list of scalar fields."""
+
+    def __init__(self, *fields: _StateField) -> None:
+        self._fields = fields
+
+    def fields(self, node: Node) -> list[str]:
+        return [f"    {f.ctype} m_{node.id}{f.suffix};" for f in self._fields]
+
+    def init(self, node: Node) -> list[str]:
+        return [
+            f"    self->m_{node.id}{f.suffix} = {_state_value(f.init, node)};"
+            for f in self._fields
+            if f.init is not None
+        ]
+
+    def reset(self, node: Node) -> list[str]:
+        return [
+            f"    self->m_{node.id}{f.suffix} = {_state_value(f.reset, node)};"
+            for f in self._fields
+            if f.reset is not None
+        ]
+
+    def load(self, node: Node) -> list[str]:
+        return [
+            f"    {f.ctype} {node.id}{f.suffix} = self->m_{node.id}{f.suffix};"
+            for f in self._fields
+        ]
+
+    def save(self, node: Node) -> list[str]:
+        return [
+            f"    self->m_{node.id}{f.suffix} = {node.id}{f.suffix};"
+            for f in self._fields
+            if f.save
+        ]
+
+
+class _DelayLineState(_StateEmitter):
+    """A ring buffer: pointer + length + write index (only the index is saved)."""
+
+    def fields(self, node: Node) -> list[str]:
+        return [
+            f"    float* m_{node.id}_buf;",
+            f"    int m_{node.id}_len;",
+            f"    int m_{node.id}_wr;",
+        ]
+
+    def init(self, node: Node) -> list[str]:
+        assert isinstance(node, DelayLine)
+        return [
+            f"    self->m_{node.id}_len = {node.max_samples};",
+            f"    self->m_{node.id}_buf = (float*)calloc({node.max_samples}, sizeof(float));",
+            f"    self->m_{node.id}_wr = 0;",
+        ]
+
+    def reset(self, node: Node) -> list[str]:
+        return [
+            f"    memset(self->m_{node.id}_buf, 0, self->m_{node.id}_len * sizeof(float));",
+            f"    self->m_{node.id}_wr = 0;",
+        ]
+
+    def load(self, node: Node) -> list[str]:
+        return [
+            f"    float* {node.id}_buf = self->m_{node.id}_buf;",
+            f"    int {node.id}_len = self->m_{node.id}_len;",
+            f"    int {node.id}_wr = self->m_{node.id}_wr;",
+        ]
+
+    def save(self, node: Node) -> list[str]:
+        return [f"    self->m_{node.id}_wr = {node.id}_wr;"]
+
+
+class _BufferState(_StateEmitter):
+    """A fixed table: pointer + length, optionally sine-filled; never saved."""
+
+    def fields(self, node: Node) -> list[str]:
+        return [f"    float* m_{node.id}_buf;", f"    int m_{node.id}_len;"]
+
+    def init(self, node: Node) -> list[str]:
+        assert isinstance(node, Buffer)
+        lines = [
+            f"    self->m_{node.id}_len = {node.size};",
+            f"    self->m_{node.id}_buf = (float*)calloc({node.size}, sizeof(float));",
+        ]
+        if node.fill == "sine":
+            lines.append(f"    for (int _k = 0; _k < {node.size}; _k++)")
+            lines.append(
+                f"        self->m_{node.id}_buf[_k] = sinf(2.0f * 3.14159265f * (float)_k / (float){node.size});"
+            )
+        return lines
+
+    def reset(self, node: Node) -> list[str]:
+        assert isinstance(node, Buffer)
+        if node.fill == "sine":
+            return [
+                f"    for (int _k = 0; _k < self->m_{node.id}_len; _k++)",
+                f"        self->m_{node.id}_buf[_k] = sinf(2.0f * 3.14159265f * (float)_k / (float)self->m_{node.id}_len);",
+            ]
+        return [
+            f"    memset(self->m_{node.id}_buf, 0, self->m_{node.id}_len * sizeof(float));"
+        ]
+
+    def load(self, node: Node) -> list[str]:
+        return [
+            f"    float* {node.id}_buf = self->m_{node.id}_buf;",
+            f"    int {node.id}_len = self->m_{node.id}_len;",
+        ]
+
+
+def _history_init_value(node: Node) -> str:
+    assert isinstance(node, History)
+    return _float_lit(node.init)
+
+
+# Shared emitters for node types with identical state shapes.
+_S_PHASE = _FieldState(_StateField("_phase", "float", None, "0.0f"))
+_S_PREV = _FieldState(_StateField("_prev", "float", "0.0f", "0.0f"))
+_S_BIQUAD = _FieldState(
+    _StateField("_s1", "float", "0.0f", "0.0f"),
+    _StateField("_s2", "float", "0.0f", "0.0f"),
+)
+_S_DCBLOCK = _FieldState(
+    _StateField("_xprev", "float", "0.0f", "0.0f"),
+    _StateField("_yprev", "float", "0.0f", "0.0f"),
+)
+_S_SAMPLEHOLD = _FieldState(
+    _StateField("_held", "float", "0.0f", "0.0f"),
+    _StateField("_ptrig", "float", "0.0f", "0.0f"),
+)
+
+
+# Maps each own-state node type to its emitter. Types that participate in
+# stateful semantics but store no state of their own (they reference a
+# DelayLine/Buffer) are listed in _STATE_BY_REFERENCE below.
+_STATE_EMITTERS: dict[type, _StateEmitter] = {
+    History: _FieldState(
+        _StateField("", "float", _history_init_value, _history_init_value)
+    ),
+    DelayLine: _DelayLineState(),
+    Buffer: _BufferState(),
+    Phasor: _S_PHASE,
+    SinOsc: _S_PHASE,
+    TriOsc: _S_PHASE,
+    SawOsc: _S_PHASE,
+    PulseOsc: _S_PHASE,
+    Noise: _FieldState(_StateField("_seed", "uint32_t", "123456789u", "123456789u")),
+    Delta: _S_PREV,
+    Change: _S_PREV,
+    OnePole: _S_PREV,
+    SmoothParam: _S_PREV,
+    Slide: _S_PREV,
+    Biquad: _S_BIQUAD,
+    SVF: _S_BIQUAD,
+    DCBlock: _S_DCBLOCK,
+    Allpass: _S_DCBLOCK,
+    SampleHold: _S_SAMPLEHOLD,
+    Latch: _S_SAMPLEHOLD,
+    Accum: _FieldState(_StateField("_sum", "float", None, "0.0f")),
+    Counter: _FieldState(
+        _StateField("_count", "int", None, "0"),
+        _StateField("_ptrig", "float", None, "0.0f"),
+    ),
+    Elapsed: _FieldState(_StateField("_count", "int", None, "0")),
+    MulAccum: _FieldState(_StateField("_prod", "float", "1.0f", "1.0f")),
+    RateDiv: _FieldState(
+        _StateField("_count", "int", "0", "0"),
+        _StateField("_held", "float", "0.0f", "0.0f"),
+    ),
+    ADSR: _FieldState(
+        _StateField("_phase", "int", "0", "0"),
+        _StateField("_output", "float", "0.0f", "0.0f"),
+        _StateField("_ptrig", "float", "0.0f", "0.0f"),
+    ),
+    Peek: _FieldState(_StateField("_value", "float", "0.0f", "0.0f")),
+}
+
+# Stateful node types that store no state of their own -- they read/write the
+# state of a DelayLine or Buffer they reference. Listing them keeps the
+# exhaustiveness check below honest without requiring an empty emitter each.
+_STATE_BY_REFERENCE: frozenset[type] = frozenset(
+    {DelayRead, DelayWrite, BufRead, BufWrite, Splat, Cycle, Wave, Lookup}
+)
+
+# Fail loudly at import if a stateful node type has neither an emitter nor an
+# explicit by-reference declaration (e.g. a new node type added to the model
+# and to _STATEFUL_TYPES but missing its state handling here).
+_unhandled_stateful = [
+    t
+    for t in _STATEFUL_TYPES
+    if t not in _STATE_EMITTERS and t not in _STATE_BY_REFERENCE
+]
+assert not _unhandled_stateful, (
+    "state emitter registry out of sync with _STATEFUL_TYPES: "
+    f"{_unhandled_stateful} unhandled"
+)
+
+
 def _emit_state_fields(node: Node, w: _Writer) -> None:
-    if isinstance(node, History):
-        w(f"    float m_{node.id};")
-    elif isinstance(node, DelayLine):
-        w(f"    float* m_{node.id}_buf;")
-        w(f"    int m_{node.id}_len;")
-        w(f"    int m_{node.id}_wr;")
-    elif isinstance(node, Phasor):
-        w(f"    float m_{node.id}_phase;")
-    elif isinstance(node, Noise):
-        w(f"    uint32_t m_{node.id}_seed;")
-    elif isinstance(node, (Delta, Change)):
-        w(f"    float m_{node.id}_prev;")
-    elif isinstance(node, Biquad):
-        w(f"    float m_{node.id}_s1;")
-        w(f"    float m_{node.id}_s2;")
-    elif isinstance(node, SVF):
-        w(f"    float m_{node.id}_s1;")
-        w(f"    float m_{node.id}_s2;")
-    elif isinstance(node, OnePole):
-        w(f"    float m_{node.id}_prev;")
-    elif isinstance(node, DCBlock):
-        w(f"    float m_{node.id}_xprev;")
-        w(f"    float m_{node.id}_yprev;")
-    elif isinstance(node, Allpass):
-        w(f"    float m_{node.id}_xprev;")
-        w(f"    float m_{node.id}_yprev;")
-    elif isinstance(node, (SinOsc, TriOsc, SawOsc, PulseOsc)):
-        w(f"    float m_{node.id}_phase;")
-    elif isinstance(node, (SampleHold, Latch)):
-        w(f"    float m_{node.id}_held;")
-        w(f"    float m_{node.id}_ptrig;")
-    elif isinstance(node, Accum):
-        w(f"    float m_{node.id}_sum;")
-    elif isinstance(node, Counter):
-        w(f"    int m_{node.id}_count;")
-        w(f"    float m_{node.id}_ptrig;")
-    elif isinstance(node, Elapsed):
-        w(f"    int m_{node.id}_count;")
-    elif isinstance(node, MulAccum):
-        w(f"    float m_{node.id}_prod;")
-    elif isinstance(node, RateDiv):
-        w(f"    int m_{node.id}_count;")
-        w(f"    float m_{node.id}_held;")
-    elif isinstance(node, SmoothParam):
-        w(f"    float m_{node.id}_prev;")
-    elif isinstance(node, Slide):
-        w(f"    float m_{node.id}_prev;")
-    elif isinstance(node, ADSR):
-        w(f"    int m_{node.id}_phase;")
-        w(f"    float m_{node.id}_output;")
-        w(f"    float m_{node.id}_ptrig;")
-    elif isinstance(node, Peek):
-        w(f"    float m_{node.id}_value;")
-    elif isinstance(node, Buffer):
-        w(f"    float* m_{node.id}_buf;")
-        w(f"    int m_{node.id}_len;")
-
-
-# ---------------------------------------------------------------------------
-# State initialization
-# ---------------------------------------------------------------------------
+    emitter = _STATE_EMITTERS.get(type(node))
+    if emitter is not None:
+        for line in emitter.fields(node):
+            w(line)
 
 
 def _emit_state_init(node: Node, w: _Writer) -> None:
-    if isinstance(node, History):
-        w(f"    self->m_{node.id} = {_float_lit(node.init)};")
-    elif isinstance(node, DelayLine):
-        w(f"    self->m_{node.id}_len = {node.max_samples};")
-        w(
-            f"    self->m_{node.id}_buf = (float*)calloc({node.max_samples}, sizeof(float));"
-        )
-        w(f"    self->m_{node.id}_wr = 0;")
-    elif isinstance(node, Noise):
-        w(f"    self->m_{node.id}_seed = 123456789u;")
-    elif isinstance(node, (Delta, Change)):
-        w(f"    self->m_{node.id}_prev = 0.0f;")
-    elif isinstance(node, Biquad):
-        w(f"    self->m_{node.id}_s1 = 0.0f;")
-        w(f"    self->m_{node.id}_s2 = 0.0f;")
-    elif isinstance(node, SVF):
-        w(f"    self->m_{node.id}_s1 = 0.0f;")
-        w(f"    self->m_{node.id}_s2 = 0.0f;")
-    elif isinstance(node, OnePole):
-        w(f"    self->m_{node.id}_prev = 0.0f;")
-    elif isinstance(node, DCBlock):
-        w(f"    self->m_{node.id}_xprev = 0.0f;")
-        w(f"    self->m_{node.id}_yprev = 0.0f;")
-    elif isinstance(node, Allpass):
-        w(f"    self->m_{node.id}_xprev = 0.0f;")
-        w(f"    self->m_{node.id}_yprev = 0.0f;")
-    elif isinstance(node, (SampleHold, Latch)):
-        w(f"    self->m_{node.id}_held = 0.0f;")
-        w(f"    self->m_{node.id}_ptrig = 0.0f;")
-    elif isinstance(node, MulAccum):
-        w(f"    self->m_{node.id}_prod = 1.0f;")
-    elif isinstance(node, RateDiv):
-        w(f"    self->m_{node.id}_count = 0;")
-        w(f"    self->m_{node.id}_held = 0.0f;")
-    elif isinstance(node, SmoothParam):
-        w(f"    self->m_{node.id}_prev = 0.0f;")
-    elif isinstance(node, Slide):
-        w(f"    self->m_{node.id}_prev = 0.0f;")
-    elif isinstance(node, ADSR):
-        w(f"    self->m_{node.id}_phase = 0;")
-        w(f"    self->m_{node.id}_output = 0.0f;")
-        w(f"    self->m_{node.id}_ptrig = 0.0f;")
-    elif isinstance(node, Peek):
-        w(f"    self->m_{node.id}_value = 0.0f;")
-    elif isinstance(node, Buffer):
-        w(f"    self->m_{node.id}_len = {node.size};")
-        w(f"    self->m_{node.id}_buf = (float*)calloc({node.size}, sizeof(float));")
-        if node.fill == "sine":
-            w(f"    for (int _k = 0; _k < {node.size}; _k++)")
-            w(
-                f"        self->m_{node.id}_buf[_k] = sinf(2.0f * 3.14159265f * (float)_k / (float){node.size});"
-            )
+    emitter = _STATE_EMITTERS.get(type(node))
+    if emitter is not None:
+        for line in emitter.init(node):
+            w(line)
+
+
+def _emit_state_reset(node: Node, w: _Writer) -> None:
+    emitter = _STATE_EMITTERS.get(type(node))
+    if emitter is not None:
+        for line in emitter.reset(node):
+            w(line)
+
+
+def _emit_state_load(node: Node, w: _Writer) -> None:
+    emitter = _STATE_EMITTERS.get(type(node))
+    if emitter is not None:
+        for line in emitter.load(node):
+            w(line)
+
+
+def _emit_state_save(node: Node, w: _Writer) -> None:
+    emitter = _STATE_EMITTERS.get(type(node))
+    if emitter is not None:
+        for line in emitter.save(node):
+            w(line)
 
 
 # ---------------------------------------------------------------------------
@@ -438,65 +605,6 @@ def _emit_reset(
     for node in sorted_nodes:
         _emit_state_reset(node, w)
     w("}")
-
-
-def _emit_state_reset(node: Node, w: _Writer) -> None:
-    if isinstance(node, History):
-        w(f"    self->m_{node.id} = {_float_lit(node.init)};")
-    elif isinstance(node, DelayLine):
-        w(
-            f"    memset(self->m_{node.id}_buf, 0, self->m_{node.id}_len * sizeof(float));"
-        )
-        w(f"    self->m_{node.id}_wr = 0;")
-    elif isinstance(node, (Phasor, SinOsc, TriOsc, SawOsc, PulseOsc)):
-        w(f"    self->m_{node.id}_phase = 0.0f;")
-    elif isinstance(node, Noise):
-        w(f"    self->m_{node.id}_seed = 123456789u;")
-    elif isinstance(node, (Delta, Change)):
-        w(f"    self->m_{node.id}_prev = 0.0f;")
-    elif isinstance(node, (Biquad, SVF)):
-        w(f"    self->m_{node.id}_s1 = 0.0f;")
-        w(f"    self->m_{node.id}_s2 = 0.0f;")
-    elif isinstance(node, OnePole):
-        w(f"    self->m_{node.id}_prev = 0.0f;")
-    elif isinstance(node, (DCBlock, Allpass)):
-        w(f"    self->m_{node.id}_xprev = 0.0f;")
-        w(f"    self->m_{node.id}_yprev = 0.0f;")
-    elif isinstance(node, (SampleHold, Latch)):
-        w(f"    self->m_{node.id}_held = 0.0f;")
-        w(f"    self->m_{node.id}_ptrig = 0.0f;")
-    elif isinstance(node, Accum):
-        w(f"    self->m_{node.id}_sum = 0.0f;")
-    elif isinstance(node, Counter):
-        w(f"    self->m_{node.id}_count = 0;")
-        w(f"    self->m_{node.id}_ptrig = 0.0f;")
-    elif isinstance(node, Elapsed):
-        w(f"    self->m_{node.id}_count = 0;")
-    elif isinstance(node, MulAccum):
-        w(f"    self->m_{node.id}_prod = 1.0f;")
-    elif isinstance(node, RateDiv):
-        w(f"    self->m_{node.id}_count = 0;")
-        w(f"    self->m_{node.id}_held = 0.0f;")
-    elif isinstance(node, SmoothParam):
-        w(f"    self->m_{node.id}_prev = 0.0f;")
-    elif isinstance(node, Slide):
-        w(f"    self->m_{node.id}_prev = 0.0f;")
-    elif isinstance(node, ADSR):
-        w(f"    self->m_{node.id}_phase = 0;")
-        w(f"    self->m_{node.id}_output = 0.0f;")
-        w(f"    self->m_{node.id}_ptrig = 0.0f;")
-    elif isinstance(node, Peek):
-        w(f"    self->m_{node.id}_value = 0.0f;")
-    elif isinstance(node, Buffer):
-        if node.fill == "sine":
-            w(f"    for (int _k = 0; _k < self->m_{node.id}_len; _k++)")
-            w(
-                f"        self->m_{node.id}_buf[_k] = sinf(2.0f * 3.14159265f * (float)_k / (float)self->m_{node.id}_len);"
-            )
-        else:
-            w(
-                f"    memset(self->m_{node.id}_buf, 0, self->m_{node.id}_len * sizeof(float));"
-            )
 
 
 # ---------------------------------------------------------------------------
@@ -768,119 +876,6 @@ def _emit_perform_two_tier(
 
     # Close outer loop
     w("    }")
-
-
-def _emit_state_load(node: Node, w: _Writer) -> None:
-    if isinstance(node, History):
-        w(f"    float {node.id} = self->m_{node.id};")
-    elif isinstance(node, DelayLine):
-        w(f"    float* {node.id}_buf = self->m_{node.id}_buf;")
-        w(f"    int {node.id}_len = self->m_{node.id}_len;")
-        w(f"    int {node.id}_wr = self->m_{node.id}_wr;")
-    elif isinstance(node, Phasor):
-        w(f"    float {node.id}_phase = self->m_{node.id}_phase;")
-    elif isinstance(node, Noise):
-        w(f"    uint32_t {node.id}_seed = self->m_{node.id}_seed;")
-    elif isinstance(node, (Delta, Change)):
-        w(f"    float {node.id}_prev = self->m_{node.id}_prev;")
-    elif isinstance(node, Biquad):
-        w(f"    float {node.id}_s1 = self->m_{node.id}_s1;")
-        w(f"    float {node.id}_s2 = self->m_{node.id}_s2;")
-    elif isinstance(node, SVF):
-        w(f"    float {node.id}_s1 = self->m_{node.id}_s1;")
-        w(f"    float {node.id}_s2 = self->m_{node.id}_s2;")
-    elif isinstance(node, OnePole):
-        w(f"    float {node.id}_prev = self->m_{node.id}_prev;")
-    elif isinstance(node, DCBlock):
-        w(f"    float {node.id}_xprev = self->m_{node.id}_xprev;")
-        w(f"    float {node.id}_yprev = self->m_{node.id}_yprev;")
-    elif isinstance(node, Allpass):
-        w(f"    float {node.id}_xprev = self->m_{node.id}_xprev;")
-        w(f"    float {node.id}_yprev = self->m_{node.id}_yprev;")
-    elif isinstance(node, (SinOsc, TriOsc, SawOsc, PulseOsc)):
-        w(f"    float {node.id}_phase = self->m_{node.id}_phase;")
-    elif isinstance(node, (SampleHold, Latch)):
-        w(f"    float {node.id}_held = self->m_{node.id}_held;")
-        w(f"    float {node.id}_ptrig = self->m_{node.id}_ptrig;")
-    elif isinstance(node, Accum):
-        w(f"    float {node.id}_sum = self->m_{node.id}_sum;")
-    elif isinstance(node, Counter):
-        w(f"    int {node.id}_count = self->m_{node.id}_count;")
-        w(f"    float {node.id}_ptrig = self->m_{node.id}_ptrig;")
-    elif isinstance(node, Elapsed):
-        w(f"    int {node.id}_count = self->m_{node.id}_count;")
-    elif isinstance(node, MulAccum):
-        w(f"    float {node.id}_prod = self->m_{node.id}_prod;")
-    elif isinstance(node, RateDiv):
-        w(f"    int {node.id}_count = self->m_{node.id}_count;")
-        w(f"    float {node.id}_held = self->m_{node.id}_held;")
-    elif isinstance(node, SmoothParam):
-        w(f"    float {node.id}_prev = self->m_{node.id}_prev;")
-    elif isinstance(node, Slide):
-        w(f"    float {node.id}_prev = self->m_{node.id}_prev;")
-    elif isinstance(node, ADSR):
-        w(f"    int {node.id}_phase = self->m_{node.id}_phase;")
-        w(f"    float {node.id}_output = self->m_{node.id}_output;")
-        w(f"    float {node.id}_ptrig = self->m_{node.id}_ptrig;")
-    elif isinstance(node, Peek):
-        w(f"    float {node.id}_value = self->m_{node.id}_value;")
-    elif isinstance(node, Buffer):
-        w(f"    float* {node.id}_buf = self->m_{node.id}_buf;")
-        w(f"    int {node.id}_len = self->m_{node.id}_len;")
-
-
-def _emit_state_save(node: Node, w: _Writer) -> None:
-    if isinstance(node, History):
-        w(f"    self->m_{node.id} = {node.id};")
-    elif isinstance(node, DelayLine):
-        w(f"    self->m_{node.id}_wr = {node.id}_wr;")
-    elif isinstance(node, Phasor):
-        w(f"    self->m_{node.id}_phase = {node.id}_phase;")
-    elif isinstance(node, Noise):
-        w(f"    self->m_{node.id}_seed = {node.id}_seed;")
-    elif isinstance(node, (Delta, Change)):
-        w(f"    self->m_{node.id}_prev = {node.id}_prev;")
-    elif isinstance(node, Biquad):
-        w(f"    self->m_{node.id}_s1 = {node.id}_s1;")
-        w(f"    self->m_{node.id}_s2 = {node.id}_s2;")
-    elif isinstance(node, SVF):
-        w(f"    self->m_{node.id}_s1 = {node.id}_s1;")
-        w(f"    self->m_{node.id}_s2 = {node.id}_s2;")
-    elif isinstance(node, OnePole):
-        w(f"    self->m_{node.id}_prev = {node.id}_prev;")
-    elif isinstance(node, DCBlock):
-        w(f"    self->m_{node.id}_xprev = {node.id}_xprev;")
-        w(f"    self->m_{node.id}_yprev = {node.id}_yprev;")
-    elif isinstance(node, Allpass):
-        w(f"    self->m_{node.id}_xprev = {node.id}_xprev;")
-        w(f"    self->m_{node.id}_yprev = {node.id}_yprev;")
-    elif isinstance(node, (SinOsc, TriOsc, SawOsc, PulseOsc)):
-        w(f"    self->m_{node.id}_phase = {node.id}_phase;")
-    elif isinstance(node, (SampleHold, Latch)):
-        w(f"    self->m_{node.id}_held = {node.id}_held;")
-        w(f"    self->m_{node.id}_ptrig = {node.id}_ptrig;")
-    elif isinstance(node, Accum):
-        w(f"    self->m_{node.id}_sum = {node.id}_sum;")
-    elif isinstance(node, Counter):
-        w(f"    self->m_{node.id}_count = {node.id}_count;")
-        w(f"    self->m_{node.id}_ptrig = {node.id}_ptrig;")
-    elif isinstance(node, Elapsed):
-        w(f"    self->m_{node.id}_count = {node.id}_count;")
-    elif isinstance(node, MulAccum):
-        w(f"    self->m_{node.id}_prod = {node.id}_prod;")
-    elif isinstance(node, RateDiv):
-        w(f"    self->m_{node.id}_count = {node.id}_count;")
-        w(f"    self->m_{node.id}_held = {node.id}_held;")
-    elif isinstance(node, SmoothParam):
-        w(f"    self->m_{node.id}_prev = {node.id}_prev;")
-    elif isinstance(node, Slide):
-        w(f"    self->m_{node.id}_prev = {node.id}_prev;")
-    elif isinstance(node, ADSR):
-        w(f"    self->m_{node.id}_phase = {node.id}_phase;")
-        w(f"    self->m_{node.id}_output = {node.id}_output;")
-        w(f"    self->m_{node.id}_ptrig = {node.id}_ptrig;")
-    elif isinstance(node, Peek):
-        w(f"    self->m_{node.id}_value = {node.id}_value;")
 
 
 def _emit_node_compute(

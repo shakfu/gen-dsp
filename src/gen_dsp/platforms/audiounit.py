@@ -10,7 +10,7 @@ import platform as sys_platform
 import shutil
 from pathlib import Path
 from string import Template
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines
@@ -20,6 +20,9 @@ from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import PluginCategory
 from gen_dsp.platforms.cmake_platform import CMakePlatform
 from gen_dsp.templates import get_au_templates_dir
+
+if TYPE_CHECKING:
+    from gen_dsp.graph.models import Graph
 
 
 class AudioUnitPlatform(CMakePlatform):
@@ -187,6 +190,28 @@ class AudioUnitPlatform(CMakePlatform):
             au_version=self._version_to_int(self.GENEXT_VERSION),
         )
         output_path.write_text(content, encoding="utf-8")
+
+    def _write_graph_platform_files(
+        self,
+        graph: "Graph",
+        manifest: Manifest,
+        output_dir: Path,
+        name: str,
+        config: ProjectConfig,
+    ) -> None:
+        """Graph path: generate the AudioUnit Info.plist."""
+        category = PluginCategory.from_num_inputs(manifest.num_inputs)
+        au_type = self._AU_TYPE_MAP[category]
+        if config.midi_mapping is not None and config.midi_mapping.enabled:
+            au_type = self.AU_TYPE_MUSIC_DEVICE
+
+        self._generate_info_plist(
+            get_au_templates_dir() / "Info.plist.template",
+            output_dir / "Info.plist",
+            name,
+            au_type,
+            self._generate_subtype(name),
+        )
 
     def build(
         self,

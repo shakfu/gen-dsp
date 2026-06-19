@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **REVIEW.md** -- Package review covering architecture, code quality, features, and user value, with prioritized refactoring and feature-enhancement opportunities (e.g. routing the graph path through the platform registry, table-driving the `graph/compile.py` state emitters, lifting shared platform machinery into the base class, and product ideas like a `gen-dsp doctor` prerequisites check and multi-target generation).
+
+### Changed
+
+- **Table-driven state emitters in `graph/compile.py`** -- The five parallel `isinstance` chains that emitted per-node state (`_emit_state_fields`/`init`/`reset`/`load`/`save`, ~40 cases each) are replaced by a single `_STATE_EMITTERS` registry mapping each node type to one `_StateEmitter` that describes all five passes in one place. Adding a stateful node is now a single registry entry instead of five coordinated edits across 300+ lines. An import-time assertion cross-checks the registry against `_STATEFUL_TYPES` (accounting for by-reference types like `DelayRead`/`BufRead`/`Cycle` that hold no state of their own), so a new stateful node type missing its state handling fails loudly at import rather than silently miscompiling. Generated C++ is byte-for-byte identical across all example graphs. (REVIEW.md section 5.2)
+
+- **Graph path routed through the platform registry** -- The graph frontend's project generation no longer lives in `core/project.py` as a ~500-line method with an `if platform == "..."` ladder and inline Daisy/Circle C++ heredocs. `Platform` now defines `generate_from_graph()` (shared orchestration: compile graph, emit adapter, copy templates, write build file) plus a `_write_graph_platform_files()` hook that each platform overrides for its extras (AudioUnit `Info.plist`, LV2 TTL metadata, VCV Rack `plugin.json`/panel SVG, Daisy/Circle board wrappers, Web Audio bridge). `core/project.py._generate_from_graph` is now a thin delegator with no per-platform branching, no graph imports, and no calls into private platform methods. This restores the one-location-per-platform invariant (adding a platform is again a single-module change) and removes `core`'s dependency on `graph/` and on platform internals. Generated output is byte-for-byte identical across all 14 graph-capable platforms. (REVIEW.md section 5.1)
+
+### Fixed
+
+- **Test suite: offline-safe SDK build gating** -- Build-integration tests that download a platform SDK on first run (VCV Rack via urllib, Daisy/Circle via git clone, and the CMake FetchContent platforms clap/vst3/lv2/sc) hard-failed when run offline instead of skipping. Added a cache-aware network gate -- `skip_if_sdk_download_needed()` in `tests/helpers.py` plus an autouse `_gate_sdk_network` fixture in `tests/conftest.py` that fires only for tests requesting `fetchcontent_cache`. A build test now skips only when its SDK is uncached *and* the required host is unreachable, so cached offline runs still build and unit tests are unaffected.
+- **Test suite: CMake FetchContent populate flakiness** -- `fetchcontent_cmake_args()` in `tests/helpers.py` (used at every CMake build-test call site) now passes `-DFETCHCONTENT_SOURCE_DIR_<NAME>` for each cached SDK so CMake consumes the existing checkout directly instead of re-running its download/populate step, which intermittently failed copying an internal stamp file ("Failed to copy script-last-run stamp file") when `-subbuild` state was wiped between sessions while `-src` was kept. On a fresh cache no overrides are added and normal population runs.
+- **Test suite: VST3 SDK utility-build flakiness** -- CMake build tests now pass `-DSMTG_ENABLE_MODULE_INFO=OFF`. With it on (the native default), the VST3 SDK builds its `moduleinfotool` utility, which drags the SDK's `vst-hosting` sources (validator, tests) into the shared SDK build tree despite hosting examples being disabled; those built non-deterministically ("No rule to make target libsdk_hosting.a", missing `.o.d` files). The plugin loads without `moduleinfo.json`, so coverage is unaffected, and VST3 test builds are now stable and ~30% faster. Harmless for non-VST3 projects, which never read the variable.
+
 ## [0.1.19]
 
 ### Added

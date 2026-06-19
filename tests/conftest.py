@@ -129,6 +129,31 @@ _FETCHCONTENT_CACHE = (
 )
 
 
+# Network platforms whose build tests may download an SDK on first run, matched
+# against the platform token embedded in each test name (e.g. test_build_clap_*).
+_NETWORK_PLATFORMS = ("vcvrack", "daisy", "circle", "clap", "vst3", "lv2", "sc")
+
+
+@pytest.fixture(autouse=True)
+def _gate_sdk_network(request: pytest.FixtureRequest) -> None:
+    """Skip build-integration tests that would need an offline SDK download.
+
+    Scoped to tests that actually request the ``fetchcontent_cache`` fixture --
+    i.e. real build-integration tests -- so plain unit tests (which may share a
+    platform token in their name) are never affected.  The cache-aware check in
+    ``skip_if_sdk_download_needed`` still lets cached SDKs build offline.
+    """
+    if "fetchcontent_cache" not in request.fixturenames:
+        return
+    from tests.helpers import skip_if_sdk_download_needed
+
+    name = f"_{request.node.name}_"
+    for platform in _NETWORK_PLATFORMS:
+        if f"_{platform}_" in name:
+            skip_if_sdk_download_needed(platform, _FETCHCONTENT_CACHE)
+            return
+
+
 @pytest.fixture(scope="session")
 def fetchcontent_cache() -> Path:
     """Fixed-path FetchContent cache shared across all build tests.

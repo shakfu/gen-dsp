@@ -16,7 +16,7 @@ import shutil
 import sys
 from pathlib import Path
 from string import Template
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from gen_dsp.core.manifest import Manifest, ParamInfo, build_remap_defines
 from gen_dsp.core.midi import build_midi_defines
@@ -25,6 +25,9 @@ from gen_dsp.errors import ProjectError
 from gen_dsp.platforms.base import PluginCategory
 from gen_dsp.platforms.cmake_platform import CMakePlatform
 from gen_dsp.templates import get_lv2_templates_dir
+
+if TYPE_CHECKING:
+    from gen_dsp.graph.models import Graph
 
 
 class Lv2Platform(CMakePlatform):
@@ -274,6 +277,29 @@ class Lv2Platform(CMakePlatform):
 
         content = "\n".join(lines) + "\n"
         (output_dir / f"{lib_name}.ttl").write_text(content, encoding="utf-8")
+
+    def _write_graph_platform_files(
+        self,
+        graph: "Graph",
+        manifest: Manifest,
+        output_dir: Path,
+        name: str,
+        config: ProjectConfig,
+    ) -> None:
+        """Graph path: generate LV2 TTL metadata (manifest.ttl + <name>.ttl)."""
+        plugin_uri = f"{self.LV2_URI_BASE}/{name}"
+        midi_enabled = config.midi_mapping is not None and config.midi_mapping.enabled
+        self._generate_manifest_ttl(output_dir, name, plugin_uri)
+        self._generate_plugin_ttl(
+            output_dir,
+            name,
+            plugin_uri,
+            manifest.num_inputs,
+            manifest.num_outputs,
+            manifest.num_params,
+            manifest.params,
+            midi_enabled=midi_enabled,
+        )
 
     @staticmethod
     def _sanitize_symbol(name: str) -> str:

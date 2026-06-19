@@ -9,7 +9,7 @@ import json
 import shutil
 from pathlib import Path
 from string import Template
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines_make
@@ -17,6 +17,9 @@ from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform
 from gen_dsp.templates import get_webaudio_templates_dir
+
+if TYPE_CHECKING:
+    from gen_dsp.graph.models import Graph
 
 
 class WebAudioPlatform(Platform):
@@ -209,6 +212,46 @@ class WebAudioPlatform(Platform):
             num_outputs_array=num_outputs_array,
         )
         output_path.write_text(content, encoding="utf-8")
+
+    def _write_graph_platform_files(
+        self,
+        graph: "Graph",
+        manifest: Manifest,
+        output_dir: Path,
+        name: str,
+        config: ProjectConfig,
+    ) -> None:
+        """Graph path: generate the Emscripten bridge, processor.js, and demo page."""
+        tmpl_dir = get_webaudio_templates_dir()
+
+        self._generate_from_template(
+            tmpl_dir / "gen_ext_webaudio.cpp.template",
+            output_dir / "gen_ext_webaudio.cpp",
+            lib_name=name,
+            gen_name=graph.name,
+            genext_version=self.GENEXT_VERSION,
+        )
+
+        self._generate_processor_js(
+            tmpl_dir / "processor.js.template",
+            output_dir / "_processor.js",
+            manifest,
+            name,
+        )
+
+        param_descriptors, _processor_class, num_outputs_array = (
+            self._build_processor_vars(manifest, name)
+        )
+        self._generate_from_template(
+            tmpl_dir / "index.html.template",
+            output_dir / "index.html",
+            lib_name=name,
+            num_inputs=str(manifest.num_inputs),
+            num_outputs=str(manifest.num_outputs),
+            num_params=str(len(manifest.params)),
+            param_descriptors=json.dumps(param_descriptors, indent=4),
+            num_outputs_array=num_outputs_array,
+        )
 
     def build(
         self,

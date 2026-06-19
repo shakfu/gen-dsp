@@ -8,7 +8,7 @@ from typing import Optional
 
 import pytest
 
-from tests.helpers import validate_clap
+from tests.helpers import fetchcontent_cmake_args, validate_clap
 
 from gen_dsp.core.parser import GenExportParser
 from gen_dsp.core.project import ProjectGenerator, ProjectConfig
@@ -550,7 +550,7 @@ class TestClapBuildIntegration:
 
         # Configure
         result = subprocess.run(
-            ["cmake", "..", f"-DFETCHCONTENT_BASE_DIR={fetchcontent_cache}"],
+            ["cmake", "..", *fetchcontent_cmake_args(fetchcontent_cache)],
             cwd=build_dir,
             capture_output=True,
             text=True,
@@ -607,7 +607,7 @@ class TestClapBuildIntegration:
         env = _build_env()
 
         result = subprocess.run(
-            ["cmake", "..", f"-DFETCHCONTENT_BASE_DIR={fetchcontent_cache}"],
+            ["cmake", "..", *fetchcontent_cmake_args(fetchcontent_cache)],
             cwd=build_dir,
             capture_output=True,
             text=True,
@@ -657,7 +657,7 @@ class TestClapBuildIntegration:
         env = _build_env()
 
         result = subprocess.run(
-            ["cmake", "..", f"-DFETCHCONTENT_BASE_DIR={fetchcontent_cache}"],
+            ["cmake", "..", *fetchcontent_cmake_args(fetchcontent_cache)],
             cwd=build_dir,
             capture_output=True,
             text=True,
@@ -737,7 +737,7 @@ class TestClapBuildIntegration:
 
         # Configure
         result = subprocess.run(
-            ["cmake", "..", f"-DFETCHCONTENT_BASE_DIR={fetchcontent_cache}"],
+            ["cmake", "..", *fetchcontent_cmake_args(fetchcontent_cache)],
             cwd=build_dir,
             capture_output=True,
             text=True,

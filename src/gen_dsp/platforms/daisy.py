@@ -28,7 +28,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from string import Template
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines_make
@@ -36,6 +36,9 @@ from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform
 from gen_dsp.templates import get_daisy_templates_dir
+
+if TYPE_CHECKING:
+    from gen_dsp.graph.models import Graph
 
 
 # libDaisy version (latest stable, well-tested)
@@ -477,6 +480,100 @@ class DaisyPlatform(Platform):
             main_loop_body=main_loop_body,
         )
         output_path.write_text(content, encoding="utf-8")
+
+    def _write_graph_platform_files(
+        self,
+        graph: "Graph",
+        manifest: Manifest,
+        output_dir: Path,
+        name: str,
+        config: ProjectConfig,
+    ) -> None:
+        """Graph path: generate the board-specific gen_ext_daisy.cpp wrapper."""
+        board_key = config.board if config.board is not None else "seed"
+        board = DAISY_BOARDS[board_key]
+
+        gen_ext_daisy = f"""\
+// gen_ext_daisy.cpp - Daisy wrapper for dsp-graph compiled code
+// Board: {board_key} ({board.hw_class})
+// This file includes ONLY libDaisy headers - graph code is isolated in _ext_daisy.cpp
+
+#include "{board.header}"
+
+#include "gen_ext_common_daisy.h"
+#include "_ext_daisy.h"
+
+using namespace WRAPPER_NAMESPACE;
+using namespace daisy;
+{board.extra_using}
+
+// ---------------------------------------------------------------------------
+// Hardware and state
+// ---------------------------------------------------------------------------
+
+static {board.hw_class} hw;
+static GenState* genState = nullptr;
+
+// ---------------------------------------------------------------------------
+// Scratch buffers for I/O channel mismatch
+// ---------------------------------------------------------------------------
+
+#define DAISY_MAX_BLOCK_SIZE 256
+#define DAISY_HW_CHANNELS {board.hw_channels}
+#define DAISY_MAPPED_INPUTS  ((DAISY_NUM_INPUTS < DAISY_HW_CHANNELS) ? DAISY_NUM_INPUTS : DAISY_HW_CHANNELS)
+#define DAISY_MAPPED_OUTPUTS ((DAISY_NUM_OUTPUTS < DAISY_HW_CHANNELS) ? DAISY_NUM_OUTPUTS : DAISY_HW_CHANNELS)
+
+static float scratch_zero[DAISY_MAX_BLOCK_SIZE] = {{0}};
+static float scratch_discard[DAISY_MAX_BLOCK_SIZE];
+
+static float* gen_ins[DAISY_NUM_INPUTS > 0 ? DAISY_NUM_INPUTS : 1];
+static float* gen_outs[DAISY_NUM_OUTPUTS > 0 ? DAISY_NUM_OUTPUTS : 1];
+
+// ---------------------------------------------------------------------------
+// Audio callback
+// ---------------------------------------------------------------------------
+
+static void AudioCallback(const float* const* in, float** out, size_t size) {{
+    if (!genState) {{
+        genState = wrapper_create(hw.AudioSampleRate(), (long)size);
+    }}
+
+    for (int i = 0; i < DAISY_NUM_INPUTS; i++) {{
+        if (i < DAISY_HW_CHANNELS) {{
+            gen_ins[i] = const_cast<float*>(in[i]);
+        }} else {{
+            gen_ins[i] = scratch_zero;
+        }}
+    }}
+
+    for (int i = 0; i < DAISY_NUM_OUTPUTS; i++) {{
+        if (i < DAISY_HW_CHANNELS) {{
+            gen_outs[i] = out[i];
+        }} else {{
+            gen_outs[i] = scratch_discard;
+        }}
+    }}
+
+    wrapper_perform(genState, gen_ins, DAISY_NUM_INPUTS,
+                    gen_outs, DAISY_NUM_OUTPUTS, (long)size);
+}}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+
+int main(void) {{
+    hw.Init();
+    hw.SetAudioSampleRate(SaiHandle::Config::SampleRate::SAI_48KHZ);
+    hw.SetAudioBlockSize(48);
+    hw.StartAudio(AudioCallback);
+
+    for (;;) {{
+        // Audio runs in interrupt
+    }}
+}}
+"""
+        (output_dir / "gen_ext_daisy.cpp").write_text(gen_ext_daisy)
 
     def build(
         self,

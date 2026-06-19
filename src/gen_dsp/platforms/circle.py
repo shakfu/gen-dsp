@@ -34,6 +34,7 @@ from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from gen_dsp.core.graph import EdgeBuffer, GraphConfig, ResolvedChainNode
+    from gen_dsp.graph.models import Graph
 
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines_make
@@ -1121,6 +1122,222 @@ class CirclePlatform(Platform):
             audio_boot_config=_get_boot_config(board.audio_device),
         )
         output_path.write_text(content, encoding="utf-8")
+
+    def _write_graph_platform_files(
+        self,
+        graph: "Graph",
+        manifest: Manifest,
+        output_dir: Path,
+        name: str,
+        config: ProjectConfig,
+    ) -> None:
+        """Graph path: generate the board-specific gen_ext_circle.cpp and config.txt."""
+        board_key = config.board if config.board is not None else "pi3-i2s"
+        circle_board = CIRCLE_BOARDS[board_key]
+        audio_include = _get_audio_include(circle_board.audio_device)
+        audio_base_class = _get_audio_base_class(circle_board.audio_device)
+        audio_label = _get_audio_label(circle_board.audio_device)
+
+        gen_ext_circle = f"""\
+// gen_ext_circle.cpp - Circle bare metal wrapper for dsp-graph compiled code
+// Board: {board_key} (Raspberry Pi {circle_board.rasppi})
+// Audio: {audio_label} output
+// This file includes ONLY Circle headers - graph code is isolated in _ext_circle.cpp
+
+#include <circle/actled.h>
+#include <circle/koptions.h>
+#include <circle/devicenameservice.h>
+#include <circle/exceptionhandler.h>
+#include <circle/interrupt.h>
+#include <circle/logger.h>
+#include <circle/startup.h>
+#include <circle/timer.h>
+#include <circle/types.h>
+{audio_include}
+
+#include "gen_ext_common_circle.h"
+#include "_ext_circle.h"
+
+using namespace WRAPPER_NAMESPACE;
+
+#define CIRCLE_SAMPLE_RATE     48000
+#define CIRCLE_CHUNK_SIZE      256
+#define CIRCLE_AUDIO_CHANNELS  2
+
+#define CIRCLE_NUM_INPUTS  {manifest.num_inputs}
+#define CIRCLE_NUM_OUTPUTS {manifest.num_outputs}
+
+class CGenDSPSoundDevice : public {audio_base_class}
+{{
+public:
+    CGenDSPSoundDevice(CInterruptSystem* pInterrupt)
+        : {audio_base_class}(pInterrupt, CIRCLE_SAMPLE_RATE, CIRCLE_CHUNK_SIZE),
+          m_genState(nullptr)
+    {{
+        for (int i = 0; i < CIRCLE_NUM_INPUTS || i < 1; i++) {{
+            m_pInputBuffers[i] = m_InputStorage[i];
+        }}
+        for (int i = 0; i < CIRCLE_NUM_OUTPUTS || i < 1; i++) {{
+            m_pOutputBuffers[i] = m_OutputStorage[i];
+        }}
+    }}
+
+    ~CGenDSPSoundDevice(void)
+    {{
+        if (m_genState) {{
+            wrapper_destroy(m_genState);
+            m_genState = nullptr;
+        }}
+    }}
+
+    boolean Initialize(void)
+    {{
+        m_genState = wrapper_create((float)CIRCLE_SAMPLE_RATE, (long)CIRCLE_CHUNK_SIZE);
+        if (!m_genState) {{
+            return FALSE;
+        }}
+        return Start();
+    }}
+
+protected:
+    unsigned GetChunk(u32* pBuffer, unsigned nChunkSize) override
+    {{
+        if (!m_genState) {{
+            for (unsigned i = 0; i < nChunkSize; i++) {{
+                pBuffer[i] = 0;
+            }}
+            return nChunkSize;
+        }}
+
+        unsigned nFrames = nChunkSize / CIRCLE_AUDIO_CHANNELS;
+
+#if CIRCLE_NUM_INPUTS > 0
+        for (int ch = 0; ch < CIRCLE_NUM_INPUTS; ch++) {{
+            for (unsigned i = 0; i < nFrames; i++) {{
+                m_InputStorage[ch][i] = 0.0f;
+            }}
+        }}
+#endif
+
+        wrapper_perform(
+            m_genState,
+#if CIRCLE_NUM_INPUTS > 0
+            m_pInputBuffers,
+#else
+            nullptr,
+#endif
+            CIRCLE_NUM_INPUTS,
+            m_pOutputBuffers,
+            CIRCLE_NUM_OUTPUTS,
+            (long)nFrames
+        );
+
+        int nRangeMin = GetRangeMin();
+        int nRangeMax = GetRangeMax();
+
+        for (unsigned i = 0; i < nFrames; i++) {{
+            for (int ch = 0; ch < CIRCLE_AUDIO_CHANNELS; ch++) {{
+                float sample = 0.0f;
+                if (ch < CIRCLE_NUM_OUTPUTS) {{
+                    sample = m_pOutputBuffers[ch][i];
+                }}
+                if (sample > 1.0f) sample = 1.0f;
+                if (sample < -1.0f) sample = -1.0f;
+                int nSample = (int)((sample + 1.0f) / 2.0f
+                    * (nRangeMax - nRangeMin) + nRangeMin);
+                pBuffer[i * CIRCLE_AUDIO_CHANNELS + ch] = (u32)nSample;
+            }}
+        }}
+
+        return nChunkSize;
+    }}
+
+private:
+    GenState* m_genState;
+    float m_InputStorage[CIRCLE_NUM_INPUTS > 0 ? CIRCLE_NUM_INPUTS : 1][CIRCLE_CHUNK_SIZE];
+    float m_OutputStorage[CIRCLE_NUM_OUTPUTS > 0 ? CIRCLE_NUM_OUTPUTS : 1][CIRCLE_CHUNK_SIZE];
+    float* m_pInputBuffers[CIRCLE_NUM_INPUTS > 0 ? CIRCLE_NUM_INPUTS : 1];
+    float* m_pOutputBuffers[CIRCLE_NUM_OUTPUTS > 0 ? CIRCLE_NUM_OUTPUTS : 1];
+}};
+
+class CKernel
+{{
+public:
+    CKernel(void)
+        : m_Timer(&m_Interrupt),
+          m_Logger(m_Options.GetLogLevel(), &m_Timer),
+          m_pSound(nullptr)
+    {{
+    }}
+
+    ~CKernel(void)
+    {{
+        delete m_pSound;
+    }}
+
+    boolean Initialize(void)
+    {{
+        if (!m_Interrupt.Initialize()) {{
+            return FALSE;
+        }}
+        if (!m_Timer.Initialize()) {{
+            return FALSE;
+        }}
+        if (!m_Logger.Initialize(nullptr)) {{
+            return FALSE;
+        }}
+
+        m_pSound = new CGenDSPSoundDevice(&m_Interrupt);
+        if (!m_pSound->Initialize()) {{
+            m_Logger.Write("gen-dsp", LogError, "Failed to initialize {audio_label} sound device");
+            return FALSE;
+        }}
+
+        m_Logger.Write("gen-dsp", LogNotice,
+            "gen-dsp Circle audio started: %uHz, %u frames/chunk, {audio_label} output",
+            CIRCLE_SAMPLE_RATE, CIRCLE_CHUNK_SIZE);
+
+        return TRUE;
+    }}
+
+    void Run(void)
+    {{
+        for (;;) {{
+        }}
+    }}
+
+private:
+    CActLED             m_ActLED;
+    CKernelOptions      m_Options;
+    CDeviceNameService  m_DeviceNameService;
+    CExceptionHandler   m_ExceptionHandler;
+    CInterruptSystem    m_Interrupt;
+    CTimer              m_Timer;
+    CLogger             m_Logger;
+    CGenDSPSoundDevice* m_pSound;
+}};
+
+int main(void)
+{{
+    CKernel Kernel;
+    if (!Kernel.Initialize()) {{
+        halt();
+        return EXIT_HALT;
+    }}
+    Kernel.Run();
+    halt();
+    return EXIT_HALT;
+}}
+"""
+        (output_dir / "gen_ext_circle.cpp").write_text(gen_ext_circle)
+
+        config_template_path = get_circle_templates_dir() / "config.txt.template"
+        if config_template_path.is_file():
+            config_content = config_template_path.read_text(encoding="utf-8")
+            config_txt = Template(config_content).safe_substitute(
+                audio_boot_config=_get_boot_config(circle_board.audio_device),
+            )
+            (output_dir / "config.txt").write_text(config_txt, encoding="utf-8")
 
     def build(
         self,

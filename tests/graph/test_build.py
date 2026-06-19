@@ -19,6 +19,7 @@ import pytest
 pydantic = pytest.importorskip("pydantic")
 
 from tests.helpers import (
+    fetchcontent_cmake_args,
     validate_chugin,
     validate_clap,
     validate_lv2,
@@ -238,7 +239,7 @@ def _cmake_build(
 
     cmake_args = ["cmake", ".."]
     if fetchcontent_cache is not None:
-        cmake_args.append(f"-DFETCHCONTENT_BASE_DIR={fetchcontent_cache}")
+        cmake_args.extend(fetchcontent_cmake_args(fetchcontent_cache))
     if extra_args:
         cmake_args.extend(extra_args)
 
