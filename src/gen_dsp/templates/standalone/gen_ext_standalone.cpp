@@ -205,7 +205,7 @@ int main(int argc, char* argv[]) {
 
     // Print info
     fprintf(stderr, "%s (gen-dsp standalone v%s)\n",
-            STR(STANDALONE_EXT_NAME), STR(GEN_EXT_VERSION));
+            STR(STANDALONE_EXT_NAME), STR(GENDSP_VERSION));
     fprintf(stderr, "  Sample rate: %.0f Hz\n", sample_rate);
     fprintf(stderr, "  Block size:  %d frames\n", block_size);
     fprintf(stderr, "  Audio I/O:   %d in, %d out\n", g_num_inputs, g_num_outputs);

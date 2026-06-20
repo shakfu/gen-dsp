@@ -1,4 +1,4 @@
-"""Build integration tests for dsp-graph projects across all platforms.
+"""Build integration tests for graph projects across all platforms.
 
 Each test generates a project from a Graph object via ProjectGenerator.from_graph()
 and compiles it with the platform's native toolchain. Tests are gated by tool

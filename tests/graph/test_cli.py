@@ -1,4 +1,4 @@
-"""Tests for the dsp-graph CLI."""
+"""Tests for the graph CLI."""
 
 from __future__ import annotations
 

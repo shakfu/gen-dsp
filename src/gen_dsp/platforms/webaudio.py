@@ -10,6 +10,7 @@ import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
+from gen_dsp.version import __version__
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines_make
 from gen_dsp.core.project import ProjectConfig
@@ -69,7 +70,7 @@ class WebAudioPlatform(Platform):
             output_dir / "gen_ext_webaudio.cpp",
             lib_name=lib_name,
             gen_name=manifest.gen_name,
-            genext_version=self.GENEXT_VERSION,
+            gendsp_version=__version__,
         )
 
         # Generate gen_buffer.h using base class method
@@ -90,7 +91,7 @@ class WebAudioPlatform(Platform):
             output_dir / "Makefile",
             lib_name=lib_name,
             gen_name=manifest.gen_name,
-            genext_version=self.GENEXT_VERSION,
+            gendsp_version=__version__,
             export_name=export_name,
             remap_defines=remap_defines,
         )
@@ -183,7 +184,7 @@ class WebAudioPlatform(Platform):
             output_path,
             label="processor.js template",
             lib_name=lib_name,
-            genext_version=self.GENEXT_VERSION,
+            gendsp_version=__version__,
             export_name=export_name,
             processor_name=lib_name,
             processor_class=processor_class,
@@ -209,7 +210,7 @@ class WebAudioPlatform(Platform):
             output_dir / "gen_ext_webaudio.cpp",
             lib_name=name,
             gen_name=graph.name,
-            genext_version=self.GENEXT_VERSION,
+            gendsp_version=__version__,
         )
 
         self._generate_processor_js(

@@ -505,7 +505,7 @@ class TestCircleChainProjectGeneration:
             "gigaverb": gigaverb_export,
             "spectraldelayfb": spectraldelayfb_export,
         }
-        chain = resolve_chain(graph, export_dirs, "0.8.0")
+        chain = resolve_chain(graph, export_dirs, "0.2.0")
         return chain, graph
 
 
@@ -531,7 +531,7 @@ class TestCircleChainEdgeCases:
         graph = parse_graph(graph_path)
 
         export_dirs = {"gigaverb": gigaverb_export}
-        chain = resolve_chain(graph, export_dirs, "0.8.0")
+        chain = resolve_chain(graph, export_dirs, "0.2.0")
 
         output_dir = tmp_path / "single_chain"
         output_dir.mkdir()
@@ -573,7 +573,7 @@ class TestCircleChainEdgeCases:
             "gigaverb": gigaverb_export,
             "spectraldelayfb": spectraldelayfb_export,
         }
-        chain = resolve_chain(graph, export_dirs, "0.8.0")
+        chain = resolve_chain(graph, export_dirs, "0.2.0")
 
         output_dir = tmp_path / "mismatch_chain"
         output_dir.mkdir()
@@ -632,7 +632,7 @@ class TestCircleChainEdgeCases:
         graph = parse_graph(graph_path)
 
         export_dirs = {"gigaverb": gigaverb_export}
-        chain = resolve_chain(graph, export_dirs, "0.8.0")
+        chain = resolve_chain(graph, export_dirs, "0.2.0")
 
         output_dir = tmp_path / "bad_board"
         output_dir.mkdir()

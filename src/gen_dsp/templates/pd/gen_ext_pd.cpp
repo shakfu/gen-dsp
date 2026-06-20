@@ -1,4 +1,4 @@
-// gen_ext_pd.cpp - PD external wrapper for dsp-graph compiled code
+// gen_ext_pd.cpp - PD external wrapper for graph compiled code
 // This file includes ONLY PD headers - graph code is isolated in _ext_pd.cpp
 
 #include "gen_ext_common_pd.h"
@@ -122,7 +122,7 @@ static void WRAPPER_ANY_METHOD(WRAPPER_TYPE *x, t_symbol *s, int argc, t_atom *a
 }
 
 static void WRAPPER_BANG(WRAPPER_TYPE *x) {
-  post("gen-dsp wrapper v%s", STR(GEN_EXT_VERSION));
+  post("gen-dsp wrapper v%s", STR(GENDSP_VERSION));
   post("%s~ samplerate: %g, blocksize: %d", STR(PD_EXT_NAME), x->x_sr, x->x_bs);
   post("num_audio_rate_inputs: %d", x->x_num_inputs);
   post("num_audio_rate_outputs: %d", x->x_num_outputs);

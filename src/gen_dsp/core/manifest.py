@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 
 from typing import Any
 
+from gen_dsp.version import __version__
 from gen_dsp.core.parser import ExportInfo
 
 
@@ -94,7 +95,7 @@ class Manifest:
     buffers: list[str] = field(default_factory=list)
     remapped_inputs: list[RemappedInput] = field(default_factory=list)
     source: str = "gen~"
-    version: str = "0.8.0"
+    version: str = __version__
 
     @property
     def num_params(self) -> int:
@@ -126,7 +127,7 @@ class Manifest:
                 RemappedInput.from_dict(r) for r in d.get("remapped_inputs", [])
             ],
             source=d.get("source", "gen~"),
-            version=d.get("version", "0.8.0"),
+            version=d.get("version", __version__),
         )
 
     def to_json(self, indent: int = 2) -> str:

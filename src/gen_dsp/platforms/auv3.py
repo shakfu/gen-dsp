@@ -13,6 +13,7 @@ import shutil
 from pathlib import Path
 from typing import Optional
 
+from gen_dsp.version import __version__
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines
 from gen_dsp.core.midi import build_midi_defines
@@ -97,7 +98,7 @@ class Auv3Platform(Platform):
             output_dir / "CMakeLists.txt",
             lib_name=lib_name,
             gen_name=manifest.gen_name,
-            genext_version=self.GENEXT_VERSION,
+            gendsp_version=__version__,
             num_inputs=str(manifest.num_inputs),
             num_outputs=str(manifest.num_outputs),
             midi_defines=midi_defines,
@@ -107,11 +108,11 @@ class Auv3Platform(Platform):
         # Generate Info plists
         plist_vars = dict(
             lib_name=lib_name,
-            genext_version=self.GENEXT_VERSION,
+            gendsp_version=__version__,
             au_type=au_type,
             au_subtype=au_subtype,
             au_manufacturer=self.AU_MANUFACTURER,
-            au_version=str(self._version_to_int(self.GENEXT_VERSION)),
+            au_version=str(self._version_to_int(__version__)),
             au_tag=au_tag,
         )
         self.render_template(

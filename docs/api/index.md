@@ -15,7 +15,7 @@ gen~ export dir -> parser.py -> ExportInfo -> manifest.py -> Manifest -> Platfor
 For the graph frontend:
 
 ```text
-Graph (Python/JSON) -> compile.py -> C++ -> adapter.py -> Manifest -> ProjectGenerator.from_graph()
+Graph (Python/JSON) -> graph/compile/ -> C++ -> graph/adapter.py -> Manifest -> ProjectGenerator.from_graph()
 ```
 
 ## Core Modules
@@ -46,4 +46,4 @@ Graph (Python/JSON) -> compile.py -> C++ -> adapter.py -> Manifest -> ProjectGen
 | [`graph.optimize`](graph-optimize.md) | `optimize_graph()`: dead-code elimination, constant folding |
 | [`graph.simulate`](graph-simulate.md) | `simulate()`: run graph in Python (requires numpy) |
 | [`graph.algebra`](graph-algebra.md) | `series()`, `parallel()`, `split()`, `merge()` combinators |
-| [`graph.adapter`](graph-adapter.md) | Bridge dsp-graph output to gen-dsp platform backends |
+| [`graph.adapter`](graph-adapter.md) | Bridge graph output to gen-dsp platform backends |

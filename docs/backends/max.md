@@ -58,7 +58,7 @@ Parameters are controlled via messages to the first inlet, the same way as stand
 
 Max buffers use a lock/unlock API (`buffer_locksamples` / `buffer_unlocksamples`) for thread-safe access. Buffer storage is always 32-bit float regardless of signal precision. The gen-dsp wrapper handles the locking and float<->double conversion automatically.
 
-Up to 5 buffers are supported (single-channel each).
+Up to 8 buffers are supported (single-channel each).
 
 ## Build Details
 

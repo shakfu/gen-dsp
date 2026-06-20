@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
+from gen_dsp.version import __version__
 from gen_dsp.core.parser import ExportInfo
 from gen_dsp.errors import ValidationError
 
@@ -140,7 +141,7 @@ class ProjectConfig:
 
 
 class ProjectGenerator:
-    """Generate new project from gen~ export or dsp-graph."""
+    """Generate new project from gen~ export or graph."""
 
     def __init__(self, export_info: ExportInfo, config: ProjectConfig):
         """
@@ -157,14 +158,14 @@ class ProjectGenerator:
 
     @classmethod
     def from_graph(cls, graph: "Graph", config: ProjectConfig) -> "ProjectGenerator":
-        """Create a ProjectGenerator from a dsp-graph Graph object.
+        """Create a ProjectGenerator from a graph Graph object.
 
         Args:
             graph: A ``gen_dsp.graph.models.Graph`` instance.
             config: Project configuration.
 
         Returns:
-            A ProjectGenerator configured for the dsp-graph path.
+            A ProjectGenerator configured for the graph path.
         """
         from gen_dsp.graph.adapter import generate_manifest_obj
 
@@ -218,7 +219,6 @@ class ProjectGenerator:
         assert self.export_info is not None
         from gen_dsp.core.manifest import manifest_from_export_info
         from gen_dsp.platforms import get_platform
-        from gen_dsp.platforms.base import Platform
 
         # Determine buffers to use
         buffers = (
@@ -226,9 +226,7 @@ class ProjectGenerator:
         )
 
         # Build manifest
-        manifest = manifest_from_export_info(
-            self.export_info, buffers, Platform.GENEXT_VERSION
-        )
+        manifest = manifest_from_export_info(self.export_info, buffers, __version__)
 
         # Apply input-to-parameter remapping if requested
         if self.config.inputs_as_params is not None:
@@ -282,7 +280,7 @@ class ProjectGenerator:
         return output_dir
 
     def _generate_from_graph(self, output_dir: Path) -> Path:
-        """Generate project from a dsp-graph Graph.
+        """Generate project from a graph Graph.
 
         Delegates all platform-specific work to the target platform's
         ``generate_from_graph`` method, keeping this layer free of any

@@ -1,4 +1,4 @@
-"""Command-line interface for dsp-graph (internal module).
+"""Command-line interface for the gen-dsp graph frontend (internal module).
 
 This module provides the graph subcommand implementations for gen-dsp's CLI.
 It can also be used standalone via ``main()`` for testing.
@@ -458,9 +458,9 @@ def add_sim_parser(
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Standalone entry point for dsp-graph CLI (for testing)."""
+    """Standalone entry point for the gen-dsp graph CLI (for testing)."""
     parser = argparse.ArgumentParser(
-        prog="dsp-graph",
+        prog="gen-dsp-graph",
         description="Compile, validate, visualize, and simulate DSP signal graphs.",
     )
     sub = parser.add_subparsers(dest="command")

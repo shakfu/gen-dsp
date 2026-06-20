@@ -5,6 +5,7 @@ from pathlib import Path
 from string import Template
 from typing import TYPE_CHECKING, Optional
 
+from gen_dsp.version import __version__
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines_make
 from gen_dsp.core.project import ProjectConfig
@@ -183,7 +184,7 @@ class CirclePlatform(Platform):
             label="Makefile template",
             gen_name=gen_name,
             lib_name=lib_name,
-            genext_version=self.GENEXT_VERSION,
+            gendsp_version=__version__,
             num_inputs=num_inputs,
             num_outputs=num_outputs,
             num_params=num_params,
@@ -255,7 +256,7 @@ class CirclePlatform(Platform):
         audio_label = _get_audio_label(circle_board.audio_device)
 
         gen_ext_circle = f"""\
-// gen_ext_circle.cpp - Circle bare metal wrapper for dsp-graph compiled code
+// gen_ext_circle.cpp - Circle bare metal wrapper for graph compiled code
 // Board: {board_key} (Raspberry Pi {circle_board.rasppi})
 // Audio: {audio_label} output
 // This file includes ONLY Circle headers - graph code is isolated in _ext_circle.cpp
@@ -718,7 +719,7 @@ int main(void)
 
         content = template.safe_substitute(
             lib_name=lib_name,
-            genext_version=self.GENEXT_VERSION,
+            gendsp_version=__version__,
             num_nodes=len(chain),
             default_circle_dir=default_circle_dir,
             rasppi=board.rasppi,
@@ -936,7 +937,7 @@ int main(void)
 
         content = template.safe_substitute(
             lib_name=lib_name,
-            genext_version=self.GENEXT_VERSION,
+            gendsp_version=__version__,
             num_nodes=len(dag_nodes),
             default_circle_dir=default_circle_dir,
             rasppi=board.rasppi,

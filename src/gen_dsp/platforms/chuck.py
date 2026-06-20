@@ -9,6 +9,7 @@ import shutil
 from pathlib import Path
 from typing import Optional
 
+from gen_dsp.version import __version__
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines_make
 from gen_dsp.core.project import ProjectConfig
@@ -110,7 +111,7 @@ class ChuckPlatform(Platform):
             label="makefile template",
             gen_name=gen_name,
             lib_name=self.capitalize_first(lib_name),
-            genext_version=self.GENEXT_VERSION,
+            gendsp_version=__version__,
             remap_defines=remap_defines,
         )
 

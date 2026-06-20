@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 
+from gen_dsp.version import __version__
 from gen_dsp.core.manifest import (
     Manifest,
     ParamInfo,
@@ -71,7 +72,7 @@ class TestManifestSerialization:
             ],
             buffers=["sample"],
             source="gen~",
-            version="0.8.0",
+            version="0.2.0",
         )
 
     def test_num_params_property(self):
@@ -120,7 +121,7 @@ class TestManifestSerialization:
         assert m.params == []
         assert m.buffers == []
         assert m.source == "gen~"
-        assert m.version == "0.8.0"
+        assert m.version == __version__
 
 
 class TestParamParsing:
@@ -223,7 +224,7 @@ class TestManifestFromExportInfo:
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
 
-        manifest = manifest_from_export_info(export_info, [], "0.8.0")
+        manifest = manifest_from_export_info(export_info, [], "0.2.0")
 
         assert manifest.gen_name == "gen_exported"
         assert manifest.num_inputs == 2
@@ -232,13 +233,13 @@ class TestManifestFromExportInfo:
         assert len(manifest.params) == 8
         assert manifest.buffers == []
         assert manifest.source == "gen~"
-        assert manifest.version == "0.8.0"
+        assert manifest.version == "0.2.0"
 
     def test_rampleplayer_manifest_with_buffers(self, rampleplayer_export: Path):
         parser = GenExportParser(rampleplayer_export)
         export_info = parser.parse()
 
-        manifest = manifest_from_export_info(export_info, ["sample"], "0.8.0")
+        manifest = manifest_from_export_info(export_info, ["sample"], "0.2.0")
 
         assert manifest.num_inputs == 1
         assert manifest.num_outputs == 2
@@ -248,7 +249,7 @@ class TestManifestFromExportInfo:
         parser = GenExportParser(spectraldelayfb_export)
         export_info = parser.parse()
 
-        manifest = manifest_from_export_info(export_info, [], "0.8.0")
+        manifest = manifest_from_export_info(export_info, [], "0.2.0")
 
         assert manifest.num_inputs == 3
         assert manifest.num_outputs == 2
@@ -260,7 +261,7 @@ class TestManifestFromExportInfo:
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
 
-        m1 = manifest_from_export_info(export_info, [], "0.8.0")
+        m1 = manifest_from_export_info(export_info, [], "0.2.0")
         j = m1.to_json()
         m2 = Manifest.from_json(j)
 

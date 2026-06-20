@@ -204,7 +204,7 @@ class TestManifest:
 
     def test_manifest_source_dsp_graph(self, gen_dsp_graph):
         data = json.loads(generate_manifest(gen_dsp_graph))
-        assert data["source"] == "dsp-graph"
+        assert data["source"] == "graph"
 
     def test_manifest_io_counts(self, gen_dsp_graph):
         data = json.loads(generate_manifest(gen_dsp_graph))
@@ -233,7 +233,7 @@ class TestManifest:
         assert data["gen_name"] == "test_synth"
 
     def test_manifest_version(self, gen_dsp_graph):
-        from gen_dsp.graph import __version__
+        from gen_dsp.version import __version__
 
         data = json.loads(generate_manifest(gen_dsp_graph))
         assert data["version"] == __version__
@@ -248,7 +248,7 @@ class TestManifest:
         assert m.num_inputs == 2
         assert m.num_outputs == 2
         assert len(m.params) == 3
-        assert m.source == "dsp-graph"
+        assert m.source == "graph"
 
 
 # ---------------------------------------------------------------------------
@@ -284,7 +284,7 @@ class TestCompileForGenDsp:
 class TestIntegration:
     @skip_no_gpp
     def test_adapter_compiles_standalone(self, gen_dsp_graph, tmp_path):
-        """Compile adapter + dsp-graph code with g++ (no platform headers)."""
+        """Compile adapter + graph code with g++ (no platform headers)."""
         out = compile_for_gen_dsp(gen_dsp_graph, tmp_path, "chuck")
 
         # Create minimal stubs for the headers the adapter includes

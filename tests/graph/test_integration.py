@@ -1,4 +1,4 @@
-"""Integration tests for dsp-graph -> gen-dsp project generation."""
+"""Integration tests for graph -> gen-dsp project generation."""
 
 from __future__ import annotations
 
@@ -54,7 +54,7 @@ class TestFromGraphProjectStructure:
         assert (out / "manifest.json").is_file(), "manifest missing"
         assert (out / "gen_buffer.h").is_file(), "buffer header missing"
 
-        # No gen/ subdirectory (dsp-graph path doesn't copy gen~ export)
+        # No gen/ subdirectory (graph path doesn't copy gen~ export)
         assert not (out / "gen").exists(), "gen/ dir should not exist"
 
     def test_manifest_content(self, simple_gain_graph, tmp_path):
@@ -67,7 +67,7 @@ class TestFromGraphProjectStructure:
         assert manifest["gen_name"] == "gain"
         assert manifest["num_inputs"] == 1
         assert manifest["num_outputs"] == 1
-        assert manifest["source"] == "dsp-graph"
+        assert manifest["source"] == "graph"
         assert len(manifest["params"]) == 1
         assert manifest["params"][0]["name"] == "volume"
 
@@ -82,7 +82,7 @@ class TestFromGraphProjectStructure:
         assert "gain" in cpp
 
     def test_no_genlib_references_in_build_file(self, simple_gain_graph, tmp_path):
-        """dsp-graph build files should not reference genlib sources."""
+        """graph build files should not reference genlib sources."""
         config = ProjectConfig(name="test_gain", platform="clap")
         gen = ProjectGenerator.from_graph(simple_gain_graph, config)
         out = gen.generate(output_dir=tmp_path / "proj")
@@ -131,18 +131,18 @@ class TestFromGraphCLI:
 
 
 class TestFromGraphBuild:
-    """Build integration tests for dsp-graph projects."""
+    """Build integration tests for graph projects."""
 
     @pytest.fixture
     def clap_project(self, simple_gain_graph, tmp_path):
-        """Generate a CLAP project from a dsp-graph."""
+        """Generate a CLAP project from a graph."""
         config = ProjectConfig(name="gain", platform="clap")
         gen = ProjectGenerator.from_graph(simple_gain_graph, config)
         return gen.generate(output_dir=tmp_path / "gain_clap")
 
     @pytest.mark.skipif(shutil.which("cmake") is None, reason="cmake required")
     def test_build_clap_from_graph(self, clap_project, fetchcontent_cache):
-        """Build a CLAP plugin from a dsp-graph definition."""
+        """Build a CLAP plugin from a graph definition."""
         # Configure -- route FetchContent at the shared cache (and the cached
         # clap source, skipping the flaky populate/clone) like the other
         # CMake build tests.

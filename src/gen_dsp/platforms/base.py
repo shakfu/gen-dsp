@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Optional
 
 import shutil
 
+from gen_dsp.version import __version__
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest
 from gen_dsp.core.project import ProjectConfig
@@ -50,9 +51,6 @@ class Platform(ABC):
     def extension(self) -> str:
         """File extension for built externals (e.g. '.pd_darwin', '.clap')."""
         ...
-
-    # Version string for generated projects
-    GENEXT_VERSION = "0.8.0"
 
     @abstractmethod
     def generate_project(
@@ -242,7 +240,7 @@ class Platform(ABC):
         config: ProjectConfig,
         midi_defines: str,
     ) -> None:
-        """Generate a project from a dsp-graph Graph (graph frontend path).
+        """Generate a project from a graph Graph (graph frontend path).
 
         Provides the orchestration common to every platform: compile the graph
         to C++, emit the platform adapter, copy template files, and write the
@@ -304,7 +302,7 @@ class Platform(ABC):
             num_inputs=manifest.num_inputs,
             num_outputs=manifest.num_outputs,
             num_params=manifest.num_params,
-            genext_version=self.GENEXT_VERSION,
+            gendsp_version=__version__,
             shared_cache=config.shared_cache,
             midi_defines=midi_defines,
         )

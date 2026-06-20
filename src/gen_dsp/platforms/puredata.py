@@ -8,6 +8,7 @@ from pathlib import Path
 from string import Template
 from typing import Optional
 
+from gen_dsp.version import __version__
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines_make
 from gen_dsp.core.project import ProjectConfig
@@ -114,7 +115,7 @@ class PureDataPlatform(Platform):
             content = template.safe_substitute(
                 gen_name=gen_name,
                 lib_name=lib_name,
-                genext_version=self.GENEXT_VERSION,
+                gendsp_version=__version__,
                 remap_defines=remap_defines,
             )
         else:
@@ -127,10 +128,10 @@ gen.name = {gen_name}
 # Name of the external to generate (do not add ~ suffix)
 lib.name = {lib_name}
 
-gendsp.version = {self.GENEXT_VERSION}
+gendsp.version = {__version__}
 
 $(lib.name)~.class.sources = gen_dsp.cpp _ext.cpp ./gen/gen_dsp/genlib.cpp
-cflags = -I ./gen -I./gen/gen_dsp -DGEN_EXT_VERSION=$(gendsp.version) -DPD_EXT_NAME=$(lib.name) -DGEN_EXPORTED_NAME=$(gen.name) -DGEN_EXPORTED_HEADER=\\"$(gen.name).h\\" -DGEN_EXPORTED_CPP=\\"$(gen.name).cpp\\"
+cflags = -I ./gen -I./gen/gen_dsp -DGENDSP_VERSION=$(gendsp.version) -DPD_EXT_NAME=$(lib.name) -DGEN_EXPORTED_NAME=$(gen.name) -DGEN_EXPORTED_HEADER=\\"$(gen.name).h\\" -DGEN_EXPORTED_CPP=\\"$(gen.name).cpp\\"
 suppress-wunused = yes
 
 define forDarwin

@@ -10,14 +10,16 @@ Source type is auto-detected: directory (gen~ export), `.gdsp` file, or `.json` 
 
 | Option | Description |
 |--------|-------------|
-| `-p, --platform PLATFORM` | Target platform (required): `au`, `chuck`, `circle`, `clap`, `daisy`, `lv2`, `max`, `pd`, `sc`, `vcvrack`, `vst3`, `webaudio` |
+| `-p, --platform PLATFORM` | Target platform(s) (required): a name, a comma-separated list (`clap,vst3,au`), or `all`. Names: `au`, `auv3`, `chuck`, `circle`, `clap`, `csound`, `daisy`, `lv2`, `max`, `pd`, `sc`, `standalone`, `vcvrack`, `vst3`, `webaudio` |
 | `-n, --name NAME` | Plugin name (default: inferred from source) |
-| `-o, --output DIR` | Output directory (default: `<name>_<platform>`) |
+| `-o, --output DIR` | Output directory (default: `<name>_<platform>`; parent dir for multi-target) |
+| `--config PATH` | Read defaults from a `gen-dsp.toml` (default: `./gen-dsp.toml` if present) |
 | `--no-build` | Skip building after project creation |
 | `--dry-run` | Show what would be done without creating files |
 | `--buffers NAME [...]` | Explicit buffer names (overrides auto-detection) |
 | `--no-patch` | Skip platform patches (e.g. `exp2f` fix) |
 | `--no-shared-cache` | Disable shared OS cache for FetchContent downloads |
+| `--cache-dir DIR` | Explicit FetchContent cache directory (baked into CMakeLists.txt) |
 | `--board BOARD` | Board variant (daisy, circle) |
 | `--no-midi` | Disable MIDI note handling |
 | `--midi-gate NAME` | MIDI gate parameter name |
@@ -35,7 +37,13 @@ gen-dsp ./my_export -p clap -n myeffect -o ./build
 gen-dsp ./my_export -p daisy --board pod
 gen-dsp ./my_export -p pd --no-build --buffers sample envelope
 gen-dsp synth.gdsp -p clap --midi-freq freq --midi-gate gate --voices 4
+gen-dsp ./my_export -p clap,vst3,au          # multi-target
+gen-dsp ./my_export -p all --no-build        # every platform
+gen-dsp                                       # uses ./gen-dsp.toml
 ```
+
+A `gen-dsp.toml` in the project directory supplies defaults (keys mirror the
+options above; `platform` may be a list or `all`). CLI flags override it.
 
 ## build -- Build an Existing Project
 
@@ -50,13 +58,15 @@ gen-dsp build [project-path] [-p PLATFORM] [--clean] [-v]
 | `--clean` | Clean before building |
 | `-v, --verbose` | Show build output |
 
-## detect -- Analyze a gen~ Export
+## detect -- Analyze a gen~ Export or Graph File
 
 ```bash
-gen-dsp detect <export-path> [--json]
+gen-dsp detect <path> [--json]
 ```
 
-Shows export name, signal I/O counts, parameters, detected buffers, and needed patches.
+For a gen~ export directory: name, signal I/O counts, parameters, detected
+buffers, and needed patches. For a `.gdsp`/`.json` graph file: name, I/O,
+parameters with ranges, node-type breakdown, buffers, delay lines, and validity.
 
 ## manifest -- Emit JSON Manifest
 
@@ -138,11 +148,26 @@ gen-dsp sim <file> [-i [NAME=]FILE] [-o DIR] [-n SAMPLES] [--param NAME=VALUE] [
 gen-dsp list
 ```
 
-## cache -- Show Cached SDKs
+## cache -- Show or Prune Cached SDKs
 
 ```bash
-gen-dsp cache
+gen-dsp cache                    # list cached SDKs with sizes
+gen-dsp cache --prune            # delete them (asks for confirmation)
+gen-dsp cache --prune -y         # delete without prompting
+gen-dsp cache --prune --dry-run  # preview what would be removed
 ```
+
+## doctor -- Check Build Prerequisites
+
+```bash
+gen-dsp doctor              # all platforms
+gen-dsp doctor -p daisy     # one platform
+gen-dsp doctor --json       # machine-readable
+```
+
+Reports, per platform, whether the host has the tools needed to build (compilers,
+CMake/Make, cross-toolchains, Emscripten, Xcode, git), with install hints. Exits
+non-zero when a requested platform is not ready (usable as a CI gate).
 
 ## Global Options
 

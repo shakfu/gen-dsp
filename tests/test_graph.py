@@ -455,7 +455,7 @@ class TestChainResolution:
             ],
         )
         export_dirs = {"gigaverb": gigaverb_export}
-        chain = resolve_chain(graph, export_dirs, "0.8.0")
+        chain = resolve_chain(graph, export_dirs, "0.2.0")
 
         assert len(chain) == 1
         assert chain[0].config.id == "reverb"
@@ -481,7 +481,7 @@ class TestChainResolution:
             "gigaverb": gigaverb_export,
             "spectraldelayfb": spectraldelayfb_export,
         }
-        chain = resolve_chain(graph, export_dirs, "0.8.0")
+        chain = resolve_chain(graph, export_dirs, "0.2.0")
 
         assert len(chain) == 2
         assert chain[0].config.id == "reverb"
@@ -505,7 +505,7 @@ class TestChainResolution:
             ],
         )
         export_dirs = {"gigaverb": gigaverb_export}
-        chain = resolve_chain(graph, export_dirs, "0.8.0")
+        chain = resolve_chain(graph, export_dirs, "0.2.0")
 
         assert chain[0].config.midi_channel == 5
 
@@ -522,7 +522,7 @@ class TestChainResolution:
         )
         export_dirs = {"gigaverb": gigaverb_export}
         with pytest.raises(ValidationError, match="nonexistent"):
-            resolve_chain(graph, export_dirs, "0.8.0")
+            resolve_chain(graph, export_dirs, "0.2.0")
 
     def test_resolve_bad_export_path(self, tmp_path):
         """Raise if export path does not contain a valid gen~ export."""
@@ -539,7 +539,7 @@ class TestChainResolution:
         empty_dir.mkdir()
         export_dirs = {"empty": empty_dir}
         with pytest.raises(ValidationError, match="failed to parse"):
-            resolve_chain(graph, export_dirs, "0.8.0")
+            resolve_chain(graph, export_dirs, "0.2.0")
 
 
 # ---------------------------------------------------------------------------
@@ -1004,7 +1004,7 @@ class TestResolveDAG:
             "gigaverb": gigaverb_export,
             "spectraldelayfb": spectraldelayfb_export,
         }
-        resolved = resolve_dag(graph, export_dirs, "0.8.0")
+        resolved = resolve_dag(graph, export_dirs, "0.2.0")
 
         assert len(resolved) == 3
         node_ids = [n.config.id for n in resolved]
@@ -1028,7 +1028,7 @@ class TestResolveDAG:
             "gigaverb": gigaverb_export,
             "spectraldelayfb": spectraldelayfb_export,
         }
-        resolved = resolve_dag(graph, export_dirs, "0.8.0")
+        resolved = resolve_dag(graph, export_dirs, "0.2.0")
         channels = [n.config.midi_channel for n in resolved]
         assert channels == [1, 2, 3]
 
@@ -1041,7 +1041,7 @@ class TestResolveDAG:
             "gigaverb": gigaverb_export,
             "spectraldelayfb": spectraldelayfb_export,
         }
-        resolved = resolve_dag(graph, export_dirs, "0.8.0")
+        resolved = resolve_dag(graph, export_dirs, "0.2.0")
         mix_node = [n for n in resolved if n.config.id == "mix"][0]
         # gigaverb outputs 2, spectraldelayfb outputs 2
         assert mix_node.manifest.num_outputs == 2
@@ -1051,4 +1051,4 @@ class TestResolveDAG:
         graph = _diamond_graph()
         export_dirs = {"gigaverb": gigaverb_export}
         with pytest.raises(ValidationError, match="spectraldelayfb"):
-            resolve_dag(graph, export_dirs, "0.8.0")
+            resolve_dag(graph, export_dirs, "0.2.0")

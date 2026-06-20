@@ -14,8 +14,6 @@ A per-sample Python simulator is available via the ``simulate`` module
     from gen_dsp.graph.simulate import simulate, SimState, SimResult
 """
 
-__version__ = "0.1.6"
-
 _AVAILABLE = False
 
 try:
@@ -121,18 +119,18 @@ else:
     _AVAILABLE = True
 
 
-def _require_dsp_graph() -> None:
+def _require_graph() -> None:
     """Raise ImportError with install instructions if pydantic is not available."""
     if not _AVAILABLE:
         raise ImportError(
-            "dsp-graph functionality requires pydantic. "
+            "graph functionality requires pydantic. "
             "Install with: pip install gen-dsp[graph]"
         )
 
 
 __all__ = [
     "_AVAILABLE",
-    "_require_dsp_graph",
+    "_require_graph",
     "ADSR",
     "Accum",
     "Allpass",

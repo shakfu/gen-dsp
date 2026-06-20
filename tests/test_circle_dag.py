@@ -474,7 +474,7 @@ class TestDAGProjectGeneration:
             "gigaverb": gigaverb_export,
             "spectraldelayfb": spectraldelayfb_export,
         }
-        dag_nodes = resolve_dag(graph, export_dirs, "0.8.0")
+        dag_nodes = resolve_dag(graph, export_dirs, "0.2.0")
 
         resolved_map = {n.config.id: n for n in dag_nodes}
         topo_order = [n.config.id for n in dag_nodes]

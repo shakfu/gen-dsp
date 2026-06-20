@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
+from gen_dsp.version import __version__
 from gen_dsp.core.manifest import Manifest, ParamInfo, build_remap_defines
 from gen_dsp.core.midi import build_midi_defines
 from gen_dsp.core.project import ProjectConfig
@@ -320,7 +321,7 @@ class Lv2Platform(CMakePlatform):
             label="CMakeLists.txt template",
             gen_name=gen_name,
             lib_name=lib_name,
-            genext_version=self.GENEXT_VERSION,
+            gendsp_version=__version__,
             num_inputs=num_inputs,
             num_outputs=num_outputs,
             num_params=num_params,

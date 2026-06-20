@@ -17,7 +17,7 @@
     <key>CFBundlePackageType</key>
     <string>XPC!</string>
     <key>CFBundleShortVersionString</key>
-    <string>$genext_version</string>
+    <string>$gendsp_version</string>
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>NSExtension</key>

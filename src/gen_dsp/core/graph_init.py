@@ -9,6 +9,8 @@ import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
+from gen_dsp.version import __version__
+
 if TYPE_CHECKING:
     from gen_dsp.core.graph import GraphConfig, ResolvedChainNode
     from gen_dsp.core.project import ProjectConfig
@@ -111,11 +113,10 @@ def init_chain_linear(
     import sys
     from gen_dsp.core.graph import resolve_chain
     from gen_dsp.platforms.circle import CirclePlatform
-    from gen_dsp.platforms.base import Platform
     from gen_dsp.errors import GenExtError
 
     try:
-        chain = resolve_chain(graph, export_dirs, Platform.GENEXT_VERSION)
+        chain = resolve_chain(graph, export_dirs, __version__)
     except GenExtError as e:
         print(f"Error resolving chain: {e}", file=sys.stderr)
         return 1
@@ -191,11 +192,10 @@ def init_chain_dag(
     import sys
     from gen_dsp.core.graph import resolve_dag, allocate_edge_buffers
     from gen_dsp.platforms.circle import CirclePlatform
-    from gen_dsp.platforms.base import Platform
     from gen_dsp.errors import GenExtError
 
     try:
-        dag_nodes = resolve_dag(graph, export_dirs, Platform.GENEXT_VERSION)
+        dag_nodes = resolve_dag(graph, export_dirs, __version__)
     except GenExtError as e:
         print(f"Error resolving DAG: {e}", file=sys.stderr)
         return 1

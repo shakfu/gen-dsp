@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
-from gen_dsp import __version__
+from gen_dsp.version import __version__
 
 if TYPE_CHECKING:
     from gen_dsp.graph.models import Graph
@@ -33,7 +33,6 @@ from gen_dsp.core.patcher import Patcher
 from gen_dsp.core.builder import Builder
 from gen_dsp.errors import GenExtError
 from gen_dsp.platforms import list_platforms, get_platform
-from gen_dsp.platforms.base import Platform
 
 
 # Known subcommands for two-phase dispatch.
@@ -694,7 +693,7 @@ def _cmd_default_graph(args: argparse.Namespace, graph_path: Path) -> int:
 
         if args.dry_run:
             print(f"Would create project at: {output_dir}")
-            print(f"  Source: dsp-graph ({graph_path.name})")
+            print(f"  Source: graph ({graph_path.name})")
             print(f"  Graph: {graph.name}")
             print(f"  Platform: {platform}")
             print(f"  Inputs: {len(graph.inputs)}")
@@ -709,7 +708,7 @@ def _cmd_default_graph(args: argparse.Namespace, graph_path: Path) -> int:
             generator = ProjectGenerator.from_graph(graph, config)
             project_dir = generator.generate(output_dir)
             print(f"Project created at: {project_dir}")
-            print("  Source: dsp-graph")
+            print("  Source: graph")
             print(f"  Platform: {platform}")
             if graph.params:
                 print(f"  Parameters: {', '.join(p.name for p in graph.params)}")
@@ -904,9 +903,9 @@ def _load_graph_file(
     (missing pydantic, parse/validation error) and ``graph`` is then None.
     """
     try:
-        from gen_dsp.graph import _require_dsp_graph
+        from gen_dsp.graph import _require_graph
 
-        _require_dsp_graph()
+        _require_graph()
     except ImportError as e:
         return None, str(e)
 
@@ -936,7 +935,7 @@ def cmd_detect(args: argparse.Namespace) -> int:
 
 
 def _detect_graph(args: argparse.Namespace, graph_path: Path) -> int:
-    """Introspect a dsp-graph file (parity with gen~ export detection)."""
+    """Introspect a graph file (parity with gen~ export detection)."""
     from collections import Counter
 
     graph, err = _load_graph_file(graph_path)
@@ -957,7 +956,7 @@ def _detect_graph(args: argparse.Namespace, graph_path: Path) -> int:
         data = {
             "name": graph.name,
             "path": str(graph_path),
-            "source": "dsp-graph",
+            "source": "graph",
             "num_inputs": len(graph.inputs),
             "num_outputs": len(graph.outputs),
             "num_params": len(graph.params),
@@ -975,7 +974,7 @@ def _detect_graph(args: argparse.Namespace, graph_path: Path) -> int:
         print(json.dumps(data, indent=2))
         return 0
 
-    print(f"Graph: {graph.name} (dsp-graph)")
+    print(f"Graph: {graph.name} (graph)")
     print(f"  Path: {graph_path}")
     in_ids = ", ".join(i.id for i in graph.inputs)
     out_ids = ", ".join(o.id for o in graph.outputs)
@@ -1097,7 +1096,7 @@ def cmd_manifest(args: argparse.Namespace) -> int:
 
     buffers = args.buffers if args.buffers else export_info.buffers
 
-    manifest = manifest_from_export_info(export_info, buffers, Platform.GENEXT_VERSION)
+    manifest = manifest_from_export_info(export_info, buffers, __version__)
     print(manifest.to_json())
     return 0
 

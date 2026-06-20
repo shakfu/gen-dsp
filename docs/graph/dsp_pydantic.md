@@ -9,7 +9,7 @@ Python (Pydantic models)  -->  JSON (intermediate)  -->  C++ (compiled output)
       build graph              .model_dump_json()         compile_graph()
 ```
 
-The graph is the single source of truth. JSON serialization allows storage, diffing, and machine transformation. The C++ compiler produces a self-contained file that follows gen-dsp's `wrapper_*` interface, plugging into any of the 11 platform backends.
+The graph is the single source of truth. JSON serialization allows storage, diffing, and machine transformation. The C++ compiler produces a self-contained file that follows gen-dsp's `wrapper_*` interface, plugging into 14 of the platform backends (every target except AUv3, which the graph path does not yet generate build files for).
 
 ## Core Models
 

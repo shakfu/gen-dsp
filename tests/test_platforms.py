@@ -88,7 +88,6 @@ class TestPlatformBase:
             platform = get_platform(name)
             assert hasattr(platform, "name")
             assert hasattr(platform, "extension")
-            assert hasattr(platform, "GENEXT_VERSION")
 
     def test_platform_has_required_methods(self):
         """Test that platforms have required methods."""

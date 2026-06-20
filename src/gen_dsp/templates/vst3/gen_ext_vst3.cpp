@@ -544,7 +544,7 @@ BEGIN_FACTORY_DEF("gen-dsp",
                GSTR(VST3_EXT_NAME),
                Vst::kDistributable,
                kSubCategories,
-               GEN_EXT_VERSION,
+               GENDSP_VERSION,
                kVstVersionString,
                GenVst3Plugin::createInstance)
 

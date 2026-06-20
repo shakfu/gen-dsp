@@ -10,6 +10,7 @@ import shutil
 from pathlib import Path
 from typing import Optional
 
+from gen_dsp.version import __version__
 from gen_dsp.core.manifest import Manifest, build_remap_defines
 from gen_dsp.core.midi import build_midi_defines
 from gen_dsp.core.project import ProjectConfig
@@ -112,7 +113,7 @@ class ClapPlatform(CMakePlatform):
             label="CMakeLists.txt template",
             gen_name=gen_name,
             lib_name=lib_name,
-            genext_version=self.GENEXT_VERSION,
+            gendsp_version=__version__,
             num_inputs=num_inputs,
             num_outputs=num_outputs,
             use_shared_cache=use_shared_cache,

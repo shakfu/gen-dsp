@@ -256,7 +256,7 @@ class TestAutoDetect:
         )
         assert result == 0
         captured = capsys.readouterr()
-        assert "dsp-graph" in captured.out
+        assert "graph" in captured.out
 
     def test_detects_json_file(self, tmp_path: Path, capsys):
         """'.json' file is detected as graph source."""
@@ -281,7 +281,7 @@ class TestAutoDetect:
         )
         assert result == 0
         captured = capsys.readouterr()
-        assert "dsp-graph" in captured.out
+        assert "graph" in captured.out
 
     def test_unrecognized_source(self, tmp_path: Path, capsys):
         """Unrecognized source type shows error."""
@@ -934,7 +934,7 @@ class TestDetectGraph:
         rc = main(["detect", str(p)])
         assert rc == 0
         out = capsys.readouterr().out
-        assert "Graph: t (dsp-graph)" in out
+        assert "Graph: t (graph)" in out
         assert "Parameters: 1" in out
         assert "BinOp: 1" in out
         assert "Valid: yes" in out
@@ -947,7 +947,7 @@ class TestDetectGraph:
         assert rc == 0
         data = json.loads(capsys.readouterr().out)
         assert data["name"] == "t"
-        assert data["source"] == "dsp-graph"
+        assert data["source"] == "graph"
         assert data["num_inputs"] == 1
         assert data["num_params"] == 1
         assert data["node_types"] == {"BinOp": 1}

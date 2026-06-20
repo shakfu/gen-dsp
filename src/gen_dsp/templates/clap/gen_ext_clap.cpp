@@ -578,7 +578,7 @@ static const clap_plugin_descriptor_t s_descriptor = {
     .url          = "",
     .manual_url   = "",
     .support_url  = "",
-    .version      = GEN_EXT_VERSION,
+    .version      = GENDSP_VERSION,
     .description  = "Generated from gen~ export by gen-dsp",
     .features     = s_features,
 };

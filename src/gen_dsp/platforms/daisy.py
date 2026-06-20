@@ -30,6 +30,7 @@ from pathlib import Path
 from string import Template
 from typing import TYPE_CHECKING, Optional
 
+from gen_dsp.version import __version__
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines_make
 from gen_dsp.core.project import ProjectConfig
@@ -437,7 +438,7 @@ class DaisyPlatform(Platform):
             label="Makefile template",
             gen_name=gen_name,
             lib_name=lib_name,
-            genext_version=self.GENEXT_VERSION,
+            gendsp_version=__version__,
             num_inputs=num_inputs,
             num_outputs=num_outputs,
             num_params=num_params,
@@ -491,7 +492,7 @@ class DaisyPlatform(Platform):
         board = DAISY_BOARDS[board_key]
 
         gen_ext_daisy = f"""\
-// gen_ext_daisy.cpp - Daisy wrapper for dsp-graph compiled code
+// gen_ext_daisy.cpp - Daisy wrapper for graph compiled code
 // Board: {board_key} ({board.hw_class})
 // This file includes ONLY libDaisy headers - graph code is isolated in _ext_daisy.cpp
 

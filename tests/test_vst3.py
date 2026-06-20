@@ -15,6 +15,7 @@ import pytest
 
 from tests.helpers import fetchcontent_cmake_args, validate_vst3
 
+from gen_dsp.version import __version__
 from gen_dsp.core.parser import GenExportParser
 from gen_dsp.core.project import ProjectGenerator, ProjectConfig
 from gen_dsp.platforms import (
@@ -787,14 +788,13 @@ class TestVst3BuildIntegration:
         from dataclasses import replace
         from gen_dsp.core.manifest import manifest_from_export_info
         from gen_dsp.core.midi import detect_midi_mapping
-        from gen_dsp.platforms.base import Platform
 
         project_dir = tmp_path / "poly_vst3"
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
 
         # Create manifest but override num_inputs=0 so MIDI detection activates
-        manifest = manifest_from_export_info(export_info, [], Platform.GENEXT_VERSION)
+        manifest = manifest_from_export_info(export_info, [], __version__)
         manifest = replace(manifest, num_inputs=0)
 
         config = ProjectConfig(

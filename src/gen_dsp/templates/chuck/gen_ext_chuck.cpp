@@ -46,7 +46,7 @@ CK_DLL_MFUN(genext_reset);
 //-----------------------------------------------------------------------------
 CK_DLL_INFO(CHUCK_EXT_NAME)
 {
-    QUERY->setinfo(QUERY, CHUGIN_INFO_CHUGIN_VERSION, STR(GEN_EXT_VERSION));
+    QUERY->setinfo(QUERY, CHUGIN_INFO_CHUGIN_VERSION, STR(GENDSP_VERSION));
     QUERY->setinfo(QUERY, CHUGIN_INFO_DESCRIPTION, "gen~ DSP export wrapped as ChucK chugin");
     QUERY->setinfo(QUERY, CHUGIN_INFO_URL, "");
     QUERY->setinfo(QUERY, CHUGIN_INFO_EMAIL, "");
@@ -370,7 +370,7 @@ CK_DLL_MFUN(genext_info)
     char buf[256];
 
     snprintf(buf, sizeof(buf), "[%s] gen-dsp wrapper v%s (ChucK chugin)",
-             STR(CHUCK_EXT_NAME), STR(GEN_EXT_VERSION));
+             STR(CHUCK_EXT_NAME), STR(GENDSP_VERSION));
     API->vm->em_log(3, buf);
 
     snprintf(buf, sizeof(buf), "[%s] samplerate: %.0f",
