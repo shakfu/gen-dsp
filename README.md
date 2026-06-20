@@ -189,13 +189,16 @@ The same manifest is also written as `manifest.json` to the project root during 
 
 ### detect
 
-Analyze a gen~ export:
+Analyze a gen~ export **or a graph file** (auto-detected by path):
 
 ```bash
-gen-dsp detect <export-path> [--json]
+gen-dsp detect <export-path>        # gen~ export directory
+gen-dsp detect my.gdsp              # graph file (.gdsp or .json)
+gen-dsp detect my.json --json       # machine-readable
 ```
 
-Shows: export name, signal I/O counts, parameters, detected buffers, and needed patches.
+For a gen~ export: name, signal I/O counts, parameters, detected buffers, and needed patches.
+For a graph: name, I/O, parameters (with ranges), node-type breakdown, buffers, delay lines, and validity.
 
 ### patch
 

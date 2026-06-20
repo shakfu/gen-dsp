@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`gen-dsp detect` now introspects graph files too** -- `detect` auto-detects its argument: a directory is analyzed as a gen~ export (as before), while a `.gdsp`/`.json` file is analyzed as a dsp-graph, reporting name, I/O, parameters (with ranges), a node-type breakdown, buffers, delay lines, and validity (text or `--json`). The graph-loading logic is now a shared `_load_graph_file()` helper used by both `detect` and the default command. (REVIEW.md section 6.6)
+
 - **`gen-dsp cache` shows sizes and can prune** -- The `cache` command now reports the on-disk size of each cached SDK and the cache total, and `gen-dsp cache --prune` deletes them to reclaim space (with a confirmation prompt, `-y/--yes` to skip it, and `--dry-run` to preview). Added `dir_size()`/`format_size()` helpers in `gen_dsp.core.cache`. (REVIEW.md section 6.4)
 
 - **Generation-safety hardening** -- (1) Plugin names (`ProjectConfig.validate`) and graph identifiers (node IDs, params, I/O names in `compile_graph`) are now rejected if they are C/C++ reserved words via a shared `gen_dsp.core.identifiers` module -- previously a name like `int` or `float` passed the identifier regex and then failed to compile. (2) The graph subpackage's import guard (`gen_dsp/graph/__init__.py`) now only treats a *missing pydantic* as "feature unavailable"; an import error originating inside the graph modules themselves propagates instead of being silently swallowed. (3) The DSL's reserved-but-unimplemented `import` statement now raises a clear, deliberate-limitation error pointing to the Python composition API rather than a "not yet supported" TODO. (REVIEW.md section 5.6)

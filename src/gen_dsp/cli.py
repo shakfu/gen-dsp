@@ -20,9 +20,12 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from gen_dsp import __version__
+
+if TYPE_CHECKING:
+    from gen_dsp.graph.models import Graph
 
 from gen_dsp.core.parser import GenExportParser
 from gen_dsp.core.project import ProjectGenerator, ProjectConfig
@@ -258,9 +261,14 @@ def _make_subcommand_parser() -> argparse.ArgumentParser:
     )
 
     # detect command
-    detect_parser = subparsers.add_parser("detect", help="Analyze a gen~ export")
+    detect_parser = subparsers.add_parser(
+        "detect", help="Analyze a gen~ export or a graph file"
+    )
     detect_parser.add_argument(
-        "export_path", type=Path, help="Path to gen~ export directory"
+        "export_path",
+        type=Path,
+        metavar="PATH",
+        help="gen~ export directory, or a .gdsp / .json graph file",
     )
     detect_parser.add_argument(
         "--json", action="store_true", help="Output in JSON format"
@@ -629,17 +637,6 @@ def _build_or_next_steps(
 
 def _cmd_default_graph(args: argparse.Namespace, graph_path: Path) -> int:
     """Handle default command with a graph file source."""
-    try:
-        from gen_dsp.graph import _require_dsp_graph
-
-        _require_dsp_graph()
-    except ImportError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        return 1
-
-    from gen_dsp.graph.models import Graph
-    from gen_dsp.graph.validate import validate_graph
-
     # Infer name
     if args.name is None:
         args.name = graph_path.stem
@@ -647,21 +644,14 @@ def _cmd_default_graph(args: argparse.Namespace, graph_path: Path) -> int:
             print("Error: could not infer name from graph file", file=sys.stderr)
             return 1
 
-    # Load graph
-    try:
-        if graph_path.suffix == ".gdsp":
-            from gen_dsp.graph.dsl import parse_file as parse_gdsp
-
-            parsed = parse_gdsp(graph_path)
-            assert isinstance(parsed, Graph)
-            graph = parsed
-        else:
-            text = graph_path.read_text()
-            data = json.loads(text)
-            graph = Graph.model_validate(data)
-    except Exception as e:
-        print(f"Error loading graph: {e}", file=sys.stderr)
+    # Load graph (handles the optional-pydantic guard and parse errors)
+    graph, load_err = _load_graph_file(graph_path)
+    if load_err:
+        print(f"Error: {load_err}", file=sys.stderr)
         return 1
+    assert graph is not None
+
+    from gen_dsp.graph.validate import validate_graph
 
     errors = validate_graph(graph)
     if errors:
@@ -905,10 +895,113 @@ def cmd_build(args: argparse.Namespace) -> int:
         return 1
 
 
-def cmd_detect(args: argparse.Namespace) -> int:
-    """Handle the detect command."""
-    export_path = args.export_path.resolve()
+def _load_graph_file(
+    graph_path: Path,
+) -> tuple[Optional["Graph"], Optional[str]]:
+    """Load a ``.gdsp`` or ``.json`` graph file.
 
+    Returns ``(graph, error)``; ``error`` is a message string on failure
+    (missing pydantic, parse/validation error) and ``graph`` is then None.
+    """
+    try:
+        from gen_dsp.graph import _require_dsp_graph
+
+        _require_dsp_graph()
+    except ImportError as e:
+        return None, str(e)
+
+    from gen_dsp.graph.models import Graph
+
+    try:
+        if graph_path.suffix == ".gdsp":
+            from gen_dsp.graph.dsl import parse_file
+
+            parsed = parse_file(graph_path)
+            if not isinstance(parsed, Graph):
+                return None, "expected a single graph (multi-graph files unsupported)"
+            graph = parsed
+        else:
+            graph = Graph.model_validate(json.loads(graph_path.read_text()))
+    except Exception as e:
+        return None, f"error loading graph: {e}"
+    return graph, None
+
+
+def cmd_detect(args: argparse.Namespace) -> int:
+    """Handle the detect command (gen~ export directory or graph file)."""
+    path = args.export_path.resolve()
+    if path.suffix in (".gdsp", ".json"):
+        return _detect_graph(args, path)
+    return _detect_export(args, path)
+
+
+def _detect_graph(args: argparse.Namespace, graph_path: Path) -> int:
+    """Introspect a dsp-graph file (parity with gen~ export detection)."""
+    from collections import Counter
+
+    graph, err = _load_graph_file(graph_path)
+    if err:
+        print(f"Error: {err}", file=sys.stderr)
+        return 1
+    assert graph is not None
+
+    from gen_dsp.graph.models import Buffer, DelayLine
+    from gen_dsp.graph.validate import validate_graph
+
+    errors = validate_graph(graph)
+    type_counts = dict(sorted(Counter(type(n).__name__ for n in graph.nodes).items()))
+    buffers = [n.id for n in graph.nodes if isinstance(n, Buffer)]
+    delay_lines = [n.id for n in graph.nodes if isinstance(n, DelayLine)]
+
+    if args.json:
+        data = {
+            "name": graph.name,
+            "path": str(graph_path),
+            "source": "dsp-graph",
+            "num_inputs": len(graph.inputs),
+            "num_outputs": len(graph.outputs),
+            "num_params": len(graph.params),
+            "params": [
+                {"name": p.name, "min": p.min, "max": p.max, "default": p.default}
+                for p in graph.params
+            ],
+            "num_nodes": len(graph.nodes),
+            "node_types": type_counts,
+            "buffers": buffers,
+            "delay_lines": delay_lines,
+            "valid": not errors,
+            "errors": errors,
+        }
+        print(json.dumps(data, indent=2))
+        return 0
+
+    print(f"Graph: {graph.name} (dsp-graph)")
+    print(f"  Path: {graph_path}")
+    in_ids = ", ".join(i.id for i in graph.inputs)
+    out_ids = ", ".join(o.id for o in graph.outputs)
+    print(f"  Inputs: {len(graph.inputs)}" + (f" ({in_ids})" if in_ids else ""))
+    print(f"  Outputs: {len(graph.outputs)}" + (f" ({out_ids})" if out_ids else ""))
+    print(f"  Parameters: {len(graph.params)}")
+    for p in graph.params:
+        print(f"    - {p.name} [{p.min}, {p.max}] default {p.default}")
+    print(f"  Nodes: {len(graph.nodes)}")
+    for tname, count in type_counts.items():
+        print(f"    {tname}: {count}")
+    if buffers:
+        print(f"  Buffers: {', '.join(buffers)}")
+    if delay_lines:
+        print(f"  Delay lines: {', '.join(delay_lines)}")
+    if errors:
+        print(f"  Valid: no ({len(errors)} error(s))")
+        for e in errors:
+            print(f"    - {e}")
+    else:
+        print("  Valid: yes")
+    return 0
+
+
+def _detect_export(args: argparse.Namespace, export_path: Path) -> int:
+    """Introspect a gen~ export directory."""
     try:
         parser = GenExportParser(export_path)
         info = parser.parse()

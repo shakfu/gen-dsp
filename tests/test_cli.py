@@ -907,3 +907,89 @@ class TestConfigFile:
         result = main([])
         assert result == 0
         assert (tmp_path / "build" / "gv_pd").is_dir()
+
+
+class TestDetectGraph:
+    """`gen-dsp detect` on graph files (parity with gen~ export detection)."""
+
+    import json as _json
+
+    _GAIN = {
+        "name": "t",
+        "inputs": [{"id": "in1"}],
+        "outputs": [{"id": "out1", "source": "sc"}],
+        "params": [{"name": "vol", "min": 0.0, "max": 1.0, "default": 0.5}],
+        "nodes": [{"op": "mul", "id": "sc", "a": "in1", "b": "vol"}],
+    }
+
+    def _write(self, tmp_path: Path, data: dict, name: str = "g.json") -> Path:
+        import json
+
+        p = tmp_path / name
+        p.write_text(json.dumps(data))
+        return p
+
+    def test_detect_graph_text(self, tmp_path: Path, capsys):
+        p = self._write(tmp_path, self._GAIN)
+        rc = main(["detect", str(p)])
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "Graph: t (dsp-graph)" in out
+        assert "Parameters: 1" in out
+        assert "BinOp: 1" in out
+        assert "Valid: yes" in out
+
+    def test_detect_graph_json(self, tmp_path: Path, capsys):
+        import json
+
+        p = self._write(tmp_path, self._GAIN)
+        rc = main(["detect", str(p), "--json"])
+        assert rc == 0
+        data = json.loads(capsys.readouterr().out)
+        assert data["name"] == "t"
+        assert data["source"] == "dsp-graph"
+        assert data["num_inputs"] == 1
+        assert data["num_params"] == 1
+        assert data["node_types"] == {"BinOp": 1}
+        assert data["valid"] is True
+
+    def test_detect_graph_buffers_and_delaylines(self, tmp_path: Path, capsys):
+        data = {
+            "name": "buf",
+            "inputs": [{"id": "in1"}],
+            "outputs": [{"id": "out1", "source": "r"}],
+            "params": [],
+            "nodes": [
+                {"op": "buffer", "id": "tbl", "size": 256},
+                {"op": "buf_read", "id": "r", "buffer": "tbl", "index": "in1"},
+            ],
+        }
+        p = self._write(tmp_path, data)
+        rc = main(["detect", str(p)])
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "Buffers: tbl" in out
+
+    def test_detect_graph_invalid_reports_errors(self, tmp_path: Path, capsys):
+        data = {
+            "name": "bad",
+            "inputs": [{"id": "in1"}],
+            "outputs": [{"id": "out1", "source": "missing_node"}],
+            "params": [],
+            "nodes": [{"op": "mul", "id": "sc", "a": "in1", "b": "in1"}],
+        }
+        p = self._write(tmp_path, data)
+        rc = main(["detect", str(p)])
+        # detect is introspection -- it reports invalidity but does not fail.
+        assert rc == 0
+        assert "Valid: no" in capsys.readouterr().out
+
+    def test_detect_missing_graph_file(self, tmp_path: Path, capsys):
+        rc = main(["detect", str(tmp_path / "nope.json")])
+        assert rc == 1
+        assert "error loading graph" in capsys.readouterr().err
+
+    def test_detect_export_still_works(self, gigaverb_export: Path, capsys):
+        rc = main(["detect", str(gigaverb_export)])
+        assert rc == 0
+        assert "Gen~ Export:" in capsys.readouterr().out
