@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Union
 
+from pydantic import ValidationError
+
 from gen_dsp.graph.algebra import parallel as _algebra_parallel
 from gen_dsp.graph.algebra import series as _algebra_series
 from gen_dsp.graph.dsl.lexer import GDSPCompileError
@@ -678,7 +680,7 @@ class _GraphCtx:
 
         # Builtins registry
         if name in _BUILTINS:
-            return self._compile_builtin(name, pos_args, kw_args, target_id)
+            return self._compile_builtin(name, pos_args, kw_args, target_id, line, col)
 
         raise self._err(f"undefined function '{name}'", line, col)
 
@@ -835,11 +837,31 @@ class _GraphCtx:
         name: str,
         pos_args: list[ASTExpr],
         kw_args: dict[str, ASTExpr],
-        target_id: str | None = None,
+        target_id: str | None,
+        line: int,
+        col: int,
     ) -> str:
         cls, field_names, fixed_kw = _BUILTINS[name]
-        nid = target_id or self._auto_id(name)
 
+        # Arity: positional args cannot exceed the builtin's parameters.
+        if len(pos_args) > len(field_names):
+            params = (
+                ", ".join(field_names) if field_names else "no positional arguments"
+            )
+            raise self._err(
+                f"'{name}' takes at most {len(field_names)} argument(s) "
+                f"({params}), got {len(pos_args)}",
+                line,
+                col,
+            )
+
+        # Reject keyword args that are not real parameters of the node.
+        valid_kw = set(getattr(cls, "model_fields", {})) - {"id", "op"}
+        for k in kw_args:
+            if k not in valid_kw:
+                raise self._err(f"'{name}' has no parameter '{k}'", line, col)
+
+        nid = target_id or self._auto_id(name)
         kwargs: dict[str, object] = {"id": nid}
         kwargs.update(fixed_kw)
 
@@ -866,7 +888,23 @@ class _GraphCtx:
             else:
                 kwargs[k] = self._to_ref(val)
 
-        self._add_node(cls(**kwargs))
+        # Missing required arguments surface as a clean DSL error (with line/col)
+        # rather than a raw pydantic ValidationError.
+        try:
+            node = cls(**kwargs)
+        except ValidationError as e:
+            missing = [
+                str(err["loc"][0]) for err in e.errors() if err.get("type") == "missing"
+            ]
+            if missing:
+                raise self._err(
+                    f"'{name}' is missing required argument(s): {', '.join(missing)}",
+                    line,
+                    col,
+                ) from e
+            raise self._err(f"invalid argument(s) to '{name}': {e}", line, col) from e
+
+        self._add_node(node)
         return nid
 
     def _compile_compose(self, expr: ASTCompose, target_id: str | None = None) -> str:

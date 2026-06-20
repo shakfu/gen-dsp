@@ -983,3 +983,71 @@ class TestSpecExamples:
         assert hist[0].id == "fb"
         # input should be set (not __pending__)
         assert hist[0].input != "__pending__"
+
+
+class TestBuiltinDiagnostics:
+    """Parse/lower-time diagnostics for builtin calls (clear errors + line:col)."""
+
+    @staticmethod
+    def _prog(body: str) -> str:
+        return "graph g {\n  in sig\n  out o = " + body + "\n}\n"
+
+    def test_too_many_positional_args(self):
+        with pytest.raises(GDSPCompileError, match="takes at most 3"):
+            parse(self._prog("clamp(sig, 0, 1, 2)"))
+
+    def test_nullary_builtin_rejects_args(self):
+        with pytest.raises(GDSPCompileError, match="'noise' takes at most 0"):
+            parse(self._prog("noise(5)"))
+
+    def test_unknown_keyword(self):
+        with pytest.raises(GDSPCompileError, match="has no parameter 'bogus'"):
+            parse(self._prog("clamp(sig, lo=0, hi=1, bogus=3)"))
+
+    def test_missing_required_argument(self):
+        # Select.b has no default -> a clear "missing required" error.
+        with pytest.raises(GDSPCompileError, match="missing required argument"):
+            parse(self._prog("select(sig, 1)"))
+
+    def test_error_has_line_and_col(self):
+        with pytest.raises(GDSPCompileError, match=r":3:"):
+            parse(self._prog("clamp(sig, 0, 1, 2)"))
+
+    def test_valid_calls_still_parse(self):
+        # Sanity: correct arities compile without error.
+        parse(self._prog("clamp(sig, 0, 1)"))
+        parse(self._prog("select(sig, 1, 0)"))
+        parse(self._prog("noise()"))
+
+
+class TestMalformedExpressions:
+    """Negative-path coverage for malformed GDSP expressions."""
+
+    @staticmethod
+    def _prog(body: str) -> str:
+        return "graph g {\n  in sig\n  out o = " + body + "\n}\n"
+
+    def test_double_comma(self):
+        with pytest.raises(GDSPSyntaxError):
+            parse(self._prog("clamp(sig, , 1)"))
+
+    def test_trailing_operator(self):
+        with pytest.raises(GDSPSyntaxError):
+            parse(self._prog("sig *"))
+
+    def test_unclosed_paren(self):
+        with pytest.raises(GDSPSyntaxError):
+            parse(self._prog("clamp(sig, 0, 1"))
+
+    def test_unknown_function(self):
+        with pytest.raises(GDSPCompileError, match="undefined function"):
+            parse(self._prog("nope(sig)"))
+
+    def test_reserved_word_identifier_rejected_on_compile(self):
+        # A node named after a C/C++ reserved word parses, but compiling to C++
+        # rejects it (generation-safety hardening).
+        from gen_dsp.graph.compile import compile_graph
+
+        graph = parse("graph g {\n  in sig\n  int = sig * 2\n  out o = int\n}\n")
+        with pytest.raises(ValueError, match="reserved word"):
+            compile_graph(graph)

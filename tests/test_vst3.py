@@ -210,6 +210,23 @@ class TestVst3ProjectGeneration:
         assert "GENLIB_USE_FLOAT32" in cmake
         assert "FetchContent_Declare" in cmake
         assert "steinbergmedia/vst3sdk" in cmake
+
+    def test_cmakelists_crosscompile_moduleinfo_guard(
+        self, gigaverb_export: Path, tmp_project: Path
+    ):
+        """moduleinfotool must be disabled under cross-compilation, including
+        env-script SDKs (e.g. Elk) that set CROSS_COMPILE but not
+        CMAKE_CROSSCOMPILING. (issue #5)
+        """
+        parser = GenExportParser(gigaverb_export)
+        export_info = parser.parse()
+        config = ProjectConfig(name="testverb", platform="vst3")
+        project_dir = ProjectGenerator(export_info, config).generate(tmp_project)
+
+        cmake = (project_dir / "CMakeLists.txt").read_text()
+        assert "CMAKE_CROSSCOMPILING" in cmake
+        assert "ENV{CROSS_COMPILE}" in cmake
+        assert "set(SMTG_ENABLE_MODULE_INFO OFF" in cmake
         assert "smtg_add_vst3plugin" in cmake
 
     def test_cmakelists_fuid(self, gigaverb_export: Path, tmp_project: Path):

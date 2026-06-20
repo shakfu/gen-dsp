@@ -115,3 +115,52 @@ class TestExportInfo:
         assert info.cpp_path is None
         assert info.h_path is None
         assert info.genlib_ops_path is None
+
+
+class TestBufferDetection:
+    """Unit tests for buffer detection (core/parser._detect_buffers)."""
+
+    def _parser(self) -> GenExportParser:
+        # _detect_buffers is a pure function of the C++ text; bypass __init__
+        # (which requires a real export directory).
+        return GenExportParser.__new__(GenExportParser)
+
+    def test_codebox_data_args_not_overcounted(self):
+        """Regression for issue #6: codebox functions that take ``Data`` buffers
+        as arguments must not inflate the count. The real ``Data`` members are
+        authoritative; the function-argument aliases (accessed via ``.read``)
+        are ignored.
+        """
+        content = """
+        struct State {
+            Data m_xn1;
+            Data m_Fn1;
+            void reset() {
+                m_xn1.reset("xn1", 4);
+                m_Fn1.reset("Fn1", 4);
+            }
+            double myfunction(Data& xn1_arg, Data& Fn1_arg) {
+                double a = xn1_arg.read(0);
+                double b = Fn1_arg.read(0);
+                return a + b;
+            }
+        };
+        """
+        # Two real buffers, not four (xn1_arg / Fn1_arg are aliases).
+        assert self._parser()._detect_buffers(content) == ["Fn1", "xn1"]
+
+    def test_data_members_authoritative_over_access_patterns(self):
+        """With ``Data`` members present, the access-pattern fallback is skipped
+        (so aliases accessed via ``.read`` are not added).
+        """
+        content = """
+        Data m_buf;
+        void reset() { m_buf.reset("buf", 8); }
+        double f(Data& alias) { return alias.read(0); }
+        """
+        assert self._parser()._detect_buffers(content) == ["buf"]
+
+    def test_access_pattern_fallback(self):
+        """Exports with no ``Data``/.reset members fall back to access patterns."""
+        content = "a = sample.dim; b = sample.read(0); c = table.channels;"
+        assert self._parser()._detect_buffers(content) == ["sample", "table"]

@@ -98,6 +98,33 @@ class TestAuv3ProjectGeneration:
         assert "WRAPPER_BUFFER_COUNT 1" in buffer_h
         assert "WRAPPER_BUFFER_NAME_0 sample" in buffer_h
 
+    def test_buffer_struct_name_matches_adapter(
+        self, rampleplayer_export: Path, tmp_project: Path
+    ):
+        """The buffer struct declared in auv3_buffer.h must match the name the
+        adapter instantiates in _ext_auv3.cpp.
+
+        A casing mismatch here (Auv3Buffer vs AUv3Buffer) was a real build break
+        (PR #8) that the no-buffer build test cannot catch -- without buffers the
+        adapter's buffer branch never compiles. This generation-level check runs
+        on every platform, not just macOS+Xcode, and guards against any future
+        drift between the struct name and its consumer.
+        """
+        import re
+
+        parser = GenExportParser(rampleplayer_export)
+        export_info = parser.parse()
+        config = ProjectConfig(name="sampler", platform="auv3", buffers=["sample"])
+        project_dir = ProjectGenerator(export_info, config).generate(tmp_project)
+
+        buffer_h = (project_dir / "auv3_buffer.h").read_text()
+        adapter = (project_dir / "_ext_auv3.cpp").read_text()
+
+        match = re.search(r"struct (\w+)\s*:\s*public DataInterface", buffer_h)
+        assert match, "no buffer struct found in auv3_buffer.h"
+        struct_name = match.group(1)
+        assert f"{struct_name} WRAPPER_BUFFER_NAME_0" in adapter
+
     def test_cmakelists_content(self, gigaverb_export: Path, tmp_project: Path):
         parser = GenExportParser(gigaverb_export)
         export_info = parser.parse()
@@ -188,3 +215,30 @@ class TestAuv3BuildIntegration:
         # Verify .appex is embedded
         appex_matches = list(result.output_file.glob("**/*.appex"))
         assert len(appex_matches) >= 1, "No .appex found inside .app"
+
+    @_skip_no_build
+    def test_build_with_buffers(self, rampleplayer_export: Path, tmp_path: Path):
+        """Build an AUv3 plugin that has buffers.
+
+        Compiles _ext_auv3.cpp with WRAPPER_BUFFER_NAME_* defined, which
+        instantiates the AUv3Buffer struct -- the path that regressed when the
+        struct and its consumers disagreed on casing (see PR #8). The
+        no-buffer test above never compiles that branch.
+        """
+        project_dir = tmp_path / "rampleplayer_auv3"
+        parser = GenExportParser(rampleplayer_export)
+        export_info = parser.parse()
+
+        config = ProjectConfig(name="rampleplayer", platform="auv3", buffers=["sample"])
+        generator = ProjectGenerator(export_info, config)
+        generator.generate(project_dir)
+
+        platform = Auv3Platform()
+        result = platform.build(project_dir, verbose=False)
+
+        assert result.success, (
+            f"AUv3 build failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
+        )
+        assert result.output_file is not None
+        assert result.output_file.exists()
+        assert result.output_file.name.endswith("-Host.app")
