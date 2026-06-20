@@ -4,11 +4,11 @@
 
 #include "genlib.h"
 
-struct Auv3Buffer : public DataInterface<t_sample> {
-    Auv3Buffer() : DataInterface<t_sample>() {
+struct AUv3Buffer : public DataInterface<t_sample> {
+    AUv3Buffer() : DataInterface<t_sample>() {
         mData = nullptr; mOwnedData = nullptr; dim = 0; channels = 1;
     }
-    ~Auv3Buffer() { if (mOwnedData) { delete[] mOwnedData; mOwnedData = nullptr; } }
+    ~AUv3Buffer() { if (mOwnedData) { delete[] mOwnedData; mOwnedData = nullptr; } }
 
     void allocate(long frames, long numChannels) {
         if (mOwnedData) delete[] mOwnedData;
