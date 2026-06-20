@@ -8,7 +8,6 @@ import platform as sys_platform
 import shutil
 import subprocess
 from pathlib import Path
-from string import Template
 from typing import Optional
 
 from gen_dsp.core.builder import BuildResult
@@ -107,19 +106,15 @@ class MaxPlatform(CMakePlatform):
         remap_defines: str = "",
     ) -> None:
         """Generate CMakeLists.txt from template."""
-        if template_path.exists():
-            template_content = template_path.read_text(encoding="utf-8")
-            template = Template(template_content)
-            content = template.safe_substitute(
-                gen_name=gen_name,
-                lib_name=lib_name,
-                genext_version=self.GENEXT_VERSION,
-                remap_defines=remap_defines,
-            )
-        else:
-            raise ProjectError(f"CMakeLists.txt template not found at {template_path}")
-
-        output_path.write_text(content, encoding="utf-8")
+        self.render_template(
+            template_path,
+            output_path,
+            label="CMakeLists.txt template",
+            gen_name=gen_name,
+            lib_name=lib_name,
+            genext_version=self.GENEXT_VERSION,
+            remap_defines=remap_defines,
+        )
 
     def setup_sdk(self, project_dir: Path) -> bool:
         """
@@ -162,19 +157,9 @@ class MaxPlatform(CMakePlatform):
 
     def find_output(self, project_dir: Path) -> Optional[Path]:
         """Find the built Max external file."""
-        # Check externals directory (where max-posttarget.cmake puts output)
-        externals_dir = project_dir / "externals"
-        if externals_dir.is_dir():
-            # Look for .mxo bundles (macOS) or .mxe64 (Windows)
-            for pattern in ["*.mxo", "*.mxe64", "*.mxl*"]:
-                for f in externals_dir.glob(pattern):
-                    return f
-
-        # Also check build directory
-        build_dir = project_dir / "build"
-        if build_dir.is_dir():
-            for pattern in ["**/*.mxo", "**/*.mxe64", "**/*.mxl*"]:
-                for f in build_dir.glob(pattern):
-                    return f
-
-        return None
+        # Check externals/ (where max-posttarget.cmake puts output), then build/.
+        return self.find_output_by_pattern(
+            project_dir / "externals", "*.mxo", "*.mxe64", "*.mxl*"
+        ) or self.find_output_by_pattern(
+            project_dir / "build", "**/*.mxo", "**/*.mxe64", "**/*.mxl*"
+        )

@@ -46,6 +46,7 @@ SUBCOMMANDS = {
     "cache",
     "manifest",
     "chain",
+    "doctor",
 }
 
 
@@ -63,7 +64,9 @@ Default command (auto-detects source type):
   gen-dsp <file.gdsp>     graph DSL file
   gen-dsp <file.json>     graph JSON file
 
-  -p, --platform PLATFORM   Target platform (required): {platforms}
+  -p, --platform PLATFORM   Target platform(s) (required): a name, a
+                            comma-separated list (clap,vst3,au), or 'all'.
+                            Available: {platforms}
   -n, --name NAME           Plugin name (default: inferred from source)
   -o, --output DIR          Output directory (default: <name>_<platform>)
   --no-build                Skip building after project creation
@@ -93,6 +96,7 @@ Subcommands:
   chain <dir>               Multi-plugin chain mode (Circle)
   list                      List available platforms
   cache                     Show cached SDKs
+  doctor                    Check build prerequisites per platform
   manifest <dir>            Emit JSON manifest for a gen~ export
 
 Options:
@@ -115,9 +119,10 @@ def _make_default_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-p",
         "--platform",
-        choices=list_platforms(),
         required=True,
-        help="Target platform",
+        metavar="PLATFORM",
+        help="Target platform(s): a name, a comma-separated list "
+        "(e.g. clap,vst3,au), or 'all'",
     )
     parser.add_argument(
         "-n",
@@ -267,6 +272,20 @@ def _make_subcommand_parser() -> argparse.ArgumentParser:
     # cache command
     subparsers.add_parser("cache", help="Show cached SDKs and dependencies")
 
+    # doctor command
+    doctor_parser = subparsers.add_parser(
+        "doctor", help="Check build prerequisites per platform"
+    )
+    doctor_parser.add_argument(
+        "-p",
+        "--platform",
+        choices=list_platforms(),
+        help="Check a single platform (default: all)",
+    )
+    doctor_parser.add_argument(
+        "--json", action="store_true", help="Output in JSON format"
+    )
+
     # manifest command
     manifest_parser = subparsers.add_parser("manifest", help="Emit JSON manifest")
     manifest_parser.add_argument(
@@ -349,6 +368,60 @@ def _make_subcommand_parser() -> argparse.ArgumentParser:
 # ---------------------------------------------------------------------------
 
 
+def _resolve_platforms(spec: str) -> tuple[list[str], Optional[str]]:
+    """Parse a ``--platform`` spec into an ordered, de-duplicated platform list.
+
+    Accepts a single name, a comma-separated list, or ``all``. Returns
+    ``(platforms, error)``; ``error`` is a message string when the spec is
+    invalid (and ``platforms`` is empty).
+    """
+    valid = list_platforms()
+    if spec.strip() == "all":
+        return valid, None
+
+    names = [p.strip() for p in spec.split(",") if p.strip()]
+    if not names:
+        return [], "no platform specified"
+
+    invalid = [p for p in names if p not in valid]
+    if invalid:
+        return [], (
+            f"unknown platform(s): {', '.join(invalid)}. "
+            f"Available: {', '.join(valid)} (or 'all')"
+        )
+
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for p in names:
+        if p not in seen:
+            seen.add(p)
+            ordered.append(p)
+    return ordered, None
+
+
+def _target_output_dir(
+    args: argparse.Namespace, name: str, platform: str, multi: bool
+) -> Path:
+    """Resolve the output directory for one target.
+
+    Single target with ``-o`` uses it verbatim (backwards compatible); with
+    multiple targets ``-o`` is treated as a parent directory. Without ``-o`` the
+    default is ``build/<name>_<platform>``.
+    """
+    if args.output:
+        base = Path(args.output)
+        return base / f"{name}_{platform}" if multi else base
+    return Path.cwd() / "build" / f"{name}_{platform}"
+
+
+def _print_target_summary(results: list[tuple[str, str]]) -> None:
+    """Print a per-target summary for multi-target runs."""
+    print()
+    print("Summary:")
+    for platform, status in results:
+        print(f"  {platform:<10}  {status}")
+
+
 def _cmd_default(argv: list[str]) -> int:
     """Handle the default command: <source> -p <platform> [flags]."""
     parser = _make_default_parser()
@@ -370,6 +443,42 @@ def _cmd_default(argv: list[str]) -> int:
             file=sys.stderr,
         )
         return 1
+
+
+def _build_or_next_steps(
+    args: argparse.Namespace, platform: str, project_dir: Path
+) -> int:
+    """Build the generated project, or print next steps if --no-build.
+
+    Shared tail of the gen~-export and graph default commands. Returns a
+    process exit code (0 on success or when only printing next steps, 1 on
+    build failure).
+    """
+    if args.no_build:
+        print()
+        print("Next steps:")
+        print(f"  cd {project_dir}")
+        for instruction in get_platform(platform).get_build_instructions():
+            print(f"  {instruction}")
+        return 0
+
+    try:
+        builder = Builder(project_dir)
+        result = builder.build(target_platform=platform)
+    except GenExtError as e:
+        print(f"Build error: {e}", file=sys.stderr)
+        return 1
+
+    if result.success:
+        print("Build successful!")
+        if result.output_file:
+            print(f"Output: {result.output_file}")
+        return 0
+
+    print("Build failed!", file=sys.stderr)
+    if result.stderr:
+        print(result.stderr, file=sys.stderr)
+    return 1
 
 
 def _cmd_default_graph(args: argparse.Namespace, graph_path: Path) -> int:
@@ -415,81 +524,73 @@ def _cmd_default_graph(args: argparse.Namespace, graph_path: Path) -> int:
             print(f"  - {err}", file=sys.stderr)
         return 1
 
-    # Create config
-    config = ProjectConfig(
-        name=args.name,
-        platform=args.platform,
-        buffers=[],
-        apply_patches=False,
-        output_dir=args.output,
-        shared_cache=not getattr(args, "no_shared_cache", False),
-        cache_dir=getattr(args, "cache_dir", None),
-    )
-
-    config_errors = config.validate()
-    if config_errors:
-        print("Configuration errors:", file=sys.stderr)
-        for config_err in config_errors:
-            print(f"  - {config_err}", file=sys.stderr)
+    # Resolve target platform(s)
+    platforms, perr = _resolve_platforms(args.platform)
+    if perr:
+        print(f"Error: {perr}", file=sys.stderr)
         return 1
+    multi = len(platforms) > 1
 
-    output_dir = (
-        args.output
-        if args.output
-        else Path.cwd() / "build" / f"{args.name}_{args.platform}"
-    )
+    results: list[tuple[str, str]] = []
+    overall = 0
+    for platform in platforms:
+        if multi:
+            print(f"=== {platform} ===")
 
-    if args.dry_run:
-        print(f"Would create project at: {output_dir}")
-        print(f"  Source: dsp-graph ({graph_path.name})")
-        print(f"  Graph: {graph.name}")
-        print(f"  Platform: {args.platform}")
-        print(f"  Inputs: {len(graph.inputs)}")
-        print(f"  Outputs: {len(graph.outputs)}")
-        print(f"  Parameters: {len(graph.params)}")
-        if not args.no_build:
-            print("  Would build after creating")
-        return 0
+        config = ProjectConfig(
+            name=args.name,
+            platform=platform,
+            buffers=[],
+            apply_patches=False,
+            shared_cache=not getattr(args, "no_shared_cache", False),
+            cache_dir=getattr(args, "cache_dir", None),
+        )
+        config_errors = config.validate()
+        if config_errors:
+            print("Configuration errors:", file=sys.stderr)
+            for config_err in config_errors:
+                print(f"  - {config_err}", file=sys.stderr)
+            results.append((platform, "config error"))
+            overall = 1
+            continue
 
-    # Generate project
-    try:
-        generator = ProjectGenerator.from_graph(graph, config)
-        project_dir = generator.generate(output_dir)
-        print(f"Project created at: {project_dir}")
-        print("  Source: dsp-graph")
-        print(f"  Platform: {args.platform}")
-        if graph.params:
-            print(f"  Parameters: {', '.join(p.name for p in graph.params)}")
-    except Exception as e:
-        print(f"Error creating project: {e}", file=sys.stderr)
-        return 1
+        output_dir = _target_output_dir(args, args.name, platform, multi)
 
-    # Build unless --no-build or --dry-run
-    if not args.no_build:
+        if args.dry_run:
+            print(f"Would create project at: {output_dir}")
+            print(f"  Source: dsp-graph ({graph_path.name})")
+            print(f"  Graph: {graph.name}")
+            print(f"  Platform: {platform}")
+            print(f"  Inputs: {len(graph.inputs)}")
+            print(f"  Outputs: {len(graph.outputs)}")
+            print(f"  Parameters: {len(graph.params)}")
+            if not args.no_build:
+                print("  Would build after creating")
+            results.append((platform, "dry-run"))
+            continue
+
         try:
-            builder = Builder(project_dir)
-            result = builder.build(target_platform=args.platform)
-            if result.success:
-                print("Build successful!")
-                if result.output_file:
-                    print(f"Output: {result.output_file}")
-            else:
-                print("Build failed!", file=sys.stderr)
-                if result.stderr:
-                    print(result.stderr, file=sys.stderr)
-                return 1
-        except GenExtError as e:
-            print(f"Build error: {e}", file=sys.stderr)
-            return 1
-    else:
-        print()
-        print("Next steps:")
-        print(f"  cd {project_dir}")
-        platform_impl = get_platform(args.platform)
-        for instruction in platform_impl.get_build_instructions():
-            print(f"  {instruction}")
+            generator = ProjectGenerator.from_graph(graph, config)
+            project_dir = generator.generate(output_dir)
+            print(f"Project created at: {project_dir}")
+            print("  Source: dsp-graph")
+            print(f"  Platform: {platform}")
+            if graph.params:
+                print(f"  Parameters: {', '.join(p.name for p in graph.params)}")
+        except Exception as e:
+            print(f"Error creating project: {e}", file=sys.stderr)
+            results.append((platform, "generate error"))
+            overall = 1
+            continue
 
-    return 0
+        rc = _build_or_next_steps(args, platform, project_dir)
+        results.append((platform, "ok" if rc == 0 else "build failed"))
+        if rc != 0:
+            overall = 1
+
+    if multi:
+        _print_target_summary(results)
+    return overall
 
 
 def _cmd_default_export(args: argparse.Namespace, export_path: Path) -> int:
@@ -519,15 +620,23 @@ def _cmd_default_export(args: argparse.Namespace, export_path: Path) -> int:
         print("Buffer names must be valid C identifiers.", file=sys.stderr)
         return 1
 
-    # Reject --board on non-embedded platforms
-    if args.board and args.platform not in ("daisy", "circle"):
+    # Resolve target platform(s)
+    platforms, perr = _resolve_platforms(args.platform)
+    if perr:
+        print(f"Error: {perr}", file=sys.stderr)
+        return 1
+    multi = len(platforms) > 1
+    embedded = {"daisy", "circle"}
+
+    # Reject --board when no selected platform can use it
+    if args.board and not any(p in embedded for p in platforms):
         print(
             "Error: --board is only valid for daisy and circle",
             file=sys.stderr,
         )
         return 1
 
-    # Validate --voices
+    # Validate --voices (platform-independent)
     if args.voices < 1:
         print("Error: --voices must be >= 1", file=sys.stderr)
         return 1
@@ -538,95 +647,81 @@ def _cmd_default_export(args: argparse.Namespace, export_path: Path) -> int:
         )
         return 1
 
-    # Create config
-    config = ProjectConfig(
-        name=args.name,
-        platform=args.platform,
-        buffers=buffers,
-        apply_patches=not args.no_patch,
-        output_dir=args.output,
-        shared_cache=not args.no_shared_cache,
-        cache_dir=args.cache_dir,
-        board=args.board,
-        no_midi=args.no_midi,
-        midi_gate=args.midi_gate,
-        midi_freq=args.midi_freq,
-        midi_vel=args.midi_vel,
-        midi_freq_unit=args.midi_freq_unit,
-        num_voices=args.voices,
-        inputs_as_params=args.inputs_as_params,
-    )
+    results: list[tuple[str, str]] = []
+    overall = 0
+    for platform in platforms:
+        if multi:
+            print(f"=== {platform} ===")
 
-    # Validate
-    errors = config.validate()
-    if errors:
-        print("Configuration errors:", file=sys.stderr)
-        for err in errors:
-            print(f"  - {err}", file=sys.stderr)
-        return 1
+        # --board only applies to the embedded platforms.
+        board = args.board if platform in embedded else None
 
-    # Determine output directory
-    output_dir = (
-        args.output
-        if args.output
-        else Path.cwd() / "build" / f"{args.name}_{args.platform}"
-    )
+        config = ProjectConfig(
+            name=args.name,
+            platform=platform,
+            buffers=buffers,
+            apply_patches=not args.no_patch,
+            shared_cache=not args.no_shared_cache,
+            cache_dir=args.cache_dir,
+            board=board,
+            no_midi=args.no_midi,
+            midi_gate=args.midi_gate,
+            midi_freq=args.midi_freq,
+            midi_vel=args.midi_vel,
+            midi_freq_unit=args.midi_freq_unit,
+            num_voices=args.voices,
+            inputs_as_params=args.inputs_as_params,
+        )
+        errors = config.validate()
+        if errors:
+            print("Configuration errors:", file=sys.stderr)
+            for err in errors:
+                print(f"  - {err}", file=sys.stderr)
+            results.append((platform, "config error"))
+            overall = 1
+            continue
 
-    if args.dry_run:
-        print(f"Would create project at: {output_dir}")
-        print(f"  Export: {export_info.name}")
-        print(f"  Platform: {args.platform}")
-        if args.board:
-            print(f"  Board: {args.board}")
-        print(f"  Inputs: {export_info.num_inputs}")
-        print(f"  Outputs: {export_info.num_outputs}")
-        print(f"  Parameters: {export_info.num_params}")
-        print(f"  Buffers: {buffers if buffers else '(none)'}")
-        if export_info.has_exp2f_issue and not args.no_patch:
-            print("  Would apply exp2f -> exp2 patch")
-        if not args.no_build:
-            print("  Would build after creating")
-        return 0
+        output_dir = _target_output_dir(args, args.name, platform, multi)
 
-    # Generate project
-    try:
-        generator = ProjectGenerator(export_info, config)
-        project_dir = generator.generate(output_dir)
-        print(f"Project created at: {project_dir}")
-        print(f"  External name: {args.name}~")
-        print(f"  Platform: {args.platform}")
-        if buffers:
-            print(f"  Buffers: {', '.join(buffers)}")
-    except GenExtError as e:
-        print(f"Error creating project: {e}", file=sys.stderr)
-        return 1
+        if args.dry_run:
+            print(f"Would create project at: {output_dir}")
+            print(f"  Export: {export_info.name}")
+            print(f"  Platform: {platform}")
+            if board:
+                print(f"  Board: {board}")
+            print(f"  Inputs: {export_info.num_inputs}")
+            print(f"  Outputs: {export_info.num_outputs}")
+            print(f"  Parameters: {export_info.num_params}")
+            print(f"  Buffers: {buffers if buffers else '(none)'}")
+            if export_info.has_exp2f_issue and not args.no_patch:
+                print("  Would apply exp2f -> exp2 patch")
+            if not args.no_build:
+                print("  Would build after creating")
+            results.append((platform, "dry-run"))
+            continue
 
-    # Build unless --no-build or --dry-run
-    if not args.no_build:
         try:
-            builder = Builder(project_dir)
-            result = builder.build(target_platform=args.platform)
-            if result.success:
-                print("Build successful!")
-                if result.output_file:
-                    print(f"Output: {result.output_file}")
-            else:
-                print("Build failed!", file=sys.stderr)
-                if result.stderr:
-                    print(result.stderr, file=sys.stderr)
-                return 1
+            generator = ProjectGenerator(export_info, config)
+            project_dir = generator.generate(output_dir)
+            print(f"Project created at: {project_dir}")
+            print(f"  External name: {args.name}~")
+            print(f"  Platform: {platform}")
+            if buffers:
+                print(f"  Buffers: {', '.join(buffers)}")
         except GenExtError as e:
-            print(f"Build error: {e}", file=sys.stderr)
-            return 1
-    else:
-        print()
-        print("Next steps:")
-        print(f"  cd {project_dir}")
-        platform_impl = get_platform(args.platform)
-        for instruction in platform_impl.get_build_instructions():
-            print(f"  {instruction}")
+            print(f"Error creating project: {e}", file=sys.stderr)
+            results.append((platform, "generate error"))
+            overall = 1
+            continue
 
-    return 0
+        rc = _build_or_next_steps(args, platform, project_dir)
+        results.append((platform, "ok" if rc == 0 else "build failed"))
+        if rc != 0:
+            overall = 1
+
+    if multi:
+        _print_target_summary(results)
+    return overall
 
 
 def cmd_build(args: argparse.Namespace) -> int:
@@ -826,6 +921,23 @@ def cmd_cache(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_doctor(args: argparse.Namespace) -> int:
+    """Handle the doctor command (per-platform build prerequisite check)."""
+    from gen_dsp.core import doctor
+
+    platforms = [args.platform] if args.platform else None
+    reports = doctor.diagnose(platforms)
+
+    if args.json:
+        print(json.dumps(doctor.report_to_dict(reports), indent=2))
+    else:
+        print(doctor.format_report(reports))
+
+    # Exit non-zero if any requested platform is not ready, so the command is
+    # usable as a CI gate.
+    return 0 if all(r.ready for r in reports) else 1
+
+
 def cmd_chain(args: argparse.Namespace) -> int:
     """Handle the chain command (multi-plugin chain mode, Circle only)."""
     from gen_dsp.core.graph import (
@@ -916,6 +1028,7 @@ def _dispatch_subcommand(argv: list[str]) -> int:
         "cache": cmd_cache,
         "manifest": cmd_manifest,
         "chain": cmd_chain,
+        "doctor": cmd_doctor,
     }
 
     # Add graph subcommand handlers if available

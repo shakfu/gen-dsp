@@ -638,3 +638,171 @@ class TestNoBuildFlag:
         assert result == 0
         captured = capsys.readouterr()
         assert "Would build after creating" in captured.out
+
+
+class TestMultiTarget:
+    """Multi-target generation: -p a,b,c and -p all."""
+
+    def test_resolve_platforms_single(self):
+        from gen_dsp.cli import _resolve_platforms
+
+        platforms, err = _resolve_platforms("clap")
+        assert err is None
+        assert platforms == ["clap"]
+
+    def test_resolve_platforms_list_dedupes_in_order(self):
+        from gen_dsp.cli import _resolve_platforms
+
+        platforms, err = _resolve_platforms("vst3,clap,vst3")
+        assert err is None
+        assert platforms == ["vst3", "clap"]
+
+    def test_resolve_platforms_all(self):
+        from gen_dsp.cli import _resolve_platforms
+        from gen_dsp.platforms import list_platforms
+
+        platforms, err = _resolve_platforms("all")
+        assert err is None
+        assert platforms == list_platforms()
+
+    def test_resolve_platforms_invalid(self):
+        from gen_dsp.cli import _resolve_platforms
+
+        platforms, err = _resolve_platforms("clap,bogus")
+        assert platforms == []
+        assert err is not None and "bogus" in err
+
+    def test_multi_target_creates_per_platform_dirs(
+        self, gigaverb_export: Path, tmp_path: Path
+    ):
+        out = tmp_path / "out"
+        result = main(
+            [
+                str(gigaverb_export),
+                "-n",
+                "gv",
+                "-p",
+                "pd,chuck",
+                "-o",
+                str(out),
+                "--no-build",
+            ]
+        )
+        assert result == 0
+        assert (out / "gv_pd").is_dir()
+        assert (out / "gv_chuck").is_dir()
+
+    def test_multi_target_summary_and_backward_compat(
+        self, gigaverb_export: Path, tmp_path: Path, capsys
+    ):
+        # Single platform: no summary block (output unchanged).
+        main(
+            [
+                str(gigaverb_export),
+                "-n",
+                "gv",
+                "-p",
+                "pd",
+                "-o",
+                str(tmp_path / "single"),
+                "--no-build",
+            ]
+        )
+        assert "Summary:" not in capsys.readouterr().out
+
+        # Multiple platforms: summary block present, one line per target.
+        main(
+            [
+                str(gigaverb_export),
+                "-n",
+                "gv",
+                "-p",
+                "pd,chuck",
+                "-o",
+                str(tmp_path / "multi"),
+                "--no-build",
+            ]
+        )
+        out = capsys.readouterr().out
+        assert "Summary:" in out
+        assert "=== pd ===" in out and "=== chuck ===" in out
+
+    def test_multi_target_dry_run_creates_nothing(
+        self, gigaverb_export: Path, tmp_path: Path, capsys
+    ):
+        out = tmp_path / "out"
+        result = main(
+            [
+                str(gigaverb_export),
+                "-n",
+                "gv",
+                "-p",
+                "pd,chuck",
+                "-o",
+                str(out),
+                "--dry-run",
+            ]
+        )
+        assert result == 0
+        assert not (out / "gv_pd").exists()
+        assert "Would create project at:" in capsys.readouterr().out
+
+    def test_invalid_platform_in_list_errors(
+        self, gigaverb_export: Path, tmp_path: Path, capsys
+    ):
+        result = main(
+            [
+                str(gigaverb_export),
+                "-n",
+                "gv",
+                "-p",
+                "pd,bogus",
+                "-o",
+                str(tmp_path / "out"),
+                "--no-build",
+            ]
+        )
+        assert result == 1
+        assert "bogus" in capsys.readouterr().err
+
+    def test_board_allowed_when_any_embedded(
+        self, gigaverb_export: Path, tmp_path: Path, capsys
+    ):
+        # --board with a mix incl. daisy must not error; board applies to daisy only.
+        result = main(
+            [
+                str(gigaverb_export),
+                "-n",
+                "gv",
+                "-p",
+                "pd,daisy",
+                "--board",
+                "seed",
+                "-o",
+                str(tmp_path / "out"),
+                "--dry-run",
+            ]
+        )
+        assert result == 0
+        out = capsys.readouterr().out
+        assert "Board: seed" in out  # shown for daisy
+
+    def test_board_rejected_when_no_embedded(
+        self, gigaverb_export: Path, tmp_path: Path, capsys
+    ):
+        result = main(
+            [
+                str(gigaverb_export),
+                "-n",
+                "gv",
+                "-p",
+                "pd,clap",
+                "--board",
+                "seed",
+                "-o",
+                str(tmp_path / "out"),
+                "--dry-run",
+            ]
+        )
+        assert result == 1
+        assert "--board is only valid" in capsys.readouterr().err

@@ -8,7 +8,6 @@ with an AudioWorkletProcessor wrapper for real-time browser audio.
 import json
 import shutil
 from pathlib import Path
-from string import Template
 from typing import TYPE_CHECKING, Optional
 
 from gen_dsp.core.builder import BuildResult
@@ -65,7 +64,7 @@ class WebAudioPlatform(Platform):
         self.copy_remap_header(output_dir)
 
         # Generate gen_ext_webaudio.cpp from template
-        self._generate_from_template(
+        self.render_template(
             templates_dir / "gen_ext_webaudio.cpp.template",
             output_dir / "gen_ext_webaudio.cpp",
             lib_name=lib_name,
@@ -86,7 +85,7 @@ class WebAudioPlatform(Platform):
 
         # Generate Makefile from template
         export_name = self._make_export_name(lib_name)
-        self._generate_from_template(
+        self.render_template(
             templates_dir / "Makefile.template",
             output_dir / "Makefile",
             lib_name=lib_name,
@@ -110,7 +109,7 @@ class WebAudioPlatform(Platform):
         )
 
         # Generate index.html demo page
-        self._generate_from_template(
+        self.render_template(
             templates_dir / "index.html.template",
             output_dir / "index.html",
             lib_name=lib_name,
@@ -129,21 +128,6 @@ class WebAudioPlatform(Platform):
         """
         capitalized = lib_name[0].upper() + lib_name[1:] if lib_name else lib_name
         return f"create{capitalized}Module"
-
-    def _generate_from_template(
-        self,
-        template_path: Path,
-        output_path: Path,
-        **substitutions: str,
-    ) -> None:
-        """Render a template file with the given substitutions."""
-        if not template_path.exists():
-            raise ProjectError(f"Template not found at {template_path}")
-
-        template_content = template_path.read_text(encoding="utf-8")
-        template = Template(template_content)
-        content = template.safe_substitute(**substitutions)
-        output_path.write_text(content, encoding="utf-8")
 
     @staticmethod
     def _build_processor_vars(
@@ -190,17 +174,14 @@ class WebAudioPlatform(Platform):
         lib_name: str,
     ) -> None:
         """Generate the AudioWorkletProcessor JavaScript file."""
-        if not template_path.exists():
-            raise ProjectError(f"processor.js template not found at {template_path}")
-
         param_descriptors, processor_class, num_outputs_array = (
             self._build_processor_vars(manifest, lib_name)
         )
-
         export_name = self._make_export_name(lib_name)
-        template_content = template_path.read_text(encoding="utf-8")
-        template = Template(template_content)
-        content = template.safe_substitute(
+        self.render_template(
+            template_path,
+            output_path,
+            label="processor.js template",
             lib_name=lib_name,
             genext_version=self.GENEXT_VERSION,
             export_name=export_name,
@@ -211,7 +192,6 @@ class WebAudioPlatform(Platform):
             num_outputs=manifest.num_outputs,
             num_outputs_array=num_outputs_array,
         )
-        output_path.write_text(content, encoding="utf-8")
 
     def _write_graph_platform_files(
         self,
@@ -224,7 +204,7 @@ class WebAudioPlatform(Platform):
         """Graph path: generate the Emscripten bridge, processor.js, and demo page."""
         tmpl_dir = get_webaudio_templates_dir()
 
-        self._generate_from_template(
+        self.render_template(
             tmpl_dir / "gen_ext_webaudio.cpp.template",
             output_dir / "gen_ext_webaudio.cpp",
             lib_name=name,
@@ -242,7 +222,7 @@ class WebAudioPlatform(Platform):
         param_descriptors, _processor_class, num_outputs_array = (
             self._build_processor_vars(manifest, name)
         )
-        self._generate_from_template(
+        self.render_template(
             tmpl_dir / "index.html.template",
             output_dir / "index.html",
             lib_name=name,
@@ -285,7 +265,4 @@ class WebAudioPlatform(Platform):
 
     def find_output(self, project_dir: Path) -> Optional[Path]:
         """Find the built WASM file."""
-        build_dir = project_dir / "build"
-        for f in build_dir.glob("*.wasm"):
-            return f
-        return None
+        return self.find_output_by_pattern(project_dir / "build", "*.wasm")

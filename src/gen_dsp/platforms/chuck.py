@@ -7,7 +7,6 @@ Generates ChucK chugins (.chug files) using make and the bundled chugin.h header
 import platform as sys_platform
 import shutil
 from pathlib import Path
-from string import Template
 from typing import Optional
 
 from gen_dsp.core.builder import BuildResult
@@ -96,12 +95,6 @@ class ChuckPlatform(Platform):
             header_comment="Buffer configuration for gen_dsp ChucK chugin wrapper",
         )
 
-    def _capitalize_name(self, name: str) -> str:
-        """Capitalize the first letter of a name for ChucK class convention."""
-        if not name:
-            return name
-        return name[0].upper() + name[1:]
-
     def _generate_makefile(
         self,
         template_path: Path,
@@ -111,19 +104,15 @@ class ChuckPlatform(Platform):
         remap_defines: str = "",
     ) -> None:
         """Generate makefile from template."""
-        if template_path.exists():
-            template_content = template_path.read_text(encoding="utf-8")
-            template = Template(template_content)
-            content = template.safe_substitute(
-                gen_name=gen_name,
-                lib_name=self._capitalize_name(lib_name),
-                genext_version=self.GENEXT_VERSION,
-                remap_defines=remap_defines,
-            )
-        else:
-            raise ProjectError(f"makefile template not found at {template_path}")
-
-        output_path.write_text(content, encoding="utf-8")
+        self.render_template(
+            template_path,
+            output_path,
+            label="makefile template",
+            gen_name=gen_name,
+            lib_name=self.capitalize_first(lib_name),
+            genext_version=self.GENEXT_VERSION,
+            remap_defines=remap_defines,
+        )
 
     def build(
         self,
@@ -170,6 +159,4 @@ class ChuckPlatform(Platform):
 
     def find_output(self, project_dir: Path) -> Optional[Path]:
         """Find the built chugin file."""
-        for f in project_dir.glob("*.chug"):
-            return f
-        return None
+        return self.find_output_by_pattern(project_dir, "*.chug")

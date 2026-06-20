@@ -306,7 +306,7 @@ def _try_fold(node: Node, constants: dict[str, float]) -> float | None:
         return None  # runtime value, not constant-foldable
 
     if isinstance(node, NamedConstant):
-        from gen_dsp.graph.compile import _NAMED_CONSTANT_VALUES
+        from gen_dsp.graph.compile.nodes import _NAMED_CONSTANT_VALUES
 
         return _NAMED_CONSTANT_VALUES[node.op]
 

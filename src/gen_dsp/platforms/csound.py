@@ -9,7 +9,6 @@ args, and audio outputs to a-rate outputs.
 import platform as sys_platform
 import shutil
 from pathlib import Path
-from string import Template
 from typing import Optional
 
 from gen_dsp.core.builder import BuildResult
@@ -98,7 +97,7 @@ class CsoundPlatform(Platform):
         remap_defines = build_remap_defines_make(manifest, "CFLAGS")
 
         # Generate Makefile from template
-        self._generate_from_template(
+        self.render_template(
             templates_dir / "Makefile.template",
             output_dir / "Makefile",
             lib_name=lib_name,
@@ -111,21 +110,6 @@ class CsoundPlatform(Platform):
             intypes=intypes,
             remap_defines=remap_defines,
         )
-
-    def _generate_from_template(
-        self,
-        template_path: Path,
-        output_path: Path,
-        **substitutions: str,
-    ) -> None:
-        """Render a template file with the given substitutions."""
-        if not template_path.exists():
-            raise ProjectError(f"Template not found at {template_path}")
-
-        template_content = template_path.read_text(encoding="utf-8")
-        template = Template(template_content)
-        content = template.safe_substitute(**substitutions)
-        output_path.write_text(content, encoding="utf-8")
 
     def build(
         self,
@@ -159,7 +143,4 @@ class CsoundPlatform(Platform):
 
     def find_output(self, project_dir: Path) -> Optional[Path]:
         """Find the built opcode plugin."""
-        for ext in (".dylib", ".so"):
-            for f in project_dir.glob(f"lib*{ext}"):
-                return f
-        return None
+        return self.find_output_by_pattern(project_dir, "lib*.dylib", "lib*.so")

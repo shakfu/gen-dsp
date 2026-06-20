@@ -82,7 +82,7 @@ from gen_dsp.graph.models import (
     Wave,
     Wrap,
 )
-from gen_dsp.graph.compile import _NAMED_CONSTANT_VALUES
+from gen_dsp.graph.compile.nodes import _NAMED_CONSTANT_VALUES
 from gen_dsp.graph.subgraph import expand_subgraphs
 from gen_dsp.graph.toposort import toposort
 from gen_dsp.graph.validate import validate_graph

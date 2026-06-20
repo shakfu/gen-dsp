@@ -10,7 +10,6 @@ with parameters configurable via command-line arguments.
 import platform as sys_platform
 import shutil
 from pathlib import Path
-from string import Template
 from typing import Optional
 
 from gen_dsp.core.builder import BuildResult
@@ -79,7 +78,7 @@ class StandalonePlatform(Platform):
         remap_defines = build_remap_defines_make(manifest, "CFLAGS")
 
         # Generate Makefile from template
-        self._generate_from_template(
+        self.render_template(
             templates_dir / "Makefile.template",
             output_dir / "Makefile",
             lib_name=lib_name,
@@ -87,21 +86,6 @@ class StandalonePlatform(Platform):
             genext_version=self.GENEXT_VERSION,
             remap_defines=remap_defines,
         )
-
-    def _generate_from_template(
-        self,
-        template_path: Path,
-        output_path: Path,
-        **substitutions: str,
-    ) -> None:
-        """Render a template file with the given substitutions."""
-        if not template_path.exists():
-            raise ProjectError(f"Template not found at {template_path}")
-
-        template_content = template_path.read_text(encoding="utf-8")
-        template = Template(template_content)
-        content = template.safe_substitute(**substitutions)
-        output_path.write_text(content, encoding="utf-8")
 
     def build(
         self,

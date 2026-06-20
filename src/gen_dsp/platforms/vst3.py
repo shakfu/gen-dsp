@@ -10,7 +10,6 @@ import hashlib
 import struct
 import shutil
 from pathlib import Path
-from string import Template
 from typing import Optional
 
 from gen_dsp.core.manifest import Manifest, build_remap_defines
@@ -121,12 +120,10 @@ class Vst3Platform(CMakePlatform):
         remap_defines: str = "",
     ) -> None:
         """Generate CMakeLists.txt from template."""
-        if not template_path.exists():
-            raise ProjectError(f"CMakeLists.txt template not found at {template_path}")
-
-        template_content = template_path.read_text(encoding="utf-8")
-        template = Template(template_content)
-        content = template.safe_substitute(
+        self.render_template(
+            template_path,
+            output_path,
+            label="CMakeLists.txt template",
             gen_name=gen_name,
             lib_name=lib_name,
             genext_version=self.GENEXT_VERSION,
@@ -141,13 +138,9 @@ class Vst3Platform(CMakePlatform):
             midi_defines=midi_defines,
             remap_defines=remap_defines,
         )
-        output_path.write_text(content, encoding="utf-8")
 
     def find_output(self, project_dir: Path) -> Optional[Path]:
         """Find the built VST3 plugin bundle."""
-        build_dir = project_dir / "build"
-        if build_dir.is_dir():
-            for f in build_dir.glob("**/*.vst3"):
-                if f.is_dir():
-                    return f
-        return None
+        return self.find_output_by_pattern(
+            project_dir / "build", "**/*.vst3", require_dir=True
+        )

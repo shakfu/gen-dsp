@@ -19,6 +19,14 @@ __version__ = "0.1.6"
 _AVAILABLE = False
 
 try:
+    import pydantic as _pydantic  # noqa: F401
+except ImportError:
+    # The graph subpackage's only optional dependency is pydantic. If it is
+    # missing, the feature is unavailable (handled gracefully). Import errors
+    # from the graph modules themselves are real bugs and must NOT be swallowed,
+    # so the actual API imports happen in the else branch below.
+    pass
+else:
     from gen_dsp.graph.algebra import merge, parallel, series, split
     from gen_dsp.graph.compile import compile_graph, compile_graph_to_file
     from gen_dsp.graph.adapter import (
@@ -111,9 +119,6 @@ try:
     )
 
     _AVAILABLE = True
-
-except ImportError:
-    pass
 
 
 def _require_dsp_graph() -> None:

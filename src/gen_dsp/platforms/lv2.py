@@ -11,11 +11,9 @@ LV2 bundles contain:
   - <name>.so/.dylib (shared library)
 """
 
-import re
 import shutil
 import sys
 from pathlib import Path
-from string import Template
 from typing import TYPE_CHECKING, Optional
 
 from gen_dsp.core.manifest import Manifest, ParamInfo, build_remap_defines
@@ -211,7 +209,7 @@ class Lv2Platform(CMakePlatform):
             # Use parsed param info if available, else generic
             if i < len(params):
                 p = params[i]
-                symbol = self._sanitize_symbol(p.name)
+                symbol = self.sanitize_c_identifier(p.name)
                 pname = p.name
                 pmin = p.min
                 pmax = p.max
@@ -301,14 +299,6 @@ class Lv2Platform(CMakePlatform):
             midi_enabled=midi_enabled,
         )
 
-    @staticmethod
-    def _sanitize_symbol(name: str) -> str:
-        """Ensure a parameter name is a valid LV2 symbol (C identifier)."""
-        sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", name)
-        if sanitized and sanitized[0].isdigit():
-            sanitized = "_" + sanitized
-        return sanitized or "param"
-
     def _generate_cmakelists(
         self,
         template_path: Path,
@@ -324,12 +314,10 @@ class Lv2Platform(CMakePlatform):
         remap_defines: str = "",
     ) -> None:
         """Generate CMakeLists.txt from template."""
-        if not template_path.exists():
-            raise ProjectError(f"CMakeLists.txt template not found at {template_path}")
-
-        template_content = template_path.read_text(encoding="utf-8")
-        template = Template(template_content)
-        content = template.safe_substitute(
+        self.render_template(
+            template_path,
+            output_path,
+            label="CMakeLists.txt template",
             gen_name=gen_name,
             lib_name=lib_name,
             genext_version=self.GENEXT_VERSION,
@@ -341,13 +329,9 @@ class Lv2Platform(CMakePlatform):
             midi_defines=midi_defines,
             remap_defines=remap_defines,
         )
-        output_path.write_text(content, encoding="utf-8")
 
     def find_output(self, project_dir: Path) -> Optional[Path]:
         """Find the built LV2 bundle directory."""
-        build_dir = project_dir / "build"
-        if build_dir.is_dir():
-            for f in build_dir.glob("**/*.lv2"):
-                if f.is_dir():
-                    return f
-        return None
+        return self.find_output_by_pattern(
+            project_dir / "build", "**/*.lv2", require_dir=True
+        )

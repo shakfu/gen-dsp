@@ -306,11 +306,11 @@ class TestScPlatform:
 
     def test_capitalize_name(self):
         """Test first-letter capitalization for SC class names."""
-        assert SuperColliderPlatform._capitalize_name("gigaverb") == "Gigaverb"
-        assert SuperColliderPlatform._capitalize_name("myPlugin") == "MyPlugin"
-        assert SuperColliderPlatform._capitalize_name("Already") == "Already"
-        assert SuperColliderPlatform._capitalize_name("x") == "X"
-        assert SuperColliderPlatform._capitalize_name("") == ""
+        assert SuperColliderPlatform.capitalize_first("gigaverb") == "Gigaverb"
+        assert SuperColliderPlatform.capitalize_first("myPlugin") == "MyPlugin"
+        assert SuperColliderPlatform.capitalize_first("Already") == "Already"
+        assert SuperColliderPlatform.capitalize_first("x") == "X"
+        assert SuperColliderPlatform.capitalize_first("") == ""
 
     def test_sanitize_sc_arg(self):
         """Test SC argument name sanitization."""

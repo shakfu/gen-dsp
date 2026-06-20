@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 
 import pytest
 
 pydantic = pytest.importorskip("pydantic")
+
+from tests.helpers import fetchcontent_cmake_args
 
 from gen_dsp.core.project import ProjectConfig, ProjectGenerator
 from gen_dsp.graph import (
@@ -137,11 +140,14 @@ class TestFromGraphBuild:
         gen = ProjectGenerator.from_graph(simple_gain_graph, config)
         return gen.generate(output_dir=tmp_path / "gain_clap")
 
-    def test_build_clap_from_graph(self, clap_project):
+    @pytest.mark.skipif(shutil.which("cmake") is None, reason="cmake required")
+    def test_build_clap_from_graph(self, clap_project, fetchcontent_cache):
         """Build a CLAP plugin from a dsp-graph definition."""
-        # Configure
+        # Configure -- route FetchContent at the shared cache (and the cached
+        # clap source, skipping the flaky populate/clone) like the other
+        # CMake build tests.
         result = subprocess.run(
-            ["cmake", "-B", "build"],
+            ["cmake", "-B", "build", *fetchcontent_cmake_args(fetchcontent_cache)],
             cwd=str(clap_project),
             capture_output=True,
             text=True,

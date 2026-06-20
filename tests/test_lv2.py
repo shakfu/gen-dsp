@@ -65,20 +65,20 @@ class TestLv2Platform:
 
     def test_sanitize_symbol_valid(self):
         """Test that valid symbols pass through."""
-        assert Lv2Platform._sanitize_symbol("bandwidth") == "bandwidth"
-        assert Lv2Platform._sanitize_symbol("my_param") == "my_param"
+        assert Lv2Platform.sanitize_c_identifier("bandwidth") == "bandwidth"
+        assert Lv2Platform.sanitize_c_identifier("my_param") == "my_param"
 
     def test_sanitize_symbol_spaces(self):
         """Test that spaces are replaced with underscores."""
-        assert Lv2Platform._sanitize_symbol("my param") == "my_param"
+        assert Lv2Platform.sanitize_c_identifier("my param") == "my_param"
 
     def test_sanitize_symbol_leading_digit(self):
         """Test that leading digits get underscore prefix."""
-        assert Lv2Platform._sanitize_symbol("0gain") == "_0gain"
+        assert Lv2Platform.sanitize_c_identifier("0gain") == "_0gain"
 
     def test_sanitize_symbol_special_chars(self):
         """Test that special characters are replaced."""
-        assert Lv2Platform._sanitize_symbol("gain-level") == "gain_level"
+        assert Lv2Platform.sanitize_c_identifier("gain-level") == "gain_level"
 
 
 class TestLv2ProjectGeneration:

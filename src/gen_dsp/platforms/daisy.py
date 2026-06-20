@@ -431,12 +431,10 @@ class DaisyPlatform(Platform):
         remap_defines: str = "",
     ) -> None:
         """Generate Makefile from template."""
-        if not template_path.exists():
-            raise ProjectError(f"Makefile template not found at {template_path}")
-
-        template_content = template_path.read_text(encoding="utf-8")
-        template = Template(template_content)
-        content = template.safe_substitute(
+        self.render_template(
+            template_path,
+            output_path,
+            label="Makefile template",
             gen_name=gen_name,
             lib_name=lib_name,
             genext_version=self.GENEXT_VERSION,
@@ -446,7 +444,6 @@ class DaisyPlatform(Platform):
             default_libdaisy_dir=default_libdaisy_dir,
             remap_defines=remap_defines,
         )
-        output_path.write_text(content, encoding="utf-8")
 
     def _generate_ext_daisy(
         self,
@@ -626,8 +623,4 @@ int main(void) {{
 
     def find_output(self, project_dir: Path) -> Optional[Path]:
         """Find the built Daisy firmware binary."""
-        build_dir = project_dir / "build"
-        if build_dir.is_dir():
-            for candidate in build_dir.glob("*.bin"):
-                return candidate
-        return None
+        return self.find_output_by_pattern(project_dir / "build", "*.bin")

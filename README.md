@@ -152,7 +152,7 @@ The source type is auto-detected:
 
 Options:
 
-- `-p, --platform` - Target platform (required): `pd`, `max`, `chuck`, `au`, `auv3`, `clap`, `vst3`, `lv2`, `sc`, `vcvrack`, `daisy`, `circle`, `webaudio`, `standalone`, `csound`
+- `-p, --platform` - Target platform(s) (required): a single name, a comma-separated list, or `all`. Names: `pd`, `max`, `chuck`, `au`, `auv3`, `clap`, `vst3`, `lv2`, `sc`, `vcvrack`, `daisy`, `circle`, `webaudio`, `standalone`, `csound`. With multiple targets the source is parsed once and each is generated/built in turn (a per-target summary is printed); `-o` then acts as a parent directory, with each target in `<output>/<name>_<platform>`. Example: `gen-dsp ./export -p clap,vst3,au`
 - `-n, --name` - Name for the plugin (default: inferred from source)
 - `-o, --output` - Output directory (default: `./<name>_<platform>`)
 - `--no-build` - Skip building after project creation
@@ -221,6 +221,19 @@ Show cached SDKs:
 
 ```bash
 gen-dsp cache
+```
+
+### doctor
+
+Check, per platform, whether the host has the tools needed to build (compilers,
+CMake/Make, cross-toolchains, Emscripten, Xcode, git), with install hints for
+anything missing. Auto-downloaded SDKs are shown as notes. Exits non-zero when a
+requested platform is not ready, so it can be used as a CI gate:
+
+```bash
+gen-dsp doctor                 # all platforms
+gen-dsp doctor -p daisy        # one platform
+gen-dsp doctor --json          # machine-readable
 ```
 
 ### Graph subcommands (requires `gen-dsp[graph]`)

@@ -4,6 +4,7 @@ Abstract base class for platform implementations.
 Provides common functionality shared across all platforms.
 """
 
+import re
 import subprocess
 from abc import ABC, abstractmethod
 from enum import Enum
@@ -16,7 +17,7 @@ import shutil
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest
 from gen_dsp.core.project import ProjectConfig
-from gen_dsp.errors import BuildError
+from gen_dsp.errors import BuildError, ProjectError
 
 if TYPE_CHECKING:
     from gen_dsp.graph.models import Graph
@@ -322,6 +323,75 @@ class Platform(ABC):
         (e.g. Info.plist, TTL metadata, a board-specific wrapper) override this.
         """
         return None
+
+    # -------------------------------------------------------------------------
+    # Shared generation helpers
+    # -------------------------------------------------------------------------
+
+    def render_template(
+        self,
+        template_path: Path,
+        output_path: Path,
+        *,
+        label: str = "Template",
+        **substitutions: object,
+    ) -> None:
+        """Render a ``string.Template`` file to ``output_path``.
+
+        Shared by all platforms in place of per-module reimplementations.
+        Substitution values may be any type (``safe_substitute`` stringifies
+        them). ``label`` is used only in the not-found error message (e.g. pass
+        ``"CMakeLists.txt template"`` to preserve a platform-specific message).
+        """
+        if not template_path.exists():
+            raise ProjectError(f"{label} not found at {template_path}")
+        content = Template(template_path.read_text(encoding="utf-8")).safe_substitute(
+            **substitutions
+        )
+        output_path.write_text(content, encoding="utf-8")
+
+    def find_output_by_pattern(
+        self,
+        base_dir: Path,
+        *patterns: str,
+        require_dir: bool = False,
+        require_file: bool = False,
+    ) -> Optional[Path]:
+        """Return the first entry under ``base_dir`` matching any glob pattern.
+
+        Patterns are tried in order. ``require_dir``/``require_file`` filter the
+        match type. Returns None if ``base_dir`` is not a directory or nothing
+        matches. Shared by platforms whose ``find_output`` is a simple glob.
+        """
+        if not base_dir.is_dir():
+            return None
+        for pattern in patterns:
+            for match in base_dir.glob(pattern):
+                if require_dir and not match.is_dir():
+                    continue
+                if require_file and not match.is_file():
+                    continue
+                return match
+        return None
+
+    @staticmethod
+    def capitalize_first(name: str) -> str:
+        """Capitalize the first letter of a name (for class-name conventions)."""
+        if not name:
+            return name
+        return name[0].upper() + name[1:]
+
+    @staticmethod
+    def sanitize_c_identifier(name: str) -> str:
+        """Coerce a name into a valid C identifier.
+
+        Replaces non-alphanumeric characters with underscores and prefixes a
+        leading digit with an underscore; falls back to ``"param"`` if empty.
+        """
+        sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", name)
+        if sanitized and sanitized[0].isdigit():
+            sanitized = "_" + sanitized
+        return sanitized or "param"
 
     def generate_buffer_header(
         self,

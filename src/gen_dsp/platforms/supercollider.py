@@ -14,7 +14,6 @@ import re
 import shutil
 import sys
 from pathlib import Path
-from string import Template
 from typing import Optional
 
 from gen_dsp.core.manifest import Manifest, ParamInfo, build_remap_defines
@@ -64,7 +63,7 @@ class SuperColliderPlatform(CMakePlatform):
         self.copy_remap_header(output_dir)
 
         # UGen name (first letter capitalized, required by SC)
-        ugen_name = self._capitalize_name(lib_name)
+        ugen_name = self.capitalize_first(lib_name)
 
         # Generate .sc class file
         self._generate_sc_class(
@@ -108,16 +107,6 @@ class SuperColliderPlatform(CMakePlatform):
 
         # Create build directory
         (output_dir / "build").mkdir(exist_ok=True)
-
-    @staticmethod
-    def _capitalize_name(name: str) -> str:
-        """Capitalize first letter for SC class name.
-
-        SuperCollider class names must start with an uppercase letter.
-        """
-        if not name:
-            return name
-        return name[0].upper() + name[1:]
 
     def _generate_sc_class(
         self,
@@ -235,12 +224,10 @@ class SuperColliderPlatform(CMakePlatform):
         remap_defines: str = "",
     ) -> None:
         """Generate CMakeLists.txt from template."""
-        if not template_path.exists():
-            raise ProjectError(f"CMakeLists.txt template not found at {template_path}")
-
-        template_content = template_path.read_text(encoding="utf-8")
-        template = Template(template_content)
-        content = template.safe_substitute(
+        self.render_template(
+            template_path,
+            output_path,
+            label="CMakeLists.txt template",
             gen_name=gen_name,
             lib_name=lib_name,
             ugen_name=ugen_name,
@@ -252,14 +239,9 @@ class SuperColliderPlatform(CMakePlatform):
             cache_dir=cache_dir,
             remap_defines=remap_defines,
         )
-        output_path.write_text(content, encoding="utf-8")
 
     def find_output(self, project_dir: Path) -> Optional[Path]:
         """Find the built SC UGen binary."""
-        build_dir = project_dir / "build"
-        if build_dir.is_dir():
-            for ext in [".scx", ".so", ".dll"]:
-                for f in build_dir.glob(f"**/*{ext}"):
-                    if f.is_file():
-                        return f
-        return None
+        return self.find_output_by_pattern(
+            project_dir / "build", "**/*.scx", "**/*.so", "**/*.dll", require_file=True
+        )

@@ -11,7 +11,6 @@ Requires: macOS, Xcode (for the Xcode CMake generator), CMake >= 3.19.
 import platform as sys_platform
 import shutil
 from pathlib import Path
-from string import Template
 from typing import Optional
 
 from gen_dsp.core.builder import BuildResult
@@ -93,7 +92,7 @@ class Auv3Platform(Platform):
             au_tag = "Synthesizer"
 
         # Generate CMakeLists.txt
-        self._render_template(
+        self.render_template(
             templates_dir / "CMakeLists.txt.template",
             output_dir / "CMakeLists.txt",
             lib_name=lib_name,
@@ -115,12 +114,12 @@ class Auv3Platform(Platform):
             au_version=str(self._version_to_int(self.GENEXT_VERSION)),
             au_tag=au_tag,
         )
-        self._render_template(
+        self.render_template(
             templates_dir / "Info-AUv3.plist.template",
             output_dir / "Info-AUv3.plist",
             **plist_vars,
         )
-        self._render_template(
+        self.render_template(
             templates_dir / "Info-App.plist.template",
             output_dir / "Info-App.plist",
             **plist_vars,
@@ -147,16 +146,6 @@ class Auv3Platform(Platform):
         minor = int(parts[1]) if len(parts) > 1 else 0
         patch = int(parts[2]) if len(parts) > 2 else 0
         return (major << 16) | (minor << 8) | patch
-
-    def _render_template(
-        self, template_path: Path, output_path: Path, **subs: str
-    ) -> None:
-        if not template_path.exists():
-            raise ProjectError(f"Template not found at {template_path}")
-        content = Template(template_path.read_text(encoding="utf-8")).safe_substitute(
-            **subs
-        )
-        output_path.write_text(content, encoding="utf-8")
 
     def build(
         self,
@@ -210,9 +199,5 @@ class Auv3Platform(Platform):
             shutil.rmtree(build_dir)
 
     def find_output(self, project_dir: Path) -> Optional[Path]:
-        build_dir = project_dir / "build"
-        if build_dir.is_dir():
-            # The host .app contains the .appex
-            for f in build_dir.glob("**/*-Host.app"):
-                return f
-        return None
+        # The host .app contains the .appex
+        return self.find_output_by_pattern(project_dir / "build", "**/*-Host.app")

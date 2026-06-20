@@ -12,7 +12,8 @@ import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from gen_dsp.graph.compile import _to_pascal, compile_graph
+from gen_dsp.graph.compile import compile_graph
+from gen_dsp.graph.compile.common import _to_pascal
 from gen_dsp.graph.models import Buffer, Graph
 
 if TYPE_CHECKING:

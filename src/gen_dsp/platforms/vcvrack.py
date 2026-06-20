@@ -28,7 +28,6 @@ import sys
 import urllib.request
 import zipfile
 from pathlib import Path
-from string import Template
 from typing import TYPE_CHECKING, Optional
 
 from gen_dsp.core.builder import BuildResult
@@ -289,12 +288,10 @@ class VcvRackPlatform(Platform):
         remap_defines: str = "",
     ) -> None:
         """Generate Makefile from template."""
-        if not template_path.exists():
-            raise ProjectError(f"Makefile template not found at {template_path}")
-
-        template_content = template_path.read_text(encoding="utf-8")
-        template = Template(template_content)
-        content = template.safe_substitute(
+        self.render_template(
+            template_path,
+            output_path,
+            label="Makefile template",
             gen_name=gen_name,
             lib_name=lib_name,
             genext_version=self.GENEXT_VERSION,
@@ -305,7 +302,6 @@ class VcvRackPlatform(Platform):
             default_rack_dir=default_rack_dir,
             remap_defines=remap_defines,
         )
-        output_path.write_text(content, encoding="utf-8")
 
     def _generate_plugin_json(
         self,
@@ -429,8 +425,6 @@ class VcvRackPlatform(Platform):
 
     def find_output(self, project_dir: Path) -> Optional[Path]:
         """Find the built VCV Rack plugin file."""
-        for ext in [".dylib", ".so", ".dll"]:
-            candidate = project_dir / f"plugin{ext}"
-            if candidate.is_file():
-                return candidate
-        return None
+        return self.find_output_by_pattern(
+            project_dir, "plugin.dylib", "plugin.so", "plugin.dll", require_file=True
+        )

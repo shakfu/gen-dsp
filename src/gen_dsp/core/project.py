@@ -75,6 +75,7 @@ class ProjectConfig:
         Returns:
             List of validation error messages (empty if valid).
         """
+        from gen_dsp.core.identifiers import is_reserved_word
         from gen_dsp.platforms import list_platforms
 
         errors = []
@@ -85,6 +86,11 @@ class ProjectConfig:
                 f"Name '{self.name}' is not a valid C identifier. "
                 "Must start with letter/underscore and contain only "
                 "alphanumeric characters and underscores."
+            )
+        elif is_reserved_word(self.name):
+            errors.append(
+                f"Name '{self.name}' is a C/C++ reserved word and cannot be "
+                "used as a plugin name."
             )
 
         # Validate platform

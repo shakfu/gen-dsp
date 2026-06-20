@@ -186,15 +186,12 @@ include ./pd-lib-builder/Makefile.pdlibbuilder
 
     def find_output(self, project_dir: Path) -> Optional[Path]:
         """Find the built PureData external file."""
-        # Look for files with the platform extension
-        for f in project_dir.glob(f"*{self.extension}"):
-            return f
-
+        out = self.find_output_by_pattern(project_dir, f"*{self.extension}")
+        if out is not None:
+            return out
         # Also check for .d_* variants (older naming on macOS)
-        system = sys_platform.system().lower()
-        if system == "darwin":
-            for pattern in ["*.d_fat", "*.d_amd64", "*.d_arm64"]:
-                for f in project_dir.glob(pattern):
-                    return f
-
+        if sys_platform.system().lower() == "darwin":
+            return self.find_output_by_pattern(
+                project_dir, "*.d_fat", "*.d_amd64", "*.d_arm64"
+            )
         return None
