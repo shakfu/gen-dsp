@@ -217,11 +217,40 @@ gen-dsp list
 
 ### cache
 
-Show cached SDKs:
+Show cached SDKs with their on-disk sizes, or prune them to reclaim space:
 
 ```bash
-gen-dsp cache
+gen-dsp cache                  # list cached SDKs + sizes
+gen-dsp cache --prune          # delete them (asks for confirmation)
+gen-dsp cache --prune -y       # delete without prompting
+gen-dsp cache --prune --dry-run  # show what would be removed
 ```
+
+### Config file (gen-dsp.toml)
+
+Instead of long flag strings, put a `gen-dsp.toml` in your project directory and
+run `gen-dsp` with no arguments. Keys mirror the CLI options (hyphens or
+underscores both work); any CLI flag overrides the matching key. Use
+`--config PATH` to point at a specific file.
+
+```toml
+# gen-dsp.toml
+source = "./my_export"
+name = "myverb"
+platform = ["clap", "vst3", "au"]   # one name, a list, or "all"
+output = "build"
+no-build = true
+```
+
+```bash
+gen-dsp                  # reads ./gen-dsp.toml
+gen-dsp --config ci.toml # explicit file
+gen-dsp -p clap          # config provides source/name; CLI overrides platform
+```
+
+On Python 3.10, reading TOML needs the `tomli` package (`pip install tomli`);
+Python 3.11+ uses the standard-library `tomllib`. See
+[examples/gen-dsp.toml](examples/gen-dsp.toml).
 
 ### doctor
 

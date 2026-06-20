@@ -114,15 +114,26 @@ def _make_default_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "source",
         type=Path,
-        help="Path to gen~ export directory, .gdsp file, or graph JSON file",
+        nargs="?",
+        default=None,
+        help="Path to gen~ export directory, .gdsp file, or graph JSON file "
+        "(may be set in gen-dsp.toml instead)",
     )
     parser.add_argument(
         "-p",
         "--platform",
-        required=True,
+        default=None,
         metavar="PLATFORM",
         help="Target platform(s): a name, a comma-separated list "
-        "(e.g. clap,vst3,au), or 'all'",
+        "(e.g. clap,vst3,au), or 'all' (may be set in gen-dsp.toml instead)",
+    )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        metavar="PATH",
+        help="Read defaults from a gen-dsp.toml file (default: ./gen-dsp.toml "
+        "if present). CLI flags override config values.",
     )
     parser.add_argument(
         "-n",
@@ -270,7 +281,25 @@ def _make_subcommand_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("list", help="List available target platforms")
 
     # cache command
-    subparsers.add_parser("cache", help="Show cached SDKs and dependencies")
+    cache_parser = subparsers.add_parser(
+        "cache", help="Show or prune cached SDKs and dependencies"
+    )
+    cache_parser.add_argument(
+        "--prune",
+        action="store_true",
+        help="Delete the cached SDKs to reclaim disk space",
+    )
+    cache_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="With --prune, show what would be removed without deleting",
+    )
+    cache_parser.add_argument(
+        "-y",
+        "--yes",
+        action="store_true",
+        help="With --prune, skip the confirmation prompt",
+    )
 
     # doctor command
     doctor_parser = subparsers.add_parser(
@@ -422,12 +451,129 @@ def _print_target_summary(results: list[tuple[str, str]]) -> None:
         print(f"  {platform:<10}  {status}")
 
 
+# Keys accepted in gen-dsp.toml, mapped to default-command argparse destinations.
+_CONFIG_PATH_KEYS = frozenset({"source", "output", "cache_dir"})
+_CONFIG_BOOL_KEYS = frozenset(
+    {"no_build", "no_patch", "no_shared_cache", "no_midi", "dry_run"}
+)
+_CONFIG_STR_KEYS = frozenset(
+    {"name", "board", "midi_gate", "midi_freq", "midi_vel", "midi_freq_unit"}
+)
+_CONFIG_KEYS = (
+    _CONFIG_PATH_KEYS
+    | _CONFIG_BOOL_KEYS
+    | _CONFIG_STR_KEYS
+    | {"platform", "buffers", "voices", "inputs_as_params"}
+)
+
+
+def _load_config(path: Path) -> tuple[dict[str, object], Optional[str]]:
+    """Load gen-dsp.toml into a mapping of default-command argparse defaults.
+
+    Keys mirror the CLI options (hyphens or underscores accepted). Returns
+    ``(defaults, error)``; ``error`` is set on a parse or validation failure.
+    """
+    try:
+        import tomllib
+    except ModuleNotFoundError:  # Python 3.10
+        try:
+            import tomli as tomllib  # type: ignore[import-not-found, no-redef]
+        except ModuleNotFoundError:
+            return {}, (
+                "reading gen-dsp.toml requires Python 3.11+ or the 'tomli' "
+                "package (pip install tomli)"
+            )
+
+    try:
+        with open(path, "rb") as f:
+            data = tomllib.load(f)
+    except OSError as e:
+        return {}, f"cannot read {path}: {e}"
+    except tomllib.TOMLDecodeError as e:
+        return {}, f"invalid TOML: {e}"
+
+    mapped: dict[str, object] = {}
+    for raw_key, value in data.items():
+        key = raw_key.replace("-", "_")
+        if key not in _CONFIG_KEYS:
+            return {}, f"unknown key '{raw_key}'"
+
+        if key == "platform":
+            if isinstance(value, list):
+                value = ",".join(str(v) for v in value)
+            elif not isinstance(value, str):
+                return {}, f"'{raw_key}' must be a string or list of strings"
+        elif key in _CONFIG_PATH_KEYS:
+            if not isinstance(value, str):
+                return {}, f"'{raw_key}' must be a string path"
+            value = Path(value)
+        elif key in _CONFIG_BOOL_KEYS:
+            if not isinstance(value, bool):
+                return {}, f"'{raw_key}' must be a boolean"
+        elif key in _CONFIG_STR_KEYS:
+            if not isinstance(value, str):
+                return {}, f"'{raw_key}' must be a string"
+        elif key == "voices":
+            if not isinstance(value, int) or isinstance(value, bool):
+                return {}, "'voices' must be an integer"
+        elif key == "buffers":
+            if not (isinstance(value, list) and all(isinstance(v, str) for v in value)):
+                return {}, "'buffers' must be a list of strings"
+        elif key == "inputs_as_params":
+            if value is True:
+                value = []  # remap all inputs
+            elif value is False:
+                continue  # not remapping; keep argparse default (None)
+            elif not (
+                isinstance(value, list) and all(isinstance(v, str) for v in value)
+            ):
+                return {}, "'inputs_as_params' must be true or a list of strings"
+
+        mapped[key] = value
+    return mapped, None
+
+
 def _cmd_default(argv: list[str]) -> int:
-    """Handle the default command: <source> -p <platform> [flags]."""
+    """Handle the default command: [source] -p <platform> [flags] (+ gen-dsp.toml)."""
     parser = _make_default_parser()
+
+    # Resolve the config file: explicit --config, else ./gen-dsp.toml if present.
+    pre = argparse.ArgumentParser(add_help=False)
+    pre.add_argument("--config", type=Path, default=None)
+    pre_args, _ = pre.parse_known_args(argv)
+    config_path: Optional[Path] = pre_args.config
+    if config_path is None:
+        default_cfg = Path.cwd() / "gen-dsp.toml"
+        if default_cfg.is_file():
+            config_path = default_cfg
+
+    if config_path is not None:
+        if not config_path.is_file():
+            print(f"Error: config file not found: {config_path}", file=sys.stderr)
+            return 1
+        defaults, err = _load_config(config_path)
+        if err:
+            print(f"Error in {config_path}: {err}", file=sys.stderr)
+            return 1
+        parser.set_defaults(**defaults)
+        print(f"Using config: {config_path}")
+
     args = parser.parse_args(argv)
 
-    source = args.source.resolve()
+    if args.source is None:
+        print(
+            "Error: no source given (pass a path, or set 'source' in gen-dsp.toml)",
+            file=sys.stderr,
+        )
+        return 1
+    if args.platform is None:
+        print(
+            "Error: no platform given (pass -p, or set 'platform' in gen-dsp.toml)",
+            file=sys.stderr,
+        )
+        return 1
+
+    source = Path(args.source).resolve()
 
     # Auto-detect source type
     if source.is_file() and source.suffix in (".gdsp", ".json"):
@@ -863,36 +1009,93 @@ def cmd_manifest(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_cache(args: argparse.Namespace) -> int:
-    """Handle the cache command."""
+def _resolve_cache_dir() -> tuple[Path, bool]:
+    """Return (cache_dir, from_env) for the shared FetchContent cache."""
     import os
 
     from gen_dsp.core.cache import get_cache_dir
-    from gen_dsp.platforms.daisy import _resolve_libdaisy_dir, LIBDAISY_VERSION
-    from gen_dsp.platforms.vcvrack import _resolve_rack_dir
 
     env_cache = os.environ.get("GEN_DSP_CACHE_DIR")
     if env_cache:
-        cache_dir = Path(env_cache)
-        print(f"Cache directory: {cache_dir}  (GEN_DSP_CACHE_DIR)")
-    else:
-        cache_dir = get_cache_dir()
-        print(f"Cache directory: {cache_dir}")
+        return Path(env_cache), True
+    return get_cache_dir(), False
+
+
+def _cache_prune(cache_dir: Path, dry_run: bool, assume_yes: bool) -> int:
+    """Delete cached SDKs under ``cache_dir`` to reclaim disk space."""
+    import shutil
+
+    from gen_dsp.core.cache import dir_size, format_size
+
+    if not cache_dir.is_dir():
+        print(f"Nothing to prune; cache directory does not exist: {cache_dir}")
+        return 0
+
+    items = sorted(cache_dir.iterdir(), key=lambda p: p.name)
+    if not items:
+        print(f"Cache is already empty: {cache_dir}")
+        return 0
+
+    sized = [(item, dir_size(item)) for item in items]
+    total = sum(size for _, size in sized)
+
+    verb = "Would remove" if dry_run else "Removing"
+    print(f"{verb} {len(sized)} item(s) from {cache_dir}:")
+    for item, size in sized:
+        print(f"  {item.name}  {format_size(size)}")
+    print(f"Total: {format_size(total)}")
+
+    if dry_run:
+        return 0
+
+    if not assume_yes:
+        try:
+            reply = input(f"Remove these and reclaim {format_size(total)}? [y/N] ")
+        except EOFError:
+            reply = ""
+        if reply.strip().lower() not in ("y", "yes"):
+            print("Aborted.")
+            return 0
+
+    for item, _ in sized:
+        if item.is_dir() and not item.is_symlink():
+            shutil.rmtree(item, ignore_errors=True)
+        else:
+            item.unlink(missing_ok=True)
+    print(f"Reclaimed {format_size(total)}.")
+    return 0
+
+
+def cmd_cache(args: argparse.Namespace) -> int:
+    """Handle the cache command (show or prune cached SDKs)."""
+    from gen_dsp.core.cache import dir_size, format_size
+    from gen_dsp.platforms.daisy import LIBDAISY_VERSION, _resolve_libdaisy_dir
+    from gen_dsp.platforms.vcvrack import _resolve_rack_dir
+
+    cache_dir, from_env = _resolve_cache_dir()
+
+    if getattr(args, "prune", False):
+        return _cache_prune(cache_dir, dry_run=args.dry_run, assume_yes=args.yes)
+
+    suffix = "  (GEN_DSP_CACHE_DIR)" if from_env else ""
+    print(f"Cache directory: {cache_dir}{suffix}")
+    if cache_dir.is_dir():
+        print(f"  Total size: {format_size(dir_size(cache_dir))}")
     print()
 
     print("FetchContent (clap, lv2, sc, vst3):")
     if cache_dir.is_dir():
         src_dirs = sorted(
-            d.name
+            d
             for d in cache_dir.iterdir()
             if d.is_dir()
             and d.name.endswith("-src")
-            and d.name not in ("rack-sdk-src", "libdaisy-src")
+            and d.name not in ("rack-sdk-src", "libdaisy-src", "circle-src")
         )
         if src_dirs:
-            for name in src_dirs:
-                sdk_name = name.removesuffix("-src")
-                print(f"  {sdk_name}  ({cache_dir / name})")
+            for d in src_dirs:
+                sdk_name = d.name.removesuffix("-src")
+                print(f"  {sdk_name}  {format_size(dir_size(d))}  ({d})")
         else:
             print("  (empty)")
     else:
@@ -903,7 +1106,10 @@ def cmd_cache(args: argparse.Namespace) -> int:
     rack_present = (rack_dir / "Makefile").is_file()
     print("Rack SDK (vcvrack):")
     print(f"  Path: {rack_dir}")
-    print(f"  Status: {'present' if rack_present else 'not downloaded'}")
+    if rack_present:
+        print(f"  Status: present  ({format_size(dir_size(rack_dir))})")
+    else:
+        print("  Status: not downloaded")
     print()
 
     libdaisy_dir = _resolve_libdaisy_dir()
@@ -912,11 +1118,15 @@ def cmd_cache(args: argparse.Namespace) -> int:
     print(f"libDaisy {LIBDAISY_VERSION} (daisy):")
     print(f"  Path: {libdaisy_dir}")
     if libdaisy_built:
-        print("  Status: built")
+        print(f"  Status: built  ({format_size(dir_size(libdaisy_dir))})")
     elif libdaisy_present:
-        print("  Status: cloned (not built)")
+        print(f"  Status: cloned (not built)  ({format_size(dir_size(libdaisy_dir))})")
     else:
         print("  Status: not cloned")
+
+    if cache_dir.is_dir() and any(cache_dir.iterdir()):
+        print()
+        print("Run 'gen-dsp cache --prune' to reclaim space.")
 
     return 0
 
@@ -1054,7 +1264,14 @@ def main(argv: Optional[list[str]] = None) -> int:
     """Main entry point."""
     argv = argv if argv is not None else sys.argv[1:]
 
-    if not argv or argv[0] in ("-h", "--help"):
+    if not argv:
+        # Bare invocation: run from gen-dsp.toml if present, else show help.
+        if (Path.cwd() / "gen-dsp.toml").is_file():
+            return _cmd_default([])
+        _print_help()
+        return 0
+
+    if argv[0] in ("-h", "--help"):
         _print_help()
         return 0
 

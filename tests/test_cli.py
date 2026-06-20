@@ -806,3 +806,104 @@ class TestMultiTarget:
         )
         assert result == 1
         assert "--board is only valid" in capsys.readouterr().err
+
+
+class TestConfigFile:
+    """gen-dsp.toml config support for the default command."""
+
+    def test_load_config_maps_keys(self, tmp_path: Path):
+        from gen_dsp.cli import _load_config
+
+        cfg = tmp_path / "gen-dsp.toml"
+        cfg.write_text(
+            'source = "exp"\n'
+            'platform = ["clap", "vst3"]\n'
+            'name = "gv"\n'
+            'buffers = ["sample"]\n'
+            "voices = 2\n"
+            "no-build = true\n"
+            "inputs-as-params = true\n"
+        )
+        mapped, err = _load_config(cfg)
+        assert err is None
+        assert mapped["platform"] == "clap,vst3"
+        assert mapped["name"] == "gv"
+        assert mapped["buffers"] == ["sample"]
+        assert mapped["voices"] == 2
+        assert mapped["no_build"] is True
+        assert mapped["inputs_as_params"] == []
+        assert isinstance(mapped["source"], Path)
+
+    def test_config_unknown_key(self, tmp_path: Path):
+        from gen_dsp.cli import _load_config
+
+        cfg = tmp_path / "gen-dsp.toml"
+        cfg.write_text('platform = "pd"\nbogus = 1\n')
+        _, err = _load_config(cfg)
+        assert err is not None and "bogus" in err
+
+    def test_config_bad_type(self, tmp_path: Path):
+        from gen_dsp.cli import _load_config
+
+        cfg = tmp_path / "gen-dsp.toml"
+        cfg.write_text('platform = "pd"\nvoices = "two"\n')
+        _, err = _load_config(cfg)
+        assert err is not None and "voices" in err
+
+    def test_config_provides_source_and_platform(
+        self, gigaverb_export: Path, tmp_path: Path
+    ):
+        cfg = tmp_path / "gen-dsp.toml"
+        cfg.write_text(
+            f'source = "{gigaverb_export}"\n'
+            'platform = "pd"\n'
+            'name = "gv"\n'
+            "no-build = true\n"
+        )
+        out = tmp_path / "out"
+        result = main(["--config", str(cfg), "-o", str(out)])
+        assert result == 0
+        assert (out / "gv.cpp").exists() or (out).is_dir()
+
+    def test_cli_overrides_config(self, gigaverb_export: Path, tmp_path: Path, capsys):
+        cfg = tmp_path / "gen-dsp.toml"
+        cfg.write_text(
+            f'source = "{gigaverb_export}"\n'
+            'platform = "pd,chuck"\n'
+            'name = "gv"\n'
+            "no-build = true\n"
+        )
+        # CLI -p clap should win over config's pd,chuck (single target, no summary).
+        result = main(["--config", str(cfg), "-p", "clap", "-o", str(tmp_path / "o")])
+        assert result == 0
+        out = capsys.readouterr().out
+        assert "Platform: clap" in out
+        assert "Summary:" not in out
+
+    def test_missing_source_errors(self, tmp_path: Path, capsys):
+        cfg = tmp_path / "gen-dsp.toml"
+        cfg.write_text('platform = "pd"\nno-build = true\n')
+        result = main(["--config", str(cfg)])
+        assert result == 1
+        assert "no source given" in capsys.readouterr().err
+
+    def test_config_not_found(self, tmp_path: Path, capsys):
+        result = main(["--config", str(tmp_path / "nope.toml")])
+        assert result == 1
+        assert "not found" in capsys.readouterr().err
+
+    def test_auto_load_cwd_config(
+        self, gigaverb_export: Path, tmp_path: Path, monkeypatch
+    ):
+        cfg = tmp_path / "gen-dsp.toml"
+        cfg.write_text(
+            f'source = "{gigaverb_export}"\n'
+            'platform = "pd"\n'
+            'name = "gv"\n'
+            "no-build = true\n"
+        )
+        monkeypatch.chdir(tmp_path)
+        # Bare invocation picks up ./gen-dsp.toml.
+        result = main([])
+        assert result == 0
+        assert (tmp_path / "build" / "gv_pd").is_dir()

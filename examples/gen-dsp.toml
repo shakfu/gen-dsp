@@ -1,0 +1,35 @@
+# Example gen-dsp.toml
+#
+# Place a gen-dsp.toml in your project directory and run `gen-dsp` (no flags)
+# to generate/build with these settings. Any CLI flag overrides the matching
+# key here. Keys mirror the CLI options (hyphens or underscores both work).
+
+# Source: a gen~ export directory, a .gdsp file, or a graph .json file.
+source = "tests/fixtures/gigaverb/gen"
+
+# Plugin name (default: inferred from the source).
+name = "gigaverb"
+
+# One platform, a list (multi-target), or "all".
+platform = ["clap", "vst3", "au"]
+
+# Output directory. For multiple platforms this is the parent dir; each target
+# lands in <output>/<name>_<platform>.
+output = "build"
+
+# Explicit buffer names (otherwise auto-detected from the export).
+# buffers = ["sample"]
+
+# Skip building after generation.
+no-build = true
+
+# Embedded board variant (Daisy/Circle only; ignored for other platforms).
+# board = "seed"
+
+# MIDI-to-CV mapping (gen~ export path).
+# midi-gate = "gate"
+# midi-freq = "freq"
+# voices = 4
+
+# Remap signal inputs to parameters: true for all, or a list of input names.
+# inputs-as-params = true

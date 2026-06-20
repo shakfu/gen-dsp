@@ -28,3 +28,34 @@ def get_cache_dir() -> Path:
         base = Path(xdg) if xdg else Path.home() / ".cache"
 
     return base / "gen-dsp" / "fetchcontent"
+
+
+def dir_size(path: Path) -> int:
+    """Return the total size in bytes of all files under ``path`` (0 if absent).
+
+    Symlinks are not followed (only real file sizes are counted).
+    """
+    if not path.exists():
+        return 0
+    if path.is_file():
+        return path.stat().st_size
+    total = 0
+    for p in path.rglob("*"):
+        if p.is_file() and not p.is_symlink():
+            try:
+                total += p.stat().st_size
+            except OSError:
+                pass
+    return total
+
+
+def format_size(num_bytes: int) -> str:
+    """Format a byte count as a human-readable string (e.g. ``1.2 GB``)."""
+    size = float(num_bytes)
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if size < 1024.0 or unit == "TB":
+            if unit == "B":
+                return f"{int(size)} {unit}"
+            return f"{size:.1f} {unit}"
+        size /= 1024.0
+    return f"{size:.1f} TB"
