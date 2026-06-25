@@ -104,4 +104,5 @@ nav:
       - Adapter: api/graph-adapter.md
   - Research:
     - Move Everything: move-everything.md
+    - Percussa SSP: percussa-ssp.md
   - Changelog: changelog.md

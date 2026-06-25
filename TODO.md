@@ -104,6 +104,21 @@ gen-dsp can be consumed as a library by [dsp-graph](https://github.com/shakfu/ds
 
   - Assessment: [docs/move-everything.md](docs/move-everything.md)
 
+- [ ] **Percussa SSP** - ARM-Linux Eurorack DSP host. Native `.so` modules via a small
+  C++ API (`Percussa::SSP::PluginInterface`: `prepare()`/`process(float**, ...)`, encoder/
+  soft-key control, `getState`/`setState` presets) plus C factory exports. float32 planar
+  audio maps ~1:1 to gen~; closest analog: CLAP/LV2 code shape + Circle/Daisy/VCV cross-
+  compile-against-external-SDK build. Key challenges: param->encoder mapping, the Percussa
+  cross-compile sysroot (not FetchContent-able), and AGPL-3.0 SDK licensing. Good fit; a
+  contributor has the hardware to test.
+
+  - Repo: <https://github.com/percussa/ssp-sdk>
+
+  - Reference modules (proves the path; ~39 modules + a reusable param/encoder framework):
+    <https://github.com/TheTechnobear/SSP>
+
+  - Assessment: [docs/percussa-ssp.md](docs/percussa-ssp.md)
+
 ### Game Audio
 
 - [ ] **FMOD plugin** - Game audio middleware with a clean C DSP plugin API. Taps into game audio market that gen-dsp currently doesn't reach.
