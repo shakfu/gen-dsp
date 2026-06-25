@@ -93,7 +93,9 @@ Omitting `in` entirely (no `in` statement) produces a generator/instrument (0 au
 
 - `MIN..MAX` defines the range (floats or ints).
 - `DEFAULT` is clamped to `[MIN, MAX]`.
-- `@control` prefix adds the parameter to the graph's `control_nodes` list.
+- `@control` prefix adds the parameter to the graph's `control_nodes` list. **Note:** on a
+  `param` this is currently a no-op -- params are not nodes, so they cannot join
+  `control_nodes`. `@control` only takes effect on an *assignment* (see [Control Rate](#control-rate)).
 
 Parameters are referenced by name in expressions, occupying the same namespace as node IDs and audio input IDs.
 
@@ -409,7 +411,7 @@ graph main {
 
 ### External File Imports
 
-The `import` keyword is reserved for referencing graphs defined in other `.gdsp` files:
+The `import` keyword references a graph defined in another `.gdsp` file and instantiates it as a `Subgraph` node, exactly as an in-source subgraph call would:
 
 ```gdsp
 graph main {
@@ -421,15 +423,24 @@ graph main {
 }
 ```
 
-- `"file.gdsp":GRAPH_NAME` -- the file path is a string literal, the graph name follows after `:`.
-- If the file contains only one graph, the graph name can be omitted: `import "filter.gdsp"(input=x)`.
-- Resolution: relative to the importing file's directory (TBD: search path rules).
+- `"file.gdsp":GRAPH_NAME` -- the file path is a string literal; the graph name follows after `:`.
+- If the file contains exactly one graph, the graph name may be omitted: `import "filter.gdsp"(input=x)`. If the file defines more than one graph, omitting the name is a compile error.
+- Arguments are keyword-only (`input=...`, `param=...`), matching the imported graph's audio inputs and parameters -- the same rules as an in-source subgraph call.
+
+**Resolution.** A relative path is resolved against the directory of the *importing* file. When compiling a string (via `parse`, where there is no source file), relative paths resolve against the current working directory. Absolute paths are used as-is.
+
+**Caching.** Each resolved file is read, parsed, and compiled at most once per top-level compilation; repeated imports of the same file (including diamond import graphs) reuse the cached result.
+
+**Cycle detection.** Imports that form a cycle -- directly (`a.gdsp` -> `a.gdsp`) or transitively (`a.gdsp` -> `b.gdsp` -> `a.gdsp`) -- raise a `GDSPCompileError` reporting the import chain, rather than recursing without bound.
 
 ---
 
 ## Inline Composition
 
-Series (`>>`), parallel (`//`), `split()`, and `merge()` are expression-level operators that wire graphs together. They operate on partially-applied graph calls -- graph references with keyword arguments bound but audio inputs left unbound. No separate `compose` block is needed; composition happens inline within any graph body.
+Series (`>>`), parallel (`//`), `split()`, and `merge()` are expression-level operators that
+wire graphs together. They operate on partially-applied graph calls -- graph references with
+keyword arguments bound but audio inputs left unbound. No separate `compose` block is needed;
+composition happens inline within any graph body.
 
 ### Partially-Applied Graph Calls
 
@@ -501,7 +512,7 @@ graph main {
 
 ### Split and Merge
 
-`split()` and `merge()` are functions that work on composition expressions for fan-out and fan-in patterns.
+`split()` and `merge()` are functions that work on composition expressions for fan-out and fan-in patterns. They accept two graph operands (graph references, partially-applied graph calls, or nested compositions) and may be chained with `>>` and `//`.
 
 ```gdsp
 graph main {

@@ -19,8 +19,9 @@ def expand_subgraphs(graph: Graph) -> Graph:
         return graph
 
     out_nodes: list[Node] = []
-    # Maps subgraph ID (and compound IDs) to the expanded output node ID
-    output_map: dict[str, str] = {}
+    # Maps subgraph ID (and compound IDs) to the expanded output ref (a node
+    # ID, a parent ref, or a constant value for passthrough outputs).
+    output_map: dict[str, str | float] = {}
     # Collect prefixed control_nodes from inner subgraphs
     new_control_nodes: list[str] = list(graph.control_nodes)
 
@@ -72,7 +73,7 @@ def expand_subgraphs(graph: Graph) -> Graph:
 def _expand_one(
     sg: Subgraph,
     out_nodes: list[Node],
-    output_map: dict[str, str],
+    output_map: dict[str, str | float],
 ) -> None:
     """Expand a single Subgraph node, appending results to out_nodes."""
     inner = sg.graph
@@ -142,11 +143,15 @@ def _expand_one(
     # Selected output (or first)
     selected = sg.output if sg.output else inner.outputs[0].id
     for out in inner.outputs:
-        prefixed_source = prefix + out.source
+        # Resolve the output source through the rewrite map so passthrough
+        # outputs (sourced directly from an inner input or param) map to the
+        # parent ref / value rather than a bogus prefixed name. Inner node
+        # sources fall back to the prefixed node ID.
+        resolved_source = rewrite_map.get(out.source, prefix + out.source)
         if out.id == selected:
-            output_map[sg.id] = prefixed_source
+            output_map[sg.id] = resolved_source
         # Compound ID for all outputs
-        output_map[sg.id + "__" + out.id] = prefixed_source
+        output_map[sg.id + "__" + out.id] = resolved_source
 
 
 def _rewrite_node(
@@ -174,7 +179,7 @@ def _rewrite_node(
     return node.model_copy(update=updates)
 
 
-def _rewrite_refs(node: Node, output_map: dict[str, str]) -> Node:
+def _rewrite_refs(node: Node, output_map: dict[str, str | float]) -> Node:
     """Rewrite parent-level refs pointing to subgraph IDs."""
     updates: dict[str, object] = {}
     for field_name, value in node.__dict__.items():

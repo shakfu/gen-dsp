@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Union
 
 from pydantic import ValidationError
 
+from gen_dsp.graph.algebra import merge as _algebra_merge
 from gen_dsp.graph.algebra import parallel as _algebra_parallel
 from gen_dsp.graph.algebra import series as _algebra_series
+from gen_dsp.graph.algebra import split as _algebra_split
 from gen_dsp.graph.dsl.lexer import GDSPCompileError
 from gen_dsp.graph.dsl.parser import (
     ASTArg,
@@ -247,7 +250,14 @@ class _IDCounter:
 class Compiler:
     """Compiles a list of ASTGraph into Graph objects."""
 
-    def __init__(self, ast_graphs: list[ASTGraph], filename: str = "<string>"):
+    def __init__(
+        self,
+        ast_graphs: list[ASTGraph],
+        filename: str = "<string>",
+        *,
+        import_stack: list[Path] | None = None,
+        module_cache: dict[Path, dict[str, Graph]] | None = None,
+    ):
         self.ast_graphs = ast_graphs
         self.filename = filename
         # Collect all graph names for deferred resolution
@@ -255,6 +265,92 @@ class Compiler:
         self.compiled: dict[str, Graph] = {}
         # Track graphs currently being compiled to detect recursive calls
         self._compiling: set[str] = set()
+        # Directory used to resolve relative import paths.
+        self.base_dir = (
+            Path(filename).resolve().parent if filename != "<string>" else Path.cwd()
+        )
+        # Chain of files currently being compiled (innermost last), used to
+        # detect circular imports across files. The root file (if it has a real
+        # path) sits at the bottom so a file importing itself is also caught.
+        if import_stack is not None:
+            self._import_stack = import_stack
+        elif filename != "<string>":
+            self._import_stack = [Path(filename).resolve()]
+        else:
+            self._import_stack = []
+        # Maps resolved absolute path -> compiled graphs, shared across the
+        # whole import tree so each file is parsed/compiled at most once.
+        self._module_cache = module_cache if module_cache is not None else {}
+
+    def resolve_import(
+        self, path_str: str, graph_name: str | None, line: int
+    ) -> Graph:
+        """Load an external .gdsp file and return one of its compiled graphs.
+
+        Resolves ``path_str`` relative to the importing file's directory,
+        detects circular imports, and caches each file's compiled graphs.
+        """
+        path = Path(path_str)
+        if not path.is_absolute():
+            path = self.base_dir / path
+        resolved = path.resolve()
+
+        if resolved in self._import_stack:
+            chain = " -> ".join(p.name for p in self._import_stack) + f" -> {resolved.name}"
+            raise GDSPCompileError(
+                f"circular import detected: {chain}",
+                line=line,
+                filename=self.filename,
+            )
+
+        if resolved not in self._module_cache:
+            if not resolved.is_file():
+                raise GDSPCompileError(
+                    f"import file not found: {path_str} (resolved to {resolved})",
+                    line=line,
+                    filename=self.filename,
+                )
+            # Local import avoids a module-level cycle (parser imports lexer,
+            # both are imported here already, but tokenize/Parser are pulled in
+            # lazily to keep the import surface minimal).
+            from gen_dsp.graph.dsl.lexer import tokenize
+            from gen_dsp.graph.dsl.parser import Parser
+
+            source = resolved.read_text()
+            sub_filename = str(resolved)
+            tokens = tokenize(source, sub_filename)
+            sub_asts = Parser(tokens, sub_filename).parse_file()
+            sub_compiler = Compiler(
+                sub_asts,
+                sub_filename,
+                import_stack=self._import_stack + [resolved],
+                module_cache=self._module_cache,
+            )
+            self._module_cache[resolved] = sub_compiler.compile_all()
+
+        module = self._module_cache[resolved]
+
+        if graph_name is None:
+            if len(module) != 1:
+                names = ", ".join(sorted(module))
+                raise GDSPCompileError(
+                    f"import of '{path_str}' omits the graph name but the file "
+                    f"defines {len(module)} graphs ({names}); use "
+                    f'"{path_str}":NAME',
+                    line=line,
+                    filename=self.filename,
+                )
+            return next(iter(module.values()))
+
+        if graph_name not in module:
+            names = ", ".join(sorted(module)) or "(none)"
+            raise GDSPCompileError(
+                f"graph '{graph_name}' not found in '{path_str}' "
+                f"(available: {names})",
+                line=line,
+                filename=self.filename,
+            )
+        return module[graph_name]
 
     def compile_all(self) -> dict[str, Graph]:
         for ast_g in self.ast_graphs:
@@ -418,14 +514,7 @@ class _GraphCtx:
             self._compile_assign(stmt)
 
         elif isinstance(stmt, ASTImportAssign):
-            # The DSL grammar reserves `name = import "..."`, but cross-file
-            # imports are intentionally not supported (no resolver/cycle
-            # detection). Compose graphs via the Python API instead.
-            raise self._err(
-                "external imports are not supported; compose graphs via the "
-                "Python API (algebra.series/parallel) instead",
-                stmt.line,
-            )
+            self._compile_import(stmt)
 
         else:
             raise self._err(
@@ -678,11 +767,35 @@ class _GraphCtx:
         if name == "delay_read":
             return self._compile_delay_read(pos_args, kw_args, target_id, line, col)
 
+        # split / merge composition functions (operate on graph operands)
+        if name in ("split", "merge"):
+            result = self._apply_split_merge(name, pos_args, line, col)
+            return self._emit_composed_graph(result, target_id)
+
         # Builtins registry
         if name in _BUILTINS:
             return self._compile_builtin(name, pos_args, kw_args, target_id, line, col)
 
         raise self._err(f"undefined function '{name}'", line, col)
+
+    def _compile_import(self, stmt: ASTImportAssign) -> None:
+        """Resolve an external import and emit it as a Subgraph node."""
+        sub_graph = self.compiler.resolve_import(
+            stmt.path, stmt.graph_name, stmt.line
+        )
+        pos_args, kw_args = self._split_args(stmt.args)
+        if pos_args:
+            raise self._err(
+                "imported graph calls take keyword arguments only "
+                "(input=..., param=...)",
+                stmt.line,
+            )
+        label = (
+            f"imported graph '{stmt.graph_name}'"
+            if stmt.graph_name
+            else f"import of '{stmt.path}'"
+        )
+        self._emit_subgraph(sub_graph, kw_args, stmt.target, label, stmt.line)
 
     def _compile_subgraph_call(
         self,
@@ -700,9 +813,28 @@ class _GraphCtx:
             self.compiler.compiled[graph_name] = self.compiler._compile_graph(ast_g)
         sub_graph = self.compiler.compiled[graph_name]
 
-        nid = target_id or self._auto_id(graph_name)
+        return self._emit_subgraph(
+            sub_graph,
+            kw_args,
+            target_id or self._auto_id(graph_name),
+            f"subgraph '{graph_name}'",
+            line,
+            col,
+        )
 
-        # Map keyword args to inputs and params
+    def _emit_subgraph(
+        self,
+        sub_graph: Graph,
+        kw_args: dict[str, ASTExpr],
+        nid: str,
+        label: str,
+        line: int = 0,
+        col: int = 0,
+    ) -> str:
+        """Emit a Subgraph node, wiring keyword args to its inputs and params.
+
+        Shared by in-source subgraph calls and external file imports.
+        """
         input_names = {inp.id for inp in sub_graph.inputs}
         param_names = {p.name for p in sub_graph.params}
 
@@ -716,9 +848,7 @@ class _GraphCtx:
             elif k in param_names:
                 params_map[k] = self._to_ref(v_ref)
             else:
-                raise self._err(
-                    f"subgraph '{graph_name}' has no input or param '{k}'", line, col
-                )
+                raise self._err(f"{label} has no input or param '{k}'", line, col)
 
         # Determine output (first output by default)
         output = sub_graph.outputs[0].id if sub_graph.outputs else ""
@@ -917,10 +1047,17 @@ class _GraphCtx:
         else:
             result = _algebra_parallel(left_graph, right_graph)
 
+        return self._emit_composed_graph(result, target_id)
+
+    def _emit_composed_graph(self, result: Graph, target_id: str | None = None) -> str:
+        """Wrap a composition-result Graph as a Subgraph node in this graph.
+
+        Outer inputs and params are wired by name from the calling graph's
+        namespace. Shared by >>/// composition and split()/merge().
+        """
         nid = target_id or self._auto_id("comp")
 
-        # Wrap result graph as a subgraph node
-        # Wire outer inputs from calling graph namespace
+        # Wire outer inputs and params from the calling graph namespace
         inputs_map: dict[str, str | float] = {}
         for inp in result.inputs:
             inputs_map[inp.id] = inp.id
@@ -942,6 +1079,26 @@ class _GraphCtx:
         )
         return nid
 
+    def _apply_split_merge(
+        self,
+        name: str,
+        pos_args: list[ASTExpr],
+        line: int,
+        col: int,
+    ) -> Graph:
+        """Apply split()/merge() to two graph operands, returning the result Graph."""
+        if len(pos_args) != 2:
+            raise self._err(
+                f"'{name}' expects 2 graph arguments, got {len(pos_args)}", line, col
+            )
+        left_graph = self._expr_to_graph(pos_args[0])
+        right_graph = self._expr_to_graph(pos_args[1])
+        fn = _algebra_split if name == "split" else _algebra_merge
+        try:
+            return fn(left_graph, right_graph)
+        except ValueError as e:
+            raise self._err(str(e), line, col) from e
+
     def _expr_to_graph(self, expr: ASTExpr) -> Graph:
         """Convert an expression to a Graph for composition.
 
@@ -949,6 +1106,9 @@ class _GraphCtx:
         """
         if isinstance(expr, ASTCall):
             name = expr.name
+            if name in ("split", "merge"):
+                pos_args, _ = self._split_args(expr.args)
+                return self._apply_split_merge(name, pos_args, expr.line, expr.col)
             if name in self.compiler.graph_names:
                 # Compile the graph
                 if name not in self.compiler.compiled:

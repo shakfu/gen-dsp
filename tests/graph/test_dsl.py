@@ -673,6 +673,55 @@ class TestCompiler:
         sg = [n for n in graph.nodes if isinstance(n, Subgraph)]
         assert len(sg) >= 1
 
+    def test_inline_composition_split(self):
+        from gen_dsp.graph.compile import expand_subgraphs
+        from gen_dsp.graph.validate import validate_graph
+
+        graph = parse("""
+        graph src {
+            in input
+            out output = input
+        }
+        graph pair {
+            in i0, i1
+            out output = summed
+            summed = i0 + i1
+        }
+        graph main {
+            in input
+            out output = mixed
+            mixed = split(src, pair)
+        }
+        """)
+        sg = [n for n in graph.nodes if isinstance(n, Subgraph)]
+        assert len(sg) >= 1
+        assert validate_graph(expand_subgraphs(graph)) == []
+
+    def test_inline_composition_merge(self):
+        from gen_dsp.graph.compile import expand_subgraphs
+        from gen_dsp.graph.validate import validate_graph
+
+        graph = parse("""
+        graph dual {
+            in input
+            out a = input
+            out b = neg
+            neg = -input
+        }
+        graph summer {
+            in input
+            out output = input
+        }
+        graph main {
+            in input
+            out output = mixed
+            mixed = merge(dual, summer)
+        }
+        """)
+        sg = [n for n in graph.nodes if isinstance(n, Subgraph)]
+        assert len(sg) >= 1
+        assert validate_graph(expand_subgraphs(graph)) == []
+
     def test_buf_read_with_interp(self):
         graph = parse("""
         graph t {
@@ -731,13 +780,13 @@ class TestErrors:
             }
             """)
 
-    def test_compile_error_import_not_supported(self):
-        with pytest.raises(GDSPCompileError, match="external imports"):
+    def test_compile_error_import_missing_file(self):
+        with pytest.raises(GDSPCompileError, match="import file not found"):
             parse("""
             graph t {
                 in x
                 out o = y
-                y = import "file.gdsp":thing(input=x)
+                y = import "does_not_exist.gdsp":thing(input=x)
             }
             """)
 
@@ -910,6 +959,207 @@ class TestParseFile:
         assert isinstance(result, dict)
         assert "a" in result
         assert "b" in result
+
+
+# =========================================================================
+# External file imports
+# =========================================================================
+
+
+class TestImports:
+    def _write_lib(self, tmp_path):
+        lib = tmp_path / "filters.gdsp"
+        lib.write_text("""
+        graph bandpass {
+            in input
+            out output = filtered
+            param freq 20..20000 = 1000
+            filtered = svf(input, freq, 2.0, mode=bp)
+        }
+        graph lpf {
+            in input
+            out output = y
+            param coeff 0..1 = 0.3
+            y = onepole(input, coeff)
+        }
+        """)
+        return lib
+
+    def test_named_import(self, tmp_path):
+        self._write_lib(tmp_path)
+        main = tmp_path / "main.gdsp"
+        main.write_text("""
+        graph main {
+            in input
+            out output = processed
+            processed = import "filters.gdsp":bandpass(input=input, freq=800)
+        }
+        """)
+        g = parse_file(main)
+        assert g.name == "main"
+        subs = [n for n in g.nodes if isinstance(n, Subgraph)]
+        assert len(subs) == 1
+        sub = subs[0]
+        assert sub.id == "processed"
+        assert sub.graph.name == "bandpass"
+        assert sub.inputs == {"input": "input"}
+        assert sub.params == {"freq": 800.0}
+
+    def test_import_omitted_name_single_graph(self, tmp_path):
+        lib = tmp_path / "single.gdsp"
+        lib.write_text("""
+        graph only {
+            in input
+            out output = y
+            y = input * 0.5
+        }
+        """)
+        main = tmp_path / "main.gdsp"
+        main.write_text("""
+        graph main {
+            in input
+            out output = y
+            y = import "single.gdsp"(input=input)
+        }
+        """)
+        g = parse_file(main)
+        sub = next(n for n in g.nodes if isinstance(n, Subgraph))
+        assert sub.graph.name == "only"
+
+    def test_import_omitted_name_ambiguous(self, tmp_path):
+        self._write_lib(tmp_path)
+        main = tmp_path / "main.gdsp"
+        main.write_text("""
+        graph main {
+            in input
+            out output = y
+            y = import "filters.gdsp"(input=input)
+        }
+        """)
+        with pytest.raises(GDSPCompileError, match="omits the graph name"):
+            parse_file(main)
+
+    def test_import_missing_graph(self, tmp_path):
+        self._write_lib(tmp_path)
+        main = tmp_path / "main.gdsp"
+        main.write_text("""
+        graph main {
+            in input
+            out output = y
+            y = import "filters.gdsp":nosuch(input=input)
+        }
+        """)
+        with pytest.raises(GDSPCompileError, match="not found"):
+            parse_file(main)
+
+    def test_import_missing_file(self, tmp_path):
+        main = tmp_path / "main.gdsp"
+        main.write_text("""
+        graph main {
+            in input
+            out output = y
+            y = import "nope.gdsp":x(input=input)
+        }
+        """)
+        with pytest.raises(GDSPCompileError, match="import file not found"):
+            parse_file(main)
+
+    def test_import_unknown_param_errors(self, tmp_path):
+        self._write_lib(tmp_path)
+        main = tmp_path / "main.gdsp"
+        main.write_text("""
+        graph main {
+            in input
+            out output = y
+            y = import "filters.gdsp":bandpass(input=input, bogus=1)
+        }
+        """)
+        with pytest.raises(GDSPCompileError, match="has no input or param"):
+            parse_file(main)
+
+    def test_transitive_import(self, tmp_path):
+        (tmp_path / "leaf.gdsp").write_text("""
+        graph gain {
+            in input
+            out output = y
+            param level 0..1 = 0.5
+            y = input * level
+        }
+        """)
+        (tmp_path / "mid.gdsp").write_text("""
+        graph stage {
+            in input
+            out output = y
+            y = import "leaf.gdsp":gain(input=input, level=0.8)
+        }
+        """)
+        top = tmp_path / "top.gdsp"
+        top.write_text("""
+        graph top {
+            in input
+            out output = y
+            y = import "mid.gdsp":stage(input=input)
+        }
+        """)
+        g = parse_file(top)
+        sub = next(n for n in g.nodes if isinstance(n, Subgraph))
+        # The imported 'stage' itself contains the imported 'gain'.
+        assert sub.graph.name == "stage"
+        nested = next(n for n in sub.graph.nodes if isinstance(n, Subgraph))
+        assert nested.graph.name == "gain"
+
+    def test_direct_cycle(self, tmp_path):
+        (tmp_path / "a.gdsp").write_text("""
+        graph a {
+            in input
+            out output = y
+            y = import "b.gdsp":b(input=input)
+        }
+        """)
+        (tmp_path / "b.gdsp").write_text("""
+        graph b {
+            in input
+            out output = y
+            y = import "a.gdsp":a(input=input)
+        }
+        """)
+        with pytest.raises(GDSPCompileError, match="circular import"):
+            parse_file(tmp_path / "a.gdsp")
+
+    def test_self_import_cycle(self, tmp_path):
+        f = tmp_path / "s.gdsp"
+        f.write_text("""
+        graph s {
+            in input
+            out output = y
+            y = import "s.gdsp":s(input=input)
+        }
+        """)
+        with pytest.raises(GDSPCompileError, match="circular import"):
+            parse_file(f)
+
+    def test_relative_to_importing_file(self, tmp_path):
+        """Imports resolve relative to the importing file, not the cwd."""
+        sub = tmp_path / "sub"
+        sub.mkdir()
+        (sub / "leaf.gdsp").write_text("""
+        graph leaf {
+            in input
+            out output = y
+            y = input * 2.0
+        }
+        """)
+        main = sub / "main.gdsp"
+        main.write_text("""
+        graph main {
+            in input
+            out output = y
+            y = import "leaf.gdsp":leaf(input=input)
+        }
+        """)
+        g = parse_file(main)
+        sub_node = next(n for n in g.nodes if isinstance(n, Subgraph))
+        assert sub_node.graph.name == "leaf"
 
 
 # =========================================================================

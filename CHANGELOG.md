@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **GDSP DSL `split()` / `merge()` composition** -- The fan-out/fan-in combinators are now callable from `.gdsp` source (previously available only via the Python `gen_dsp.graph.algebra` API). They accept two graph operands (graph references, partially-applied graph calls, or nested compositions), compose with `>>` and `//`, and lower to a `Subgraph` wrapping the composed graph. `split(a, b)` distributes `a`'s outputs cyclically across `b`'s inputs (requires `len(b.inputs) % len(a.outputs) == 0`); `merge(a, b)` sums groups of `a`'s outputs into `b`'s inputs (requires `len(a.outputs) % len(b.inputs) == 0`).
+
+- **GDSP DSL external file imports** -- `name = import "file.gdsp":graph(input=..., param=...)` references a graph defined in another `.gdsp` file and instantiates it as a `Subgraph`, with the same keyword-only argument rules as an in-source subgraph call. The graph name may be omitted when the target file defines exactly one graph. Relative paths resolve against the importing file's directory (the current working directory for string sources); each file is parsed and compiled at most once per top-level compilation (shared module cache, so diamond imports reuse the result); and import cycles -- direct (`a -> a`) or transitive (`a -> b -> a`) -- raise a `GDSPCompileError` reporting the chain instead of recursing without bound. This supersedes the deliberate "external imports are not supported" error added in 0.2.0.
+
+### Fixed
+
+- **Subgraph expansion of passthrough outputs** -- `expand_subgraphs()` mis-expanded any subgraph whose output is sourced directly from one of its inputs or params (a passthrough), emitting a bogus prefixed reference (e.g. `p__input`) that then failed graph validation. The output source is now resolved through the same rewrite map used for node bodies, so passthrough outputs map to the parent ref (or constant value) and inner-node outputs keep their prefixed IDs. This also fixes inline `>>` / `//` / `split` / `merge` compositions, whose composed graphs routinely contain passthrough outputs -- their post-expansion validity was previously untested.
+
 ## [0.2.0]
 
 ### Added
