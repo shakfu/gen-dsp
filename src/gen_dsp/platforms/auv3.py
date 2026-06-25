@@ -27,6 +27,8 @@ class Auv3Platform(Platform):
     """Audio Unit v3 platform using CMake Xcode generator."""
 
     name = "auv3"
+    description = "Audio Unit v3 (AUv3) app extension"
+    build_system = "CMake (Xcode)"
 
     AU_MANUFACTURER = "Gdsp"
 

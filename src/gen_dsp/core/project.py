@@ -266,6 +266,7 @@ class ProjectGenerator:
         # Write manifest.json to project root
         manifest_path = output_dir / "manifest.json"
         manifest_path.write_text(manifest.to_json(), encoding="utf-8")
+        self._write_project_marker(output_dir)
 
         # Copy gen~ export
         self._copy_export(output_dir)
@@ -321,8 +322,30 @@ class ProjectGenerator:
         # Write manifest.json to project root.
         manifest_path = output_dir / "manifest.json"
         manifest_path.write_text(manifest.to_json(), encoding="utf-8")
+        self._write_project_marker(output_dir)
 
         return output_dir
+
+    def _write_project_marker(self, output_dir: Path) -> None:
+        """Write ``.gen-dsp.json`` recording the target platform.
+
+        Lets ``gen-dsp build`` auto-detect the platform of an existing project
+        without an explicit ``-p``. Kept separate from ``manifest.json`` (the
+        front-end-agnostic IR) because the target platform is an output concern,
+        not part of the manifest.
+        """
+        import json
+
+        marker: dict[str, str] = {
+            "tool": "gen-dsp",
+            "version": __version__,
+            "platform": self.config.platform,
+        }
+        if self.config.board is not None:
+            marker["board"] = self.config.board
+        (output_dir / ".gen-dsp.json").write_text(
+            json.dumps(marker, indent=2) + "\n", encoding="utf-8"
+        )
 
     def _copy_export(self, output_dir: Path) -> None:
         """Copy the gen~ export to the project's gen/ directory."""

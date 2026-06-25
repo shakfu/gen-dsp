@@ -12,9 +12,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - **GDSP DSL external file imports** -- `name = import "file.gdsp":graph(input=..., param=...)` references a graph defined in another `.gdsp` file and instantiates it as a `Subgraph`, with the same keyword-only argument rules as an in-source subgraph call. The graph name may be omitted when the target file defines exactly one graph. Relative paths resolve against the importing file's directory (the current working directory for string sources); each file is parsed and compiled at most once per top-level compilation (shared module cache, so diamond imports reuse the result); and import cycles -- direct (`a -> a`) or transitive (`a -> b -> a`) -- raise a `GDSPCompileError` reporting the chain instead of recursing without bound. This supersedes the deliberate "external imports are not supported" error added in 0.2.0.
 
+- **`list -v` / `list --json`** -- The `list` command can now show per-platform metadata: each platform carries a `description` and `build_system`, and `gen-dsp list -v` prints an aligned table (name, build system, file extension, description) while `gen-dsp list --json` emits the same as JSON. Plain `gen-dsp list` still prints bare platform names (unchanged), so existing scripts are unaffected.
+
+- **`list --boards <platform>`** -- Dynamically lists the valid `--board` variants for a platform (Daisy, Circle), with `--json` support, via a new `Platform.list_boards()` method. The `--board` help text now points at this command instead of hardcoding the board set, so the advertised boards cannot drift from the validated set.
+
+- **`build` platform auto-detection** -- Project generation now writes a `.gen-dsp.json` marker to the project root recording the target `platform` (and `board`/`version`). `gen-dsp build` reads it when `-p/--platform` is omitted, so rebuilding an existing project no longer requires repeating the platform (it falls back to `pd` only if no marker is present). The platform is recorded in a separate marker rather than in `manifest.json`, keeping the manifest IR front-end- and platform-agnostic.
+
 ### Changed
 
+- **`graph` visualization subcommand renamed `dot` -> `viz`** -- The graph visualization subcommand is now `viz` (the previous name was tied to the Graphviz DOT format; `viz` leaves room for other output formats later). The former `dot` name is retained as a hidden, deprecated alias that still works but prints a deprecation warning to stderr. The Python API (`graph_to_dot()`/`graph_to_dot_file()`) is unchanged.
+
+- **`Builder` owns project platform detection** -- The platform auto-detection logic (reading a project's `.gen-dsp.json` marker) moved from a standalone CLI helper into `Builder.detect_platform()`, and `Builder.build()`/`clean()` now accept `target_platform=None` to auto-detect (falling back to `pd`). This gives the `Builder` class cohesive responsibility for "build this project directory" and de-duplicates the CLI. The existing `Builder(project_dir).build(platform)` call with an explicit platform is unchanged.
+
 - **Strict template substitution** -- All platform generators now render templates through a shared `substitute_strict()` (`platforms/base.py`) instead of `string.Template.safe_substitute()`. An undefined `$placeholder` or a malformed bare `$` now raises a `ProjectError` naming the template and the offending token at generation time, rather than silently emitting a literal `$token` into a broken build file. Literal `$` in templates must be written `$$` (as make/CMake variables already were). Added unit tests for the helper (`tests/test_template_substitution.py`) and a `manifest` CLI integration test (`tests/test_cli.py::TestManifestCommand`).
+
+- **Packaging metadata** -- Added the newer platform names (chuck, audiounit, clap, vst3, lv2, supercollider, vcvrack, daisy, circle) to `pyproject.toml` `keywords`, and the `Operating System :: Microsoft :: Windows` classifier (Windows was already supported but unadvertised).
+
+- **Parser/manifest test fixtures for more DSP shapes** -- Added minimal hand-authored gen~-style fixtures (`mono_gain`, `multitap`, `octoverb`) and `tests/test_fixture_shapes.py` to cover shapes the real exports did not: mono (1-in/1-out), high channel count (8-in/8-out), multiple buffers, and zero-parameter effects. These are parse/IR-only fixtures (no genlib sources, not buildable) reproducing only the idioms the parser and manifest read.
+
+- **Core API guide for library users** -- Added a hand-written, example-driven guide (`docs/api/core-guide.md`) walking through the `gen_dsp.core` pipeline (parse -> manifest -> generate -> build), wired into the docs nav and linked from the API index. Filled the missing docstrings on the public `Manifest`/`ParamInfo`/`RemappedInput` serialization methods so the auto-generated reference pages are complete.
+
+- **Architecture diagrams** -- Added `docs/architecture.md` with Mermaid diagrams covering the pipeline data flow (gen~ and graph front ends into the shared `Manifest`), CLI orchestration, the platform registry grouped by build system, and the header-isolation pattern. Enabled Mermaid rendering in the mkdocs config and linked the page from the docs index and `CLAUDE.md`.
 
 ### Fixed
 

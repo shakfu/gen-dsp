@@ -23,6 +23,8 @@ class MaxPlatform(CMakePlatform):
     """Max/MSP platform implementation using CMake and max-sdk-base."""
 
     name = "max"
+    description = "Max/MSP external"
+    build_system = "CMake"
 
     # max-sdk-base git repository
     MAX_SDK_REPO = "https://github.com/Cycling74/max-sdk-base.git"

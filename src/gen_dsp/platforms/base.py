@@ -69,6 +69,13 @@ class Platform(ABC):
     # Platform identifier (e.g., 'pd', 'max')
     name: str = "base"
 
+    # One-line human-readable description (shown by ``gen-dsp list -v``).
+    description: str = ""
+
+    # Build system of generated projects, e.g. "CMake", "Make" (shown by
+    # ``gen-dsp list -v``).
+    build_system: str = ""
+
     @property
     @abstractmethod
     def extension(self) -> str:
@@ -145,6 +152,14 @@ class Platform(ABC):
             List of command strings to show the user.
         """
         return [f"# Build instructions for {self.name} not available"]
+
+    def list_boards(self) -> list[str]:
+        """Return the valid ``--board`` variants for this platform.
+
+        Empty for platforms with no board concept. Embedded platforms (Daisy,
+        Circle) override this with their hardware variant keys.
+        """
+        return []
 
     # -------------------------------------------------------------------------
     # Common utility methods shared by all platforms

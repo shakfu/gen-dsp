@@ -23,6 +23,8 @@ class ClapPlatform(CMakePlatform):
     """CLAP plugin platform implementation using CMake."""
 
     name = "clap"
+    description = "CLAP plugin"
+    build_system = "CMake"
 
     @property
     def extension(self) -> str:

@@ -383,6 +383,79 @@ class TestBuildCommand:
         assert "Makefile" in captured.err or "Error" in captured.err
 
 
+class TestProjectMarkerAndAutoDetect:
+    """`.gen-dsp.json` marker generation and `build` platform auto-detection."""
+
+    def _make_marker(self, project: Path, **fields) -> None:
+        project.mkdir(parents=True, exist_ok=True)
+        (project / ".gen-dsp.json").write_text(json.dumps(fields), encoding="utf-8")
+
+    def test_generation_writes_marker(
+        self, gigaverb_export: Path, tmp_path: Path
+    ):
+        out = tmp_path / "proj"
+        rc = main(
+            [str(gigaverb_export), "-p", "clap", "-n", "gv", "-o", str(out), "--no-build"]
+        )
+        assert rc == 0
+        marker = json.loads((out / ".gen-dsp.json").read_text())
+        assert marker["platform"] == "clap"
+        assert marker["tool"] == "gen-dsp"
+        assert "version" in marker
+
+    def test_detect_helper_reads_platform(self, tmp_path: Path):
+        from gen_dsp.core.builder import Builder
+
+        self._make_marker(tmp_path, platform="vst3")
+        assert Builder(tmp_path).detect_platform() == "vst3"
+
+    def test_detect_helper_missing_marker(self, tmp_path: Path):
+        from gen_dsp.core.builder import Builder
+
+        assert Builder(tmp_path).detect_platform() is None
+
+    def test_detect_helper_unknown_platform(self, tmp_path: Path):
+        from gen_dsp.core.builder import Builder
+
+        self._make_marker(tmp_path, platform="not-a-real-platform")
+        assert Builder(tmp_path).detect_platform() is None
+
+    def test_detect_helper_malformed_json(self, tmp_path: Path):
+        from gen_dsp.core.builder import Builder
+
+        tmp_path.joinpath(".gen-dsp.json").write_text("{ not json", encoding="utf-8")
+        assert Builder(tmp_path).detect_platform() is None
+
+    def test_builder_build_auto_detects_when_platform_none(self, tmp_path: Path):
+        # Builder.build(None) resolves the platform from the marker -- the value
+        # that makes Builder more than a thin get_platform() wrapper.
+        from gen_dsp.core.builder import Builder
+
+        self._make_marker(tmp_path, platform="vst3")
+        builder = Builder(tmp_path)
+        assert builder._resolve_platform(None) == "vst3"
+        # No marker -> falls back to pd.
+        empty = tmp_path / "empty"
+        empty.mkdir()
+        assert Builder(empty)._resolve_platform(None) == "pd"
+
+    def test_build_auto_detects_from_marker(self, tmp_path: Path, capsys):
+        # No -p given; the marker selects 'clap'. The build then fails (no CMake
+        # project present), but the auto-detection message proves clap (not the
+        # 'pd' fallback) was chosen.
+        self._make_marker(tmp_path, platform="clap")
+        rc = main(["build", str(tmp_path)])
+        assert rc == 1
+        out = capsys.readouterr().out
+        assert "Auto-detected platform 'clap'" in out
+
+    def test_explicit_platform_overrides_marker(self, tmp_path: Path, capsys):
+        self._make_marker(tmp_path, platform="clap")
+        main(["build", str(tmp_path), "-p", "pd"])
+        # Explicit -p wins: no auto-detect message emitted.
+        assert "Auto-detected" not in capsys.readouterr().out
+
+
 class TestListCommand:
     """Tests for list command."""
 
@@ -405,6 +478,89 @@ class TestListCommand:
         from gen_dsp.platforms import list_platforms
 
         assert len(lines) == len(list_platforms())
+
+    def test_list_verbose_shows_metadata(self, capsys):
+        """`list -v` shows build system, extension, and description per row."""
+        from gen_dsp.platforms import get_platform, list_platforms
+
+        result = main(["list", "-v"])
+        assert result == 0
+        out = capsys.readouterr().out
+        # Still one row per platform.
+        lines = [line for line in out.strip().split("\n") if line]
+        assert len(lines) == len(list_platforms())
+        # Each row carries the platform's metadata.
+        clap = get_platform("clap")
+        assert clap.build_system in out
+        assert clap.description in out
+
+    def test_list_json_is_valid_and_complete(self, capsys):
+        """`list --json` emits one object per platform with full metadata."""
+        from gen_dsp.platforms import list_platforms
+
+        result = main(["list", "--json"])
+        assert result == 0
+        data = json.loads(capsys.readouterr().out)
+        assert {d["name"] for d in data} == set(list_platforms())
+        for d in data:
+            assert d["build_system"]  # non-empty
+            assert d["description"]
+            assert "extension" in d
+
+    def test_every_platform_has_description_and_build_system(self):
+        """No platform may ship without list metadata."""
+        from gen_dsp.platforms import get_platform, list_platforms
+
+        for name in list_platforms():
+            p = get_platform(name)
+            assert p.description, f"{name} missing description"
+            assert p.build_system, f"{name} missing build_system"
+
+    def test_list_boards_daisy(self, capsys):
+        """`list --boards daisy` dynamically lists the Daisy board variants."""
+        from gen_dsp.platforms.daisy import DAISY_BOARDS
+
+        result = main(["list", "--boards", "daisy"])
+        assert result == 0
+        lines = [ln for ln in capsys.readouterr().out.strip().split("\n") if ln]
+        assert lines == sorted(DAISY_BOARDS)
+
+    def test_list_boards_circle(self, capsys):
+        from gen_dsp.platforms.circle.boards import CIRCLE_BOARDS
+
+        result = main(["list", "--boards", "circle"])
+        assert result == 0
+        lines = [ln for ln in capsys.readouterr().out.strip().split("\n") if ln]
+        assert lines == sorted(CIRCLE_BOARDS)
+
+    def test_list_boards_json(self, capsys):
+        from gen_dsp.platforms.daisy import DAISY_BOARDS
+
+        result = main(["list", "--boards", "daisy", "--json"])
+        assert result == 0
+        assert json.loads(capsys.readouterr().out) == sorted(DAISY_BOARDS)
+
+    def test_list_boards_platform_without_boards(self, capsys):
+        result = main(["list", "--boards", "clap"])
+        assert result == 0
+        assert "no board variants" in capsys.readouterr().out
+
+    def test_list_boards_unknown_platform(self, capsys):
+        result = main(["list", "--boards", "bogus"])
+        assert result == 1
+        assert "unknown platform" in capsys.readouterr().err
+
+    def test_list_boards_matches_validation(self):
+        """The advertised boards are exactly those `--board` accepts.
+
+        Guards against the help/listing drifting from the validated set.
+        """
+        from gen_dsp.platforms import get_platform
+        from gen_dsp.platforms.daisy import DAISY_BOARDS
+        from gen_dsp.platforms.circle.boards import CIRCLE_BOARDS
+
+        assert get_platform("daisy").list_boards() == sorted(DAISY_BOARDS)
+        assert get_platform("circle").list_boards() == sorted(CIRCLE_BOARDS)
 
 
 class TestCacheCommand:

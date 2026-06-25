@@ -96,6 +96,30 @@ def spectraldelayfb_export(fixtures_dir: Path) -> Path:
     return fixtures_dir / "spectraldelayfb" / "gen"
 
 
+# Minimal hand-authored gen~-style exports for parser/manifest shape coverage.
+# These are NOT real Max exports and are not buildable (no genlib sources);
+# they reproduce only the idioms the parser/manifest read, for shapes the real
+# fixtures above do not cover. See tests/fixtures/<name>/gen/<name>.cpp.
+
+
+@pytest.fixture
+def mono_gain_export(fixtures_dir: Path) -> Path:
+    """Minimal mono (1-in/1-out) export with one ranged parameter."""
+    return fixtures_dir / "mono_gain" / "gen"
+
+
+@pytest.fixture
+def multitap_export(fixtures_dir: Path) -> Path:
+    """Minimal export with two buffers and zero parameters."""
+    return fixtures_dir / "multitap" / "gen"
+
+
+@pytest.fixture
+def octoverb_export(fixtures_dir: Path) -> Path:
+    """Minimal high-channel-count (8-in/8-out) export with two parameters."""
+    return fixtures_dir / "octoverb" / "gen"
+
+
 @pytest.fixture
 def examples_dir() -> Path:
     """Path to the gen_export examples directory."""

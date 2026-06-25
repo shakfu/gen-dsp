@@ -20,6 +20,10 @@ Graph (Python/JSON) -> graph/compile/ -> C++ -> graph/adapter.py -> Manifest -> 
 
 ## Core Modules
 
+New to the core API? Start with the [Core API guide](core-guide.md) -- a
+usage-oriented walkthrough of the parse -> manifest -> generate -> build pipeline
+with examples. The table below links to the per-symbol reference.
+
 | Module | Description |
 |--------|-------------|
 | [`parser`](parser.md) | Regex-based parser for gen~ exports, produces `ExportInfo` |

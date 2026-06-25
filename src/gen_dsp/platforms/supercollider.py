@@ -28,6 +28,8 @@ class SuperColliderPlatform(CMakePlatform):
     """SuperCollider UGen platform implementation using CMake."""
 
     name = "sc"
+    description = "SuperCollider UGen"
+    build_system = "CMake"
 
     @property
     def extension(self) -> str:

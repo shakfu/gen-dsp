@@ -64,6 +64,8 @@ class CirclePlatform(Platform):
     """Circle bare metal Raspberry Pi platform implementation using Make."""
 
     name = "circle"
+    description = "Circle bare-metal (Raspberry Pi) firmware"
+    build_system = "Make"
 
     @property
     def extension(self) -> str:
@@ -73,6 +75,10 @@ class CirclePlatform(Platform):
     def get_build_instructions(self) -> list[str]:
         """Get build instructions for Circle."""
         return ["make"]
+
+    def list_boards(self) -> list[str]:
+        """Return the valid Circle board variants."""
+        return sorted(CIRCLE_BOARDS)
 
     def generate_project(
         self,

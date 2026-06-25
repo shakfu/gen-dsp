@@ -183,22 +183,35 @@ class TestValidateWarnUnmapped:
         assert "valid" in captured.out
 
 
-class TestDot:
-    def test_dot_to_stdout(
+class TestViz:
+    def test_viz_to_stdout(
         self, graph_json: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        rc = main(["dot", str(graph_json)])
+        rc = main(["viz", str(graph_json)])
         assert rc == 0
-        out = capsys.readouterr().out
-        assert "digraph" in out
+        captured = capsys.readouterr()
+        assert "digraph" in captured.out
+        # Primary name emits no deprecation warning.
+        assert "deprecated" not in captured.err
 
-    def test_dot_to_dir(self, graph_json: Path, tmp_path: Path) -> None:
-        out_dir = tmp_path / "dot_out"
-        rc = main(["dot", str(graph_json), "-o", str(out_dir)])
+    def test_viz_to_dir(self, graph_json: Path, tmp_path: Path) -> None:
+        out_dir = tmp_path / "viz_out"
+        rc = main(["viz", str(graph_json), "-o", str(out_dir)])
         assert rc == 0
         dot_file = out_dir / "test_graph.dot"
         assert dot_file.exists()
         assert "digraph" in dot_file.read_text()
+
+    def test_dot_alias_still_works_but_warns(
+        self, graph_json: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # 'dot' is retained as a deprecated alias for 'viz'.
+        rc = main(["dot", str(graph_json)])
+        assert rc == 0
+        captured = capsys.readouterr()
+        assert "digraph" in captured.out
+        assert "deprecated" in captured.err
+        assert "viz" in captured.err
 
 
 class TestSimulate:
@@ -463,11 +476,11 @@ class TestGdspValidate:
         assert "error:" in err
 
 
-class TestGdspDot:
-    def test_dot_gdsp(
+class TestGdspViz:
+    def test_viz_gdsp(
         self, gdsp_file: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        rc = main(["dot", str(gdsp_file)])
+        rc = main(["viz", str(gdsp_file)])
         assert rc == 0
         out = capsys.readouterr().out
         assert "digraph" in out

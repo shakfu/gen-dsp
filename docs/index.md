@@ -2,6 +2,8 @@
 
 gen-dsp is a zero-dependency Python CLI that generates buildable audio DSP plugin projects from Max/MSP gen~ code exports. It also includes an optional graph frontend that enables defining DSP graphs in Python/JSON and compiling them through the same pipeline.
 
+See the [Architecture](architecture.md) page for a visual overview of the pipeline.
+
 ## Supported Platforms
 
 | Platform | Key | Build System | Output |

@@ -22,6 +22,8 @@ class ChuckPlatform(Platform):
     """ChucK chugin platform implementation using make."""
 
     name = "chuck"
+    description = "ChucK chugin"
+    build_system = "Make"
 
     @property
     def extension(self) -> str:

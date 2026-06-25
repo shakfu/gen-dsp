@@ -21,6 +21,8 @@ class PureDataPlatform(Platform):
     """PureData platform implementation using pd-lib-builder."""
 
     name = "pd"
+    description = "Pure Data external"
+    build_system = "Make"
 
     @property
     def extension(self) -> str:

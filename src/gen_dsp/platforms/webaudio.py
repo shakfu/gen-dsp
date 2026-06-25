@@ -26,6 +26,8 @@ class WebAudioPlatform(Platform):
     """Web Audio platform implementation using Emscripten (emcc)."""
 
     name = "webaudio"
+    description = "Web Audio (WASM / AudioWorklet)"
+    build_system = "Make (emcc)"
 
     @property
     def extension(self) -> str:

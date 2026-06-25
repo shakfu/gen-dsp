@@ -20,7 +20,7 @@ Source type is auto-detected: directory (gen~ export), `.gdsp` file, or `.json` 
 | `--no-patch` | Skip platform patches (e.g. `exp2f` fix) |
 | `--no-shared-cache` | Disable shared OS cache for FetchContent downloads |
 | `--cache-dir DIR` | Explicit FetchContent cache directory (baked into CMakeLists.txt) |
-| `--board BOARD` | Board variant (daisy, circle) |
+| `--board BOARD` | Board variant (see `gen-dsp list --boards daisy\|circle`) |
 | `--no-midi` | Disable MIDI note handling |
 | `--midi-gate NAME` | MIDI gate parameter name |
 | `--midi-freq NAME` | MIDI frequency parameter name |
@@ -119,10 +119,10 @@ gen-dsp validate <file> [--warn-unmapped-params]
 
 Checks graph connectivity and type correctness.
 
-## dot -- Generate DOT Visualization (requires gen-dsp[graph])
+## viz -- Generate Graph Visualization (DOT) (requires gen-dsp[graph])
 
 ```bash
-gen-dsp dot <file> [-o DIR]
+gen-dsp viz <file> [-o DIR]   # 'dot' is a deprecated alias
 ```
 
 Generates a Graphviz DOT file for the graph.
@@ -145,7 +145,10 @@ gen-dsp sim <file> [-i [NAME=]FILE] [-o DIR] [-n SAMPLES] [--param NAME=VALUE] [
 ## list -- List Available Platforms
 
 ```bash
-gen-dsp list
+gen-dsp list                  # platform names, one per line
+gen-dsp list -v               # name, build system, extension, description
+gen-dsp list --json           # machine-readable metadata
+gen-dsp list --boards daisy   # valid --board variants for a platform
 ```
 
 ## cache -- Show or Prune Cached SDKs

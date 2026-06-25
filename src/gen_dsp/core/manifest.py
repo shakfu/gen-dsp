@@ -33,6 +33,7 @@ class ParamInfo:
     default: float
 
     def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-serializable dict of this parameter's fields."""
         return {
             "index": self.index,
             "name": self.name,
@@ -44,6 +45,7 @@ class ParamInfo:
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "ParamInfo":
+        """Reconstruct a ``ParamInfo`` from a :meth:`to_dict` mapping."""
         return cls(
             index=d["index"],
             name=d["name"],
@@ -69,6 +71,7 @@ class RemappedInput:
     param_index: int  # index in the expanded param list
 
     def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-serializable dict of this remapping's fields."""
         return {
             "gen_input_index": self.gen_input_index,
             "input_name": self.input_name,
@@ -77,6 +80,7 @@ class RemappedInput:
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "RemappedInput":
+        """Reconstruct a ``RemappedInput`` from a :meth:`to_dict` mapping."""
         return cls(
             gen_input_index=d["gen_input_index"],
             input_name=d["input_name"],
@@ -99,9 +103,15 @@ class Manifest:
 
     @property
     def num_params(self) -> int:
+        """Number of parameters (convenience for ``len(self.params)``)."""
         return len(self.params)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-serializable dict of the manifest.
+
+        ``remapped_inputs`` is omitted when empty, keeping the common
+        (no-remap) ``manifest.json`` output compact.
+        """
         d: dict[str, Any] = {
             "gen_name": self.gen_name,
             "num_inputs": self.num_inputs,
@@ -117,6 +127,7 @@ class Manifest:
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "Manifest":
+        """Reconstruct a ``Manifest`` from a :meth:`to_dict` mapping."""
         return cls(
             gen_name=d["gen_name"],
             num_inputs=d["num_inputs"],
@@ -131,10 +142,12 @@ class Manifest:
         )
 
     def to_json(self, indent: int = 2) -> str:
+        """Serialize to a JSON string -- the content of a project's ``manifest.json``."""
         return json.dumps(self.to_dict(), indent=indent)
 
     @classmethod
     def from_json(cls, text: str) -> "Manifest":
+        """Parse a ``Manifest`` from a :meth:`to_json` string."""
         return cls.from_dict(json.loads(text))
 
 

@@ -223,8 +223,13 @@ def cmd_validate(args: argparse.Namespace) -> int:
         return 1
 
 
-def cmd_dot(args: argparse.Namespace) -> int:
-    """Generate DOT visualization."""
+def cmd_viz(args: argparse.Namespace) -> int:
+    """Generate a graph visualization (DOT format)."""
+    if getattr(args, "command", None) == "dot":
+        print(
+            "warning: the 'dot' subcommand is deprecated; use 'viz' instead",
+            file=sys.stderr,
+        )
     try:
         graph = _load_graph(args.file)
         if args.output:
@@ -416,13 +421,20 @@ def add_validate_parser(
     )
 
 
-def add_dot_parser(
-    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
-) -> None:
-    """Add the 'dot' subcommand."""
-    p = subparsers.add_parser("dot", help="Generate DOT visualization")
+def _add_viz_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("file", help=_FILE_HELP)
     p.add_argument("-o", "--output", help="Output directory")
+
+
+def add_viz_parser(
+    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> None:
+    """Add the 'viz' subcommand, plus the deprecated 'dot' alias."""
+    p = subparsers.add_parser("viz", help="Generate graph visualization (DOT)")
+    _add_viz_args(p)
+    # Backward-compatible hidden alias for the former 'dot' name.
+    p_dot = subparsers.add_parser("dot", help=argparse.SUPPRESS)
+    _add_viz_args(p_dot)
 
 
 def add_sim_parser(
@@ -482,10 +494,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Warn on unmapped subgraph params falling back to defaults",
     )
 
-    # dot
-    p_dot = sub.add_parser("dot", help="Generate DOT visualization")
-    p_dot.add_argument("file", help=_FILE_HELP)
-    p_dot.add_argument("-o", "--output", help="Output directory")
+    # viz (with deprecated 'dot' alias)
+    p_viz = sub.add_parser("viz", help="Generate graph visualization (DOT)")
+    _add_viz_args(p_viz)
+    p_viz_dot = sub.add_parser("dot", help=argparse.SUPPRESS)
+    _add_viz_args(p_viz_dot)
 
     # sim
     p_sim = sub.add_parser("sim", help="Simulate graph (WAV in/out)")
@@ -522,8 +535,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_compile(args)
     elif args.command == "validate":
         return cmd_validate(args)
-    elif args.command == "dot":
-        return cmd_dot(args)
+    elif args.command in ("viz", "dot"):
+        return cmd_viz(args)
     elif args.command == "sim":
         return cmd_simulate(args)
 

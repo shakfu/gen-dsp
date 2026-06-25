@@ -39,6 +39,8 @@ class CsoundPlatform(Platform):
     """Csound opcode plugin platform using make."""
 
     name = "csound"
+    description = "Csound opcode"
+    build_system = "Make"
 
     @property
     def extension(self) -> str:

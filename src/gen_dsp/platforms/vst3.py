@@ -25,6 +25,8 @@ class Vst3Platform(CMakePlatform):
     """VST3 plugin platform implementation using CMake."""
 
     name = "vst3"
+    description = "VST3 plugin"
+    build_system = "CMake"
 
     @property
     def extension(self) -> str:

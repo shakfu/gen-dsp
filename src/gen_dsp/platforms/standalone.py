@@ -25,6 +25,8 @@ class StandalonePlatform(Platform):
     """Standalone audio application platform using miniaudio."""
 
     name = "standalone"
+    description = "Standalone executable (miniaudio)"
+    build_system = "Make"
 
     @property
     def extension(self) -> str:

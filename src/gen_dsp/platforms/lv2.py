@@ -33,6 +33,8 @@ class Lv2Platform(CMakePlatform):
     """LV2 plugin platform implementation using CMake."""
 
     name = "lv2"
+    description = "LV2 plugin"
+    build_system = "CMake"
     LV2_URI_BASE = "http://gen-dsp.com/plugins"
 
     _LV2_TYPE_MAP = {

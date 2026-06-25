@@ -163,6 +163,8 @@ class VcvRackPlatform(Platform):
     """VCV Rack module platform implementation using Make."""
 
     name = "vcvrack"
+    description = "VCV Rack module"
+    build_system = "Make"
 
     @property
     def extension(self) -> str:

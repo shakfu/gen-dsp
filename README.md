@@ -215,7 +215,10 @@ Currently applies the `exp2f -> exp2` fix for macOS compatibility with Max 9 exp
 List available platforms:
 
 ```bash
-gen-dsp list
+gen-dsp list                  # names only
+gen-dsp list -v               # with build system, extension, and description
+gen-dsp list --json           # machine-readable metadata
+gen-dsp list --boards daisy   # valid --board variants for a platform
 ```
 
 ### cache
@@ -275,7 +278,7 @@ Work with DSP signal graphs defined as `.gdsp` or JSON. These are top-level subc
 ```bash
 gen-dsp compile <file> [-o DIR] [--optimize]
 gen-dsp validate <file>
-gen-dsp dot <file> [-o DIR]
+gen-dsp viz <file> [-o DIR]
 gen-dsp sim <file> [-i INPUT] [-o DIR] [-n SAMPLES] [--param K=V]
 ```
 
@@ -326,7 +329,7 @@ Or compile, validate, and visualize:
 ```bash
 gen-dsp compile fbdelay.gdsp              # emit C++ to stdout
 gen-dsp validate fbdelay.gdsp             # check graph connectivity
-gen-dsp dot fbdelay.gdsp -o ./output/     # Graphviz DOT visualization
+gen-dsp viz fbdelay.gdsp -o ./output/     # Graphviz DOT visualization
 ```
 
 More examples in [`examples/dsl/`](examples/dsl/).

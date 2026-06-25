@@ -5,7 +5,7 @@ Usage:
     gen-dsp <source> -p <platform> [--no-build] [--dry-run]
     gen-dsp compile <file>
     gen-dsp validate <file>
-    gen-dsp dot <file>
+    gen-dsp viz <file>
     gen-dsp sim <file> [options]
     gen-dsp build [project-path] [-p <platform>]
     gen-dsp detect <export-path> [--json]
@@ -32,14 +32,15 @@ from gen_dsp.core.project import ProjectGenerator, ProjectConfig
 from gen_dsp.core.patcher import Patcher
 from gen_dsp.core.builder import Builder
 from gen_dsp.errors import GenExtError
-from gen_dsp.platforms import list_platforms, get_platform
+from gen_dsp.platforms import list_platforms, get_platform, is_valid_platform
 
 
 # Known subcommands for two-phase dispatch.
 SUBCOMMANDS = {
     "compile",
     "validate",
-    "dot",
+    "viz",
+    "dot",  # deprecated alias for "viz"
     "sim",
     "build",
     "detect",
@@ -77,7 +78,7 @@ Default command (auto-detects source type):
   --no-patch                Skip platform patches
   --no-shared-cache         Disable shared OS cache for FetchContent downloads
   --cache-dir DIR           Explicit FetchContent cache directory
-  --board BOARD             Board variant (daisy, circle)
+  --board BOARD             Board variant (see 'list --boards daisy|circle')
   --no-midi                 Disable MIDI note handling
   --midi-gate NAME          MIDI gate parameter name
   --midi-freq NAME          MIDI frequency parameter name
@@ -90,13 +91,13 @@ Default command (auto-detects source type):
 Subcommands:
   compile <file>            Compile graph to C++ (stdout or -o dir)
   validate <file>           Validate a graph file
-  dot <file>                Generate DOT visualization
+  viz <file>                Generate graph visualization (DOT)
   sim <file>                Simulate graph (WAV in/out)
   build [dir]               Build an existing project
   detect <dir>              Analyze a gen~ export
   patch <dir>               Apply platform-specific patches
   chain <dir>               Multi-plugin chain mode (Circle)
-  list                      List available platforms
+  list [-v] [--json]        List available platforms (-v for details)
   cache                     Show cached SDKs
   doctor                    Check build prerequisites per platform
   manifest <dir>            Emit JSON manifest for a gen~ export
@@ -177,7 +178,8 @@ def _make_default_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--board",
-        help="Board variant for embedded platforms (daisy, circle)",
+        help="Board variant for embedded platforms "
+        "(see 'gen-dsp list --boards daisy|circle')",
     )
     parser.add_argument(
         "--no-midi",
@@ -249,8 +251,8 @@ def _make_subcommand_parser() -> argparse.ArgumentParser:
         "-p",
         "--platform",
         choices=list_platforms(),
-        default="pd",
-        help="Target platform (default: pd)",
+        default=None,
+        help="Target platform (default: auto-detect from .gen-dsp.json, else pd)",
     )
     build_parser.add_argument(
         "--clean", action="store_true", help="Clean before building"
@@ -285,7 +287,23 @@ def _make_subcommand_parser() -> argparse.ArgumentParser:
     )
 
     # list command
-    subparsers.add_parser("list", help="List available target platforms")
+    list_parser = subparsers.add_parser(
+        "list", help="List available target platforms"
+    )
+    list_parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Show build system, extension, and description for each platform",
+    )
+    list_parser.add_argument(
+        "--json", action="store_true", help="Emit platform metadata as JSON"
+    )
+    list_parser.add_argument(
+        "--boards",
+        metavar="PLATFORM",
+        help="List the valid --board variants for a platform (e.g. daisy, circle)",
+    )
 
     # cache command
     cache_parser = subparsers.add_parser(
@@ -380,18 +398,18 @@ def _make_subcommand_parser() -> argparse.ArgumentParser:
         "--dry-run", action="store_true", help="Show what would be done"
     )
 
-    # graph subcommands (compile, validate, dot, sim)
+    # graph subcommands (compile, validate, viz, sim)
     try:
         from gen_dsp.graph.cli import (
             add_compile_parser,
             add_validate_parser,
-            add_dot_parser,
+            add_viz_parser,
             add_sim_parser,
         )
 
         add_compile_parser(subparsers)
         add_validate_parser(subparsers)
-        add_dot_parser(subparsers)
+        add_viz_parser(subparsers)
         add_sim_parser(subparsers)
     except ImportError:
         pass
@@ -869,8 +887,17 @@ def cmd_build(args: argparse.Namespace) -> int:
 
     try:
         builder = Builder(project_path)
+
+        platform = args.platform
+        if platform is None:
+            platform = builder.detect_platform()
+            if platform is not None:
+                print(f"Auto-detected platform '{platform}' from .gen-dsp.json")
+            else:
+                platform = "pd"
+
         result = builder.build(
-            target_platform=args.platform,
+            target_platform=platform,
             clean=args.clean,
             verbose=args.verbose,
         )
@@ -1076,7 +1103,57 @@ def cmd_patch(args: argparse.Namespace) -> int:
 
 def cmd_list(args: argparse.Namespace) -> int:
     """Handle the list command."""
-    for name in list_platforms():
+    # --boards PLATFORM: list valid --board variants for a platform.
+    boards_platform = getattr(args, "boards", None)
+    if boards_platform is not None:
+        if not is_valid_platform(boards_platform):
+            available = ", ".join(list_platforms())
+            print(
+                f"Error: unknown platform '{boards_platform}'. "
+                f"Available: {available}",
+                file=sys.stderr,
+            )
+            return 1
+        boards = get_platform(boards_platform).list_boards()
+        if getattr(args, "json", False):
+            print(json.dumps(boards, indent=2))
+            return 0
+        if not boards:
+            print(f"Platform '{boards_platform}' has no board variants.")
+            return 0
+        for board in boards:
+            print(board)
+        return 0
+
+    names = list_platforms()
+    rows = [(name, get_platform(name)) for name in names]
+
+    if getattr(args, "json", False):
+        payload = [
+            {
+                "name": name,
+                "build_system": p.build_system,
+                "extension": p.extension,
+                "description": p.description,
+            }
+            for name, p in rows
+        ]
+        print(json.dumps(payload, indent=2))
+        return 0
+
+    if getattr(args, "verbose", False):
+        # Aligned table: NAME  BUILD  EXT  DESCRIPTION
+        name_w = max((len(n) for n in names), default=4)
+        build_w = max((len(p.build_system) for _, p in rows), default=5)
+        ext_w = max((len(p.extension) for _, p in rows), default=3)
+        for name, p in rows:
+            print(
+                f"{name:<{name_w}}  {p.build_system:<{build_w}}  "
+                f"{p.extension:<{ext_w}}  {p.description}"
+            )
+        return 0
+
+    for name in names:
         print(name)
     return 0
 
@@ -1335,11 +1412,12 @@ def _dispatch_subcommand(argv: list[str]) -> int:
 
     # Add graph subcommand handlers if available
     try:
-        from gen_dsp.graph.cli import cmd_compile, cmd_validate, cmd_dot, cmd_simulate
+        from gen_dsp.graph.cli import cmd_compile, cmd_validate, cmd_viz, cmd_simulate
 
         handlers["compile"] = cmd_compile
         handlers["validate"] = cmd_validate
-        handlers["dot"] = cmd_dot
+        handlers["viz"] = cmd_viz
+        handlers["dot"] = cmd_viz  # deprecated alias
         handlers["sim"] = cmd_simulate
     except ImportError:
         pass

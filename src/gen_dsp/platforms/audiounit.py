@@ -29,6 +29,8 @@ class AudioUnitPlatform(CMakePlatform):
     """AudioUnit v2 platform implementation using CMake."""
 
     name = "au"
+    description = "Audio Unit (AUv2) plugin"
+    build_system = "CMake"
 
     # Default manufacturer code for gen-dsp generated AUs
     # Apple requires at least one non-lowercase character in manufacturer OSType

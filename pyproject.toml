@@ -9,7 +9,25 @@ authors = [
     { name = "Michael Spears" },
     { name = "Shakeeb Alireza", email = "shakfu@users.noreply.github.com" }
 ]
-keywords = ["puredata", "pd", "max", "msp", "gen~", "dsp", "audio", "external"]
+keywords = [
+    "puredata",
+    "pd",
+    "max",
+    "msp",
+    "gen~",
+    "dsp",
+    "audio",
+    "external",
+    "chuck",
+    "audiounit",
+    "clap",
+    "vst3",
+    "lv2",
+    "supercollider",
+    "vcvrack",
+    "daisy",
+    "circle",
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
@@ -17,6 +35,7 @@ classifiers = [
     "Intended Audience :: Other Audience",
     "Operating System :: MacOS",
     "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",

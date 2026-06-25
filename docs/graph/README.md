@@ -221,7 +221,7 @@ gen-dsp compile graph.json --platform chuck -o build/
 gen-dsp validate graph.json
 
 # Generate DOT visualization (stdout or directory)
-gen-dsp dot graph.json -o build/
+gen-dsp viz graph.json -o build/
 
 # Generate a buildable plugin project directly from a graph file
 gen-dsp graph.json -n myeffect -p clap -o build/myeffect

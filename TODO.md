@@ -23,7 +23,10 @@ gen-dsp can be consumed as a library by [dsp-graph](https://github.com/shakfu/ds
   (`platforms/base.py`, shared by LV2 and others), `_sanitize_sc_arg` (`platforms/supercollider.py`),
   and `_sanitize_input_name` (`core/manifest.py`). Correctness risk.
 
-- [ ] **More fixture diversity** -- No mono (1-in/1-out), high channel count, multi-buffer, or zero-parameter (other than RamplePlayer) fixtures. dsp-graph exercises more graph shapes than the CLI tests do.
+- [x] **More fixture diversity** -- Done: added minimal hand-authored gen~-style fixtures
+  covering the missing shapes -- `mono_gain` (1-in/1-out, one ranged param), `multitap`
+  (two buffers, zero params), and `octoverb` (8-in/8-out, two params) -- with parser/manifest
+  shape tests in `tests/test_fixture_shapes.py`. (These are parse/IR-only, not buildable.)
 
 - [x] **CLI integration test for the `manifest` command.** Done:
   `tests/test_cli.py::TestManifestCommand` (valid-JSON output, `--buffers` override,
@@ -43,7 +46,10 @@ gen-dsp can be consumed as a library by [dsp-graph](https://github.com/shakfu/ds
 - [x] **`cache clean` subcommand** -- Done: implemented as `gen-dsp cache --prune` (with
   `--dry-run` and `-y`), which reclaims disk space from downloaded SDKs.
 
-- [ ] **`build` command could auto-detect platform** from `manifest.json` in project directory, removing the need for `-p <platform>` (currently defaults to `pd`).
+- [x] **`build` command auto-detects platform** -- Done: project generation now writes a
+  `.gen-dsp.json` marker (recording `platform`/`board`/`version`), and `gen-dsp build` reads it
+  when `-p` is omitted (falling back to `pd` if absent). The platform is kept out of the
+  front-end-agnostic `manifest.json` deliberately.
 
 ---
 
@@ -51,23 +57,49 @@ gen-dsp can be consumed as a library by [dsp-graph](https://github.com/shakfu/ds
 
 ### Minor Code Quality
 
-- [ ] **`builder.py` may be too thin a wrapper** -- adds no logic beyond `get_platform(name).build()`. Note: dsp-graph calls `Builder(project_dir).build(platform)`, so removing the class would require a coordinated change in both repos.
+- [x] **`builder.py` thinness** -- Resolved by giving `Builder` cohesive responsibility rather
+  than removing it (removal was ruled out: dsp-graph calls `Builder(project_dir).build(platform)`).
+  `Builder` now owns project-directory platform detection: `detect_platform()` reads the
+  `.gen-dsp.json` marker, and `build()`/`clean()` accept `target_platform=None` to auto-detect
+  (falling back to `pd`). The CLI's standalone `_detect_project_platform` helper was removed in
+  favor of `Builder.detect_platform()`. (It already had `get_lib_name()`, dir validation, and
+  error translation, so it was never a pure pass-through.)
 
 ### CLI / UX
 
-- [ ] **`list` command could show descriptions** -- Currently just prints platform names. Could show build system type, supported OS, brief description. Less pressing since dsp-graph has its own platform listing via `/api/build/platforms`.
+- [x] **`list` command shows descriptions** -- Done: each `Platform` now carries `description`
+  and `build_system` class attributes; `gen-dsp list -v` prints an aligned table (name, build
+  system, extension, description) and `gen-dsp list --json` emits the same as JSON. The default
+  `gen-dsp list` still prints bare names (backward compatible). (Supported-OS column omitted --
+  the per-platform OS matrix is nuanced and would risk being misleading.)
 
-- [ ] **`--board` dynamic listing** -- Consider `gen-dsp list --boards daisy` to dynamically list valid boards instead of hardcoding in help text.
+- [x] **`--board` dynamic listing** -- Done: `Platform.list_boards()` (overridden by Daisy and
+  Circle) exposes the valid board keys, and `gen-dsp list --boards <platform>` lists them
+  (with `--json`). The `--board` help text now points at this command instead of hardcoding
+  the set. A test asserts the listed boards match the validated set, guarding against drift.
 
-- [ ] **Rename `dot` subcommand to `viz`** -- The current name is implementation-specific (Graphviz DOT format). Renaming allows for future visualization methods beyond DOT (e.g., SVG, interactive web view). dsp-graph uses the Python API (`graph_to_dot()`) directly, not the CLI subcommand.
+- [x] **Rename `dot` subcommand to `viz`** -- Done: the graph visualization subcommand is now
+  `viz` (top-level and standalone graph CLI), with `dot` retained as a hidden, deprecated alias
+  that still works but warns on stderr. The Python API (`graph_to_dot()`) and the Graphviz `dot`
+  binary references are unchanged.
 
 ### Documentation
 
-- [ ] **API documentation for core modules** (`parser`, `manifest`, `project`, `builder`) for CLI library users. Lower priority than graph subpackage docs since dsp-graph doesn't consume these.
+- [x] **API documentation for core modules** -- Done: added a hand-written, example-driven
+  [Core API guide](docs/api/core-guide.md) (the `docs/graph/api.md` analog) covering the
+  parse -> manifest -> generate -> build pipeline for library users, wired into the mkdocs nav
+  and linked from the API index. Also filled the missing docstrings on the public manifest
+  serialization methods (`to_dict`/`from_dict`/`to_json`/`from_json`) so the mkdocstrings
+  autodoc pages (`docs/api/{parser,manifest,project,builder}.md`) are complete.
 
-- [ ] **Architecture diagram** (visual, not just text in CLAUDE.md).
-- [ ] **`pyproject.toml` keywords** missing newer platform names (chuck, audiounit, clap, vst3, lv2, supercollider, daisy, vcvrack, circle).
-- [ ] **`pyproject.toml` classifiers** missing `"Operating System :: Microsoft :: Windows"` despite Windows support.
+- [x] **Architecture diagram** -- Done: added [docs/architecture.md](docs/architecture.md) with
+  Mermaid diagrams (pipeline data flow, CLI orchestration, platform registry by build system,
+  header isolation pattern), enabled Mermaid rendering in mkdocs, wired it into the nav, and
+  linked it from the docs index and CLAUDE.md.
+- [x] **`pyproject.toml` keywords** -- Done: added chuck, audiounit, clap, vst3, lv2,
+  supercollider, vcvrack, daisy, circle.
+- [x] **`pyproject.toml` classifiers** -- Done: added
+  `"Operating System :: Microsoft :: Windows"`.
 
 ---
 

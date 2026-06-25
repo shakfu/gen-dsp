@@ -45,9 +45,39 @@ class Builder:
         if not self.project_dir.is_dir():
             raise BuildError(f"Project directory not found: {self.project_dir}")
 
+    def detect_platform(self) -> Optional[str]:
+        """Return the platform recorded in this project's ``.gen-dsp.json``.
+
+        The marker is written at project generation time, so a project knows
+        its own target platform. Returns None if the marker is absent,
+        unreadable, or names a platform not in the registry (e.g. a stale or
+        hand-edited marker).
+        """
+        import json
+
+        from gen_dsp.platforms import is_valid_platform
+
+        marker = self.project_dir / ".gen-dsp.json"
+        if not marker.is_file():
+            return None
+        try:
+            data = json.loads(marker.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+        platform = data.get("platform")
+        if isinstance(platform, str) and is_valid_platform(platform):
+            return platform
+        return None
+
+    def _resolve_platform(self, target_platform: Optional[str]) -> str:
+        """Resolve an explicit platform, else auto-detect, else fall back to pd."""
+        if target_platform is not None:
+            return target_platform
+        return self.detect_platform() or "pd"
+
     def build(
         self,
-        target_platform: str = "pd",
+        target_platform: Optional[str] = None,
         clean: bool = False,
         verbose: bool = False,
     ) -> BuildResult:
@@ -55,7 +85,9 @@ class Builder:
         Build the project for the specified platform.
 
         Args:
-            target_platform: Platform name (e.g., 'pd', 'max').
+            target_platform: Platform name (e.g., 'pd', 'max'). When None, the
+                platform is auto-detected from the project's ``.gen-dsp.json``
+                marker, falling back to 'pd' if no marker is present.
             clean: If True, clean before building.
             verbose: If True, print build output in real-time.
 
@@ -69,23 +101,25 @@ class Builder:
         from gen_dsp.platforms import get_platform
 
         try:
-            platform_impl = get_platform(target_platform)
+            platform_impl = get_platform(self._resolve_platform(target_platform))
         except ValueError as e:
             raise BuildError(str(e)) from e
 
         return platform_impl.build(self.project_dir, clean=clean, verbose=verbose)
 
-    def clean(self, target_platform: str = "pd") -> None:
+    def clean(self, target_platform: Optional[str] = None) -> None:
         """
         Clean build artifacts.
 
         Args:
-            target_platform: Platform name (e.g., 'pd', 'max').
+            target_platform: Platform name (e.g., 'pd', 'max'). When None, the
+                platform is auto-detected from the project's ``.gen-dsp.json``
+                marker, falling back to 'pd'.
         """
         from gen_dsp.platforms import get_platform
 
         try:
-            platform_impl = get_platform(target_platform)
+            platform_impl = get_platform(self._resolve_platform(target_platform))
         except ValueError as e:
             raise BuildError(str(e)) from e
 

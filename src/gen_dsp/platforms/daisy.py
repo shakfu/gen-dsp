@@ -335,6 +335,8 @@ class DaisyPlatform(Platform):
     """Daisy embedded platform implementation using Make."""
 
     name = "daisy"
+    description = "Daisy embedded firmware"
+    build_system = "Make"
 
     @property
     def extension(self) -> str:
@@ -344,6 +346,10 @@ class DaisyPlatform(Platform):
     def get_build_instructions(self) -> list[str]:
         """Get build instructions for Daisy."""
         return ["make"]
+
+    def list_boards(self) -> list[str]:
+        """Return the valid Daisy board variants."""
+        return sorted(DAISY_BOARDS)
 
     def generate_project(
         self,
