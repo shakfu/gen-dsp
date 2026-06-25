@@ -199,7 +199,10 @@ class SuperColliderPlatform(CMakePlatform):
         sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", name)
         if sanitized and sanitized[0].isupper():
             sanitized = sanitized[0].lower() + sanitized[1:]
-        if sanitized and sanitized[0].isdigit():
+        # SC arg names must begin with a lowercase letter. Prefix any name that
+        # would otherwise start with a digit or underscore (e.g. symbol-only
+        # names reduce to leading underscores).
+        if sanitized and not ("a" <= sanitized[0] <= "z"):
             sanitized = "p_" + sanitized
         return sanitized or "param"
 

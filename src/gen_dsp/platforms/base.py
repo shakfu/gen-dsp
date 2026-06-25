@@ -24,6 +24,29 @@ if TYPE_CHECKING:
     from gen_dsp.graph.models import Graph
 
 
+def substitute_strict(template: Template, /, *, label: str, **mapping: object) -> str:
+    """Substitute ``$`` placeholders, erroring on undefined or malformed tokens.
+
+    Unlike ``Template.safe_substitute``, an unprovided ``$placeholder`` raises a
+    ``ProjectError`` -- catching template-variable typos at generation time
+    rather than letting them through into broken build files. Any literal ``$``
+    in a template must therefore be written ``$$`` (e.g. make/CMake variables).
+    ``label`` identifies the template in error messages.
+    """
+    try:
+        return template.substitute(mapping)
+    except KeyError as exc:
+        provided = ", ".join(sorted(mapping)) or "none"
+        raise ProjectError(
+            f"{label}: undefined template variable '${exc.args[0]}' "
+            f"(provided: {provided})"
+        ) from exc
+    except ValueError as exc:
+        raise ProjectError(
+            f"{label}: malformed '$' token ({exc}); write a literal '$' as '$$'"
+        ) from exc
+
+
 class PluginCategory(Enum):
     """Plugin category based on I/O configuration.
 
@@ -221,7 +244,9 @@ class Platform(ABC):
 
         shared_template = get_templates_dir("shared") / "gen_ext_h.template"
         template = Template(shared_template.read_text(encoding="utf-8"))
-        content = template.safe_substitute(
+        content = substitute_strict(
+            template,
+            label=f"_ext_{platform_key}.h template",
             platform_upper=platform_key.upper(),
             platform_lower=platform_key,
         )
@@ -343,8 +368,10 @@ class Platform(ABC):
         """
         if not template_path.exists():
             raise ProjectError(f"{label} not found at {template_path}")
-        content = Template(template_path.read_text(encoding="utf-8")).safe_substitute(
-            **substitutions
+        content = substitute_strict(
+            Template(template_path.read_text(encoding="utf-8")),
+            label=label,
+            **substitutions,
         )
         output_path.write_text(content, encoding="utf-8")
 
@@ -422,8 +449,9 @@ class Platform(ABC):
 
         if template_path.exists():
             template_content = template_path.read_text(encoding="utf-8")
-            template = Template(template_content)
-            content = template.safe_substitute(
+            content = substitute_strict(
+                Template(template_content),
+                label="buffer header template",
                 buffer_count=buffer_count,
                 buffer_definitions="\n".join(buffer_defs),
             )

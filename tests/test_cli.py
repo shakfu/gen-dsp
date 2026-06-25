@@ -993,3 +993,36 @@ class TestDetectGraph:
         rc = main(["detect", str(gigaverb_export)])
         assert rc == 0
         assert "Gen~ Export:" in capsys.readouterr().out
+
+
+class TestManifestCommand:
+    """Integration tests for the `manifest` CLI command."""
+
+    def test_manifest_emits_valid_json(self, gigaverb_export: Path, capsys):
+        rc = main(["manifest", str(gigaverb_export)])
+        assert rc == 0
+        out = capsys.readouterr().out
+        data = json.loads(out)  # must be parseable JSON
+        assert data["num_inputs"] == 2
+        assert data["num_outputs"] == 2
+        assert data["gen_name"]
+        assert isinstance(data["params"], list) and data["params"]
+
+    def test_manifest_buffers_override(self, gigaverb_export: Path, capsys):
+        # gigaverb has no buffers; --buffers overrides auto-detection.
+        rc = main(["manifest", str(gigaverb_export), "--buffers", "tail", "early"])
+        assert rc == 0
+        data = json.loads(capsys.readouterr().out)
+        assert data["buffers"] == ["tail", "early"]
+
+    def test_manifest_autodetects_buffers(self, rampleplayer_export: Path, capsys):
+        # RamplePlayer declares buffers; manifest should report them.
+        rc = main(["manifest", str(rampleplayer_export)])
+        assert rc == 0
+        data = json.loads(capsys.readouterr().out)
+        assert data["buffers"]  # non-empty
+
+    def test_manifest_missing_export_errors(self, tmp_path: Path, capsys):
+        rc = main(["manifest", str(tmp_path / "nonexistent")])
+        assert rc == 1
+        assert "Error parsing export" in capsys.readouterr().err

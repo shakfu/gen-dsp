@@ -282,9 +282,7 @@ class Compiler:
         # whole import tree so each file is parsed/compiled at most once.
         self._module_cache = module_cache if module_cache is not None else {}
 
-    def resolve_import(
-        self, path_str: str, graph_name: str | None, line: int
-    ) -> Graph:
+    def resolve_import(self, path_str: str, graph_name: str | None, line: int) -> Graph:
         """Load an external .gdsp file and return one of its compiled graphs.
 
         Resolves ``path_str`` relative to the importing file's directory,
@@ -296,7 +294,9 @@ class Compiler:
         resolved = path.resolve()
 
         if resolved in self._import_stack:
-            chain = " -> ".join(p.name for p in self._import_stack) + f" -> {resolved.name}"
+            chain = (
+                " -> ".join(p.name for p in self._import_stack) + f" -> {resolved.name}"
+            )
             raise GDSPCompileError(
                 f"circular import detected: {chain}",
                 line=line,
@@ -345,8 +345,7 @@ class Compiler:
         if graph_name not in module:
             names = ", ".join(sorted(module)) or "(none)"
             raise GDSPCompileError(
-                f"graph '{graph_name}' not found in '{path_str}' "
-                f"(available: {names})",
+                f"graph '{graph_name}' not found in '{path_str}' (available: {names})",
                 line=line,
                 filename=self.filename,
             )
@@ -780,9 +779,7 @@ class _GraphCtx:
 
     def _compile_import(self, stmt: ASTImportAssign) -> None:
         """Resolve an external import and emit it as a Subgraph node."""
-        sub_graph = self.compiler.resolve_import(
-            stmt.path, stmt.graph_name, stmt.line
-        )
+        sub_graph = self.compiler.resolve_import(stmt.path, stmt.graph_name, stmt.line)
         pos_args, kw_args = self._split_args(stmt.args)
         if pos_args:
             raise self._err(

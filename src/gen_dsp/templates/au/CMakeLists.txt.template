@@ -82,4 +82,4 @@ add_custom_command(TARGET $${PROJECT_NAME} POST_BUILD
 
 # Install target: user AU components directory
 install(DIRECTORY "$${CMAKE_CURRENT_BINARY_DIR}/$${PROJECT_NAME}.component"
-        DESTINATION "$ENV{HOME}/Library/Audio/Plug-Ins/Components")
+        DESTINATION "$$ENV{HOME}/Library/Audio/Plug-Ins/Components")

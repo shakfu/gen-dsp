@@ -13,7 +13,7 @@ from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines_make
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
-from gen_dsp.platforms.base import Platform
+from gen_dsp.platforms.base import Platform, substitute_strict
 from gen_dsp.templates import get_pd_templates_dir
 
 
@@ -111,8 +111,9 @@ class PureDataPlatform(Platform):
         """Generate Makefile from template."""
         if template_path.exists():
             template_content = template_path.read_text(encoding="utf-8")
-            template = Template(template_content)
-            content = template.safe_substitute(
+            content = substitute_strict(
+                Template(template_content),
+                label="Makefile template",
                 gen_name=gen_name,
                 lib_name=lib_name,
                 gendsp_version=__version__,

@@ -8,8 +8,9 @@ gen-dsp can be consumed as a library by [dsp-graph](https://github.com/shakfu/ds
 
 ### Web Audio backend follow-ups
 
-- [ ] **Web Audio buffer loading** -- The `webaudio` backend currently stubs buffer support
-  (`WRAPPER_BUFFER_COUNT 0`). Browser file loading is async and browser-specific; needs a
+- [ ] **Web Audio runtime buffer loading** -- The `webaudio` backend now generates
+  `gen_buffer.h` from `manifest.buffers` (header wiring done), but has no runtime path to
+  fill those buffers. Browser file loading is async and browser-specific; needs a
   `wa_load_buffer()` Emscripten export + JS-side `fetch()` + `decodeAudioData()` bridge.
 
 - [ ] **Web Audio build integration tests** -- Currently gated by `emcc` availability (skipped
@@ -17,22 +18,32 @@ gen-dsp can be consumed as a library by [dsp-graph](https://github.com/shakfu/ds
 
 ### Testing
 
-- [ ] **Parameter sanitization tests** -- `_sanitize_symbol()` (LV2) and SC arg sanitization lack edge-case unit tests (empty string, Unicode, leading digits). Correctness risk.
+- [ ] **Parameter sanitization tests** -- The three identifier sanitizers lack edge-case unit
+  tests (empty string, Unicode, leading digits, all-symbol names): `sanitize_c_identifier`
+  (`platforms/base.py`, shared by LV2 and others), `_sanitize_sc_arg` (`platforms/supercollider.py`),
+  and `_sanitize_input_name` (`core/manifest.py`). Correctness risk.
 
 - [ ] **More fixture diversity** -- No mono (1-in/1-out), high channel count, multi-buffer, or zero-parameter (other than RamplePlayer) fixtures. dsp-graph exercises more graph shapes than the CLI tests do.
 
-- [ ] **CLI integration tests for `cache` and `manifest` commands.**
+- [x] **CLI integration test for the `manifest` command.** Done:
+  `tests/test_cli.py::TestManifestCommand` (valid-JSON output, `--buffers` override,
+  buffer auto-detection, missing-export error). (`cache --prune` was already covered by
+  `tests/test_cache.py::TestCachePrune`.)
 
 ### Templates
 
-- [ ] **R10. Switch templates from `safe_substitute()` to `substitute()` with validation** --
-  Catches typos in template variables at generation time rather than producing broken build files. Requires auditing all templates to ensure no intentional unsubstituted `$` tokens (beyond `$$` for make variables).
+- [x] **R10. Switch templates from `safe_substitute()` to `substitute()` with validation** --
+  Done: all platform generators now route through `substitute_strict()` (`platforms/base.py`),
+  which raises `ProjectError` on an undefined `$placeholder` or malformed `$` token. The audit
+  fixed three stray unescaped tokens that previously survived only by `safe_substitute`'s
+  leniency (`au`/`clap` `$ENV{...}` and `vst3` `$<SEMICOLON>` -> `$$`-escaped).
 
 ### CLI / UX
 
-- [ ] **`cache clean` subcommand** -- Let users reclaim disk space from downloaded SDKs. Relevant for both CLI users and dsp-graph deployments that accumulate SDK fetches.
+- [x] **`cache clean` subcommand** -- Done: implemented as `gen-dsp cache --prune` (with
+  `--dry-run` and `-y`), which reclaims disk space from downloaded SDKs.
 
-- [ ] **`build` command could auto-detect platform** from `manifest.json` in project directory, removing the need for `-p <platform>`.
+- [ ] **`build` command could auto-detect platform** from `manifest.json` in project directory, removing the need for `-p <platform>` (currently defaults to `pd`).
 
 ---
 

@@ -12,7 +12,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - **GDSP DSL external file imports** -- `name = import "file.gdsp":graph(input=..., param=...)` references a graph defined in another `.gdsp` file and instantiates it as a `Subgraph`, with the same keyword-only argument rules as an in-source subgraph call. The graph name may be omitted when the target file defines exactly one graph. Relative paths resolve against the importing file's directory (the current working directory for string sources); each file is parsed and compiled at most once per top-level compilation (shared module cache, so diamond imports reuse the result); and import cycles -- direct (`a -> a`) or transitive (`a -> b -> a`) -- raise a `GDSPCompileError` reporting the chain instead of recursing without bound. This supersedes the deliberate "external imports are not supported" error added in 0.2.0.
 
+### Changed
+
+- **Strict template substitution** -- All platform generators now render templates through a shared `substitute_strict()` (`platforms/base.py`) instead of `string.Template.safe_substitute()`. An undefined `$placeholder` or a malformed bare `$` now raises a `ProjectError` naming the template and the offending token at generation time, rather than silently emitting a literal `$token` into a broken build file. Literal `$` in templates must be written `$$` (as make/CMake variables already were). Added unit tests for the helper (`tests/test_template_substitution.py`) and a `manifest` CLI integration test (`tests/test_cli.py::TestManifestCommand`).
+
 ### Fixed
+
+- **SuperCollider argument names starting with a digit or underscore** -- `_sanitize_sc_arg()` guaranteed a lowercase-letter start only for uppercase- and digit-leading names; a symbol-only or underscore-leading parameter name (e.g. `"!!!"` -> `"___"`, `"_x_"`) produced an SC `arg` beginning with `_`, which is invalid SuperCollider syntax. The guard now prefixes any name that would not otherwise start with a lowercase letter. Added edge-case tests for all three identifier sanitizers in `tests/test_sanitize.py`.
+
+- **Unescaped `$` tokens in CMake templates** -- Three template tokens survived only by `safe_substitute`'s leniency and would have broken under strict substitution: `$ENV{...}` in the AudioUnit and CLAP `CMakeLists.txt` templates, and `$<SEMICOLON>` (a generator expression) in the VST3 template. All are now `$$`-escaped to match their sibling templates; generated output is unchanged.
 
 - **Subgraph expansion of passthrough outputs** -- `expand_subgraphs()` mis-expanded any subgraph whose output is sourced directly from one of its inputs or params (a passthrough), emitting a bogus prefixed reference (e.g. `p__input`) that then failed graph validation. The output source is now resolved through the same rewrite map used for node bodies, so passthrough outputs map to the parent ref (or constant value) and inner-node outputs keep their prefixed IDs. This also fixes inline `>>` / `//` / `split` / `merge` compositions, whose composed graphs routinely contain passthrough outputs -- their post-expansion validity was previously untested.
 

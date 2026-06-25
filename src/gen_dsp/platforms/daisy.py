@@ -35,7 +35,7 @@ from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines_make
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
-from gen_dsp.platforms.base import Platform
+from gen_dsp.platforms.base import Platform, substitute_strict
 from gen_dsp.templates import get_daisy_templates_dir
 
 if TYPE_CHECKING:
@@ -469,7 +469,9 @@ class DaisyPlatform(Platform):
 
         main_loop_body = _generate_main_loop_body(board, num_params)
 
-        content = template.safe_substitute(
+        content = substitute_strict(
+            template,
+            label="Daisy main.cpp template",
             board_key=board.key,
             board_header=board.header,
             board_class=board.hw_class,

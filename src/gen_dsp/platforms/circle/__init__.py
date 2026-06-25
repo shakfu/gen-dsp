@@ -10,7 +10,7 @@ from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines_make
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
-from gen_dsp.platforms.base import Platform
+from gen_dsp.platforms.base import Platform, substitute_strict
 from gen_dsp.templates import get_circle_templates_dir
 
 from gen_dsp.platforms.circle.boards import (
@@ -213,7 +213,9 @@ class CirclePlatform(Platform):
         template_content = template_path.read_text(encoding="utf-8")
         template = Template(template_content)
 
-        content = template.safe_substitute(
+        content = substitute_strict(
+            template,
+            label="gen_ext_circle.cpp template",
             board_key=board.key,
             rasppi=board.rasppi,
             kernel_img=board.kernel_img,
@@ -451,7 +453,9 @@ int main(void)
         config_template_path = get_circle_templates_dir() / "config.txt.template"
         if config_template_path.is_file():
             config_content = config_template_path.read_text(encoding="utf-8")
-            config_txt = Template(config_content).safe_substitute(
+            config_txt = substitute_strict(
+                Template(config_content),
+                label="config.txt template",
                 audio_boot_config=_get_boot_config(circle_board.audio_device),
             )
             (output_dir / "config.txt").write_text(config_txt, encoding="utf-8")
@@ -672,7 +676,9 @@ int main(void)
         else:
             final_output_ptr = "m_pScratchA"
 
-        content = template.safe_substitute(
+        content = substitute_strict(
+            template,
+            label="gen_ext_circle_chain.cpp template",
             board_key=board.key,
             rasppi=board.rasppi,
             kernel_img=board.kernel_img,
@@ -717,7 +723,9 @@ int main(void)
         # But if audio is also USB, we don't duplicate.
         extra_libs = _get_extra_libs(board.audio_device)
 
-        content = template.safe_substitute(
+        content = substitute_strict(
+            template,
+            label="Circle chain Makefile template",
             lib_name=lib_name,
             gendsp_version=__version__,
             num_nodes=len(chain),
@@ -885,7 +893,9 @@ int main(void)
                 clear_lines.append(f"            m_DagBufStorage_{i}[{ch}][i] = 0.0f;")
         dag_clear_buffers = "\n".join(clear_lines)
 
-        content = template.safe_substitute(
+        content = substitute_strict(
+            template,
+            label="gen_ext_circle_dag.cpp template",
             board_key=board.key,
             rasppi=board.rasppi,
             kernel_img=board.kernel_img,
@@ -935,7 +945,9 @@ int main(void)
 
         extra_libs = _get_extra_libs(board.audio_device)
 
-        content = template.safe_substitute(
+        content = substitute_strict(
+            template,
+            label="Circle DAG Makefile template",
             lib_name=lib_name,
             gendsp_version=__version__,
             num_nodes=len(dag_nodes),

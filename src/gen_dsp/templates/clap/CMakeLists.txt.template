@@ -114,15 +114,15 @@ if(APPLE)
 
     # Install to macOS CLAP directory
     install(DIRECTORY "$$<TARGET_BUNDLE_DIR:$${PROJECT_NAME}>"
-            DESTINATION "$ENV{HOME}/Library/Audio/Plug-Ins/CLAP")
+            DESTINATION "$$ENV{HOME}/Library/Audio/Plug-Ins/CLAP")
 elseif(WIN32)
     # Windows: flat .clap DLL
     set_target_properties($${PROJECT_NAME} PROPERTIES SUFFIX ".clap")
     install(FILES "$$<TARGET_FILE:$${PROJECT_NAME}>"
-            DESTINATION "$ENV{COMMONPROGRAMFILES}/CLAP")
+            DESTINATION "$$ENV{COMMONPROGRAMFILES}/CLAP")
 elseif(UNIX)
     # Linux: flat .clap shared library
     set_target_properties($${PROJECT_NAME} PROPERTIES SUFFIX ".clap")
     install(FILES "$$<TARGET_FILE:$${PROJECT_NAME}>"
-            DESTINATION "$ENV{HOME}/.clap")
+            DESTINATION "$$ENV{HOME}/.clap")
 endif()
