@@ -1,6 +1,7 @@
 // webaudio_buffer.h - Buffer class for gen~ code (genlib side)
 // Uses DataInterface for gen~ compatibility, no Emscripten headers
-// Buffer loading is not yet supported in the Web Audio backend.
+// Buffer contents are filled at runtime via wa_load_buffer (see
+// _ext_webaudio.cpp / gen_ext_webaudio.cpp), fed from JS decodeAudioData.
 
 #ifndef WEBAUDIO_BUFFER_H
 #define WEBAUDIO_BUFFER_H

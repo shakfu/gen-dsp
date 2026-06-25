@@ -76,4 +76,20 @@ float wa_get_param_default(int state_ptr, int index) {
     return wrapper_get_param((GenState*)(intptr_t)state_ptr, index);
 }
 
+EMSCRIPTEN_KEEPALIVE
+int wa_get_num_buffers() {
+    return wrapper_num_buffers();
+}
+
+EMSCRIPTEN_KEEPALIVE
+const char* wa_get_buffer_name(int index) {
+    return wrapper_buffer_name(index);
+}
+
+EMSCRIPTEN_KEEPALIVE
+void wa_load_buffer(int index, int data_ptr, int frames, int channels) {
+    const float* data = (const float*)(intptr_t)data_ptr;
+    wrapper_load_buffer(index, data, (long)frames, (long)channels);
+}
+
 } // extern "C"

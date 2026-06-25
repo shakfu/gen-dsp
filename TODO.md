@@ -8,10 +8,13 @@ gen-dsp can be consumed as a library by [dsp-graph](https://github.com/shakfu/ds
 
 ### Web Audio backend follow-ups
 
-- [ ] **Web Audio runtime buffer loading** -- The `webaudio` backend now generates
-  `gen_buffer.h` from `manifest.buffers` (header wiring done), but has no runtime path to
-  fill those buffers. Browser file loading is async and browser-specific; needs a
-  `wa_load_buffer()` Emscripten export + JS-side `fetch()` + `decodeAudioData()` bridge.
+- [x] **Web Audio runtime buffer loading** -- Done: added `wa_load_buffer` /
+  `wa_get_num_buffers` / `wa_get_buffer_name` Emscripten exports backed by a genlib-side
+  `wrapper_load_buffer()` (writes interleaved samples into the `WebaudioBuffer` instances).
+  The worklet (`processor.js`) handles a `load-buffer` message (queued until the WASM is
+  ready), and `index.html` provides a per-buffer file input that decodes audio via
+  `decodeAudioData()` and posts the samples to the worklet. Verified end-to-end (emcc build +
+  Node round-trip) by `test_buffer_loading_rampleplayer`.
 
 - [ ] **Web Audio build integration tests** -- Currently gated by `emcc` availability (skipped
   in CI). Consider adding Emscripten to CI or a lightweight WASM validation step.

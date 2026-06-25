@@ -123,6 +123,7 @@ class WebAudioPlatform(Platform):
             num_params=str(len(manifest.params)),
             param_descriptors=json.dumps(param_descriptors, indent=4),
             num_outputs_array=num_outputs_array,
+            buffer_names=json.dumps(manifest.buffers),
         )
 
     @staticmethod
@@ -236,6 +237,7 @@ class WebAudioPlatform(Platform):
             num_params=str(len(manifest.params)),
             param_descriptors=json.dumps(param_descriptors, indent=4),
             num_outputs_array=num_outputs_array,
+            buffer_names=json.dumps(manifest.buffers),
         )
 
     def build(

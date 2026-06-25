@@ -6,7 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.3.0]
+
 ### Added
+
+- **Web Audio runtime buffer loading** -- The `webaudio` backend can now fill gen~ buffers with sample data at runtime. New Emscripten exports (`wa_load_buffer`, `wa_get_num_buffers`, `wa_get_buffer_name`) are backed by a genlib-side `wrapper_load_buffer()` that copies interleaved float samples into the `WebaudioBuffer` instances. The AudioWorklet (`processor.js`) handles a `load-buffer` message (queued until the WASM module is ready, then applied between render quanta), and the generated `index.html` adds a file input per buffer that decodes an audio file via `decodeAudioData()` and posts the samples to the worklet. Previously buffers were allocated but unfillable, so buffer-backed patches (sample players, wavetables) ran silent; effects and parameter-driven generators were unaffected. Covered by a Node.js round-trip integration test (`test_buffer_loading_rampleplayer`).
 
 - **GDSP DSL `split()` / `merge()` composition** -- The fan-out/fan-in combinators are now callable from `.gdsp` source (previously available only via the Python `gen_dsp.graph.algebra` API). They accept two graph operands (graph references, partially-applied graph calls, or nested compositions), compose with `>>` and `//`, and lower to a `Subgraph` wrapping the composed graph. `split(a, b)` distributes `a`'s outputs cyclically across `b`'s inputs (requires `len(b.inputs) % len(a.outputs) == 0`); `merge(a, b)` sums groups of `a`'s outputs into `b`'s inputs (requires `len(a.outputs) % len(b.inputs) == 0`).
 

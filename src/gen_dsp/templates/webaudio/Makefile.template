@@ -33,7 +33,7 @@ EMFLAGS = -O2 \
     -s MODULARIZE=1 \
     -s EXPORT_NAME='$export_name' \
     -s ENVIRONMENT='web,worker,node' \
-    -s EXPORTED_FUNCTIONS='["_wa_create","_wa_destroy","_wa_perform","_wa_get_num_inputs","_wa_get_num_outputs","_wa_get_num_params","_wa_set_param","_wa_get_param","_wa_get_param_name","_wa_get_param_min","_wa_get_param_max","_wa_get_param_default","_malloc","_free"]' \
+    -s EXPORTED_FUNCTIONS='["_wa_create","_wa_destroy","_wa_perform","_wa_get_num_inputs","_wa_get_num_outputs","_wa_get_num_params","_wa_set_param","_wa_get_param","_wa_get_param_name","_wa_get_param_min","_wa_get_param_max","_wa_get_param_default","_wa_get_num_buffers","_wa_get_buffer_name","_wa_load_buffer","_malloc","_free"]' \
     -s EXPORTED_RUNTIME_METHODS='["cwrap","UTF8ToString","HEAPU32","HEAPF32"]'
 
 BUILD_DIR = build

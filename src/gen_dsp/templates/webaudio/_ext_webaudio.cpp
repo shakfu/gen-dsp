@@ -230,4 +230,57 @@ const char* wrapper_buffer_name(int index) {
     return nullptr;
 }
 
+// Pointers to the buffer instances, parallel to buffer_names[] above so that
+// wrapper_load_buffer() can address a buffer by the same index the JS side
+// discovers via wrapper_num_buffers()/wrapper_buffer_name().
+static WebaudioBuffer* buffer_ptrs[] = {
+#ifdef WRAPPER_BUFFER_NAME_0
+    &WRAPPER_BUFFER_NAME_0,
+#endif
+#ifdef WRAPPER_BUFFER_NAME_1
+    &WRAPPER_BUFFER_NAME_1,
+#endif
+#ifdef WRAPPER_BUFFER_NAME_2
+    &WRAPPER_BUFFER_NAME_2,
+#endif
+#ifdef WRAPPER_BUFFER_NAME_3
+    &WRAPPER_BUFFER_NAME_3,
+#endif
+#ifdef WRAPPER_BUFFER_NAME_4
+    &WRAPPER_BUFFER_NAME_4,
+#endif
+#ifdef WRAPPER_BUFFER_NAME_5
+    &WRAPPER_BUFFER_NAME_5,
+#endif
+#ifdef WRAPPER_BUFFER_NAME_6
+    &WRAPPER_BUFFER_NAME_6,
+#endif
+#ifdef WRAPPER_BUFFER_NAME_7
+    &WRAPPER_BUFFER_NAME_7,
+#endif
+    nullptr
+};
+
+// Fill buffer `index` with `frames * channels` interleaved (frame-major) float
+// samples. Reallocates the buffer to the given size; runs on the audio thread
+// between render quanta (the Worklet serializes port messages with process()),
+// so no locking is needed.
+void wrapper_load_buffer(int index, const float* data, long frames, long channels) {
+    if (index < 0 || index >= WRAPPER_BUFFER_COUNT || data == nullptr) {
+        return;
+    }
+    if (frames < 0) frames = 0;
+    if (channels < 1) channels = 1;
+    WebaudioBuffer* buf = buffer_ptrs[index];
+    if (buf == nullptr) {
+        return;
+    }
+    buf->allocate(frames, channels);
+    for (long i = 0; i < frames; i++) {
+        for (long c = 0; c < channels; c++) {
+            buf->write(data[i * channels + c], i, c);
+        }
+    }
+}
+
 } // namespace WRAPPER_NAMESPACE

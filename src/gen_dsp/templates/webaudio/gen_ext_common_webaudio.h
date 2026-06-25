@@ -17,4 +17,12 @@
 // Namespace for wrapper functions (isolates genlib from Emscripten bridge)
 #define WRAPPER_NAMESPACE WRAPPER_FUN2(WEBAUDIO_EXT_NAME, _webaudio)
 
+// Web Audio buffer loading: defined on the genlib side in _ext_webaudio.cpp and
+// called from the Emscripten bridge. Copies `frames * channels` interleaved
+// float32 samples (frame-major) into the buffer at `index`. Declared here so it
+// is visible to both sides without exposing genlib's WebaudioBuffer type.
+namespace WRAPPER_NAMESPACE {
+void wrapper_load_buffer(int index, const float* data, long frames, long channels);
+}
+
 #endif // GEN_EXT_COMMON_WEBAUDIO_H

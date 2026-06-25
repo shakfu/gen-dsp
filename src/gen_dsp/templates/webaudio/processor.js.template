@@ -32,11 +32,14 @@ class $processor_class extends AudioWorkletProcessor {
         this._inBufs = [];
         this._outBufs = [];
         this._mod = null;
+        this._pendingBuffers = [];
 
-        // Wait for the main thread to send the WASM binary
+        // Wait for the main thread to send the WASM binary and buffer data.
         this.port.onmessage = (e) => {
             if (e.data.type === 'wasm-binary') {
                 this._loadWasm(e.data.binary);
+            } else if (e.data.type === 'load-buffer') {
+                this._loadBuffer(e.data);
             }
         };
     }
@@ -49,10 +52,33 @@ class $processor_class extends AudioWorkletProcessor {
             this._mod = await $export_name({ wasmBinary: wasmBinary });
             this._initDsp();
             this._ready = true;
+            // Apply any buffers that arrived before the module finished loading.
+            const pending = this._pendingBuffers;
+            this._pendingBuffers = [];
+            for (const msg of pending) {
+                this._loadBuffer(msg);
+            }
             this.port.postMessage({ type: 'ready' });
         } catch (err) {
             this.port.postMessage({ type: 'error', message: err.message });
         }
+    }
+
+    // Copy interleaved (frame-major) float32 sample data into a gen~ buffer.
+    // Runs on the audio thread between render quanta, so it is safe to
+    // reallocate the buffer here without locking.
+    _loadBuffer(msg) {
+        if (!this._ready) {
+            this._pendingBuffers.push(msg);
+            return;
+        }
+        const m = this._mod;
+        const data = msg.data;
+        if (!data || data.length === 0) return;
+        const ptr = m._malloc(data.length * 4);
+        m.HEAPF32.set(data, ptr / 4);
+        m._wa_load_buffer(msg.index, ptr, msg.frames, msg.channels);
+        m._free(ptr);
     }
 
     _initDsp() {

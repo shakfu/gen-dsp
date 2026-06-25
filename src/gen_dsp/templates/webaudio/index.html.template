@@ -58,6 +58,7 @@ button.active { background: #e94560; border-color: #e94560; color: #fff; }
     <div class="subtitle">$num_inputs in / $num_outputs out | $num_params params | gen-dsp webaudio</div>
     <button id="toggle" onclick="toggleAudio()">Start Audio</button>
     <div id="params"></div>
+    <div id="buffers"></div>
     <div id="status">Click Start to initialize Web Audio.</div>
 </div>
 <script>
@@ -65,11 +66,45 @@ const LIB_NAME = '$lib_name';
 const NUM_INPUTS = $num_inputs;
 const NUM_OUTPUTS = $num_outputs;
 const PARAMS = $param_descriptors;
+const BUFFER_NAMES = $buffer_names;
 
 let ctx = null;
 let workletNode = null;
 let running = false;
 let sourceNode = null;
+// Buffer files chosen before audio starts; applied once the worklet exists.
+const pendingBufferFiles = {};
+
+// Decode an audio file and load it into gen~ buffer `index`. decodeAudioData
+// is main-thread only, so we decode here and post the samples to the worklet.
+async function loadBufferIntoNode(index, file) {
+    if (!ctx || !workletNode) {
+        pendingBufferFiles[index] = file;
+        document.getElementById('status').textContent =
+            'Buffer "' + BUFFER_NAMES[index] + '" queued; loads when audio starts.';
+        return;
+    }
+    const arrayBuf = await file.arrayBuffer();
+    const audioBuf = await ctx.decodeAudioData(arrayBuf);
+    const frames = audioBuf.length;
+    const channels = audioBuf.numberOfChannels;
+    // Interleave (frame-major) to match the gen~ buffer storage layout.
+    const interleaved = new Float32Array(frames * channels);
+    for (let c = 0; c < channels; c++) {
+        const cd = audioBuf.getChannelData(c);
+        for (let i = 0; i < frames; i++) {
+            interleaved[i * channels + c] = cd[i];
+        }
+    }
+    workletNode.port.postMessage(
+        { type: 'load-buffer', index: index, frames: frames,
+          channels: channels, data: interleaved },
+        [interleaved.buffer]
+    );
+    document.getElementById('status').textContent =
+        'Loaded "' + BUFFER_NAMES[index] + '": ' + frames + ' frames, ' +
+        channels + ' ch.';
+}
 
 async function toggleAudio() {
     const btn = document.getElementById('toggle');
@@ -154,6 +189,13 @@ async function toggleAudio() {
                 });
             }
         }
+
+        // Apply any buffer files chosen before audio started.
+        for (const idx of Object.keys(pendingBufferFiles)) {
+            const f = pendingBufferFiles[idx];
+            delete pendingBufferFiles[idx];
+            await loadBufferIntoNode(parseInt(idx, 10), f);
+        }
     } catch (err) {
         document.getElementById('status').textContent = 'Error: ' + err.message;
         console.error(err);
@@ -173,6 +215,27 @@ for (const p of PARAMS) {
         '<span class="value" id="val-' + p._index + '">' +
         p.defaultValue.toFixed(3) + '</span>';
     paramsDiv.appendChild(div);
+}
+
+// Build buffer file-input UI (one per gen~ buffer)
+const buffersDiv = document.getElementById('buffers');
+for (let i = 0; i < BUFFER_NAMES.length; i++) {
+    const div = document.createElement('div');
+    div.className = 'param';
+    div.innerHTML =
+        '<label>' + BUFFER_NAMES[i] + '</label>' +
+        '<input type="file" accept="audio/*" id="buf-' + i + '">';
+    buffersDiv.appendChild(div);
+    (function(idx) {
+        document.getElementById('buf-' + idx).addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                loadBufferIntoNode(idx, e.target.files[0]).catch((err) => {
+                    document.getElementById('status').textContent =
+                        'Buffer load error: ' + err.message;
+                });
+            }
+        });
+    })(i);
 }
 </script>
 </body>

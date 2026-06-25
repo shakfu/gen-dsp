@@ -190,6 +190,92 @@ def _validate_wasm(
     assert "DONE" in output
 
 
+_VALIDATE_BUFFER_JS = """\
+// Node.js test for the runtime buffer-loading bridge: introspect buffers and
+// round-trip a block of samples through wa_load_buffer.
+const path = require('path');
+
+const LIB_NAME = process.argv[2];
+const BUILD_DIR = process.argv[3];
+const EXPECTED_BUFFERS = parseInt(process.argv[4] || '0', 10);
+const EXPECTED_NAME = process.argv[5] || '';
+
+async function main() {
+    const factory = require(path.join(BUILD_DIR, LIB_NAME + '.js'));
+    const mod = await factory();
+
+    const n = mod._wa_get_num_buffers();
+    console.log('NUM_BUFFERS ' + n);
+    if (n !== EXPECTED_BUFFERS) {
+        console.log('BUFFER_COUNT_FAIL expected=' + EXPECTED_BUFFERS + ' got=' + n);
+    }
+
+    if (n > 0) {
+        const name = mod.UTF8ToString(mod._wa_get_buffer_name(0));
+        console.log('BUFFER_0 ' + name);
+        if (name !== EXPECTED_NAME) {
+            console.log('BUFFER_NAME_FAIL expected=' + EXPECTED_NAME + ' got=' + name);
+        }
+
+        // Load a small interleaved (mono) block; must not crash.
+        const frames = 64, channels = 1;
+        const ptr = mod._malloc(frames * channels * 4);
+        for (let i = 0; i < frames * channels; i++) {
+            mod.HEAPF32[ptr / 4 + i] = Math.sin(i * 0.1);
+        }
+        mod._wa_load_buffer(0, ptr, frames, channels);
+        mod._free(ptr);
+
+        // Out-of-range index must be a safe no-op.
+        mod._wa_load_buffer(999, ptr, frames, channels);
+        console.log('LOAD_OK');
+    }
+
+    console.log('DONE');
+}
+
+main().catch(err => { console.error(err); process.exit(1); });
+"""
+
+
+def _validate_buffers(
+    project_dir: Path,
+    lib_name: str,
+    expected_buffers: int,
+    expected_name: str,
+) -> None:
+    """Build-time Node.js check of the buffer-loading bridge."""
+    if not _has_node:
+        return
+
+    (project_dir / "validate_buffers.js").write_text(_VALIDATE_BUFFER_JS)
+    result = subprocess.run(
+        [
+            "node",
+            "validate_buffers.js",
+            lib_name,
+            str(project_dir / "build"),
+            str(expected_buffers),
+            expected_name,
+        ],
+        cwd=project_dir,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 0, (
+        f"node validate_buffers.js failed:\n"
+        f"stdout: {result.stdout}\nstderr: {result.stderr}"
+    )
+    out = result.stdout
+    assert "FAIL" not in out, out
+    assert f"NUM_BUFFERS {expected_buffers}" in out
+    if expected_buffers > 0:
+        assert f"BUFFER_0 {expected_name}" in out
+        assert "LOAD_OK" in out
+    assert "DONE" in out
+
+
 class TestWebAudioPlatform:
     """Test Web Audio platform registry and basic properties."""
 
@@ -265,6 +351,54 @@ class TestWebAudioProjectGeneration:
         buffer_h = (project_dir / "gen_buffer.h").read_text()
         assert "WRAPPER_BUFFER_COUNT 1" in buffer_h
         assert "WRAPPER_BUFFER_NAME_0 sample" in buffer_h
+
+    def test_buffer_loading_bridge_wired(
+        self, rampleplayer_export: Path, tmp_project: Path
+    ):
+        """The runtime buffer-loading bridge is generated end to end."""
+        export_info = GenExportParser(rampleplayer_export).parse()
+        config = ProjectConfig(
+            name="sampler", platform="webaudio", buffers=["sample"]
+        )
+        project_dir = ProjectGenerator(export_info, config).generate(tmp_project)
+
+        # Emscripten export list includes the buffer entry points.
+        makefile = (project_dir / "Makefile").read_text()
+        for sym in ("_wa_load_buffer", "_wa_get_num_buffers", "_wa_get_buffer_name"):
+            assert sym in makefile, f"{sym} missing from EXPORTED_FUNCTIONS"
+
+        # C bridge defines the exports and the genlib-side loader.
+        bridge = (project_dir / "gen_ext_webaudio.cpp").read_text()
+        assert "void wa_load_buffer(" in bridge
+        common = (project_dir / "gen_ext_common_webaudio.h").read_text()
+        assert "wrapper_load_buffer" in common
+        ext = (project_dir / "_ext_webaudio.cpp").read_text()
+        assert "void wrapper_load_buffer(" in ext
+        assert "buffer_ptrs[]" in ext
+
+        # Worklet handles the load-buffer message; index.html builds the UI.
+        procjs = (project_dir / "_processor.js").read_text()
+        assert "load-buffer" in procjs
+        assert "_loadBuffer" in procjs
+        assert "_wa_load_buffer" in procjs
+        html = (project_dir / "index.html").read_text()
+        assert 'const BUFFER_NAMES = ["sample"];' in html
+        assert "decodeAudioData" in html
+        assert "loadBufferIntoNode" in html
+
+    def test_no_buffer_ui_when_no_buffers(
+        self, gigaverb_export: Path, tmp_project: Path
+    ):
+        """A patch with no buffers still wires the bridge but lists no buffers."""
+        export_info = GenExportParser(gigaverb_export).parse()
+        config = ProjectConfig(name="giga", platform="webaudio")
+        project_dir = ProjectGenerator(export_info, config).generate(tmp_project)
+
+        html = (project_dir / "index.html").read_text()
+        assert "const BUFFER_NAMES = [];" in html
+        # The export is still present (harmless), so buffer-capable patches work
+        # without regenerating.
+        assert "_wa_load_buffer" in (project_dir / "Makefile").read_text()
 
     def test_processor_js_has_param_descriptors(
         self, gigaverb_export: Path, tmp_project: Path
@@ -482,4 +616,32 @@ class TestWebAudioBuildIntegration:
 
         _validate_wasm(
             project_dir, "spectraldelayfb", expected_params=0, has_inputs=True
+        )
+
+    @_skip_no_validation
+    def test_buffer_loading_rampleplayer(
+        self, rampleplayer_export: Path, tmp_path: Path
+    ):
+        """Build a buffer-using patch and round-trip data through the bridge."""
+        project_dir = tmp_path / "rample_buffers"
+        export_info = GenExportParser(rampleplayer_export).parse()
+
+        config = ProjectConfig(
+            name="rample", platform="webaudio", buffers=["sample"]
+        )
+        ProjectGenerator(export_info, config).generate(project_dir)
+
+        result = subprocess.run(
+            ["make", "all"],
+            cwd=project_dir,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        assert result.returncode == 0, (
+            f"make all failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
+        )
+
+        _validate_buffers(
+            project_dir, "rample", expected_buffers=1, expected_name="sample"
         )
