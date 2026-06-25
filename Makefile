@@ -2,7 +2,7 @@
 
 .PHONY: all install install-dev test test-cov clean dist publish-test publish \
        help venv examples graph-examples lint format typecheck qa \
-       gen-export-examples docs-build docs-serve docs-deploy
+       gen-export-examples docs-build docs-serve docs-deploy check
 
 VENV := .venv
 UV := uv
@@ -173,6 +173,9 @@ docs-serve:
 
 docs-deploy:
 	$(UV) run mkdocs gh-deploy --force
+
+check:
+	$(UV) run twine check dist/*
 
 # Build distribution
 dist: clean
