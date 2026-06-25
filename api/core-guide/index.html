@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://shakfu.github.io/gen-dsp/api/graph-compile/">
+        <link rel="canonical" href="https://shakfu.github.io/gen-dsp/api/core-guide/">
       
       
-        <link rel="prev" href="../graph-models/">
+        <link rel="prev" href="../">
       
       
-        <link rel="next" href="../graph-validate/">
+        <link rel="next" href="../parser/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Compile - gen-dsp</title>
+        <title>Guide - gen-dsp</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#graph-compiler" class="md-skip">
+        <a href="#gen_dsp-core-api-guide" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Compile
+              Guide
             
           </span>
         </div>
@@ -1305,6 +1305,8 @@
                 
   
   
+    
+  
   
   
     
@@ -1314,13 +1316,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7_2" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_2" checked>
         
           
           <label class="md-nav__link" for="__nav_7_2" id="__nav_7_2_label" tabindex="0">
@@ -1341,7 +1341,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_2_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_2_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_7_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1356,10 +1356,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../core-guide/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guide
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1375,6 +1402,215 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-parsing-a-gen-export-coreparser" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Parsing a gen~ export -- core.parser
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Parsing a gen~ export -- core.parser">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#genexportparserexport_path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GenExportParser(export_path)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#genexportparserparse-exportinfo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GenExportParser.parse() -&gt; ExportInfo
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-building-the-manifest-coremanifest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Building the manifest -- core.manifest
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Building the manifest -- core.manifest">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#manifest_from_export_infoexport_info-buffers-version-manifest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        manifest_from_export_info(export_info, buffers, version) -&gt; Manifest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#apply_inputs_as_paramsmanifest-input_names-remap_namesnone-manifest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        apply_inputs_as_params(manifest, input_names, remap_names=None) -&gt; Manifest
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-generating-a-project-coreproject" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Generating a project -- core.project
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Generating a project -- core.project">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#projectconfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ProjectConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#projectgeneratorexport_info-config-and-generateoutput_dirnone-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ProjectGenerator(export_info, config) and .generate(output_dir=None) -&gt; Path
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#projectgeneratorfrom_graphgraph-config-classmethod" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ProjectGenerator.from_graph(graph, config) (classmethod)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-building-corebuilder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Building -- core.builder
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Building -- core.builder">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#builderproject_dir" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Builder(project_dir)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#buildresult" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BuildResult
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#end-to-end-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        End-to-end example
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1703,8 +1939,6 @@
                 
   
   
-    
-  
   
   
     
@@ -1714,11 +1948,13 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_5" checked>
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7_5" >
         
           
           <label class="md-nav__link" for="__nav_7_5" id="__nav_7_5_label" tabindex="0">
@@ -1739,7 +1975,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_5_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_7_5">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1782,37 +2018,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Compile
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../graph-compile/" class="md-nav__link">
         
   
   
@@ -1828,65 +2037,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#gen_dsp.graph.compile" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        compile
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="compile">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#gen_dsp.graph.compile.compile_graph" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        compile_graph
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#gen_dsp.graph.compile.compile_graph_to_file" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        compile_graph_to_file
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2190,22 +2340,22 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#gen_dsp.graph.compile" class="md-nav__link">
+  <a href="#1-parsing-a-gen-export-coreparser" class="md-nav__link">
     <span class="md-ellipsis">
       
-        compile
+        1. Parsing a gen~ export -- core.parser
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="compile">
+    <nav class="md-nav" aria-label="1. Parsing a gen~ export -- core.parser">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#gen_dsp.graph.compile.compile_graph" class="md-nav__link">
+  <a href="#genexportparserexport_path" class="md-nav__link">
     <span class="md-ellipsis">
       
-        compile_graph
+        GenExportParser(export_path)
       
     </span>
   </a>
@@ -2213,10 +2363,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#gen_dsp.graph.compile.compile_graph_to_file" class="md-nav__link">
+  <a href="#genexportparserparse-exportinfo" class="md-nav__link">
     <span class="md-ellipsis">
       
-        compile_graph_to_file
+        GenExportParser.parse() -&gt; ExportInfo
       
     </span>
   </a>
@@ -2225,6 +2375,156 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-building-the-manifest-coremanifest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Building the manifest -- core.manifest
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Building the manifest -- core.manifest">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#manifest_from_export_infoexport_info-buffers-version-manifest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        manifest_from_export_info(export_info, buffers, version) -&gt; Manifest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#apply_inputs_as_paramsmanifest-input_names-remap_namesnone-manifest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        apply_inputs_as_params(manifest, input_names, remap_names=None) -&gt; Manifest
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-generating-a-project-coreproject" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Generating a project -- core.project
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Generating a project -- core.project">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#projectconfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ProjectConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#projectgeneratorexport_info-config-and-generateoutput_dirnone-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ProjectGenerator(export_info, config) and .generate(output_dir=None) -&gt; Path
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#projectgeneratorfrom_graphgraph-config-classmethod" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ProjectGenerator.from_graph(graph, config) (classmethod)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-building-corebuilder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Building -- core.builder
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Building -- core.builder">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#builderproject_dir" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Builder(project_dir)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#buildresult" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BuildResult
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#end-to-end-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        End-to-end example
+      
+    </span>
+  </a>
   
 </li>
       
@@ -2248,97 +2548,156 @@
   
 
 
-<h1 id="graph-compiler">Graph Compiler<a class="headerlink" href="#graph-compiler" title="Permanent link">&para;</a></h1>
-<p>Compiles a <code>Graph</code> to standalone C++ code (no genlib dependency).</p>
-
-
-<div class="doc doc-object doc-module">
-
-
-
-<h2 id="gen_dsp.graph.compile" class="doc doc-heading">
-            <span class="doc doc-object-name doc-module-name">compile</span>
-
-
-<a href="#gen_dsp.graph.compile" class="headerlink" title="Permanent link">&para;</a></h2>
-
-    <div class="doc doc-contents first">
-
-        <p>C++ code generation from DSP graphs.</p>
-
-
-
-
-
-
-
-
-
-
-<div class="doc doc-children">
-
-
-
-
-
-
-
-
-
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="gen_dsp.graph.compile.compile_graph" class="doc doc-heading">
-            <span class="doc doc-object-name doc-function-name">compile_graph</span>
-
-
-<a href="#gen_dsp.graph.compile.compile_graph" class="headerlink" title="Permanent link">&para;</a></h3>
-<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">compile_graph</span><span class="p">(</span><span class="n">graph</span><span class="p">:</span> <span class="n">Graph</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
+<h1 id="gen_dsp-core-api-guide">gen_dsp core API guide<a class="headerlink" href="#gen_dsp-core-api-guide" title="Permanent link">&para;</a></h1>
+<p>A usage-oriented guide to the zero-dependency <code>gen_dsp.core</code> pipeline for library users (no gen~ export tooling or pydantic required). The per-symbol reference is auto-generated on the <a href="../parser/">Parser</a>, <a href="../manifest/">Manifest</a>, <a href="../project/">Project</a>, and <a href="../builder/">Builder</a> pages; this guide shows how the pieces fit together.</p>
+<p>The pipeline has four stages, each a thin, independently usable layer:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>export dir --GenExportParser--&gt; ExportInfo --manifest_from_export_info--&gt; Manifest
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>           --ProjectGenerator.generate--&gt; project dir --Builder.build--&gt; BuildResult
 </code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Compile a DSP graph to standalone C++ source code.</p>
-<p>Raises ValueError if the graph is invalid or contains IDs that are
-not valid C identifiers.</p>
-
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="gen_dsp.graph.compile.compile_graph_to_file" class="doc doc-heading">
-            <span class="doc doc-object-name doc-function-name">compile_graph_to_file</span>
-
-
-<a href="#gen_dsp.graph.compile.compile_graph_to_file" class="headerlink" title="Permanent link">&para;</a></h3>
-<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">compile_graph_to_file</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">graph</span><span class="p">:</span> <span class="n">Graph</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span>
+<p>All symbols below are importable from <code>gen_dsp.core.&lt;module&gt;</code>.</p>
+<hr />
+<h2 id="1-parsing-a-gen-export-coreparser">1. Parsing a gen~ export -- <code>core.parser</code><a class="headerlink" href="#1-parsing-a-gen-export-coreparser" title="Permanent link">&para;</a></h2>
+<h3 id="genexportparserexport_path"><code>GenExportParser(export_path)</code><a class="headerlink" href="#genexportparserexport_path" title="Permanent link">&para;</a></h3>
+<p>Wraps a gen~ export directory (the folder containing the exported <code>&lt;name&gt;.cpp</code> / <code>&lt;name&gt;.h</code> pair and a <code>gen_dsp/</code> subdirectory). Construction validates that the path is a directory; <code>parse()</code> does the analysis.</p>
+<h3 id="genexportparserparse-exportinfo"><code>GenExportParser.parse() -&gt; ExportInfo</code><a class="headerlink" href="#genexportparserparse-exportinfo" title="Permanent link">&para;</a></h3>
+<p>Reads the main <code>.cpp</code> with a set of regexes and returns an <code>ExportInfo</code> carrying:</p>
+<ul>
+<li>
+<p><code>name</code> -- the export's base name (also the C++ namespace)</p>
+</li>
+<li>
+<p><code>num_inputs</code> / <code>num_outputs</code> -- signal I/O counts (<code>gen_kernel_numins/numouts</code>)</p>
+</li>
+<li>
+<p><code>num_params</code> -- parameter count (<code>num_params()</code>)</p>
+</li>
+<li>
+<p><code>input_names</code> -- signal input names (<code>gen_kernel_innames[]</code>)</p>
+</li>
+<li>
+<p><code>buffers</code> -- referenced buffer names (two detection strategies: codebox <code>Data</code> members, or direct <code>buf.dim</code>/<code>buf.read()</code> access)</p>
+</li>
+<li>
+<p><code>has_exp2f_issue</code> -- whether <code>genlib_ops.h</code> uses <code>exp2f</code> (patched on macOS)</p>
+</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gen_dsp.core.parser</span><span class="w"> </span><span class="kn">import</span> <span class="n">GenExportParser</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">info</span> <span class="o">=</span> <span class="n">GenExportParser</span><span class="p">(</span><span class="s2">&quot;path/to/export/gen&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">parse</span><span class="p">()</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="nb">print</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">info</span><span class="o">.</span><span class="n">num_inputs</span><span class="p">,</span> <span class="n">info</span><span class="o">.</span><span class="n">num_outputs</span><span class="p">,</span> <span class="n">info</span><span class="o">.</span><span class="n">buffers</span><span class="p">)</span>
 </code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Compile a DSP graph and write {name}.cpp to output_dir.</p>
-<p>Creates the output directory if it doesn't exist.
-Returns the path to the written file.</p>
-
-
-    </div>
-
-</div>
-
-
-
-  </div>
-
-    </div>
-
-</div>
+<p><code>parse()</code> raises <code>ParseError</code> (a <code>GenExtError</code>) when no <code>.cpp</code>/<code>.h</code> pair is found.</p>
+<hr />
+<h2 id="2-building-the-manifest-coremanifest">2. Building the manifest -- <code>core.manifest</code><a class="headerlink" href="#2-building-the-manifest-coremanifest" title="Permanent link">&para;</a></h2>
+<p>The <code>Manifest</code> is the front-end-agnostic intermediate representation every platform backend consumes. It deliberately does not know about gen~ -- the same manifest can come from a gen~ export or the graph frontend.</p>
+<h3 id="manifest_from_export_infoexport_info-buffers-version-manifest"><code>manifest_from_export_info(export_info, buffers, version) -&gt; Manifest</code><a class="headerlink" href="#manifest_from_export_infoexport_info-buffers-version-manifest" title="Permanent link">&para;</a></h3>
+<p>Builds a <code>Manifest</code> from an <code>ExportInfo</code>, parsing full parameter metadata (<code>ParamInfo</code> with <code>min</code>/<code>max</code>/<code>default</code>, defaults clamped into range) from the export. Pass <code>export_info.buffers</code> for <code>buffers</code> to keep auto-detection, or an explicit list to override it.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gen_dsp.core.manifest</span><span class="w"> </span><span class="kn">import</span> <span class="n">manifest_from_export_info</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gen_dsp.version</span><span class="w"> </span><span class="kn">import</span> <span class="n">__version__</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">manifest</span> <span class="o">=</span> <span class="n">manifest_from_export_info</span><span class="p">(</span><span class="n">info</span><span class="p">,</span> <span class="n">info</span><span class="o">.</span><span class="n">buffers</span><span class="p">,</span> <span class="n">__version__</span><span class="p">)</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">manifest</span><span class="o">.</span><span class="n">to_json</span><span class="p">()</span>          <span class="c1"># the exact content of a project&#39;s manifest.json</span>
+</code></pre></div>
+<h3 id="key-types">Key types<a class="headerlink" href="#key-types" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p><strong><code>Manifest</code></strong> -- fields: <code>gen_name</code>, <code>num_inputs</code>, <code>num_outputs</code>, <code>params: list[ParamInfo]</code>, <code>buffers: list[str]</code>, <code>remapped_inputs</code>, <code>source</code>, <code>version</code>; <code>num_params</code> property; <code>to_dict</code>/<code>from_dict</code>/<code>to_json</code>/<code>from_json</code> round-trip helpers.</p>
+</li>
+<li>
+<p><strong><code>ParamInfo</code></strong> -- one parameter: <code>index</code>, <code>name</code>, <code>has_minmax</code>, <code>min</code>, <code>max</code>, <code>default</code>.</p>
+</li>
+<li>
+<p><strong><code>RemappedInput</code></strong> -- records a signal input converted to a parameter (see below).</p>
+</li>
+</ul>
+<h3 id="apply_inputs_as_paramsmanifest-input_names-remap_namesnone-manifest"><code>apply_inputs_as_params(manifest, input_names, remap_names=None) -&gt; Manifest</code><a class="headerlink" href="#apply_inputs_as_paramsmanifest-input_names-remap_namesnone-manifest" title="Permanent link">&para;</a></h3>
+<p>Returns a new manifest with signal inputs remapped to parameters -- the library form of <code>--inputs-as-params</code>. With <code>remap_names=None</code> all inputs are remapped; pass a subset of <code>input_names</code> to remap only those. The result has reduced <code>num_inputs</code>, extra <code>ParamInfo</code> entries, and populated <code>remapped_inputs</code>.</p>
+<hr />
+<h2 id="3-generating-a-project-coreproject">3. Generating a project -- <code>core.project</code><a class="headerlink" href="#3-generating-a-project-coreproject" title="Permanent link">&para;</a></h2>
+<h3 id="projectconfig"><code>ProjectConfig</code><a class="headerlink" href="#projectconfig" title="Permanent link">&para;</a></h3>
+<p>A dataclass of generation options. The commonly set fields:</p>
+<ul>
+<li>
+<p><code>name</code> (required) -- external/library name (<code>lib.name</code> in Makefiles)</p>
+</li>
+<li>
+<p><code>platform</code> -- target key (default <code>"pd"</code>); any registered platform</p>
+</li>
+<li>
+<p><code>buffers</code>, <code>apply_patches</code>, <code>output_dir</code></p>
+</li>
+<li>
+<p><code>shared_cache</code> / <code>cache_dir</code> -- FetchContent cache control for CMake platforms</p>
+</li>
+<li>
+<p><code>board</code> -- variant for embedded platforms (see <code>gen-dsp list --boards &lt;platform&gt;</code>)</p>
+</li>
+<li>
+<p>MIDI-to-CV fields (<code>no_midi</code>, <code>midi_gate</code>, <code>midi_freq</code>, ...)</p>
+</li>
+</ul>
+<p><code>ProjectConfig.validate()</code> rejects invalid names (including C/C++ reserved words) and bad board values.</p>
+<h3 id="projectgeneratorexport_info-config-and-generateoutput_dirnone-path"><code>ProjectGenerator(export_info, config)</code> and <code>.generate(output_dir=None) -&gt; Path</code><a class="headerlink" href="#projectgeneratorexport_info-config-and-generateoutput_dirnone-path" title="Permanent link">&para;</a></h3>
+<p>Copies the export, runs template substitution for the target platform, writes <code>manifest.json</code> and a <code>.gen-dsp.json</code> marker (recording the platform for later <code>build</code> auto-detection), and applies patches. Returns the project directory.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gen_dsp.core.project</span><span class="w"> </span><span class="kn">import</span> <span class="n">ProjectConfig</span><span class="p">,</span> <span class="n">ProjectGenerator</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">config</span> <span class="o">=</span> <span class="n">ProjectConfig</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;myverb&quot;</span><span class="p">,</span> <span class="n">platform</span><span class="o">=</span><span class="s2">&quot;clap&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">project_dir</span> <span class="o">=</span> <span class="n">ProjectGenerator</span><span class="p">(</span><span class="n">info</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="s2">&quot;build/myverb&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="projectgeneratorfrom_graphgraph-config-classmethod"><code>ProjectGenerator.from_graph(graph, config)</code> (classmethod)<a class="headerlink" href="#projectgeneratorfrom_graphgraph-config-classmethod" title="Permanent link">&para;</a></h3>
+<p>Constructs a generator from a <code>gen_dsp.graph.Graph</code> instead of a gen~ export, so the same backends produce projects from the graph frontend. Requires the <code>[graph]</code> extra.</p>
+<hr />
+<h2 id="4-building-corebuilder">4. Building -- <code>core.builder</code><a class="headerlink" href="#4-building-corebuilder" title="Permanent link">&para;</a></h2>
+<h3 id="builderproject_dir"><code>Builder(project_dir)</code><a class="headerlink" href="#builderproject_dir" title="Permanent link">&para;</a></h3>
+<p>Owns "build this project directory". Construction validates the directory exists.</p>
+<ul>
+<li>
+<p><strong><code>build(target_platform=None, clean=False, verbose=False) -&gt; BuildResult</code></strong> -- compiles the project. When <code>target_platform</code> is <code>None</code>, the platform is auto-detected from the project's <code>.gen-dsp.json</code> marker, falling back to <code>pd</code>.</p>
+</li>
+<li>
+<p><strong><code>clean(target_platform=None)</code></strong> -- removes build artifacts (same auto-detect).</p>
+</li>
+<li>
+<p><strong><code>detect_platform() -&gt; str | None</code></strong> -- returns the platform recorded in the
+  marker, or <code>None</code> if absent/unreadable/unknown.</p>
+</li>
+<li>
+<p><strong><code>get_lib_name() -&gt; str | None</code></strong> -- reads <code>lib.name</code> from the project Makefile.</p>
+</li>
+</ul>
+<h3 id="buildresult"><code>BuildResult</code><a class="headerlink" href="#buildresult" title="Permanent link">&para;</a></h3>
+<p>Dataclass returned by <code>build()</code>: <code>success</code>, <code>platform</code>, <code>output_file</code>, <code>stdout</code>, <code>stderr</code>, <code>return_code</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gen_dsp.core.builder</span><span class="w"> </span><span class="kn">import</span> <span class="n">Builder</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">result</span> <span class="o">=</span> <span class="n">Builder</span><span class="p">(</span><span class="n">project_dir</span><span class="p">)</span><span class="o">.</span><span class="n">build</span><span class="p">()</span>   <span class="c1"># platform read from .gen-dsp.json</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">success</span><span class="p">:</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;built&quot;</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">output_file</span><span class="p">)</span>
+</code></pre></div>
+<hr />
+<h2 id="end-to-end-example">End-to-end example<a class="headerlink" href="#end-to-end-example" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gen_dsp.core.parser</span><span class="w"> </span><span class="kn">import</span> <span class="n">GenExportParser</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gen_dsp.core.manifest</span><span class="w"> </span><span class="kn">import</span> <span class="n">manifest_from_export_info</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gen_dsp.core.project</span><span class="w"> </span><span class="kn">import</span> <span class="n">ProjectConfig</span><span class="p">,</span> <span class="n">ProjectGenerator</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gen_dsp.core.builder</span><span class="w"> </span><span class="kn">import</span> <span class="n">Builder</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="kn">from</span><span class="w"> </span><span class="nn">gen_dsp.version</span><span class="w"> </span><span class="kn">import</span> <span class="n">__version__</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># 1. parse the gen~ export</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="n">info</span> <span class="o">=</span> <span class="n">GenExportParser</span><span class="p">(</span><span class="s2">&quot;path/to/export/gen&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">parse</span><span class="p">()</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="c1"># 2. (optional) inspect the manifest IR</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="n">manifest</span> <span class="o">=</span> <span class="n">manifest_from_export_info</span><span class="p">(</span><span class="n">info</span><span class="p">,</span> <span class="n">info</span><span class="o">.</span><span class="n">buffers</span><span class="p">,</span> <span class="n">__version__</span><span class="p">)</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">manifest</span><span class="o">.</span><span class="n">gen_name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">manifest</span><span class="o">.</span><span class="n">num_inputs</span><span class="si">}</span><span class="s2">in/</span><span class="si">{</span><span class="n">manifest</span><span class="o">.</span><span class="n">num_outputs</span><span class="si">}</span><span class="s2">out, &quot;</span>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>      <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">manifest</span><span class="o">.</span><span class="n">num_params</span><span class="si">}</span><span class="s2"> params&quot;</span><span class="p">)</span>
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="c1"># 3. generate a CLAP project</span>
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="n">config</span> <span class="o">=</span> <span class="n">ProjectConfig</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;myverb&quot;</span><span class="p">,</span> <span class="n">platform</span><span class="o">=</span><span class="s2">&quot;clap&quot;</span><span class="p">)</span>
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="n">project_dir</span> <span class="o">=</span> <span class="n">ProjectGenerator</span><span class="p">(</span><span class="n">info</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="s2">&quot;build/myverb&quot;</span><span class="p">)</span>
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>
+<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a><span class="c1"># 4. build it (platform auto-detected from the project marker)</span>
+<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="n">result</span> <span class="o">=</span> <span class="n">Builder</span><span class="p">(</span><span class="n">project_dir</span><span class="p">)</span><span class="o">.</span><span class="n">build</span><span class="p">()</span>
+<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;ok&quot;</span> <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">success</span> <span class="k">else</span> <span class="n">result</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+</code></pre></div>
+<p>For multi-target generation, board selection, and MIDI options from the command line, see the <a href="../../cheatsheet/">cheatsheet</a>.</p>
 
 
 

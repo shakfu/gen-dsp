@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://shakfu.github.io/gen-dsp/api/">
+        <link rel="canonical" href="https://shakfu.github.io/gen-dsp/architecture/">
       
       
-        <link rel="prev" href="../graph/coverage/">
+        <link rel="prev" href="../cheatsheet/">
       
       
-        <link rel="next" href="core-guide/">
+        <link rel="next" href="../midi-cv/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Overview - gen-dsp</title>
+        <title>Architecture - gen-dsp</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#api-reference" class="md-skip">
+        <a href="#architecture" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Overview
+              Architecture
             
           </span>
         </div>
@@ -285,10 +285,37 @@
       
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../architecture/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -304,6 +331,70 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#pipeline-data-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pipeline data flow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cli-orchestration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI orchestration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#platform-registry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Platform registry
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#header-isolation-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Header isolation pattern
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1223,8 +1314,6 @@
       
   
   
-    
-  
   
   
     
@@ -1237,11 +1326,13 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
         
           
           <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
@@ -1262,7 +1353,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_7">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1277,37 +1368,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Overview
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
         
   
   
@@ -1323,70 +1387,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#data-flow" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Data Flow
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#core-modules" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Core Modules
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#platform-registry" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Platform Registry
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#graph-frontend" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Graph Frontend
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1450,7 +1450,7 @@
   
   
     <li class="md-nav__item">
-      <a href="core-guide/" class="md-nav__link">
+      <a href="../api/core-guide/" class="md-nav__link">
         
   
   
@@ -1478,7 +1478,7 @@
   
   
     <li class="md-nav__item">
-      <a href="parser/" class="md-nav__link">
+      <a href="../api/parser/" class="md-nav__link">
         
   
   
@@ -1506,7 +1506,7 @@
   
   
     <li class="md-nav__item">
-      <a href="manifest/" class="md-nav__link">
+      <a href="../api/manifest/" class="md-nav__link">
         
   
   
@@ -1534,7 +1534,7 @@
   
   
     <li class="md-nav__item">
-      <a href="project/" class="md-nav__link">
+      <a href="../api/project/" class="md-nav__link">
         
   
   
@@ -1562,7 +1562,7 @@
   
   
     <li class="md-nav__item">
-      <a href="builder/" class="md-nav__link">
+      <a href="../api/builder/" class="md-nav__link">
         
   
   
@@ -1590,7 +1590,7 @@
   
   
     <li class="md-nav__item">
-      <a href="patcher/" class="md-nav__link">
+      <a href="../api/patcher/" class="md-nav__link">
         
   
   
@@ -1618,7 +1618,7 @@
   
   
     <li class="md-nav__item">
-      <a href="cache/" class="md-nav__link">
+      <a href="../api/cache/" class="md-nav__link">
         
   
   
@@ -1646,7 +1646,7 @@
   
   
     <li class="md-nav__item">
-      <a href="midi/" class="md-nav__link">
+      <a href="../api/midi/" class="md-nav__link">
         
   
   
@@ -1733,7 +1733,7 @@
   
   
     <li class="md-nav__item">
-      <a href="platforms/" class="md-nav__link">
+      <a href="../api/platforms/" class="md-nav__link">
         
   
   
@@ -1769,7 +1769,7 @@
   
   
     <li class="md-nav__item">
-      <a href="errors/" class="md-nav__link">
+      <a href="../api/errors/" class="md-nav__link">
         
   
   
@@ -1848,7 +1848,7 @@
   
   
     <li class="md-nav__item">
-      <a href="graph-models/" class="md-nav__link">
+      <a href="../api/graph-models/" class="md-nav__link">
         
   
   
@@ -1876,7 +1876,7 @@
   
   
     <li class="md-nav__item">
-      <a href="graph-compile/" class="md-nav__link">
+      <a href="../api/graph-compile/" class="md-nav__link">
         
   
   
@@ -1904,7 +1904,7 @@
   
   
     <li class="md-nav__item">
-      <a href="graph-validate/" class="md-nav__link">
+      <a href="../api/graph-validate/" class="md-nav__link">
         
   
   
@@ -1932,7 +1932,7 @@
   
   
     <li class="md-nav__item">
-      <a href="graph-optimize/" class="md-nav__link">
+      <a href="../api/graph-optimize/" class="md-nav__link">
         
   
   
@@ -1960,7 +1960,7 @@
   
   
     <li class="md-nav__item">
-      <a href="graph-simulate/" class="md-nav__link">
+      <a href="../api/graph-simulate/" class="md-nav__link">
         
   
   
@@ -1988,7 +1988,7 @@
   
   
     <li class="md-nav__item">
-      <a href="graph-algebra/" class="md-nav__link">
+      <a href="../api/graph-algebra/" class="md-nav__link">
         
   
   
@@ -2016,7 +2016,7 @@
   
   
     <li class="md-nav__item">
-      <a href="graph-adapter/" class="md-nav__link">
+      <a href="../api/graph-adapter/" class="md-nav__link">
         
   
   
@@ -2195,10 +2195,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#data-flow" class="md-nav__link">
+  <a href="#pipeline-data-flow" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Data Flow
+        Pipeline data flow
       
     </span>
   </a>
@@ -2206,10 +2206,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#core-modules" class="md-nav__link">
+  <a href="#cli-orchestration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Core Modules
+        CLI orchestration
       
     </span>
   </a>
@@ -2220,7 +2220,7 @@
   <a href="#platform-registry" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Platform Registry
+        Platform registry
       
     </span>
   </a>
@@ -2228,10 +2228,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#graph-frontend" class="md-nav__link">
+  <a href="#header-isolation-pattern" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Graph Frontend
+        Header isolation pattern
       
     </span>
   </a>
@@ -2258,119 +2258,70 @@
   
 
 
-<h1 id="api-reference">API Reference<a class="headerlink" href="#api-reference" title="Permanent link">&para;</a></h1>
-<p>gen-dsp's Python API is organized into three packages:</p>
-<ul>
-<li>
-<p><strong><code>gen_dsp.core</code></strong> -- Pipeline modules: parsing gen~ exports, building manifests, generating projects, and compiling</p>
-</li>
-<li>
-<p><strong><code>gen_dsp.platforms</code></strong> -- Platform registry and backend implementations</p>
-</li>
-<li>
-<p><strong><code>gen_dsp.graph</code></strong> -- Optional graph frontend (requires pydantic)</p>
-</li>
-</ul>
-<h2 id="data-flow">Data Flow<a class="headerlink" href="#data-flow" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>gen~ export dir -&gt; parser.py -&gt; ExportInfo -&gt; manifest.py -&gt; Manifest -&gt; Platform.generate_project()
-</code></pre></div>
-<p>For the graph frontend:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Graph (Python/JSON) -&gt; graph/compile/ -&gt; C++ -&gt; graph/adapter.py -&gt; Manifest -&gt; ProjectGenerator.from_graph()
-</code></pre></div>
-<h2 id="core-modules">Core Modules<a class="headerlink" href="#core-modules" title="Permanent link">&para;</a></h2>
-<p>New to the core API? Start with the <a href="core-guide/">Core API guide</a> -- a usage-oriented walkthrough of the parse -&gt; manifest -&gt; generate -&gt; build pipeline with examples. The table below links to the per-symbol reference.</p>
-<table>
-<thead>
-<tr>
-<th>Module</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><a href="parser/"><code>parser</code></a></td>
-<td>Regex-based parser for gen~ exports, produces <code>ExportInfo</code></td>
-</tr>
-<tr>
-<td><a href="manifest/"><code>manifest</code></a></td>
-<td><code>Manifest</code> dataclass: front-end-agnostic IR with <code>ParamInfo</code></td>
-</tr>
-<tr>
-<td><a href="project/"><code>project</code></a></td>
-<td><code>ProjectGenerator</code>: copies export files, runs template substitution</td>
-</tr>
-<tr>
-<td><a href="builder/"><code>builder</code></a></td>
-<td><code>Builder</code> delegates to <code>Platform.build()</code>, returns <code>BuildResult</code></td>
-</tr>
-<tr>
-<td><a href="patcher/"><code>patcher</code></a></td>
-<td>Applies platform-specific fixes (e.g. <code>exp2f</code> on macOS)</td>
-</tr>
-<tr>
-<td><a href="cache/"><code>cache</code></a></td>
-<td>Resolves shared FetchContent cache directory</td>
-</tr>
-<tr>
-<td><a href="midi/"><code>midi</code></a></td>
-<td>MIDI mapping detection and compile-definition generation</td>
-</tr>
-</tbody>
-</table>
-<h2 id="platform-registry">Platform Registry<a class="headerlink" href="#platform-registry" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Module</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><a href="platforms/"><code>platforms</code></a></td>
-<td><code>Platform</code> base class, <code>PLATFORM_REGISTRY</code>, helper functions</td>
-</tr>
-</tbody>
-</table>
-<h2 id="graph-frontend">Graph Frontend<a class="headerlink" href="#graph-frontend" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Module</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><a href="graph-models/"><code>graph.models</code></a></td>
-<td>Pydantic models: <code>Graph</code>, <code>Param</code>, node types</td>
-</tr>
-<tr>
-<td><a href="graph-compile/"><code>graph.compile</code></a></td>
-<td><code>compile_graph()</code>: Graph to standalone C++</td>
-</tr>
-<tr>
-<td><a href="graph-validate/"><code>graph.validate</code></a></td>
-<td><code>validate_graph()</code>: connectivity and type checks</td>
-</tr>
-<tr>
-<td><a href="graph-optimize/"><code>graph.optimize</code></a></td>
-<td><code>optimize_graph()</code>: dead-code elimination, constant folding</td>
-</tr>
-<tr>
-<td><a href="graph-simulate/"><code>graph.simulate</code></a></td>
-<td><code>simulate()</code>: run graph in Python (requires numpy)</td>
-</tr>
-<tr>
-<td><a href="graph-algebra/"><code>graph.algebra</code></a></td>
-<td><code>series()</code>, <code>parallel()</code>, <code>split()</code>, <code>merge()</code> combinators</td>
-</tr>
-<tr>
-<td><a href="graph-adapter/"><code>graph.adapter</code></a></td>
-<td>Bridge graph output to gen-dsp platform backends</td>
-</tr>
-</tbody>
-</table>
+<h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
+<p>A visual overview of how gen-dsp turns a gen~ export (or a Python/JSON graph) into a buildable plugin project. For the prose version and conventions, see the project's <code>CLAUDE.md</code>; for the library API, see the <a href="../api/core-guide/">Core API guide</a>.</p>
+<h2 id="pipeline-data-flow">Pipeline data flow<a class="headerlink" href="#pipeline-data-flow" title="Permanent link">&para;</a></h2>
+<p>Two front ends feed a single, front-end-agnostic intermediate representation (the <code>Manifest</code>), which every platform backend consumes. The gen~ path is zero-dependency; the graph path requires pydantic.</p>
+<pre class="mermaid"><code>flowchart TD
+    subgraph gen["gen~ export path (zero-dependency)"]
+        E[gen~ export dir] --&gt; P["core/parser.py"]
+        P --&gt; EI[ExportInfo]
+        EI --&gt; MB["manifest_from_export_info()"]
+    end
+
+    subgraph graph["graph frontend path (requires pydantic)"]
+        G["Graph (Python / JSON)"] --&gt; CO["graph/compile.py"]
+        CO --&gt; CPP["standalone C++"]
+        CPP --&gt; AD["graph/adapter.py"]
+    end
+
+    MB --&gt; MAN[["Manifest IR&lt;br/&gt;(I/O, params, buffers)"]]
+    AD --&gt; MAN
+
+    MAN --&gt; PG["core/project.py&lt;br/&gt;ProjectGenerator"]
+    PG --&gt; PROJ["project dir&lt;br/&gt;(templates + manifest.json + .gen-dsp.json)"]
+    PROJ --&gt; BLD["core/builder.py&lt;br/&gt;Builder"]
+    BLD --&gt; PB["Platform.build()"]
+    PB --&gt; OUT([built plugin / firmware])</code></pre>
+<h2 id="cli-orchestration">CLI orchestration<a class="headerlink" href="#cli-orchestration" title="Permanent link">&para;</a></h2>
+<p><code>cli.py</code> wires the pipeline into subcommands. The <code>graph</code> subcommands are only available when the <code>[graph]</code> extra is installed.</p>
+<pre class="mermaid"><code>flowchart LR
+    CLI["cli.py"]
+    CLI --&gt; INIT["init&lt;br/&gt;(generate project)"]
+    CLI --&gt; BUILD["build&lt;br/&gt;(compile)"]
+    CLI --&gt; DETECT["detect&lt;br/&gt;(analyze export)"]
+    CLI --&gt; MANI["manifest&lt;br/&gt;(emit JSON IR)"]
+    CLI --&gt; LIST["list&lt;br/&gt;(platforms / boards)"]
+    CLI --&gt; CACHE["cache&lt;br/&gt;(show / prune SDKs)"]
+    CLI --&gt; GRP["graph: compile / validate / viz / simulate"]
+
+    INIT --&gt; PG["ProjectGenerator"]
+    BUILD --&gt; BL["Builder"]
+    GRP -. requires pydantic .-&gt; GP["gen_dsp.graph"]</code></pre>
+<h2 id="platform-registry">Platform registry<a class="headerlink" href="#platform-registry" title="Permanent link">&para;</a></h2>
+<p><code>platforms/__init__.py</code> holds <code>PLATFORM_REGISTRY</code>, mapping a string key to a <code>Platform</code> subclass. Adding a platform is a single-module change plus a registry entry. Backends group by build system:</p>
+<pre class="mermaid"><code>flowchart TD
+    REG[["PLATFORM_REGISTRY"]]
+
+    REG --&gt; CM["CMake + FetchContent"]
+    REG --&gt; CMX["CMake (Xcode)"]
+    REG --&gt; MK["Make"]
+    REG --&gt; EM["Make (emcc)"]
+
+    CM --&gt; CM1["au · clap · vst3 · lv2 · sc · max"]
+    CMX --&gt; CMX1["auv3"]
+    MK --&gt; MK1["pd · chuck · vcvrack · daisy · circle · standalone · csound"]
+    EM --&gt; EM1["webaudio"]</code></pre>
+<p>Each <code>Platform</code> implements <code>generate_project()</code>, <code>build()</code>, <code>clean()</code>, <code>find_output()</code>, and <code>get_build_instructions()</code>. SDKs for CMake/FetchContent and several Make backends are auto-downloaded into a shared cache.</p>
+<h2 id="header-isolation-pattern">Header isolation pattern<a class="headerlink" href="#header-isolation-pattern" title="Permanent link">&para;</a></h2>
+<p>Generated projects keep host-API code and genlib code in separate translation units that never include each other's headers. They communicate only through a small C interface (<code>_ext*.h</code>) over an opaque <code>GenState*</code> pointer, so the genlib sources compile without the host SDK and vice versa.</p>
+<pre class="mermaid"><code>flowchart LR
+    API["host-API .cpp&lt;br/&gt;(CLAP / VST3 / ... headers only)"]
+    H["_ext*.h&lt;br/&gt;C interface · opaque GenState*"]
+    EXT["_ext*.cpp&lt;br/&gt;(genlib headers only)"]
+
+    API --&gt;|"calls"| H
+    H --&gt;|"implemented by"| EXT</code></pre>
 
 
 
