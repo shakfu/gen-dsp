@@ -34,7 +34,7 @@ def _load_graph(path: str) -> Graph:
         result = parse_file(p)
         assert isinstance(result, Graph)
         return result
-    text = p.read_text()
+    text = p.read_text(encoding="utf-8")
     data = json.loads(text)
     return Graph.model_validate(data)
 

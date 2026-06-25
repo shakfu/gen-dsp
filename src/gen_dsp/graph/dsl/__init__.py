@@ -84,7 +84,7 @@ def parse_file(path: str | Path, *, multi: bool = False) -> Graph | dict[str, Gr
         multi: If True, return dict of all graphs. If False, return last graph.
     """
     p = Path(path)
-    source = p.read_text()
+    source = p.read_text(encoding="utf-8")
     filename = str(p)
     if multi:
         return parse_multi(source, filename=filename)

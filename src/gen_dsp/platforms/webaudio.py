@@ -100,7 +100,9 @@ class WebAudioPlatform(Platform):
 
         # Generate _processor.js from template (concatenated with Emscripten
         # glue at build time to produce the final processor.js)
-        param_descriptors, processor_class, num_outputs_array = (
+        # processor_class is only needed by processor.js (generated just below,
+        # which recomputes its own vars); index.html needs only the other two.
+        param_descriptors, _processor_class, num_outputs_array = (
             self._build_processor_vars(manifest, lib_name)
         )
         export_name = self._make_export_name(lib_name)

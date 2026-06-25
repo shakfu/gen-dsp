@@ -80,7 +80,6 @@ class Platform(ABC):
     @abstractmethod
     def extension(self) -> str:
         """File extension for built externals (e.g. '.pd_darwin', '.clap')."""
-        ...
 
     @abstractmethod
     def generate_project(
@@ -99,7 +98,6 @@ class Platform(ABC):
             lib_name: Name for the external library.
             config: Optional ProjectConfig for platform-specific options.
         """
-        pass
 
     @abstractmethod
     def build(
@@ -119,7 +117,6 @@ class Platform(ABC):
         Returns:
             BuildResult with build status and output file.
         """
-        pass
 
     @abstractmethod
     def clean(self, project_dir: Path) -> None:
@@ -129,7 +126,6 @@ class Platform(ABC):
         Args:
             project_dir: Path to the project directory.
         """
-        pass
 
     @abstractmethod
     def find_output(self, project_dir: Path) -> Optional[Path]:
@@ -142,7 +138,6 @@ class Platform(ABC):
         Returns:
             Path to the built external or None if not found.
         """
-        pass
 
     def get_build_instructions(self) -> list[str]:
         """
@@ -532,4 +527,5 @@ class Platform(ABC):
                 cwd=cwd,
                 capture_output=True,
                 text=True,
+                check=False,
             )

@@ -330,11 +330,11 @@ def apply_inputs_as_params(
         for rname in remap_names:
             try:
                 idx = input_names.index(rname)
-            except ValueError:
+            except ValueError as exc:
                 raise ValueError(
                     f"Input name '{rname}' not found. "
                     f"Available input names: {input_names}"
-                )
+                ) from exc
             indices_to_remap.append(idx)
 
     if not indices_to_remap:

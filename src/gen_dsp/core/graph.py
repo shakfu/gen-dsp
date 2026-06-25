@@ -168,10 +168,10 @@ def parse_graph(json_path: Path) -> GraphConfig:
             for cc_str, param_name in raw_cc.items():
                 try:
                     cc_num = int(cc_str)
-                except ValueError:
+                except ValueError as exc:
                     raise ValidationError(
                         f"Node '{node_id}': CC key '{cc_str}' must be an integer"
-                    )
+                    ) from exc
                 cc_map[cc_num] = param_name
 
         midi_channel = node_data.get("midi_channel")
@@ -206,10 +206,10 @@ def parse_graph(json_path: Path) -> GraphConfig:
             try:
                 dst_input_index = int(parts[1])
                 dst_raw = parts[0]
-            except ValueError:
+            except ValueError as exc:
                 raise ValidationError(
                     f"Connection {i}: invalid input index in '{conn[1]}'"
-                )
+                ) from exc
 
         connections.append(Connection(src, dst_raw, dst_input_index))
 

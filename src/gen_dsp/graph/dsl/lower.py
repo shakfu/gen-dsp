@@ -316,7 +316,7 @@ class Compiler:
             from gen_dsp.graph.dsl.lexer import tokenize
             from gen_dsp.graph.dsl.parser import Parser
 
-            source = resolved.read_text()
+            source = resolved.read_text(encoding="utf-8")
             sub_filename = str(resolved)
             tokens = tokenize(source, sub_filename)
             sub_asts = Parser(tokens, sub_filename).parse_file()
@@ -582,8 +582,8 @@ class _GraphCtx:
         call: ASTCall,
         stmt: ASTAssign,
     ) -> None:
-        # Resolve args
-        pos_args, kw_args = self._split_args(call.args)
+        # Resolve args (gate_route takes only positional args)
+        pos_args, _kw_args = self._split_args(call.args)
         if len(pos_args) < 3:
             raise self._err(
                 "gate_route requires 3 positional args: signal, index, count",

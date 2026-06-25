@@ -36,6 +36,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- **Explicit UTF-8 when reading graph / DSL files** -- `.gdsp` source and graph JSON files are now read with `encoding="utf-8"` instead of the platform default locale encoding, avoiding decode errors on systems whose default is not UTF-8 (e.g. some Windows configurations); this matches the rest of the codebase. Also chained the re-raised `ValueError`/`ValidationError` in input remapping and graph parsing to their originating exception (`raise ... from exc`) for clearer tracebacks.
+
 - **SuperCollider argument names starting with a digit or underscore** -- `_sanitize_sc_arg()` guaranteed a lowercase-letter start only for uppercase- and digit-leading names; a symbol-only or underscore-leading parameter name (e.g. `"!!!"` -> `"___"`, `"_x_"`) produced an SC `arg` beginning with `_`, which is invalid SuperCollider syntax. The guard now prefixes any name that would not otherwise start with a lowercase letter. Added edge-case tests for all three identifier sanitizers in `tests/test_sanitize.py`.
 
 - **Unescaped `$` tokens in CMake templates** -- Three template tokens survived only by `safe_substitute`'s leniency and would have broken under strict substitution: `$ENV{...}` in the AudioUnit and CLAP `CMakeLists.txt` templates, and `$<SEMICOLON>` (a generator expression) in the VST3 template. All are now `$$`-escaped to match their sibling templates; generated output is unchanged.

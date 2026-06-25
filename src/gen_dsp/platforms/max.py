@@ -137,6 +137,7 @@ class MaxPlatform(CMakePlatform):
                 capture_output=True,
                 text=True,
                 cwd=project_dir,
+                check=False,
             )
             return result.returncode == 0
         except FileNotFoundError:
