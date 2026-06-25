@@ -35,5 +35,7 @@ minihost scan /Library/Audio/Plug-Ins/
 ### Notes
 
 - **AudioUnit** plugins must be installed to `~/Library/Audio/Plug-Ins/Components/` for CoreAudio discovery. Probing from an arbitrary path will fail.
+
 - **VST3** probe may report 0 in/0 out channels due to a JUCE limitation with `moduleinfo.json` fast scanning. Use `minihost info` (full instantiation) for accurate channel counts.
+
 - **LV2** bundles can be probed and loaded from any path.

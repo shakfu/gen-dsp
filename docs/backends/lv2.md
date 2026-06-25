@@ -7,8 +7,11 @@ Generates cross-platform LV2 plugins (`.lv2` bundle directories) from gen~ expor
 ## Prerequisites
 
 - Python >= 3.10
+
 - CMake >= 3.19
+
 - C/C++ compiler (clang, gcc)
+
 - Network access on first configure (to fetch LV2 headers; cached afterward)
 
 ## Quick Start
@@ -36,7 +39,9 @@ gen-dsp build ./myeffect_lv2 -p lv2
 gen-dsp uses **header isolation** to separate LV2 API code from genlib code:
 
 - `gen_ext_lv2.cpp` -- LV2-facing wrapper (includes only LV2 headers)
+
 - `_ext_lv2.cpp` -- genlib-facing bridge (includes only genlib headers)
+
 - `_ext_lv2.h` -- C interface connecting the two sides via an opaque `GenState*` pointer
 
 **Signal type:** float (32-bit). gen~ is compiled with `GENLIB_USE_FLOAT32`.
@@ -48,6 +53,7 @@ gen-dsp uses **header isolation** to separate LV2 API code from genlib code:
 **Plugin type detection:** Automatic based on I/O configuration:
 
 - `EffectPlugin` if the gen~ export has audio inputs
+
 - `GeneratorPlugin` if the gen~ export has no audio inputs
 
 ## Parameters
@@ -55,6 +61,7 @@ gen-dsp uses **header isolation** to separate LV2 API code from genlib code:
 All gen~ parameters are exposed as LV2 control input ports. Parameter names and ranges (min/max) are parsed from the gen~ export `.cpp` file using regex on the `pi->name`, `pi->outputmin`, and `pi->outputmax` fields.
 
 - **Plugin URI:** `http://gen-dsp.com/plugins/<lib_name>`
+
 - **Symbol sanitization:** parameter names are converted to valid LV2 symbols (C identifiers) -- non-alphanumeric characters become underscores
 
 ## State Save/Restore
@@ -68,11 +75,17 @@ Buffer support follows the standard gen-dsp pattern. Up to 8 single-channel buff
 ## Build Details
 
 - **Build system:** CMake with FetchContent
+
 - **SDK:** LV2 headers fetched via CMake FetchContent (tag `v1.18.10`)
+
 - **FetchContent note:** LV2 uses Meson (not CMake) as its build system, so the generated CMakeLists.txt uses `FetchContent_Populate` with a manual include directory instead of `FetchContent_MakeAvailable`
+
 - **Audio format:** Float32, port-based
+
 - **Code signing:** ad-hoc signed on macOS during build
+
 - **Compile flags:** `-DGENLIB_USE_FLOAT32 -DWIN32 -DGENLIB_NO_DENORM_TEST`
+
 - **Binary suffix:** `.dylib` on macOS, `.so` on Linux
 
 ### TTL Metadata
@@ -80,6 +93,7 @@ Buffer support follows the standard gen-dsp pattern. Up to 8 single-channel buff
 Two TTL files are generated at project creation time (not at build time):
 
 - `manifest.ttl` -- plugin discovery metadata (URI, binary location)
+
 - `<name>.ttl` -- full port definitions (control ports with names/ranges, audio ports)
 
 These are copied into the `.lv2` bundle directory during the CMake build.
@@ -130,6 +144,9 @@ The `.lv2` bundle is a directory containing the shared library and both TTL file
 ## Troubleshooting
 
 - **CMake configure fails on first run:** Network access is required to fetch LV2 headers. Ensure you have internet connectivity.
+
 - **Plugin not found by host:** Ensure the entire `.lv2` directory (not just the binary) is copied to the install path. The host needs both the binary and the TTL files.
+
 - **Parameter ranges look wrong:** Parameter min/max values are parsed from the gen~ export source code at project creation time. If you modify parameter ranges in your gen~ patch and re-export, re-run `gen-dsp` to regenerate the TTL files.
+
 - **`lv2:default` vs actual default:** The TTL generator parses actual default values from the gen~ export source code. Defaults are clamped to the declared [min, max] range. If your parameters have a different intended default, edit the generated `<name>.ttl` file.

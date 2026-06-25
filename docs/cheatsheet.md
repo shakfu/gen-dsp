@@ -42,8 +42,7 @@ gen-dsp ./my_export -p all --no-build        # every platform
 gen-dsp                                       # uses ./gen-dsp.toml
 ```
 
-A `gen-dsp.toml` in the project directory supplies defaults (keys mirror the
-options above; `platform` may be a list or `all`). CLI flags override it.
+A `gen-dsp.toml` in the project directory supplies defaults (keys mirror the options above; `platform` may be a list or `all`). CLI flags override it.
 
 ## build -- Build an Existing Project
 
@@ -64,9 +63,7 @@ gen-dsp build [project-path] [-p PLATFORM] [--clean] [-v]
 gen-dsp detect <path> [--json]
 ```
 
-For a gen~ export directory: name, signal I/O counts, parameters, detected
-buffers, and needed patches. For a `.gdsp`/`.json` graph file: name, I/O,
-parameters with ranges, node-type breakdown, buffers, delay lines, and validity.
+For a gen~ export directory: name, signal I/O counts, parameters, detected buffers, and needed patches. For a `.gdsp`/`.json` graph file: name, I/O, parameters with ranges, node-type breakdown, buffers, delay lines, and validity.
 
 ## manifest -- Emit JSON Manifest
 
@@ -168,9 +165,7 @@ gen-dsp doctor -p daisy     # one platform
 gen-dsp doctor --json       # machine-readable
 ```
 
-Reports, per platform, whether the host has the tools needed to build (compilers,
-CMake/Make, cross-toolchains, Emscripten, Xcode, git), with install hints. Exits
-non-zero when a requested platform is not ready (usable as a CI gate).
+Reports, per platform, whether the host has the tools needed to build (compilers, CMake/Make, cross-toolchains, Emscripten, Xcode, git), with install hints. Exits non-zero when a requested platform is not ready (usable as a CI gate).
 
 ## Global Options
 

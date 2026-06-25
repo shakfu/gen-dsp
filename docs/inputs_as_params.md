@@ -33,9 +33,13 @@ Input names are taken from `gen_kernel_innames[]` in the exported `.cpp`. Use `g
 ## Implementation
 
 1. **Parser** extracts input names from `gen_kernel_innames[]` in the exported `.cpp`
+
 2. **`apply_inputs_as_params()`** creates a modified Manifest: decrements `num_inputs`, appends synthetic `ParamInfo` entries, records the mapping in `remapped_inputs`
+
 3. **`build_remap_defines()`** emits compile defines like `REMAP_INPUT_COUNT=2`, `REMAP_INPUT_0_GEN_IDX=0`, `REMAP_INPUT_0_PARAM_IDX=3`
+
 4. **`gen_remap_inputs.h`** (shared header included by all bridge templates) provides `_remap_perform()` which builds the full input array, fills remapped slots with parameter values, and calls gen~'s real `perform()`
+
 5. Each bridge template's `wrapper_perform()`, `wrapper_num_inputs()`, `wrapper_num_params()`, and param accessors are guarded with `#if defined(REMAP_INPUT_COUNT)` to switch between normal and remapped behavior
 
 The key design constraint: gen~'s compiled code is untouched. The remapping happens entirely in the bridge layer between the host API and gen~'s `perform()`.

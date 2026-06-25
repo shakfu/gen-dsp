@@ -7,8 +7,11 @@ Generates Csound opcode plugins via the `csdl.h` C API. The opcode is discovered
 ## Prerequisites
 
 - Python >= 3.10
+
 - C++ compiler
+
 - make
+
 - Csound headers (`csdl.h`) -- from the CsoundLib64 framework (macOS), or the `csound` / `libcsound-dev` package (Linux)
 
 ## Quick Start
@@ -37,10 +40,15 @@ aout fm_synth kgate, kfreq, kmod_ratio, kmod_index, kamp
 ## How It Works
 
 1. `gen_ext_csound.cpp` implements the OENTRY registration, init callback (creates gen~ state), and perf callback (per-ksmps-block processing)
+
 2. `_ext_csound.cpp` wraps genlib (header isolation pattern)
+
 3. OENTRY type strings are auto-generated from the gen~ manifest I/O counts (e.g. `"aa"` outputs, `"aakkkkkkkk"` inputs for 2in/2out/8params)
+
 4. Handles float (gen~/GENLIB_USE_FLOAT32) to MYFLT (double, Csound default) conversion
+
 5. Supports sample-accurate timing via `ksmps_offset` / `ksmps_no_end`
+
 6. The plugin registers via `LINKAGE_BUILTIN` which exports `csound_opcode_init()`
 
 ## Header Discovery
@@ -48,9 +56,13 @@ aout fm_synth kgate, kfreq, kmod_ratio, kmod_index, kamp
 The Makefile searches for Csound headers in this order:
 
 1. `CSOUND_INCLUDE` environment variable (explicit override)
+
 2. `/Library/Frameworks/CsoundLib64.framework/Headers` (macOS framework)
+
 3. `$(brew --prefix)/include/csound` (Homebrew)
+
 4. `/usr/local/include/csound`
+
 5. `/usr/include/csound`
 
 ## Platform Key

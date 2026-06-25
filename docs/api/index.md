@@ -3,7 +3,9 @@
 gen-dsp's Python API is organized into three packages:
 
 - **`gen_dsp.core`** -- Pipeline modules: parsing gen~ exports, building manifests, generating projects, and compiling
+
 - **`gen_dsp.platforms`** -- Platform registry and backend implementations
+
 - **`gen_dsp.graph`** -- Optional graph frontend (requires pydantic)
 
 ## Data Flow
@@ -20,9 +22,7 @@ Graph (Python/JSON) -> graph/compile/ -> C++ -> graph/adapter.py -> Manifest -> 
 
 ## Core Modules
 
-New to the core API? Start with the [Core API guide](core-guide.md) -- a
-usage-oriented walkthrough of the parse -> manifest -> generate -> build pipeline
-with examples. The table below links to the per-symbol reference.
+New to the core API? Start with the [Core API guide](core-guide.md) -- a usage-oriented walkthrough of the parse -> manifest -> generate -> build pipeline with examples. The table below links to the per-symbol reference.
 
 | Module | Description |
 |--------|-------------|

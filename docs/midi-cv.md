@@ -9,6 +9,7 @@ gen~ is a signal-rate DSP environment with no concept of MIDI events. In Max/MSP
 Every platform wrapper feeds data into gen~ through exactly two channels:
 
 1. **Audio inputs** (`float**` passed to `perform()`) -- sample-accurate, but defined at export time by the gen~ patch topology.
+
 2. **Parameters** (`wrapper_set_param()`) -- scalar values applied once per block. No sample-accurate scheduling in any current backend.
 
 There is no MIDI input, no note event handling, and no voice allocation anywhere in the codebase.
@@ -26,15 +27,21 @@ On note-on, set `freq`, `gate`, and `vel` parameters via `wrapper_set_param()`. 
 **Pros:**
 
 - Minimal wrapper complexity -- just call `wrapper_set_param()` with 2-3 extra values
+
 - Works with existing gen~ patches that already have `freq`/`gate` params
+
 - No change to gen~ state API or `perform()` call signature
+
 - Parameter values persist between blocks (gate stays high until note-off)
 
 **Cons:**
 
 - Control-rate only -- at most one note transition per audio block (e.g., 512 samples at 48kHz = ~10.7ms granularity)
+
 - Fast note sequences may be lost or merged (two note-ons in one block = only the last one is seen)
+
 - Requires convention or configuration for which params are MIDI-mapped
+
 - Polyphony is awkward -- must duplicate entire gen~ state for each voice
 
 **Verdict:** Good enough for most synth patches. The block-rate limitation is the same as Max/MSP's `param` objects inside gen~, so users already design around it.
@@ -46,14 +53,19 @@ Synthesize sample-accurate gate/freq/vel signals and prepend them to the `float*
 **Pros:**
 
 - Sample-accurate note timing -- gate transitions land on the exact sample
+
 - Natural fit for gen~ patches designed with signal-rate inputs
+
 - No new API -- just adds channels to the existing `perform()` call
 
 **Cons:**
 
 - Requires the gen~ patch to be designed with specific input channels for MIDI data (not the typical instrument pattern)
+
 - Breaks the "0 inputs = instrument" heuristic (patch now has 2-3 inputs for note data)
+
 - Buffer allocation and management overhead for synthesized signals
+
 - Confusing UX: the plugin is an "instrument" but gen~ sees audio inputs
 
 **Verdict:** Elegant for sample-accurate synthesis, but the UX is confusing. Users would need to design gen~ patches differently from how they'd design them in Max/MSP.
@@ -72,13 +84,17 @@ The `_ext_*.cpp` implementation would translate these into `wrapper_set_param()`
 **Pros:**
 
 - Clean separation of concerns -- host wrapper handles MIDI protocol, ext layer handles mapping
+
 - Could support sample-accurate event scheduling by queuing events and applying them during `perform()`
+
 - Single implementation shared across all platforms
 
 **Cons:**
 
 - More API surface in the ext layer
+
 - Still fundamentally limited to what gen~ can express (no native event handling)
+
 - Sample-accurate scheduling would require splitting `perform()` into sub-blocks around event boundaries, adding complexity
 
 **Verdict:** Over-engineered for the current use case. Option A with a thin event queue (for sub-block scheduling if needed later) gives 90% of the benefit.
@@ -96,8 +112,11 @@ For 0-input (generator) plugins, gen-dsp auto-detects MIDI parameter mappings by
 **Detection rules:**
 
 1. Only triggers for 0-input plugins (generators). Effects are never MIDI-mapped.
+
 2. `gate` is required for auto-detection to activate. A generator with `freq` but no `gate` is probably a test-tone oscillator, not a keyboard instrument.
+
 3. If `gate` is found, `freq`/`frequency`/`pitch` and `vel`/`velocity` are mapped if present. Missing frequency or velocity is allowed (gate-only instruments exist).
+
 4. If auto-detection finds nothing, no MIDI code is generated. The plugin remains a parameter-only generator (current behavior).
 
 **CLI controls:**
@@ -138,36 +157,51 @@ Single-voice MIDI instrument. Last-note priority (new note-on steals immediately
 **VST3:**
 
 - Add event bus: `addEventInput(STR16("MIDI In"), 1)` in `initialize()`
+
 - In `process()`, iterate `data.inputEvents->getEvent()`, handle `Event::kNoteOnEvent` and `Event::kNoteOffEvent`
+
 - Convert `event.noteOn.pitch` (MIDI note 0-127) to frequency, `event.noteOn.velocity` (float 0-1) to velocity
+
 - Call `wrapper_set_param()` for the mapped indices
+
 - Declare `kInstrumentSynth` subcategory (already done for 0-input plugins)
 
 **CLAP:**
 
 - Add note port via `CLAP_EXT_NOTE_PORTS` extension
+
 - In the event loop inside `clap_gen_process()`, handle `CLAP_EVENT_NOTE_ON` / `CLAP_EVENT_NOTE_OFF`
+
 - CLAP note events have `key` (MIDI note) and `velocity` (float 0-1)
+
 - Declare `CLAP_PLUGIN_FEATURE_INSTRUMENT` (already done)
 
 **AU:**
 
 - Change type from `augn` (generator) to `aumu` (music device) for MIDI-capable instruments
+
 - Implement `kMusicDeviceMIDIEventSelect` handler to receive raw MIDI bytes
+
 - Parse status byte 0x90 (note-on) / 0x80 (note-off), extract note and velocity
+
 - `augn` stays available for generators that don't want MIDI
 
 **LV2:**
 
 - Add `atom:AtomPort` with `atom:bufferType atom:Sequence` and `atom:supports midi:MidiEvent`
+
 - In `run()`, iterate the atom sequence, parse MIDI events from `LV2_MIDI_MSG_NOTE_ON` / `LV2_MIDI_MSG_NOTE_OFF`
+
 - Declare `lv2:InstrumentPlugin` class
 
 **SC / ChucK / VCV Rack / Daisy:**
 
 - SC: MIDI routing handled in the SC language layer, not the UGen. No change needed.
+
 - ChucK: MIDI handled by ChucK's `MidiIn` class. No change to the chugin.
+
 - VCV Rack: V/Oct and gate are CV signals, not MIDI. Could add a "MIDI-to-CV" mode, but VCV's own MIDI-CV module is the standard approach. Low priority.
+
 - Daisy: Could receive MIDI via UART/USB. Worth supporting eventually.
 
 ### Pitch conversion
@@ -317,11 +351,17 @@ This is the correct approach but adds complexity. All plugin APIs provide sample
 ## Implementation Order
 
 1. **Monophonic CLAP** -- CLAP has the cleanest MIDI API (typed note events, float velocity, sample-accurate timestamps). Use as the reference implementation.
+
 2. **Monophonic VST3** -- Similar event model to CLAP. Second easiest.
+
 3. **Monophonic AU** -- Raw MIDI bytes require manual parsing. More work but well-understood.
+
 4. **Monophonic LV2** -- Atom sequences add complexity (LV2 atom API is verbose).
+
 5. **Polyphony** -- Voice allocator is platform-independent. Add to all platforms simultaneously once mono works.
+
 6. **Sub-block scheduling** -- Performance optimization, add after polyphony works.
+
 7. **MPE / per-note expression** -- Stretch goal.
 
 ## Open Questions

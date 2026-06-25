@@ -11,6 +11,7 @@ Support multiple gen~ plugins in a single bare-metal Circle image, with compile-
 The implementation is split into two phases:
 
 - **Phase 1:** Serial chain (single core) -- linear pipeline of effects
+
 - **Phase 2:** Mixer/router topology -- arbitrary DAGs with splits, parallel paths, and mixing
 
 Both phases use the same JSON configuration format. A serial chain is just a linear graph. Phase 1 validates that the graph is linear and rejects non-linear configs with a clear error. Phase 2 lifts that restriction.
@@ -50,17 +51,21 @@ Parameter *values* and MIDI CC mappings are baked into the generated code from t
 **Reserved node names:**
 
 - `audio_in` -- hardware audio input (channel count from board config, currently stereo)
+
 - `audio_out` -- hardware audio output
 
 **Connection format:**
 
 - `["A", "B"]` -- connect A's outputs to B's inputs sequentially (out[0]->in[0], out[1]->in[1], zero-pad or truncate on mismatch)
+
 - `["A", "B:1"]` -- connect A's outputs to B's input starting at index 1 (for mixer input selection)
 
 **MIDI mapping:**
 
 - `channel` assigns a MIDI channel to the node
+
 - Without `cc`, CCs map to parameters by index (CC 0 -> param 0, CC 1 -> param 1, etc.)
+
 - With `cc`, explicit CC-to-param-name mappings replace the default index-based mapping
 
 ### Phase 1 Example: Serial Chain
@@ -150,14 +155,19 @@ All buffer allocation and routing is resolved at compile time. No runtime graph 
 ### Built-in Node Types (Phase 2)
 
 - **`mixer`** -- weighted sum of N inputs. Each input has a `gain_N` parameter (default 1.0), controllable via MIDI CC. The `inputs` field specifies how many inputs.
+
 - **Fan-out (splitter)** -- implicit. If `audio_in` connects to both `reverb` and `delay`, the code generator passes the same buffer pointer to both. No copy needed since gen~ does not modify its input buffers.
 
 ### Graph Validation (Python, at generation time)
 
 1. **Cycle detection** -- the graph must be a DAG
+
 2. **Connectivity** -- all nodes must be reachable from `audio_in`; all paths must reach `audio_out`
+
 3. **Channel compatibility** -- warn on channel count mismatches between connected nodes (zero-pad missing channels, truncate extras)
+
 4. **Phase 1 linearity check** -- reject fan-out/fan-in until Phase 2 is implemented
+
 5. **Export resolution** -- each node's `export` field must correspond to a gen~ export directory provided via `--export`
 
 ---
@@ -169,7 +179,9 @@ The current single-plugin Circle backend has entirely static parameters -- `CKer
 ### Execution Context Separation
 
 - `GetChunk()` runs in DMA ISR context -- cannot poll I/O, but reads `GenState` params (already updated).
+
 - `CKernel::Run()` runs in the main loop on core 0 between interrupts -- this is where MIDI/GPIO/network input is polled.
+
 - `wrapper_set_param()` writes a single aligned 32-bit float, which is atomic on ARM. No lock needed between `Run()` and the ISR.
 
 ```text
@@ -228,7 +240,9 @@ void OnMidiCC(uint8_t channel, uint8_t cc, uint8_t value) {
 The same `ParamMapping` table can be driven by other input sources using the same `(plugin_index, param_index, value)` triple:
 
 - **GPIO/ADC knobs** via external MCP3008 (SPI) or ADS1115 (I2C) -- polled in `Run()`, mapped to a fixed param
+
 - **Network control** via HTTP API or MQTT -- parsed in `Run()`, dispatched to mapping table
+
 - **MIDI program change** -- switch parameter presets (load a saved set of values from SD card) **(not yet implemented)**
 
 ---
@@ -295,13 +309,17 @@ The JSON graph is a **compile-time** input. It is read by `gen-dsp` in Python, a
 This means:
 
 - Changing the graph topology requires re-running `gen-dsp` + `build`
+
 - Changing parameter values does not -- presets could be loaded from SD card at boot **(not yet implemented)**
+
 - Changing MIDI CC mappings could go either way; baked-in defaults with optional SD card overrides is the pragmatic choice **(SD card overrides not yet implemented)**
 
 ### Why Not Runtime Graph Configuration?
 
 1. No JSON parser on bare metal (Circle has no stdlib JSON support; adding one is possible but adds complexity)
+
 2. Compile-time resolution allows the C compiler to optimize the processing function (inlining, constant propagation)
+
 3. The graph topology is inherently a "design-time" decision -- you don't change your effects chain at runtime, you change parameter values
 
 ### Buffer Allocation Strategy
@@ -315,11 +333,13 @@ This means:
 When plugin A outputs 2 channels but plugin B expects 3 inputs:
 
 - Zero-pad: B's input[2] receives silence
+
 - Log a warning at generation time so the user is aware
 
 When plugin A outputs 3 channels but plugin B expects 2 inputs:
 
 - Truncate: B only receives A's first 2 channels
+
 - Log a warning at generation time
 
 This matches how most DAWs handle bus width mismatches.
@@ -333,8 +353,11 @@ This matches how most DAWs handle bus width mismatches.
 Circle's `CMultiCoreSupport` provides:
 
 - `Run(unsigned nCore)` entry point for cores 1-3
+
 - `CSpinLock` for critical sections
+
 - `SendIPI()` / `IPIHandler()` for inter-processor interrupts
+
 - All peripheral interrupts (DMA, USB, timers) run exclusively on core 0
 
 Proven by [MiniDexed](https://github.com/probonopd/MiniDexed): 8-16 Dexed tone generators across 4 cores with USB MIDI, I2S output, and SD card patch loading.
@@ -346,7 +369,9 @@ Not needed for Phase 1 or 2 (single-core is sufficient for typical gen~ patch co
 `CUSBMIDIDevice` provides:
 
 - `RegisterPacketHandler()` for receiving 4-byte USB-MIDI event packets
+
 - Hot-plug support (devices can be attached/removed at any time)
+
 - Multiple devices via USB hub
 
 ### Filesystem

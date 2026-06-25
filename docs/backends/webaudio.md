@@ -7,7 +7,9 @@ Generates browser-ready AudioWorklet + WebAssembly modules from gen~ exports or 
 ## Prerequisites
 
 - Python >= 3.10
+
 - make
+
 - [Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html) (`emcc` on PATH)
 
 ### Installing Emscripten
@@ -54,14 +56,19 @@ cd fm_synth_webaudio && make all && make serve
 ## How It Works
 
 1. `gen_ext_webaudio.cpp` bridges Emscripten exports (`wa_create`, `wa_perform`, etc.) to the gen~ wrapper functions via `EMSCRIPTEN_KEEPALIVE`
+
 2. `_ext_webaudio.cpp` wraps genlib (header isolation pattern, same as all platforms)
+
 3. `_processor.js` implements `AudioWorkletProcessor` with `parameterDescriptors` auto-generated from gen~ parameter metadata
+
 4. At build time, `make` compiles C++ to WASM, then concatenates the Emscripten glue JS with `_processor.js` into the final `processor.js`
+
 5. `index.html` loads the worklet module, creates an `AudioWorkletNode`, and renders parameter sliders
 
 ## Limitations
 
 - Buffer loading is not yet supported (browser file I/O is async and browser-specific)
+
 - Build integration tests require `emcc` and `node` on PATH (skipped in CI if unavailable)
 
 ## Platform Key

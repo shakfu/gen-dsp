@@ -7,8 +7,11 @@ Generates VCV Rack modules with per-sample processing, auto-generated panel SVG,
 ## Prerequisites
 
 - Python >= 3.10
+
 - C/C++ compiler (clang, gcc)
+
 - make
+
 - VCV Rack SDK (auto-downloaded, or set `RACK_DIR` env var to an existing install)
 
 The Rack SDK is automatically downloaded and cached on first build. No manual SDK installation is required unless you want to use a specific SDK version.
@@ -38,8 +41,11 @@ make
 gen-dsp uses **header isolation** to separate VCV Rack API code from genlib code:
 
 - `gen_ext_vcvrack.cpp` -- VCV Rack-facing wrapper (includes Rack SDK headers)
+
 - `_ext_vcvrack.cpp` -- genlib-facing bridge (includes only genlib headers)
+
 - `_ext_vcvrack.h` -- C interface connecting the two sides via an opaque `GenState*` pointer
+
 - `plugin.cpp` / `plugin.hpp` -- Rack plugin registration boilerplate
 
 **Signal type:** float (32-bit). gen~ is compiled with `GENLIB_USE_FLOAT32`.
@@ -49,11 +55,13 @@ gen-dsp uses **header isolation** to separate VCV Rack API code from genlib code
 **Voltage scaling:**
 
 - Audio: gen~ [-1, 1] is mapped to VCV standard +/-5V
+
 - Parameters: gen~ min/max maps directly to knob min/max (no voltage scaling)
 
 **Module type detection:** Automatic based on I/O:
 
 - `Effect` tag if the gen~ export has audio inputs
+
 - `Synth Voice` tag if the gen~ export has no audio inputs
 
 ## Parameters
@@ -67,8 +75,11 @@ Buffer support follows the standard gen-dsp pattern. Up to 8 single-channel buff
 ## Build Details
 
 - **Build system:** make using Rack SDK's `plugin.mk`
+
 - **SDK:** Rack SDK v2.6.1 (auto-downloaded and cached)
+
 - **Compile flags:** `-DGENLIB_USE_FLOAT32 -DWIN32 -DGENLIB_NO_DENORM_TEST`
+
 - **Shared cache:** not applicable (Make-based, not CMake FetchContent)
 
 ### Rack SDK Resolution
@@ -76,7 +87,9 @@ Buffer support follows the standard gen-dsp pattern. Up to 8 single-channel buff
 The Rack SDK location is resolved in priority order:
 
 1. `RACK_DIR` environment variable (explicit override)
+
 2. `GEN_DSP_CACHE_DIR` env var + `rack-sdk-src/Rack-SDK`
+
 3. OS-appropriate gen-dsp cache path (auto-download destination)
 
 Auto-download URLs by platform:
@@ -91,6 +104,7 @@ Auto-download URLs by platform:
 ### Auto-Generated Assets
 
 - **`plugin.json`:** Module manifest with slug, tags (`Effect` or `Synth Voice`), and brand info
+
 - **Panel SVG:** Dark-themed panel auto-sized to component count:
 
 | Components | Panel width |
@@ -117,6 +131,9 @@ The plugin directory must include `plugin.dylib`/`.so`/`.dll`, `plugin.json`, an
 ## Troubleshooting
 
 - **"No Rack SDK download available":** Your platform/architecture combination is not supported. Set `RACK_DIR` to point to a manually installed SDK.
+
 - **`plugin.mk` not found:** The Rack SDK download may have failed or extracted to the wrong location. Delete the cached SDK directory and rebuild to re-download.
+
 - **High CPU usage:** Per-sample processing (`perform(n=1)`) has higher overhead than block-based processing. This is inherent to the VCV Rack architecture (one sample per `process()` call). Complex gen~ patches may need optimization.
+
 - **Module not appearing in VCV Rack:** Ensure the entire plugin directory (not just the binary) is in the plugins folder. VCV Rack requires `plugin.json` to discover modules.

@@ -7,8 +7,11 @@ Generates cross-platform VST3 plugins (`.vst3` bundles) from gen~ exports using 
 ## Prerequisites
 
 - Python >= 3.10
+
 - CMake >= 3.19
+
 - C/C++ compiler (clang, gcc, or MSVC)
+
 - Network access on first configure (to fetch VST3 SDK, ~50MB; cached afterward)
 
 ## Quick Start
@@ -35,7 +38,9 @@ gen-dsp build ./myeffect_vst3 -p vst3
 gen-dsp uses **header isolation** to separate VST3 SDK code from genlib code:
 
 - `gen_ext_vst3.cpp` -- VST3-facing wrapper (includes only VST3 SDK headers)
+
 - `_ext_vst3.cpp` -- genlib-facing bridge (includes only genlib headers)
+
 - `_ext_vst3.h` -- C interface connecting the two sides via an opaque `GenState*` pointer
 
 The plugin uses `SingleComponentEffect` -- the simplest VST3 plugin structure that combines the audio processor and edit controller into a single class. The implementation passes all 47 tests in Steinberg's SDK validator.
@@ -47,6 +52,7 @@ The plugin uses `SingleComponentEffect` -- the simplest VST3 plugin structure th
 **Plugin type detection:** Automatic based on I/O configuration:
 
 - `Fx` (effect) if the gen~ export has audio inputs
+
 - `Instrument|Synth` if the gen~ export has no audio inputs
 
 ## Parameters
@@ -66,10 +72,15 @@ Buffer support follows the standard gen-dsp pattern. Up to 8 single-channel buff
 ## Build Details
 
 - **Build system:** CMake with FetchContent
+
 - **SDK:** Steinberg VST3 SDK fetched via CMake FetchContent (tag `v3.7.9_build_61`)
+
 - **Audio format:** Float32, non-interleaved (zero-copy)
+
 - **Code signing:** ad-hoc signed on macOS during build
+
 - **Compile flags:** `-DGENLIB_USE_FLOAT32 -DWIN32 -DGENLIB_NO_DENORM_TEST`
+
 - **SDK class:** `SingleComponentEffect` (combined processor + controller)
 
 The generated CMakeLists.txt explicitly compiles `vstsinglecomponenteffect.cpp` and platform-specific entry points (`macmain.cpp`, etc.) from the SDK. The SDK's example and VSTGUI options are disabled (`SMTG_ENABLE_VST3_PLUGIN_EXAMPLES=OFF`, `SMTG_ENABLE_VSTGUI_SUPPORT=OFF`).
@@ -126,6 +137,9 @@ The VST3 SDK is **GPL3/proprietary dual licensed**. If you distribute your plugi
 ## Troubleshooting
 
 - **CMake configure hangs:** The VST3 SDK is ~50MB. The first download may take a while. If it seems stuck, check your network connection. Set `GIT_TERMINAL_PROMPT=0` in your environment to prevent git from prompting for credentials.
+
 - **`STR` macro redefinition warnings:** The VST3 SDK redefines `STR` as `STR16`. The gen-dsp wrapper uses `GSTR()` to avoid this conflict. No action needed.
+
 - **Plugin not appearing in DAW:** Ensure the `.vst3` bundle (it's a directory, not a single file) is in the correct install path. Restart the DAW to rescan.
+
 - **First build is slow:** The VST3 SDK is large. Subsequent builds reuse the cached SDK and are much faster. The shared cache is enabled by default; pass `--no-shared-cache` to disable it.

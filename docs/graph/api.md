@@ -1,7 +1,6 @@
 # gen_dsp.graph API Reference
 
-Public API for the `gen_dsp.graph` subpackage. Requires `pip install gen-dsp[graph]` (pydantic).
-Simulation functions additionally require `pip install gen-dsp[sim]` (numpy).
+Public API for the `gen_dsp.graph` subpackage. Requires `pip install gen-dsp[graph]` (pydantic). Simulation functions additionally require `pip install gen-dsp[sim]` (numpy).
 
 All symbols are importable from `gen_dsp.graph` unless otherwise noted.
 
@@ -13,9 +12,7 @@ All symbols are importable from `gen_dsp.graph` unless otherwise noted.
 
 Parse a `.gdsp` source string and return a single `Graph`.
 
-If *source* contains multiple `graph` blocks, returns the **last** one (which typically uses the
-earlier ones as named subgraphs). Raises `GDSPSyntaxError` on tokenizer/parser errors and
-`GDSPCompileError` on semantic errors (e.g. unresolved identifiers, recursive graph calls).
+If *source* contains multiple `graph` blocks, returns the **last** one (which typically uses the earlier ones as named subgraphs). Raises `GDSPSyntaxError` on tokenizer/parser errors and `GDSPCompileError` on semantic errors (e.g. unresolved identifiers, recursive graph calls).
 
 ```python
 from gen_dsp.graph import parse
@@ -30,24 +27,19 @@ graph lowpass {
 
 ### `parse_multi(source, *, filename="<string>") -> dict[str, Graph]`
 
-Parse a `.gdsp` source string and return **all** graphs as `{name: Graph}`. Use this when you
-need access to library subgraphs defined in the same file.
+Parse a `.gdsp` source string and return **all** graphs as `{name: Graph}`. Use this when you need access to library subgraphs defined in the same file.
 
 ### `parse_file(path, *, multi=False) -> Graph | dict[str, Graph]`
 
-Parse a `.gdsp` file. Equivalent to `parse(path.read_text())` or `parse_multi(...)` when
-`multi=True`. Passes the filename to error messages.
+Parse a `.gdsp` file. Equivalent to `parse(path.read_text())` or `parse_multi(...)` when `multi=True`. Passes the filename to error messages.
 
 ### `class GDSPSyntaxError(Exception)`
 
-Raised by the tokenizer and parser for structural errors (unknown tokens, mismatched braces,
-unexpected EOF). Attributes: `line: int`, `col: int`, `filename: str`. The `str()` representation
-includes the source location: `"<file>:<line>:<col>: <message>"`.
+Raised by the tokenizer and parser for structural errors (unknown tokens, mismatched braces, unexpected EOF). Attributes: `line: int`, `col: int`, `filename: str`. The `str()` representation includes the source location: `"<file>:<line>:<col>: <message>"`.
 
 ### `class GDSPCompileError(Exception)`
 
-Raised by the compiler for semantic errors (undefined ID, recursive graph reference, wrong number
-of arguments, etc.). Same attributes as `GDSPSyntaxError`.
+Raised by the compiler for semantic errors (undefined ID, recursive graph reference, wrong number of arguments, etc.). Same attributes as `GDSPSyntaxError`.
 
 ---
 
@@ -62,23 +54,26 @@ Before validation, subgraphs are expanded inline via `expand_subgraphs()`.
 Checks performed:
 
 1. **Unique IDs** -- no duplicate node IDs; no node ID collides with an audio input or param name.
+
 2. **Reference resolution** -- every string field that refers to another node resolves to a known ID.
+
 3. **Output sources** -- every `AudioOutput.source` references an existing node.
+
 4. **Delay consistency** -- `DelayRead.delay` and `DelayWrite.delay` reference an existing `DelayLine`.
-5. **Buffer consistency** -- `BufRead`, `BufWrite`, `BufSize`, `Splat`, `Cycle`, `Wave`, `Lookup`
-   reference an existing `Buffer`.
+
+5. **Buffer consistency** -- `BufRead`, `BufWrite`, `BufSize`, `Splat`, `Cycle`, `Wave`, `Lookup` reference an existing `Buffer`.
+
 6. **Gate consistency** -- `GateOut.gate` references an existing `GateRoute`; channel is in range.
-7. **Control-rate consistency** -- nodes listed in `control_nodes` exist; they must not depend on
-   audio inputs or audio-rate nodes.
+
+7. **Control-rate consistency** -- nodes listed in `control_nodes` exist; they must not depend on audio inputs or audio-rate nodes.
+
 8. **No pure cycles** -- topological sort on non-feedback edges must succeed.
 
-When `warn_unmapped_params=True`, warnings for subgraph params that fall back to defaults are
-appended after all errors.
+When `warn_unmapped_params=True`, warnings for subgraph params that fall back to defaults are appended after all errors.
 
 ### `class GraphValidationError(str)`
 
-A structured validation error that behaves as a plain string. Subclasses `str` so existing call
-sites (`errors == []`, `"; ".join(errors)`, `print(err)`) work unchanged.
+A structured validation error that behaves as a plain string. Subclasses `str` so existing call sites (`errors == []`, `"; ".join(errors)`, `print(err)`) work unchanged.
 
 **Constructor:**
 
@@ -137,22 +132,25 @@ for err in errors:
 
 ### `compile_graph(graph) -> str`
 
-Compile a `Graph` to a standalone C++ source string. Raises `ValueError` if the graph fails
-validation or contains IDs that are not valid C identifiers.
+Compile a `Graph` to a standalone C++ source string. Raises `ValueError` if the graph fails validation or contains IDs that are not valid C identifiers.
 
 The output is a self-contained `.cpp` file (no genlib dependency) with:
 
 - State struct `{Name}State`
+
 - `create(sr)` / `destroy(self)` / `reset(self)` lifecycle functions
+
 - `perform(self, ins, outs, n)` sample-processing loop
+
 - Param introspection: `num_params`, `param_name`, `param_min`, `param_max`, `set_param`, `get_param`
+
 - Buffer introspection: `num_buffers`, `buffer_name`, `buffer_size`, `get_buffer`, `set_buffer`
+
 - Peek introspection: `num_peeks`, `peek_name`, `get_peek`
 
 ### `compile_graph_to_file(graph, output_dir) -> Path`
 
-Compile a `Graph` and write `{name}.cpp` to *output_dir* (created if absent). Returns the path
-to the written file.
+Compile a `Graph` and write `{name}.cpp` to *output_dir* (created if absent). Returns the path to the written file.
 
 ---
 
@@ -165,14 +163,12 @@ Apply all optimization passes in sequence and return an `OptimizeResult(graph, s
 Passes applied:
 
 1. **Constant folding** (`constant_fold`) -- pure nodes with all-constant inputs become `Constant`.
-2. **Common subexpression elimination** (`eliminate_cse`) -- duplicate pure nodes with identical
-   inputs are merged into one.
-3. **Dead node elimination** (`eliminate_dead_nodes`) -- nodes not reachable from any output are
-   removed. Respects side-effecting writers: when a `DelayRead` or `BufRead`/`BufSize` is live,
-   the `DelayWrite`/`BufWrite`/`Splat` nodes feeding the same resource are kept.
 
-All passes return a new `Graph` (immutable). Stateful nodes (`History`, `DelayLine`, oscillators,
-filters, etc.) are never constant-folded.
+2. **Common subexpression elimination** (`eliminate_cse`) -- duplicate pure nodes with identical inputs are merged into one.
+
+3. **Dead node elimination** (`eliminate_dead_nodes`) -- nodes not reachable from any output are removed. Respects side-effecting writers: when a `DelayRead` or `BufRead`/`BufSize` is live, the `DelayWrite`/`BufWrite`/`Splat` nodes feeding the same resource are kept.
+
+All passes return a new `Graph` (immutable). Stateful nodes (`History`, `DelayLine`, oscillators, filters, etc.) are never constant-folded.
 
 ### `constant_fold(graph) -> Graph`
 
@@ -188,8 +184,7 @@ Common subexpression elimination pass only.
 
 ### `promote_control_rate(graph) -> Graph`
 
-Promote audio-rate pure nodes to control-rate when all their dependencies are params, literals,
-invariant nodes, or existing control-rate nodes. No-op when `graph.control_interval <= 0`.
+Promote audio-rate pure nodes to control-rate when all their dependencies are params, literals, invariant nodes, or existing control-rate nodes. No-op when `graph.control_interval <= 0`.
 
 ### `class OptimizeStats(NamedTuple)`
 
@@ -236,8 +231,7 @@ Returns a `SimResult` with `outputs: dict[str, NDArray[float32]]` and `state: Si
 
 ### `class SimState`
 
-Mutable simulation state. Created automatically by `simulate()`, or explicitly for direct
-parameter/buffer access.
+Mutable simulation state. Created automatically by `simulate()`, or explicitly for direct parameter/buffer access.
 
 ```python
 state = SimState(graph, sample_rate=44100.0)
@@ -269,9 +263,7 @@ state = SimState(graph, sample_rate=44100.0)
 
 Serialize a `Graph` back to `.gdsp` DSL source. The output round-trips through `parse()`.
 
-Constants are inlined as numeric literals. `NamedConstant` nodes become bare identifiers (`pi`,
-`e`, etc.). `History` feedback writes use the `<-` operator. Nodes are emitted in topological
-order.
+Constants are inlined as numeric literals. `NamedConstant` nodes become bare identifiers (`pi`, `e`, etc.). `History` feedback writes use the `<-` operator. Nodes are emitted in topological order.
 
 ---
 
@@ -279,25 +271,21 @@ order.
 
 ### `graph_to_dot(graph) -> str`
 
-Convert a `Graph` to a Graphviz DOT string. Nodes are colored by type, feedback edges are marked
-`[style=dashed]`.
+Convert a `Graph` to a Graphviz DOT string. Nodes are colored by type, feedback edges are marked `[style=dashed]`.
 
 ### `graph_to_dot_file(graph, output_dir) -> Path`
 
-Write `{name}.dot` to *output_dir*. If `dot` (Graphviz) is on `PATH`, also renders `{name}.pdf`.
-Returns the path to the `.dot` file.
+Write `{name}.dot` to *output_dir*. If `dot` (Graphviz) is on `PATH`, also renders `{name}.pdf`. Returns the path to the `.dot` file.
 
 ---
 
 ## Graph Algebra
 
-FAUST-style block-diagram combinators. All return a new `Graph`; params are namespaced with the
-subgraph ID prefix to avoid collisions.
+FAUST-style block-diagram combinators. All return a new `Graph`; params are namespaced with the subgraph ID prefix to avoid collisions.
 
 ### `series(a, b) -> Graph`
 
-Pipe `a`'s outputs into `b`'s inputs positionally. Requires `len(a.outputs) == len(b.inputs)`.
-Result: `inputs=a.inputs`, `outputs=b.outputs`.
+Pipe `a`'s outputs into `b`'s inputs positionally. Requires `len(a.outputs) == len(b.inputs)`. Result: `inputs=a.inputs`, `outputs=b.outputs`.
 
 Operator shorthand: `a >> b`.
 
@@ -309,13 +297,11 @@ Operator shorthand: `a // b`.
 
 ### `split(a, b) -> Graph`
 
-Fan-out: distribute `a`'s outputs cyclically across `b`'s inputs.
-Requires `len(b.inputs) % len(a.outputs) == 0`.
+Fan-out: distribute `a`'s outputs cyclically across `b`'s inputs. Requires `len(b.inputs) % len(a.outputs) == 0`.
 
 ### `merge(a, b) -> Graph`
 
-Fan-in: group `a`'s outputs and sum them pairwise into `b`'s inputs.
-Requires `len(a.outputs) % len(b.inputs) == 0`.
+Fan-in: group `a`'s outputs and sum them pairwise into `b`'s inputs. Requires `len(a.outputs) % len(b.inputs) == 0`.
 
 ---
 
@@ -323,11 +309,9 @@ Requires `len(a.outputs) % len(b.inputs) == 0`.
 
 ### `expand_subgraphs(graph) -> Graph`
 
-Recursively inline all `Subgraph` nodes, rewriting IDs and param bindings to avoid collisions.
-Returns a flat `Graph` with no `Subgraph` nodes.
+Recursively inline all `Subgraph` nodes, rewriting IDs and param bindings to avoid collisions. Returns a flat `Graph` with no `Subgraph` nodes.
 
-Called automatically by `compile_graph()`, `validate_graph()`, `optimize_graph()`, and
-`simulate()`.
+Called automatically by `compile_graph()`, `validate_graph()`, `optimize_graph()`, and `simulate()`.
 
 ---
 
@@ -335,9 +319,7 @@ Called automatically by `compile_graph()`, `validate_graph()`, `optimize_graph()
 
 ### `toposort(graph) -> list[Node]`
 
-Return graph nodes in topological order using Kahn's algorithm with alphabetical tie-breaking for
-determinism. Raises `ValueError` if the graph contains a pure cycle (cycles through `History` or
-delay feedback edges are allowed and excluded from the sort).
+Return graph nodes in topological order using Kahn's algorithm with alphabetical tie-breaking for determinism. Raises `ValueError` if the graph contains a pure cycle (cycles through `History` or delay feedback edges are allowed and excluded from the sort).
 
 ---
 
@@ -347,36 +329,33 @@ For generating platform-specific plugin projects from a graph (without a gen~ ex
 
 ### `generate_adapter_cpp(graph, platform) -> str`
 
-Generate the `_ext_{platform}.cpp` adapter source that bridges the compiled graph to gen-dsp's
-platform backend. *platform* must be one of `SUPPORTED_PLATFORMS`.
+Generate the `_ext_{platform}.cpp` adapter source that bridges the compiled graph to gen-dsp's platform backend. *platform* must be one of `SUPPORTED_PLATFORMS`.
 
 ### `generate_manifest(graph) -> str`
 
-Generate a `manifest.json` string compatible with gen-dsp's `Manifest` dataclass. Contains
-`gen_name`, `num_inputs`, `num_outputs`, `params` (with min/max/default), and `buffers`.
+Generate a `manifest.json` string compatible with gen-dsp's `Manifest` dataclass. Contains `gen_name`, `num_inputs`, `num_outputs`, `params` (with min/max/default), and `buffers`.
 
 ### `compile_for_gen_dsp(graph, output_dir, platform) -> Path`
 
 Convenience: compile graph and write three files to *output_dir*:
 
 - `{name}.cpp` -- compiled C++
+
 - `_ext_{platform}.cpp` -- platform adapter
+
 - `manifest.json` -- gen-dsp manifest
 
 Returns the output directory path.
 
 ### `SUPPORTED_PLATFORMS`
 
-`set[str]` -- the set of platform keys accepted by `generate_adapter_cpp()` and
-`compile_for_gen_dsp()`. Currently: `chuck`, `clap`, `au`, `vst3`, `lv2`, `sc`, `vcvrack`,
-`daisy`, `circle`, `pd`, `max`.
+`set[str]` -- the set of platform keys accepted by `generate_adapter_cpp()` and `compile_for_gen_dsp()`. Currently: `chuck`, `clap`, `au`, `vst3`, `lv2`, `sc`, `vcvrack`, `daisy`, `circle`, `pd`, `max`.
 
 ---
 
 ## Generating Complete Plugin Projects
 
-Use `ProjectGenerator.from_graph()` (from `gen_dsp.core.project`) to produce a fully buildable
-project for any platform:
+Use `ProjectGenerator.from_graph()` (from `gen_dsp.core.project`) to produce a fully buildable project for any platform:
 
 ```python
 from gen_dsp.graph import Graph, AudioInput, AudioOutput, BinOp, Param
@@ -398,5 +377,4 @@ gen = ProjectGenerator.from_graph(graph, config)
 project_dir = gen.generate("build/gain_clap")
 ```
 
-This writes all source files (compiled C++, adapter, platform templates, build files) and runs the
-build by default.
+This writes all source files (compiled C++, adapter, platform templates, build files) and runs the build by default.

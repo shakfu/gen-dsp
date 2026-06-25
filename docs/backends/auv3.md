@@ -7,8 +7,11 @@ Generates macOS AUv3 plugins as App Extensions (`.appex`) inside a host applicat
 ## Prerequisites
 
 - Python >= 3.10
+
 - macOS
+
 - Xcode (full IDE, not just Command Line Tools -- needed for the CMake Xcode generator)
+
 - CMake >= 3.19
 
 ## Quick Start
@@ -40,10 +43,15 @@ build/Release/myeffect-Host.app/
 ## How It Works
 
 1. `gen_ext_auv3.mm` (Objective-C++) implements `AUAudioUnit` subclass with `AUParameterTree` and `internalRenderBlock`
+
 2. `_ext_auv3.cpp` wraps genlib (header isolation pattern, same as all platforms)
+
 3. `GenDspAUv3Factory` conforms to `AUAudioUnitFactory` protocol (the extension's principal class)
+
 4. Parameters are registered via `AUParameterTree` with bidirectional value sync; parameter events are processed in the realtime-safe render block
+
 5. The render block pulls input (for effects) via `pullInputBlock`, processes parameter events from the linked list, then calls `wrapper_perform()`
+
 6. Auto-detects `aufx` (effect), `augn` (generator), or `aumu` (MIDI instrument) from I/O configuration
 
 ## Discovery

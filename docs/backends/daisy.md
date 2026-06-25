@@ -7,9 +7,13 @@ Generates firmware binaries (`.bin`) for the Daisy Seed and related boards from 
 ## Prerequisites
 
 - Python >= 3.10
+
 - `arm-none-eabi-gcc` (ARM GCC cross-compilation toolchain)
+
 - make
+
 - git (for cloning libDaisy on first build)
+
 - Network access on first build (to clone libDaisy + submodules)
 
 ### Installing the ARM toolchain
@@ -75,7 +79,9 @@ For boards with knobs, gen-dsp auto-generates code that reads hardware knobs and
 gen-dsp uses **header isolation** to separate libDaisy API code from genlib code:
 
 - `gen_ext_daisy.cpp` -- Daisy-facing wrapper (includes libDaisy headers, audio callback, main loop)
+
 - `_ext_daisy.cpp` -- genlib-facing bridge (includes only genlib headers)
+
 - `_ext_daisy.h` -- C interface connecting the two sides via an opaque `GenState*` pointer
 
 **Signal type:** float (32-bit). gen~ is compiled with `GENLIB_USE_FLOAT32`.
@@ -89,8 +95,11 @@ gen-dsp uses **header isolation** to separate libDaisy API code from genlib code
 Daisy uses a custom `genlib_daisy.cpp` that replaces the standard `genlib.cpp`. Key differences:
 
 - **Two-tier bump allocator:** SRAM pool (~450KB, malloc'd at init) + SDRAM pool (64MB, placed in `.sdram_bss` linker section)
+
 - **No-op free:** `sysmem_freeptr()` does nothing (bump allocator -- memory is never freed)
+
 - **Allocate-only resize:** `sysmem_resizeptr()` allocates new memory (old block is wasted)
+
 - **No JSON:** Built with `-DGENLIB_NO_JSON` -- no json.c/json_builder.c compiled
 
 ### ARM_MATH_CM7 Workaround
@@ -110,10 +119,15 @@ Buffer support follows the standard gen-dsp pattern. Up to 8 single-channel buff
 ## Build Details
 
 - **Build system:** make using libDaisy's `core/Makefile` (provides ARM toolchain rules)
+
 - **SDK:** libDaisy auto-cloned via `git clone --recurse-submodules` (pinned to `v7.1.0`)
+
 - **Target MCU:** STM32H750 (ARM Cortex-M7)
+
 - **Compile flags:** `-DGENLIB_USE_FLOAT32 -DWIN32 -DGENLIB_NO_DENORM_TEST -DGENLIB_NO_JSON`
+
 - **Output:** firmware `.bin` in `build/` directory
+
 - **Shared cache:** not applicable (Make-based, not CMake FetchContent)
 
 ### libDaisy Resolution
@@ -121,7 +135,9 @@ Buffer support follows the standard gen-dsp pattern. Up to 8 single-channel buff
 The libDaisy directory is resolved in priority order:
 
 1. `LIBDAISY_DIR` environment variable (explicit override)
+
 2. `GEN_DSP_CACHE_DIR` env var + `libdaisy-src/libDaisy`
+
 3. OS-appropriate gen-dsp cache path (auto-clone destination)
 
 On first build, libDaisy is cloned and `libdaisy.a` is compiled. This takes a few minutes but only happens once.
@@ -141,7 +157,11 @@ make program-dfu
 ## Troubleshooting
 
 - **`arm-none-eabi-gcc` not found:** Download the ARM GNU toolchain from the [ARM GNU Toolchain Downloads](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads) page (select `arm-none-eabi`) and add its `bin/` directory to your PATH.
+
 - **libDaisy clone fails:** Ensure git is installed and you have network access. The clone includes submodules, so it may take a minute. Set `GIT_TERMINAL_PROMPT=0` to prevent git from hanging on credential prompts.
+
 - **libDaisy build fails:** Ensure `arm-none-eabi-gcc` is the correct version (9.x+ recommended). Check that `make` is GNU Make, not BSD make.
+
 - **Out of memory at runtime:** The bump allocator has fixed pools (450KB SRAM + 64MB SDRAM). Complex gen~ patches with many delay lines or buffers may exhaust available memory. There is no runtime error -- behavior is undefined if pools overflow.
+
 - **No audio output:** Check that the Daisy is receiving power and the audio codec is initialized. For the Seed, verify your hardware connections (SAI pins for I2S audio).

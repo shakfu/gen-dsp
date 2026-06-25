@@ -151,7 +151,9 @@ for (int _cb = 0; _cb < n; _cb += 64) {
 Nodes are classified into three tiers:
 
 1. **Invariant** (LICM): pure nodes depending only on params/literals -- hoisted before both loops.
+
 2. **Control-rate**: nodes listed in `control_nodes` -- computed once per control block.
+
 3. **Audio-rate**: everything else -- computed per sample.
 
 The simulator mirrors this behavior: control-rate nodes compute at block boundaries and hold their values between updates. Setting `control_interval = 0` (the default) preserves the existing single-loop behavior.
@@ -317,10 +319,15 @@ gen-dsp graph.json -n myeffect -p clap -o build/myeffect
 `compile_graph()` generates a single self-contained `.cpp` file with:
 
 - A state struct (`{Name}State`)
+
 - `create(sr)` / `destroy(self)` / `reset(self)` lifecycle
+
 - `perform(self, ins, outs, n)` sample-processing loop
+
 - Param introspection: `num_params`, `param_name`, `param_min`, `param_max`, `set_param`, `get_param`
+
 - Buffer introspection: `num_buffers`, `buffer_name`, `buffer_size`, `get_buffer`, `set_buffer`
+
 - Peek introspection: `num_peeks`, `peek_name`, `get_peek`
 
 ```python
@@ -341,10 +348,15 @@ optimized = optimize_graph(graph)  # constant folding + CSE + dead node eliminat
 ```
 
 - **Constant folding**: pure nodes with all-constant inputs are replaced by `Constant` nodes
+
 - **Common subexpression elimination**: duplicate pure nodes with identical inputs are merged
+
 - **Dead node elimination**: nodes not reachable from any output are removed (respects side-effecting writers for delay lines and buffers)
+
 - **Loop-invariant code motion**: param-only expressions are hoisted before the sample loop
+
 - **Multi-rate processing**: control-rate nodes run once per block in an outer loop, reducing per-sample overhead for smoothing/coefficient computation
+
 - **SIMD hints**: `__restrict` on I/O pointers; vectorization pragmas for pure-only graphs
 
 ## Validation
@@ -352,11 +364,17 @@ optimized = optimize_graph(graph)  # constant folding + CSE + dead node eliminat
 `validate_graph()` checks:
 
 1. Unique node IDs (no collisions with inputs or params)
+
 2. All string references resolve to existing IDs
+
 3. Output sources reference existing nodes
+
 4. DelayRead/DelayWrite reference existing DelayLine nodes
+
 5. BufRead/BufWrite/BufSize reference existing Buffer nodes
+
 6. Control-rate consistency: `control_nodes` reference existing nodes, don't depend on audio inputs or audio-rate nodes
+
 7. No pure cycles (cycles must pass through History or delay)
 
 ## Visualization
@@ -379,16 +397,29 @@ python examples/graph/wavetable.py -p sc
 ```
 
 - `stereo_gain.py` -- stateless stereo gain
+
 - `onepole.py` -- one-pole lowpass with History feedback
+
 - `fbdelay.py` -- feedback delay with dry/wet mix
+
 - `wavetable.py` -- wavetable oscillator using Buffer + Phasor + BufRead
+
 - `smooth_gain.py` -- control-rate parameter smoothing (multi-rate)
+
 - `multirate_synth.py` -- control-rate envelope with audio-rate oscillator (multi-rate)
+
 - `filter_chain.py` -- two filters in series using graph algebra
+
 - `noise_gate.py` -- dynamics gate with envelope follower
+
 - `chorus.py` -- modulated delay chorus effect
+
 - `subtractive_synth.py` -- sawtooth through one-pole lowpass (generator)
+
 - `waveshaper.py` -- lookup table waveshaping with Slide and fixdenorm
+
 - `allpass_reverb.py` -- Schroeder reverb with Allpass, t60, mstosamps, DCBlock
+
 - `signal_router.py` -- GateRoute/GateOut demux + Selector mux routing
+
 - `fm_synth.py` -- two-operator FM synthesis with Cycle wavetable oscillators

@@ -9,8 +9,11 @@ gen_dsp uses a platform registry system that makes adding new backends straightf
 **Required components:**
 
 1. Platform class (Python) - handles project generation and build orchestration
+
 2. C++ wrapper templates - the actual code that wraps gen~ exports
+
 3. Build system configuration - Makefile, CMakeLists.txt, or similar
+
 4. Registry entry - one line to register the new platform
 
 ## Step 1: Understand the Platform Interface
@@ -56,6 +59,7 @@ class Platform(ABC):
 The base class also provides utility methods you can use:
 
 - `generate_buffer_header()` - generates gen_buffer.h from template
+
 - `run_command()` - runs subprocess with optional output streaming
 
 ## Step 2: Create the Platform Class
@@ -213,10 +217,15 @@ Create directory `src/gen_dsp/templates/yourplatform/` with:
 The ChucK and AudioUnit backends use a **header isolation pattern** that prevents genlib headers from conflicting with platform headers. This is the recommended approach. You need these files:
 
 1. **`_ext_yourplatform.h`** - Bridge header declaring wrapper functions via an opaque `GenState*`
+
 2. **`_ext_yourplatform.cpp`** - Genlib-side implementation (includes genlib headers, **NOT** platform headers)
+
 3. **`gen_ext_yourplatform.cpp`** - Platform-side implementation (includes platform headers, **NOT** genlib headers)
+
 4. **`gen_ext_common_yourplatform.h`** - Shared macros (WRAPPER_NAMESPACE, STR, buffer config)
+
 5. **`yourplatform_buffer.h`** - Buffer class extending `DataInterface<t_sample>` (genlib-side)
+
 6. **`gen_buffer.h.template`** - Buffer configuration template:
 
    ```c
@@ -235,6 +244,7 @@ The ChucK and AudioUnit backends use a **header isolation pattern** that prevent
 genlib headers (`genlib_ops.h` in particular) define inline `exp2(float)` and `trunc(float)` that conflict with `<cmath>` on modern compilers. The solution is to split the wrapper into two compilation units:
 
 - **`_ext_yourplatform.cpp`** (genlib side) -- includes genlib headers, defines `WIN32` and `GENLIB_NO_DENORM_TEST` to suppress conflicts, includes the gen~ exported `.cpp`, implements wrapper functions
+
 - **`gen_ext_yourplatform.cpp`** (platform side) -- includes only platform headers and `_ext_yourplatform.h`, calls wrapper functions through the opaque `GenState*` interface
 
 The bridge header (`_ext_yourplatform.h`) declares all wrapper functions in a namespace without including any genlib types:
@@ -350,7 +360,9 @@ __all__ = [
 **That's it!** The CLI will automatically pick up the new platform:
 
 - `gen-dsp <source> -p yourplatform` will work
+
 - `gen-dsp build -p yourplatform` will work
+
 - Help text will show the new platform option
 
 ## Step 6: Add Tests
@@ -481,53 +493,79 @@ target_link_libraries(${PROJECT_NAME} PRIVATE clap)
 ### VST3 (implemented)
 
 - Uses CMake with FetchContent for the VST3 SDK (pinned to `v3.7.9_build_61`)
+
 - `SingleComponentEffect` (combined processor+controller) -- simplest VST3 plugin structure
+
 - `smtg_add_vst3plugin()` macro handles `.vst3` bundle directory structure
+
 - Must compile `vstsinglecomponenteffect.cpp` and platform entry points explicitly
+
 - Deterministic FUID from MD5 of `"com.gen-dsp.vst3.<lib_name>"`
+
 - Uses `GSTR()` macro instead of `STR()` to avoid SDK `STR16` collision
+
 - GPL3/proprietary dual license -- check compatibility
+
 - See `src/gen_dsp/templates/vst3/` and `src/gen_dsp/platforms/vst3.py`
 
 ### SuperCollider UGens
 
 - Uses scons or CMake
+
 - UGen interface differs from genlib - may need adapter layer
+
 - Single-sample or block processing modes
+
 - Buffer access via `SndBuf`
 
 ### VCV Rack
 
 - Uses CMake with Rack SDK
+
 - Sample-by-sample processing
+
 - Different parameter model (knobs, CV inputs)
 
 ### LV2
 
 - Uses meson or CMake
+
 - Standardized plugin format with TTL manifests
+
 - Port-based I/O model
 
 ### JUCE (VST/AU/AAX)
 
 - Uses CMake or Projucer
+
 - Most complex but broadest reach
+
 - Consider as a "meta-platform" generating multiple formats
+
 - Note: the AU and CLAP backends already cover AUv2 and CLAP natively without JUCE
 
 ### Embedded (Bela, Daisy)
 
 - Cross-compilation considerations
+
 - Fixed buffer sizes may be required
+
 - Limited memory/CPU constraints
 
 ## Checklist
 
 - [ ] Platform class implements all abstract methods
+
 - [ ] Templates directory created with all required files
+
 - [ ] C++ wrapper compiles and runs
+
 - [ ] Platform registered in `PLATFORM_REGISTRY`
+
 - [ ] Template accessor added to `templates/__init__.py`
+
 - [ ] Tests added and passing
+
 - [ ] `get_build_instructions()` returns useful commands
+
 - [ ] Documentation updated (README, CHANGELOG)

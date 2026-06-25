@@ -7,7 +7,9 @@ Feasibility review for adding [Move Everything](https://github.com/charlesvestal
 An unofficial open-source framework for running custom instruments/effects on **Ableton Move** hardware. It intercepts the device's SPI communication via an LD_PRELOAD shim and runs custom DSP modules as native ARM64 `.so` shared libraries on the device's Linux OS.
 
 - Author: Charles Vestal
+
 - License: CC BY-NC-SA 4.0
+
 - Language: C (DSP), JavaScript (UI via embedded QuickJS)
 
 ## Plugin API (v2)
@@ -15,10 +17,15 @@ An unofficial open-source framework for running custom instruments/effects on **
 Well-defined C plugin interface:
 
 - `create_instance(module_dir, json_defaults)` / `destroy_instance(instance)` -- lifecycle
+
 - `render_block(instance, out_lr, frames)` -- 128-frame stereo int16 blocks, in-place
+
 - `on_midi(instance, msg, len, source)` -- MIDI handling
+
 - `set_param(instance, key, val)` / `get_param(instance, key, buf, len)` -- string-based params
+
 - Entry point: `move_plugin_init_v2()` (generators) or `move_audio_fx_init_v2()` (effects)
+
 - Packaged as a directory with `module.json` metadata
 
 ## Constraints vs. gen-dsp Typical Backends
@@ -37,8 +44,11 @@ Well-defined C plugin interface:
 Architecturally viable -- gen-dsp already has precedent for:
 
 - Embedded ARM targets (Daisy backend)
+
 - Make-based builds (ChucK, PD, VCV Rack, Daisy)
+
 - Per-sample or per-block processing adaptation
+
 - Custom genlib runtimes (Daisy's `genlib_daisy.cpp`)
 
 ## Implementation Requirements
@@ -62,5 +72,7 @@ The Daisy backend is the closest existing parallel: embedded ARM target, custom 
 ## Open Questions
 
 - **Licensing**: CC BY-NC-SA 4.0 is viral and non-commercial. Need to verify that the plugin API headers are usable without the NC restriction, or that gen-dsp's generated output (templates, runtime code) is not considered a derivative work.
+
 - **API stability**: The project is relatively young and unofficial -- the plugin API could change.
+
 - **Testing**: Build integration tests would require either Docker or `aarch64-linux-gnu-gcc` on the host, similar to Daisy's `arm-none-eabi-gcc` gating.

@@ -247,9 +247,13 @@ void perform(FbdelayState* self,
 Going from the Graph model to C++ requires:
 
 1. **Topological sort** -- schedule nodes so that inputs are computed before outputs, with feedback edges broken at `History`/`Delay` boundaries.
+
 2. **State allocation** -- determine how much memory each `History`/`Delay`/`Buffer` node needs, lay out the state struct.
+
 3. **Loop-invariant code motion** -- identify param-only expressions and hoist them before the sample loop.
+
 4. **Code emission** -- walk sorted nodes and emit one C++ statement per node.
+
 5. **Optimization** -- constant folding, dead code elimination, common subexpression elimination.
 
 The compiled C++ follows the same `wrapper_*` interface (create/destroy/reset/perform + param/buffer introspection) that gen-dsp's platform backends expect, allowing graph-compiled code to plug directly into any of the 11 supported platforms.

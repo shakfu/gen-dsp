@@ -1,8 +1,6 @@
 # gen_dsp.graph Operator Coverage vs gen~ Operators
 
-This document compares the operators available in `gen_dsp.graph` against the
-operators documented in the [gen~ operator reference](https://docs.cycling74.com/userguide/gen/gen~_operators)
-and [gen common operator reference](https://docs.cycling74.com/userguide/gen/gen_common_operators).
+This document compares the operators available in `gen_dsp.graph` against the operators documented in the [gen~ operator reference](https://docs.cycling74.com/userguide/gen/gen~_operators) and [gen common operator reference](https://docs.cycling74.com/userguide/gen/gen_common_operators).
 
 Last updated: 2026-02-28
 
@@ -32,10 +30,7 @@ Last updated: 2026-02-28
 | Subpatcher | 2 | 1 | 50% |
 | **Total** | **~149** | **~133** | **~89%** |
 
-Note: Some gen~ operators have aliases (e.g. `ln`/`log`, `clip`/`clamp`). Each
-unique function is counted once. The "p" comparison variants (`eqp`, `gtp`, etc.)
-are counted as separate operators since they have distinct semantics (return
-value vs return 1/0).
+Note: Some gen~ operators have aliases (e.g. `ln`/`log`, `clip`/`clamp`). Each unique function is counted once. The "p" comparison variants (`eqp`, `gtp`, etc.) are counted as separate operators since they have distinct semantics (return value vs return 1/0).
 
 ---
 
@@ -197,9 +192,7 @@ value vs return 1/0).
 | `send` / `s` | -- | Named signal bus |
 | `receive` / `r` | -- | Named signal bus |
 
-**Missing**: `send`/`receive` (named signal buses). These are a graph-level
-wiring abstraction -- in the graph frontend, nodes reference each other by ID,
-which serves the same purpose.
+**Missing**: `send`/`receive` (named signal buses). These are a graph-level wiring abstraction -- in the graph frontend, nodes reference each other by ID, which serves the same purpose.
 
 ### Filter
 
@@ -226,10 +219,7 @@ which serves the same purpose.
 | `triangle` | `TriOsc` | |
 | `rate` | -- | Phase rate-scaling (composable) |
 
-Note: gen_dsp.graph also provides `SinOsc` and `SawOsc` which are not direct
-gen~ operators (gen~ uses `cycle` for sine lookup and manual phasor+math for
-saw). The `rate` operator is phase multiplication, trivially expressed as
-`BinOp("mul")`.
+Note: gen_dsp.graph also provides `SinOsc` and `SawOsc` which are not direct gen~ operators (gen~ uses `cycle` for sine lookup and manual phasor+math for saw). The `rate` operator is phase multiplication, trivially expressed as `BinOp("mul")`.
 
 ### Integrator / State
 
@@ -267,9 +257,7 @@ saw). The `rate` operator is phase multiplication, trivially expressed as
 | `nearest` | -- | `BufRead(interp="none")` |
 | `sample` | -- | `BufRead(interp="linear")` |
 
-**Missing**: `buffer` (external buffer~ references are out of scope),
-`channels` (no multi-channel buffer support). `nearest` and `sample` are
-aliases for `BufRead` with different interpolation modes.
+**Missing**: `buffer` (external buffer~ references are out of scope), `channels` (no multi-channel buffer support). `nearest` and `sample` are aliases for `BufRead` with different interpolation modes.
 
 ### Convert
 
@@ -282,8 +270,7 @@ aliases for `BufRead` with different interpolation modes.
 | `mstosamps` | `UnaryOp("mstosamps")` | a * sr / 1000 (sr-dependent) |
 | `sampstoms` | `UnaryOp("sampstoms")` | a * 1000 / sr (sr-dependent) |
 
-**Full coverage.** Note: `mstosamps`, `sampstoms` are sample-rate dependent
-and cannot be constant-folded.
+**Full coverage.** Note: `mstosamps`, `sampstoms` are sample-rate dependent and cannot be constant-folded.
 
 ### DSP Utilities
 
@@ -304,8 +291,7 @@ and cannot be constant-folded.
 |--------------|---------------|-------|
 | `fftinfo` | -- | FFT frame info |
 
-**Not implemented.** FFT processing (pfft~) is out of scope for the graph
-frontend.
+**Not implemented.** FFT processing (pfft~) is out of scope for the graph frontend.
 
 ### Global / Environment
 
@@ -317,8 +303,7 @@ frontend.
 | `voice` | -- | Poly voice index |
 | `voicecount` | -- | Poly voice count |
 
-**Missing**: `mc_channel`, `mc_channelcount`, `voice`, `voicecount` -- these
-are Max/MSP environment queries, out of scope for the graph frontend.
+**Missing**: `mc_channel`, `mc_channelcount`, `voice`, `voicecount` -- these are Max/MSP environment queries, out of scope for the graph frontend.
 
 ### I/O and Declaration
 
@@ -360,8 +345,7 @@ These nodes exist in gen_dsp.graph but have no direct gen~ operator counterpart:
 | `Peek` | Debug/passthrough (different from gen~'s buffer `peek`) |
 | `Pass` | Identity node |
 
-These higher-level nodes provide convenience abstractions that would require
-multiple gen~ operators to implement.
+These higher-level nodes provide convenience abstractions that would require multiple gen~ operators to implement.
 
 ---
 
@@ -370,19 +354,27 @@ multiple gen~ operators to implement.
 ### Out of Scope
 
 - FFT operators (`fftinfo`, `fftsize`, etc.) -- no pfft~ support
+
 - Max/MSP environment (`voice`, `mc_channel`, etc.) -- host-specific
+
 - `send`/`receive` -- graph wiring abstraction (nodes reference by ID)
 
 ### Trivially Composable
 
 - `interp` -- functionally equivalent to `Mix`
+
 - `rate` -- phase multiplication via `BinOp("mul")`
+
 - `nearest`/`sample` -- `BufRead(interp="none"/"linear")`
 
 ### Not Yet Implemented
 
 - `buffer` -- external buffer~ references
+
 - `channels` -- multi-channel buffer query
+
 - `vectorsize` -- block size constant
+
 - `setparam` -- handled by `Subgraph.params`
+
 - `expr` -- inline GenExpr (not applicable)

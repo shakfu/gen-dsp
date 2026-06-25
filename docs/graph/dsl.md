@@ -5,8 +5,11 @@ A line-oriented DSL for defining DSP graphs that compiles to `gen_dsp.graph.Grap
 ## Design Principles
 
 1. **Pure Python parser** -- tokenizer + recursive descent, stdlib only.
+
 2. **1:1 mapping to Graph** -- every construct compiles to exactly one (or a small fixed number of) graph node(s). No hidden magic.
+
 3. **Familiar to DSP practitioners** -- borrows from Gen~ codebox, Faust, and SuperCollider idioms.
+
 4. **Concise but unambiguous** -- eliminate boilerplate without introducing ambiguity.
 
 ## Node Type Inference
@@ -14,7 +17,9 @@ A line-oriented DSL for defining DSP graphs that compiles to `gen_dsp.graph.Grap
 GDSP has no type annotations. Every node's type is inferred from how it is written:
 
 - **Operators** desugar to typed nodes: `a + b` produces `BinOp(op="add")`, `a > b` produces `Compare(op="gt")`, `-x` produces `UnaryOp(op="neg")`.
+
 - **Function names determine node types.** `onepole(x, 0.5)` produces an `OnePole` node, `sinosc(440)` produces a `SinOsc` node, `sin(x)` produces `UnaryOp(op="sin")`. The function name *is* the type -- there is a fixed mapping from DSL function names to graph node types (see [Function Calls](#function-calls) below).
+
 - **Subgraph calls use the same syntax as builtins.** If a function name matches a `graph` definition in the same file, it produces a `Subgraph` node; if it matches a builtin DSP function, it produces the corresponding node type. The parser treats both identically -- the compiler disambiguates via deferred resolution.
 
 This means `y = onepole(x, coeff)` and `y = my_filter(input=x)` look the same syntactically. The compiler resolves `onepole` to the builtin `OnePole` node type, and `my_filter` to a `Subgraph` referencing `graph my_filter { ... }` if defined in the file.
@@ -67,6 +72,7 @@ graph NAME [(options)] {
 Options (all optional):
 
 - `sr=NUMBER` -- sample rate (default 44100). Makes `sr` available as an implicit `SampleRate` node inside the graph body.
+
 - `control=NUMBER` -- control interval in samples (default 0 = disabled).
 
 #### Numeric Precision
@@ -92,10 +98,10 @@ Omitting `in` entirely (no `in` statement) produces a generator/instrument (0 au
 ```
 
 - `MIN..MAX` defines the range (floats or ints).
+
 - `DEFAULT` is clamped to `[MIN, MAX]`.
-- `@control` prefix adds the parameter to the graph's `control_nodes` list. **Note:** on a
-  `param` this is currently a no-op -- params are not nodes, so they cannot join
-  `control_nodes`. `@control` only takes effect on an *assignment* (see [Control Rate](#control-rate)).
+
+- `@control` prefix adds the parameter to the graph's `control_nodes` list. **Note:** on a `param` this is currently a no-op -- params are not nodes, so they cannot join `control_nodes`. `@control` only takes effect on an *assignment* (see [Control Rate](#control-rate)).
 
 Parameters are referenced by name in expressions, occupying the same namespace as node IDs and audio input IDs.
 
@@ -140,8 +146,11 @@ a, b, c = gate_route(signal, index, 3)
 Compiles to:
 
 - `GateRoute(id="_gate_0", a="signal", index="index", count=3)`
+
 - `GateOut(id="a", gate="_gate_0", channel=1)`
+
 - `GateOut(id="b", gate="_gate_0", channel=2)`
+
 - `GateOut(id="c", gate="_gate_0", channel=3)`
 
 The number of names on the left must equal the `count` argument.
@@ -424,7 +433,9 @@ graph main {
 ```
 
 - `"file.gdsp":GRAPH_NAME` -- the file path is a string literal; the graph name follows after `:`.
+
 - If the file contains exactly one graph, the graph name may be omitted: `import "filter.gdsp"(input=x)`. If the file defines more than one graph, omitting the name is a compile error.
+
 - Arguments are keyword-only (`input=...`, `param=...`), matching the imported graph's audio inputs and parameters -- the same rules as an in-source subgraph call.
 
 **Resolution.** A relative path is resolved against the directory of the *importing* file. When compiling a string (via `parse`, where there is no source file), relative paths resolve against the current working directory. Absolute paths are used as-is.
@@ -437,10 +448,7 @@ graph main {
 
 ## Inline Composition
 
-Series (`>>`), parallel (`//`), `split()`, and `merge()` are expression-level operators that
-wire graphs together. They operate on partially-applied graph calls -- graph references with
-keyword arguments bound but audio inputs left unbound. No separate `compose` block is needed;
-composition happens inline within any graph body.
+Series (`>>`), parallel (`//`), `split()`, and `merge()` are expression-level operators that wire graphs together. They operate on partially-applied graph calls -- graph references with keyword arguments bound but audio inputs left unbound. No separate `compose` block is needed; composition happens inline within any graph body.
 
 ### Partially-Applied Graph Calls
 
@@ -531,6 +539,7 @@ graph main {
 ```
 
 - `split(source, target)` -- distributes source's outputs cyclically across target's inputs.
+
 - `merge(source, target)` -- sums groups of source's outputs into target's inputs.
 
 ### Chaining

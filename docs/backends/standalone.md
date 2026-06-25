@@ -7,8 +7,11 @@ Generates self-contained CLI audio applications using [miniaudio](https://miniau
 ## Prerequisites
 
 - Python >= 3.10
+
 - C++ compiler (`c++` or `g++`)
+
 - make
+
 - curl (for downloading miniaudio.h at build time)
 
 ## Quick Start
@@ -45,9 +48,13 @@ python examples/graph/fm_synth.py -p standalone -b
 ## How It Works
 
 1. `gen_ext_standalone.cpp` implements `main()` with miniaudio audio callback, CLI argument parsing, and audio device setup
+
 2. `_ext_standalone.cpp` wraps genlib (header isolation pattern)
+
 3. miniaudio.h is downloaded at build time via `curl` (not bundled)
+
 4. Mono gen~ outputs are automatically duplicated to stereo for device compatibility
+
 5. Audio I/O conversion: miniaudio delivers interleaved float; the callback deinterleaves for gen~'s per-channel `float**` layout
 
 ## Platform Key

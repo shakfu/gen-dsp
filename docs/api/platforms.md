@@ -6,12 +6,15 @@ Platform base class, registry, and helper functions. Each platform implements `g
 
 ::: gen_dsp.platforms.cmake_platform
 
-::: gen_dsp.platforms
-    options:
-      members:
+::: gen_dsp.platforms options: members:
         - PLATFORM_REGISTRY
+
         - get_platform
+
         - get_platform_class
+
         - list_platforms
+
         - list_cmake_platforms
+
         - is_valid_platform

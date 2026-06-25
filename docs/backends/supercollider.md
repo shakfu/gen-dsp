@@ -7,8 +7,11 @@ Generates cross-platform SuperCollider UGens (`.scx` on macOS/Windows, `.so` on 
 ## Prerequisites
 
 - Python >= 3.10
+
 - CMake >= 3.19
+
 - C/C++ compiler (clang, gcc, or MSVC)
+
 - Network access on first configure (to fetch SC plugin headers, ~80MB tarball; cached afterward)
 
 ## Quick Start
@@ -36,7 +39,9 @@ gen-dsp build ./myeffect_sc -p sc
 gen-dsp uses **header isolation** to separate SC plugin API code from genlib code:
 
 - `gen_ext_sc.cpp` -- SuperCollider-facing wrapper (includes only SC plugin interface headers)
+
 - `_ext_sc.cpp` -- genlib-facing bridge (includes only genlib headers)
+
 - `_ext_sc.h` -- C interface connecting the two sides via an opaque `GenState*` pointer
 
 The UGen struct extends SC's `Unit`, holds a `GenState*`, and is registered via `fDefineUnit()` in the `PluginLoad` entry point.
@@ -62,9 +67,13 @@ Buffer support follows the standard gen-dsp pattern. Up to 8 single-channel buff
 ## Build Details
 
 - **Build system:** CMake with FetchContent
+
 - **SDK:** SC plugin_interface headers fetched via CMake FetchContent (URL tarball, tag `Version-3.13.0`)
+
 - **Include paths:** `plugin_interface/` and `common/` from the SC source tree
+
 - **Code signing:** ad-hoc signed on macOS during build
+
 - **Compile flags:** `-DGENLIB_USE_FLOAT32 -DWIN32 -DGENLIB_NO_DENORM_TEST`
 
 ### SC Class File
@@ -72,8 +81,11 @@ Buffer support follows the standard gen-dsp pattern. Up to 8 single-channel buff
 A `.sc` class file is generated at project creation time (alongside the C++ sources). This file tells sclang about the UGen's interface:
 
 - Extends `MultiOutUGen` if the gen~ export has multiple outputs, otherwise `UGen`
+
 - Includes `*ar` method with argument names matching gen~ parameter names
+
 - Includes `checkInputs` validation for audio-rate inputs
+
 - Includes `init` method for multi-output routing
 
 ### Shared FetchContent Cache
@@ -133,6 +145,9 @@ s.boot;
 ## Troubleshooting
 
 - **"Class not found" in sclang:** Ensure the `.sc` class file is installed alongside the binary in the Extensions directory. Recompile the class library (`Language > Recompile Class Library` or Cmd+Shift+L).
+
 - **"UGen not installed" at audio boot:** The binary (`.scx`/`.so`) is missing or in the wrong directory. Check the Extensions path with `Platform.userExtensionDir` in sclang.
+
 - **First build is slow:** The SC source tarball is ~80MB. Subsequent builds reuse the cached download. The shared cache is enabled by default; pass `--no-shared-cache` to disable it.
+
 - **Class name must start uppercase:** SC enforces this. gen-dsp handles it automatically, but if you copy files manually, ensure the `.sc` filename matches the capitalized class name (e.g., `Myeffect.sc`, not `myeffect.sc`).
