@@ -357,9 +357,7 @@ class TestWebAudioProjectGeneration:
     ):
         """The runtime buffer-loading bridge is generated end to end."""
         export_info = GenExportParser(rampleplayer_export).parse()
-        config = ProjectConfig(
-            name="sampler", platform="webaudio", buffers=["sample"]
-        )
+        config = ProjectConfig(name="sampler", platform="webaudio", buffers=["sample"])
         project_dir = ProjectGenerator(export_info, config).generate(tmp_project)
 
         # Emscripten export list includes the buffer entry points.
@@ -626,9 +624,7 @@ class TestWebAudioBuildIntegration:
         project_dir = tmp_path / "rample_buffers"
         export_info = GenExportParser(rampleplayer_export).parse()
 
-        config = ProjectConfig(
-            name="rample", platform="webaudio", buffers=["sample"]
-        )
+        config = ProjectConfig(name="rample", platform="webaudio", buffers=["sample"])
         ProjectGenerator(export_info, config).generate(project_dir)
 
         result = subprocess.run(

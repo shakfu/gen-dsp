@@ -390,12 +390,19 @@ class TestProjectMarkerAndAutoDetect:
         project.mkdir(parents=True, exist_ok=True)
         (project / ".gen-dsp.json").write_text(json.dumps(fields), encoding="utf-8")
 
-    def test_generation_writes_marker(
-        self, gigaverb_export: Path, tmp_path: Path
-    ):
+    def test_generation_writes_marker(self, gigaverb_export: Path, tmp_path: Path):
         out = tmp_path / "proj"
         rc = main(
-            [str(gigaverb_export), "-p", "clap", "-n", "gv", "-o", str(out), "--no-build"]
+            [
+                str(gigaverb_export),
+                "-p",
+                "clap",
+                "-n",
+                "gv",
+                "-o",
+                str(out),
+                "--no-build",
+            ]
         )
         assert rc == 0
         marker = json.loads((out / ".gen-dsp.json").read_text())

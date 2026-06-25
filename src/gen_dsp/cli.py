@@ -287,9 +287,7 @@ def _make_subcommand_parser() -> argparse.ArgumentParser:
     )
 
     # list command
-    list_parser = subparsers.add_parser(
-        "list", help="List available target platforms"
-    )
+    list_parser = subparsers.add_parser("list", help="List available target platforms")
     list_parser.add_argument(
         "-v",
         "--verbose",
@@ -1109,8 +1107,7 @@ def cmd_list(args: argparse.Namespace) -> int:
         if not is_valid_platform(boards_platform):
             available = ", ".join(list_platforms())
             print(
-                f"Error: unknown platform '{boards_platform}'. "
-                f"Available: {available}",
+                f"Error: unknown platform '{boards_platform}'. Available: {available}",
                 file=sys.stderr,
             )
             return 1
