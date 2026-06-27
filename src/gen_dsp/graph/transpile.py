@@ -220,6 +220,14 @@ _GENEXPR_RESERVED: frozenset[str] = frozenset(
 
 _IO_NAME_RE = re.compile(r"^(in|out)\d+$")
 
+# Node fields that are configuration, not refs to other identifiers, so they must
+# never be rewritten by the auto-renamer even if their value coincidentally equals
+# a renamed name. (Ref-bearing string fields like ``buffer``/``delay``/``gate`` are
+# NOT listed, so they are rewritten when the node they point at is renamed.)
+_NON_REF_FIELDS: frozenset[str] = frozenset(
+    {"id", "op", "interp", "mode", "fill", "count", "channel", "output"}
+)
+
 
 # Comparison op -> native gen~ operator name (matches gen-dsp C++ semantics).
 _COMPARE_OPS: dict[str, str] = {
@@ -932,15 +940,113 @@ def _emit_cubic_horner(ctx: _Ctx, nid: str) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _collides_with_genexpr(name: str) -> bool:
+    """True if ``name`` would shadow a GenExpr operator/keyword or an I/O slot."""
+    return name in _GENEXPR_RESERVED or _IO_NAME_RE.match(name) is not None
+
+
+def _is_safe_name(name: str, taken: set[str]) -> bool:
+    """True if ``name`` is a usable GenExpr identifier free of every collision."""
+    return (
+        bool(_C_ID_RE.match(name))
+        and name not in taken
+        and not _collides_with_genexpr(name)
+        and not is_reserved_word(name)
+    )
+
+
+def _safe_rename(name: str, taken: set[str]) -> str:
+    """Derive a collision-free identifier from ``name``.
+
+    Tries a single trailing underscore first (matching the convention a user
+    would reach for by hand, e.g. ``mix`` -> ``mix_``), then numbered suffixes
+    until one is free of every reserved word and existing identifier.
+    """
+    candidate = f"{name}_"
+    if _is_safe_name(candidate, taken):
+        return candidate
+    k = 2
+    while True:
+        candidate = f"{name}_{k}"
+        if _is_safe_name(candidate, taken):
+            return candidate
+        k += 1
+
+
+def _build_rename_map(graph: Graph) -> dict[str, str]:
+    """Map every param name / node id that collides with a GenExpr word to a safe one.
+
+    The chosen replacements are guaranteed unique against all existing identifiers
+    (node ids, param names, input ids) and against each other, so applying the map
+    cannot introduce a new collision.
+    """
+    taken = (
+        {n.id for n in graph.nodes}
+        | {p.name for p in graph.params}
+        | {inp.id for inp in graph.inputs}
+    )
+    rename: dict[str, str] = {}
+    # Params first, then nodes, both in declaration order, for deterministic output.
+    for name in [p.name for p in graph.params] + [n.id for n in graph.nodes]:
+        if name in rename or not _collides_with_genexpr(name):
+            continue
+        safe = _safe_rename(name, taken)
+        rename[name] = safe
+        taken.add(safe)
+    return rename
+
+
+def _rename_node(node: Node, rename: dict[str, str]) -> Node:
+    """Clone ``node`` with its id and any ref fields remapped through ``rename``."""
+    updates: dict[str, object] = {}
+    if node.id in rename:
+        updates["id"] = rename[node.id]
+    for field_name, value in node.__dict__.items():
+        if field_name in _NON_REF_FIELDS:
+            continue
+        if isinstance(value, str) and value in rename:
+            updates[field_name] = rename[value]
+        elif isinstance(value, list):
+            new_list = [rename.get(v, v) if isinstance(v, str) else v for v in value]
+            if new_list != value:
+                updates[field_name] = new_list
+    return node.model_copy(update=updates) if updates else node
+
+
+def _apply_rename(graph: Graph, rename: dict[str, str]) -> Graph:
+    """Return a copy of ``graph`` with every renamed identifier rewritten."""
+    new_nodes = [_rename_node(n, rename) for n in graph.nodes]
+    new_params = [
+        p.model_copy(update={"name": rename[p.name]}) if p.name in rename else p
+        for p in graph.params
+    ]
+    new_outputs = [
+        o.model_copy(update={"source": rename[o.source]})
+        if isinstance(o.source, str) and o.source in rename
+        else o
+        for o in graph.outputs
+    ]
+    new_control = [rename.get(c, c) for c in graph.control_nodes]
+    return graph.model_copy(
+        update={
+            "nodes": new_nodes,
+            "params": new_params,
+            "outputs": new_outputs,
+            "control_nodes": new_control,
+        }
+    )
+
+
 def _check_identifier(ident: str, kind: str) -> None:
     if not _C_ID_RE.match(ident):
         raise ValueError(f"{kind} '{ident}' is not a valid identifier")
     if is_reserved_word(ident):
         raise ValueError(f"{kind} '{ident}' is a C/C++ reserved word")
-    if ident in _GENEXPR_RESERVED or _IO_NAME_RE.match(ident):
+    if _collides_with_genexpr(ident):
+        # Reachable only if the auto-renamer left a collision in place (a bug);
+        # GenExpr-word collisions are normally rewritten before this check runs.
         raise ValueError(
-            f"{kind} '{ident}' collides with a GenExpr reserved word/operator; "
-            "rename it"
+            f"{kind} '{ident}' collides with a GenExpr reserved word/operator"
         )
 
 
@@ -956,10 +1062,18 @@ def transpile_to_genexpr(graph: Graph) -> str:
     if errors:
         raise ValueError("Invalid graph: " + "; ".join(errors))
 
-    # Only node ids and param names become GenExpr identifiers in the emitted
-    # codebox, so only they need the reserved-word/operator collision guard.
-    # Input/output ids are remapped positionally to in<N>/out<N> and are never
-    # emitted verbatim, so they are exempt (e.g. an output id "out1" is fine).
+    # Param names and node ids that collide with a GenExpr operator/keyword (e.g.
+    # a param named ``mix``) would shadow that operator in the codebox. Rather than
+    # forcing the author to edit the source graph, rewrite such names to a safe,
+    # unique identifier everywhere they appear. Input/output ids are remapped
+    # positionally to in<N>/out<N> and never emitted verbatim, so they are exempt.
+    rename = _build_rename_map(graph)
+    if rename:
+        graph = _apply_rename(graph, rename)
+
+    # Any remaining identifier problem (invalid C identifier, or a C/C++ reserved
+    # word that is not also a GenExpr word) is a genuine error, not something the
+    # renamer handles, so it is still raised.
     for p in graph.params:
         _check_identifier(p.name, "param")
     for node in graph.nodes:
@@ -981,6 +1095,13 @@ def transpile_to_genexpr(graph: Graph) -> str:
         f"// {len(graph.inputs)} in, {len(graph.outputs)} out, "
         f"{len(graph.params)} param(s)"
     )
+    if rename:
+        lines.append("//")
+        for orig, new in rename.items():
+            lines.append(
+                f"// auto-renamed '{orig}' -> '{new}' "
+                "(collides with a gen~ reserved word/operator)"
+            )
     lines.append("")
 
     for p in graph.params:

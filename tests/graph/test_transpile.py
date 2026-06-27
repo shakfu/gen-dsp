@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re as _re
+
 import pytest
 
 pytest.importorskip("pydantic")
@@ -39,6 +41,13 @@ from gen_dsp.graph.transpile import (
     GenExprUnsupportedError,
     transpile_to_genexpr,
 )
+
+
+def _code_only(code: str) -> str:
+    """Strip comment lines so identifier assertions ignore the rename notes."""
+    return "\n".join(
+        line for line in code.splitlines() if not line.lstrip().startswith("//")
+    )
 
 
 def _wrap(nodes, *, inputs=None, outputs=None, params=None, source=None, name="g"):
@@ -359,26 +368,45 @@ class TestNonDeterministic:
     def test_noise_op_is_marked_non_deterministic(self) -> None:
         assert "noise" in NON_DETERMINISTIC_OPS
 
-    def test_node_named_noise_is_rejected(self) -> None:
+    def test_node_named_noise_is_auto_renamed(self) -> None:
+        # A node named like the `noise` operator is renamed, not rejected.
         g = _wrap([Constant(id="noise", value=1.0)], source="noise")
-        with pytest.raises(ValueError, match="GenExpr reserved"):
-            transpile_to_genexpr(g)
+        code = transpile_to_genexpr(g)
+        assert "noise_ = 1.0;" in code
+        assert "out1 = noise_;" in code
 
 
 class TestIdentifierSafety:
-    def test_node_id_colliding_with_operator_rejected(self) -> None:
+    def test_node_id_colliding_with_operator_is_renamed(self) -> None:
         g = _wrap([Constant(id="mix", value=1.0)], source="mix")
-        with pytest.raises(ValueError, match="GenExpr reserved"):
-            transpile_to_genexpr(g)
+        code = transpile_to_genexpr(g)
+        assert "mix_ = 1.0;" in code
+        assert "out1 = mix_;" in code
+        assert "auto-renamed 'mix' -> 'mix_'" in code
 
-    def test_param_named_like_io_slot_rejected(self) -> None:
+    def test_param_named_like_io_slot_is_renamed(self) -> None:
         g = Graph(
             name="g",
             params=[Param(name="out1")],
             nodes=[Pass(id="p", a="out1")],
             outputs=[AudioOutput(id="o", source="p")],
         )
-        with pytest.raises(ValueError, match="GenExpr reserved"):
+        code = transpile_to_genexpr(g)
+        # The param declaration and every reference use the safe name.
+        assert "Param out1_(" in code
+        assert "p = out1_;" in code
+        assert "out1_" not in code.split("// outputs")[1]  # no stray ref past outputs
+
+    def test_invalid_identifier_still_rejected(self) -> None:
+        g = _wrap([Constant(id="has space", value=1.0)], source="has space")
+        with pytest.raises(ValueError, match="not a valid identifier"):
+            transpile_to_genexpr(g)
+
+    def test_cpp_reserved_word_still_rejected(self) -> None:
+        # "double" is a C/C++ reserved word but not a GenExpr operator, so it is a
+        # genuine identifier error the renamer does not paper over.
+        g = _wrap([Constant(id="double", value=1.0)], source="double")
+        with pytest.raises(ValueError, match="C/C\\+\\+ reserved word"):
             transpile_to_genexpr(g)
 
     def test_output_id_may_look_like_slot(self) -> None:
@@ -389,3 +417,65 @@ class TestIdentifierSafety:
             outputs=[AudioOutput(id="out1", source="c")],
         )
         transpile_to_genexpr(g)  # must not raise
+
+
+class TestAutoRename:
+    def test_param_named_mix_is_renamed_consistently(self) -> None:
+        # The fbdelay case: a `mix` param crossfaded against `1 - mix`. Every
+        # occurrence -- declaration and both references -- must use the safe name,
+        # and the gen~ `mix` operator must remain usable elsewhere.
+        g = Graph(
+            name="fb",
+            inputs=[AudioInput(id="input")],
+            params=[Param(name="mix", min=0.0, max=1.0, default=0.5)],
+            nodes=[
+                BinOp(id="inv", op="rsub", a="mix", b=1.0),  # 1 - mix
+                BinOp(id="dry", op="mul", a="input", b="inv"),
+                BinOp(id="wet", op="mul", a="input", b="mix"),
+                BinOp(id="mix_out", op="add", a="dry", b="wet"),
+            ],
+            outputs=[AudioOutput(id="o", source="mix_out")],
+        )
+        code = transpile_to_genexpr(g)
+        assert "Param mix_(0.5, min=0.0, max=1.0);" in code
+        assert "inv = 1.0 - mix_;" in code
+        assert "wet = in1 * mix_;" in code
+        # No bare `mix` identifier survives in emitted code (it would shadow the
+        # operator); the only `mix` left should be inside `mix_` / `mix_out`. The
+        # rename-note comment legitimately names the original, so skip comments.
+        assert not _re.search(r"\bmix\b", _code_only(code))
+
+    def test_rename_target_avoids_existing_identifier(self) -> None:
+        # A param `mix` cannot become `mix_` if a node already owns `mix_`; the
+        # renamer must pick the next free name instead.
+        g = Graph(
+            name="g",
+            params=[Param(name="mix", default=0.5)],
+            nodes=[
+                Pass(id="mix_", a="mix"),
+                BinOp(id="o", op="add", a="mix_", b="mix"),
+            ],
+            outputs=[AudioOutput(id="out", source="o")],
+        )
+        code = transpile_to_genexpr(g)
+        assert "Param mix_2(" in code
+        assert "mix_ = mix_2;" in code  # node `mix_` reads the renamed param
+        assert "o = mix_ + mix_2;" in code
+
+    def test_node_renamed_buffer_ref_is_rewritten(self) -> None:
+        # A node renamed because it collides must also be rewritten where it is
+        # referenced by name (e.g. a Buffer id used by BufRead).
+        from gen_dsp.graph.models import Buffer, BufRead
+
+        g = Graph(
+            name="g",
+            nodes=[
+                Buffer(id="step", size=8, fill="zeros"),  # `step` is a gen~ op
+                BufRead(id="r", buffer="step", index=0.0, interp="none"),
+            ],
+            outputs=[AudioOutput(id="o", source="r")],
+        )
+        code = transpile_to_genexpr(g)
+        assert "Data step_(8);" in code
+        assert "peek(step_," in code
+        assert not _re.search(r"\bstep\b", _code_only(code))

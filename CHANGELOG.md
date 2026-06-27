@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **gen~ transpiler auto-renames reserved-word collisions** -- A graph param name or node id that collides with a gen~ reserved word or operator (e.g. a param named `mix`, or a node named `scale`/`step`/`noise`, and the `in<N>`/`out<N>` I/O-slot names) is now automatically rewritten to a safe, unique identifier instead of raising a `ValueError`. The rename appends a single trailing underscore (`mix` -> `mix_`), falling back to a numbered suffix (`mix_2`, `mix_3`, ...) only when the underscored name is already taken, and is applied consistently everywhere the name appears -- the `Param` declaration, every reference, ref-bearing fields (`buffer`/`delay`/`gate`), output sources, and `control_nodes`. Each rename is recorded as a comment in the emitted codebox header. A `.gdsp` source therefore no longer has to be hand-edited to dodge gen~ keywords before transpiling. Invalid C identifiers and C/C++ reserved words that are not also gen~ words (e.g. `double`) still raise, since those indicate a genuinely broken graph rather than a mechanically fixable collision.
+
 ## [0.3.1]
 
 ### Added
