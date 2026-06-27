@@ -509,9 +509,7 @@ def _emit_node(node: Node, ctx: _Ctx) -> None:
         ctx.emit(f"{nid}_t = {trig};")
         ctx.emit(f"{nid}_inc = {nid}_count + 1;")
         ctx.emit(f"{nid}_inc = ({nid}_inc >= trunc({mx}) ? 0 : {nid}_inc);")
-        ctx.emit(
-            f"{nid}_rise = ({nid}_ptrig <= 0 && {nid}_t > 0 ? 1 : 0);"
-        )
+        ctx.emit(f"{nid}_rise = ({nid}_ptrig <= 0 && {nid}_t > 0 ? 1 : 0);")
         ctx.emit(f"{nid} = ({nid}_rise > 0 ? {nid}_inc : {nid}_count);")
         ctx.emit(f"{nid}_count = {nid};")
         ctx.emit(f"{nid}_ptrig = {nid}_t;")
@@ -921,9 +919,7 @@ def _emit_cubic_horner(ctx: _Ctx, nid: str) -> None:
     """Emit the shared 4-point cubic interpolation tail (uses ym1,y0,y1,y2,frac)."""
     ctx.emit(f"{nid}_c0v = {nid}_y0;")
     ctx.emit(f"{nid}_c1v = 0.5 * ({nid}_y1 - {nid}_ym1);")
-    ctx.emit(
-        f"{nid}_c2v = {nid}_ym1 - 2.5 * {nid}_y0 + 2 * {nid}_y1 - 0.5 * {nid}_y2;"
-    )
+    ctx.emit(f"{nid}_c2v = {nid}_ym1 - 2.5 * {nid}_y0 + 2 * {nid}_y1 - 0.5 * {nid}_y2;")
     ctx.emit(f"{nid}_c3v = 0.5 * ({nid}_y2 - {nid}_ym1) + 1.5 * ({nid}_y0 - {nid}_y1);")
     ctx.emit(
         f"{nid} = (({nid}_c3v * {nid}_frac + {nid}_c2v) * {nid}_frac + {nid}_c1v) "

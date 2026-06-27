@@ -114,28 +114,61 @@ def _cases() -> list[tuple[str, Graph, dict, dict]]:
         cases.append((name, g, inputs or {}, buf or {}))
 
     # -- native-operator nodes (sanity: must also match) --------------------
-    add("clamp", [Pass(id="p", a="a"), Clamp(id="o", a="p", lo=-0.5, hi=0.5)],
-        inputs={"a": x})
-    add("wrap", [Pass(id="p", a="a"), Wrap(id="o", a="p", lo=-0.3, hi=0.3)],
-        inputs={"a": x})
-    add("fold", [Pass(id="p", a="a"), Fold(id="o", a="p", lo=-0.3, hi=0.3)],
-        inputs={"a": x})
-    add("scale", [Pass(id="p", a="a"),
-                  Scale(id="o", a="p", in_lo=-1.0, in_hi=1.0, out_lo=0.0, out_hi=2.0)],
-        inputs={"a": x})
-    add("mix", [Pass(id="p", a="a"), Pass(id="q", a="b"),
-                Mix(id="o", a="p", b="q", t=0.3)],
-        inputs={"a": x, "b": x2})
+    add(
+        "clamp",
+        [Pass(id="p", a="a"), Clamp(id="o", a="p", lo=-0.5, hi=0.5)],
+        inputs={"a": x},
+    )
+    add(
+        "wrap",
+        [Pass(id="p", a="a"), Wrap(id="o", a="p", lo=-0.3, hi=0.3)],
+        inputs={"a": x},
+    )
+    add(
+        "fold",
+        [Pass(id="p", a="a"), Fold(id="o", a="p", lo=-0.3, hi=0.3)],
+        inputs={"a": x},
+    )
+    add(
+        "scale",
+        [
+            Pass(id="p", a="a"),
+            Scale(id="o", a="p", in_lo=-1.0, in_hi=1.0, out_lo=0.0, out_hi=2.0),
+        ],
+        inputs={"a": x},
+    )
+    add(
+        "mix",
+        [Pass(id="p", a="a"), Pass(id="q", a="b"), Mix(id="o", a="p", b="q", t=0.3)],
+        inputs={"a": x, "b": x2},
+    )
     add("compare", [Compare(id="o", op="gte", a="a", b="b")], inputs={"a": x, "b": x2})
-    add("select", [Select(id="o", cond="s", a="a", b="b")],
-        inputs={"a": x, "b": x2, "s": sel})
-    add("smoothstep", [Smoothstep(id="o", a="a", edge0=-0.5, edge1=0.5)], inputs={"a": x})
-    add("mtof_chain", [UnaryOp(id="m", op="mtof", a="a"),
-                       UnaryOp(id="o", op="ftom", a="m")], inputs={"a": (x * 12 + 60).astype(np.float32)})
-    add("namedconst", [NamedConstant(id="k", op="phi"),
-                       BinOp(id="o", op="mul", a="k", b="a")], inputs={"a": x})
+    add(
+        "select",
+        [Select(id="o", cond="s", a="a", b="b")],
+        inputs={"a": x, "b": x2, "s": sel},
+    )
+    add(
+        "smoothstep",
+        [Smoothstep(id="o", a="a", edge0=-0.5, edge1=0.5)],
+        inputs={"a": x},
+    )
+    add(
+        "mtof_chain",
+        [UnaryOp(id="m", op="mtof", a="a"), UnaryOp(id="o", op="ftom", a="m")],
+        inputs={"a": (x * 12 + 60).astype(np.float32)},
+    )
+    add(
+        "namedconst",
+        [NamedConstant(id="k", op="phi"), BinOp(id="o", op="mul", a="k", b="a")],
+        inputs={"a": x},
+    )
     add("delta", [Delta(id="o", a="a")], inputs={"a": x})
-    add("change", [Change(id="o", a="q")], inputs={"q": np.round(x * 3).astype(np.float32)})
+    add(
+        "change",
+        [Change(id="o", a="q")],
+        inputs={"q": np.round(x * 3).astype(np.float32)},
+    )
     add("accum", [Accum(id="o", incr=0.01, reset="r")], inputs={"r": _pulse(50)})
     add("elapsed", [Elapsed(id="el"), BinOp(id="o", op="mul", a="el", b=0.001)])
 
@@ -145,72 +178,122 @@ def _cases() -> list[tuple[str, Graph, dict, dict]]:
     add("triosc", [TriOsc(id="o", freq=330.0)])
     add("sawosc", [SawOsc(id="o", freq=330.0)])
     add("pulseosc", [PulseOsc(id="o", freq=330.0, width=0.3)])
-    add("sinosc_fm", [SinOsc(id="lfo", freq=5.0),
-                      BinOp(id="f", op="add", a="lfo", b=440.0),
-                      SinOsc(id="o", freq="f")])
+    add(
+        "sinosc_fm",
+        [
+            SinOsc(id="lfo", freq=5.0),
+            BinOp(id="f", op="add", a="lfo", b=440.0),
+            SinOsc(id="o", freq="f"),
+        ],
+    )
 
     # -- filters ------------------------------------------------------------
     add("onepole", [OnePole(id="o", a="a", coeff=0.05)], inputs={"a": x})
-    add("biquad", [Biquad(id="o", a="a", b0=0.2, b1=0.1, b2=0.05, a1=-0.3, a2=0.1)],
-        inputs={"a": x})
+    add(
+        "biquad",
+        [Biquad(id="o", a="a", b0=0.2, b1=0.1, b2=0.05, a1=-0.3, a2=0.1)],
+        inputs={"a": x},
+    )
     for mode in ("lp", "hp", "bp", "notch"):
-        add(f"svf_{mode}", [SVF(id="o", a="a", freq=1200.0, q=0.7, mode=mode)],
-            inputs={"a": x})
+        add(
+            f"svf_{mode}",
+            [SVF(id="o", a="a", freq=1200.0, q=0.7, mode=mode)],
+            inputs={"a": x},
+        )
     add("dcblock", [DCBlock(id="o", a="a")], inputs={"a": (x + 0.3).astype(np.float32)})
     add("allpass", [Allpass(id="o", a="a", coeff=0.5)], inputs={"a": x})
 
     # -- delays (feedback topology: read-before-write) ----------------------
     for interp in ("none", "linear", "cubic"):
-        add(f"comb_{interp}", [
-            DelayLine(id="dl", max_samples=400),
-            DelayRead(id="rd", delay="dl", tap=123.0, interp=interp),
-            BinOp(id="fb", op="mul", a="rd", b=0.6),
-            BinOp(id="w", op="add", a="a", b="fb"),
-            DelayWrite(id="wr", delay="dl", value="w"),
-        ], inputs={"a": x}, outs=[_o("rd")])
+        add(
+            f"comb_{interp}",
+            [
+                DelayLine(id="dl", max_samples=400),
+                DelayRead(id="rd", delay="dl", tap=123.0, interp=interp),
+                BinOp(id="fb", op="mul", a="rd", b=0.6),
+                BinOp(id="w", op="add", a="a", b="fb"),
+                DelayWrite(id="wr", delay="dl", value="w"),
+            ],
+            inputs={"a": x},
+            outs=[_o("rd")],
+        )
 
     # -- buffers ------------------------------------------------------------
-    add("cycle", [Buffer(id="b", size=64), Cycle(id="o", buffer="b", phase="ph")],
-        inputs={"ph": (np.arange(N) / 97.0).astype(np.float32)}, buf={"b": _TABLE})
-    add("lookup", [Buffer(id="b", size=64), Lookup(id="o", buffer="b", index="ix")],
-        inputs={"ix": np.linspace(0, 1, N).astype(np.float32)}, buf={"b": _TABLE})
+    add(
+        "cycle",
+        [Buffer(id="b", size=64), Cycle(id="o", buffer="b", phase="ph")],
+        inputs={"ph": (np.arange(N) / 97.0).astype(np.float32)},
+        buf={"b": _TABLE},
+    )
+    add(
+        "lookup",
+        [Buffer(id="b", size=64), Lookup(id="o", buffer="b", index="ix")],
+        inputs={"ix": np.linspace(0, 1, N).astype(np.float32)},
+        buf={"b": _TABLE},
+    )
     for interp in ("none", "linear", "cubic"):
-        add(f"bufread_{interp}",
-            [Buffer(id="b", size=64),
-             BufRead(id="o", buffer="b", index="ix", interp=interp)],
-            inputs={"ix": idx}, buf={"b": _TABLE})
-    add("bufwrite_read", [
-        Buffer(id="b", size=64),
-        BufWrite(id="w", buffer="b", index=7.0, value="v"),
-        BufRead(id="o", buffer="b", index=7.0, interp="none"),
-    ], inputs={"v": x})
-    add("splat_read", [
-        Buffer(id="b", size=64),
-        Splat(id="w", buffer="b", index=7.0, value="v"),
-        BufRead(id="o", buffer="b", index=7.0, interp="none"),
-    ], inputs={"v": x})
+        add(
+            f"bufread_{interp}",
+            [
+                Buffer(id="b", size=64),
+                BufRead(id="o", buffer="b", index="ix", interp=interp),
+            ],
+            inputs={"ix": idx},
+            buf={"b": _TABLE},
+        )
+    add(
+        "bufwrite_read",
+        [
+            Buffer(id="b", size=64),
+            BufWrite(id="w", buffer="b", index=7.0, value="v"),
+            BufRead(id="o", buffer="b", index=7.0, interp="none"),
+        ],
+        inputs={"v": x},
+    )
+    add(
+        "splat_read",
+        [
+            Buffer(id="b", size=64),
+            Splat(id="w", buffer="b", index=7.0, value="v"),
+            BufRead(id="o", buffer="b", index=7.0, interp="none"),
+        ],
+        inputs={"v": x},
+    )
 
     # -- state / timing -----------------------------------------------------
     add("samplehold", [SampleHold(id="o", a="a", trig="t")], inputs={"a": x, "t": trig})
     add("latch", [Latch(id="o", a="a", trig="t")], inputs={"a": x, "t": trig})
     add("counter", [Counter(id="o", trig="t", max=5.0)], inputs={"t": trig})
     add("ratediv", [RateDiv(id="o", a="a", divisor=4.0)], inputs={"a": x})
-    add("mulaccum", [MulAccum(id="o", incr="a", reset="r")],
-        inputs={"a": (1.0 + 0.001 * x).astype(np.float32), "r": _pulse(60)})
+    add(
+        "mulaccum",
+        [MulAccum(id="o", incr="a", reset="r")],
+        inputs={"a": (1.0 + 0.001 * x).astype(np.float32), "r": _pulse(60)},
+    )
     add("slide", [Slide(id="o", a="a", up=10.0, down=100.0)], inputs={"a": x})
     add("smoothparam", [SmoothParam(id="o", a="a", coeff=0.9)], inputs={"a": x})
-    add("adsr", [ADSR(id="o", gate="g", attack=1.0, decay=2.0, sustain=0.5, release=3.0)],
-        inputs={"g": gate})
+    add(
+        "adsr",
+        [ADSR(id="o", gate="g", attack=1.0, decay=2.0, sustain=0.5, release=3.0)],
+        inputs={"g": gate},
+    )
 
     # -- routing ------------------------------------------------------------
-    add("selector", [Selector(id="o", index="s", inputs=["a", "b"])],
-        inputs={"a": x, "b": x2, "s": sel})
-    add("gate", [
-        GateRoute(id="gr", a="a", index="s", count=2),
-        GateOut(id="o1", gate="gr", channel=1),
-        GateOut(id="o2", gate="gr", channel=2),
-    ], inputs={"a": x, "s": sel},
-        outs=[_o("o1", "out1"), _o("o2", "out2")])
+    add(
+        "selector",
+        [Selector(id="o", index="s", inputs=["a", "b"])],
+        inputs={"a": x, "b": x2, "s": sel},
+    )
+    add(
+        "gate",
+        [
+            GateRoute(id="gr", a="a", index="s", count=2),
+            GateOut(id="o1", gate="gr", channel=1),
+            GateOut(id="o2", gate="gr", channel=2),
+        ],
+        inputs={"a": x, "s": sel},
+        outs=[_o("o1", "out1"), _o("o2", "out2")],
+    )
 
     # -- a combined graph with a param --------------------------------------
     combined = Graph(
@@ -246,9 +329,7 @@ def test_genexpr_matches_simulate(case) -> None:
     sim = simulate(graph, dict(inputs) or None, n_samples=N, state=st)
 
     # Candidate: run the emitted codebox through the gen~-semantics evaluator.
-    ev_inputs = {
-        f"in{i + 1}": inputs[inp.id] for i, inp in enumerate(graph.inputs)
-    }
+    ev_inputs = {f"in{i + 1}": inputs[inp.id] for i, inp in enumerate(graph.inputs)}
     ev = eval_genexpr(code, ev_inputs or None, SR, N, buf or None)
 
     for i, out in enumerate(graph.outputs):

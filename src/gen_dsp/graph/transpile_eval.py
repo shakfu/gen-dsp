@@ -141,7 +141,7 @@ def _tokenize(s: str) -> list[str]:
     while pos < len(s):
         m = _TOKEN_RE.match(s, pos)
         if not m or m.end() == pos:
-            raise ValueError(f"cannot tokenize GenExpr near: {s[pos:pos + 20]!r}")
+            raise ValueError(f"cannot tokenize GenExpr near: {s[pos : pos + 20]!r}")
         pos = m.end()
         if m.lastgroup is not None:
             tokens.append(m.group())
@@ -173,7 +173,7 @@ class _Parser:
     def parse(self) -> Expr:
         e = self._ternary()
         if self._i != len(self._t):
-            raise ValueError(f"trailing tokens: {self._t[self._i:]}")
+            raise ValueError(f"trailing tokens: {self._t[self._i :]}")
         return e
 
     def _ternary(self) -> Expr:
@@ -186,9 +186,7 @@ class _Parser:
             return Tern(cond, a, b)
         return cond
 
-    def _binary_level(
-        self, ops: set[str], lower: Callable[[], Expr]
-    ) -> Expr:
+    def _binary_level(self, ops: set[str], lower: Callable[[], Expr]) -> Expr:
         left = lower()
         while self._peek() in ops:
             op = self._next()
@@ -474,7 +472,9 @@ def _eval_named(name: str, a: list[float]) -> float:
         return a[1] + t if t <= rng else a[2] - (t - rng)
     if name == "scale":
         in_range = a[2] - a[1]
-        return a[3] + (a[0] - a[1]) / in_range * (a[4] - a[3]) if in_range != 0.0 else a[3]
+        return (
+            a[3] + (a[0] - a[1]) / in_range * (a[4] - a[3]) if in_range != 0.0 else a[3]
+        )
     if name == "mix":
         return a[0] + (a[1] - a[0]) * a[2]
     if name in ("gt", "lt", "gte", "lte", "eq", "neq"):

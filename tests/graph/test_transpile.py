@@ -157,15 +157,11 @@ class TestArithmetic:
         assert "r = (a != 0 && b != 0);" in transpile_to_genexpr(g)
 
     def test_unary_direct(self) -> None:
-        g = _wrap(
-            [Constant(id="a", value=1.0), UnaryOp(id="r", op="sin", a="a")]
-        )
+        g = _wrap([Constant(id="a", value=1.0), UnaryOp(id="r", op="sin", a="a")])
         assert "r = sin(a);" in transpile_to_genexpr(g)
 
     def test_unary_mtof_formula(self) -> None:
-        g = _wrap(
-            [Constant(id="a", value=69.0), UnaryOp(id="r", op="mtof", a="a")]
-        )
+        g = _wrap([Constant(id="a", value=69.0), UnaryOp(id="r", op="mtof", a="a")])
         assert "r = 440 * pow(2, (a - 69) / 12);" in transpile_to_genexpr(g)
 
     def test_unary_neg(self) -> None:
@@ -281,7 +277,11 @@ class TestStatefulFaithful:
         assert "fb = sum;" in code
 
     def test_delta_is_native(self) -> None:
-        g = _wrap([Pass(id="x", a="sig"), Delta(id="d", a="x")], inputs=[AudioInput(id="sig")], source="d")
+        g = _wrap(
+            [Pass(id="x", a="sig"), Delta(id="d", a="x")],
+            inputs=[AudioInput(id="sig")],
+            source="d",
+        )
         assert "d = delta(x);" in transpile_to_genexpr(g)
 
     def test_change_is_faithful_not_native(self) -> None:
