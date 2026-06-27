@@ -1189,3 +1189,23 @@ class TestManifestCommand:
         rc = main(["manifest", str(tmp_path / "nonexistent")])
         assert rc == 1
         assert "Error parsing export" in capsys.readouterr().err
+
+
+class TestGenexprDispatch:
+    """The main gen-dsp CLI routes the experimental 'genexpr' subcommand."""
+
+    def test_genexpr_subcommand_dispatches(self, tmp_path: Path, capsys):
+        graph = tmp_path / "g.json"
+        graph.write_text(
+            json.dumps(
+                {
+                    "name": "g",
+                    "inputs": [{"id": "x"}],
+                    "outputs": [{"id": "out1", "source": "o"}],
+                    "nodes": [{"id": "o", "op": "mul", "a": "x", "b": 0.5}],
+                }
+            )
+        )
+        rc = main(["genexpr", str(graph)])
+        assert rc == 0
+        assert "o = in1 * 0.5;" in capsys.readouterr().out

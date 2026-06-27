@@ -17,6 +17,7 @@ from pydantic import ValidationError
 from gen_dsp.graph.compile import compile_graph, compile_graph_to_file
 from gen_dsp.graph.models import Graph
 from gen_dsp.graph.optimize import optimize_graph
+from gen_dsp.graph.transpile import GenExprUnsupportedError, transpile_to_genexpr
 from gen_dsp.graph.validate import validate_graph
 from gen_dsp.graph.visualize import graph_to_dot, graph_to_dot_file
 
@@ -384,6 +385,37 @@ def cmd_simulate(args: argparse.Namespace) -> int:
         return 1
 
 
+def cmd_genexpr(args: argparse.Namespace) -> int:
+    """Transpile a graph to gen~ codebox (GenExpr) source. EXPERIMENTAL."""
+    try:
+        graph = _load_graph(args.file)
+        code = transpile_to_genexpr(graph)
+        if args.output:
+            Path(args.output).write_text(code, encoding="utf-8")
+            print(f"wrote {args.output}", file=sys.stderr)
+        else:
+            sys.stdout.write(code)
+        return 0
+    except GenExprUnsupportedError as e:
+        print(f"error: not supported by the gen~ transpiler: {e}", file=sys.stderr)
+        return 1
+    except FileNotFoundError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    except json.JSONDecodeError as e:
+        print(f"error: invalid JSON: {e}", file=sys.stderr)
+        return 1
+    except ValidationError as e:
+        print(f"error: invalid graph: {e}", file=sys.stderr)
+        return 1
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    except _gdsp_errors() as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+
+
 def _gdsp_errors() -> tuple[type[Exception], ...]:
     """Return GDSP error types for exception handling."""
     from gen_dsp.graph.dsl import GDSPCompileError, GDSPSyntaxError
@@ -464,6 +496,23 @@ def add_sim_parser(
     p.add_argument("--optimize", action="store_true", help="Optimize before simulation")
 
 
+def add_genexpr_parser(
+    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> None:
+    """Add the 'genexpr' subcommand (experimental .gdsp -> gen~ codebox)."""
+    p = subparsers.add_parser(
+        "genexpr",
+        help="Transpile graph to gen~ codebox / GenExpr (experimental)",
+    )
+    p.add_argument("file", help=_FILE_HELP)
+    p.add_argument(
+        "-o",
+        "--output",
+        metavar="FILE",
+        help="Output .genexpr file (default: stdout)",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Standalone entry point (for testing)
 # ---------------------------------------------------------------------------
@@ -525,6 +574,9 @@ def main(argv: list[str] | None = None) -> int:
         "--optimize", action="store_true", help="Optimize before simulation"
     )
 
+    # genexpr (experimental gen~ codebox transpiler)
+    add_genexpr_parser(sub)
+
     args = parser.parse_args(argv)
 
     if not args.command:
@@ -539,6 +591,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_viz(args)
     elif args.command == "sim":
         return cmd_simulate(args)
+    elif args.command == "genexpr":
+        return cmd_genexpr(args)
 
     return 0  # pragma: no cover
 

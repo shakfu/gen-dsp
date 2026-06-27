@@ -42,6 +42,7 @@ SUBCOMMANDS = {
     "viz",
     "dot",  # deprecated alias for "viz"
     "sim",
+    "genexpr",
     "build",
     "detect",
     "patch",
@@ -400,6 +401,7 @@ def _make_subcommand_parser() -> argparse.ArgumentParser:
     try:
         from gen_dsp.graph.cli import (
             add_compile_parser,
+            add_genexpr_parser,
             add_validate_parser,
             add_viz_parser,
             add_sim_parser,
@@ -409,6 +411,7 @@ def _make_subcommand_parser() -> argparse.ArgumentParser:
         add_validate_parser(subparsers)
         add_viz_parser(subparsers)
         add_sim_parser(subparsers)
+        add_genexpr_parser(subparsers)
     except ImportError:
         pass
 
@@ -1409,13 +1412,20 @@ def _dispatch_subcommand(argv: list[str]) -> int:
 
     # Add graph subcommand handlers if available
     try:
-        from gen_dsp.graph.cli import cmd_compile, cmd_validate, cmd_viz, cmd_simulate
+        from gen_dsp.graph.cli import (
+            cmd_compile,
+            cmd_genexpr,
+            cmd_simulate,
+            cmd_validate,
+            cmd_viz,
+        )
 
         handlers["compile"] = cmd_compile
         handlers["validate"] = cmd_validate
         handlers["viz"] = cmd_viz
         handlers["dot"] = cmd_viz  # deprecated alias
         handlers["sim"] = cmd_simulate
+        handlers["genexpr"] = cmd_genexpr
     except ImportError:
         pass
 
