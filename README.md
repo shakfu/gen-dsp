@@ -280,6 +280,7 @@ gen-dsp compile <file> [-o DIR] [--optimize]
 gen-dsp validate <file>
 gen-dsp viz <file> [-o DIR]
 gen-dsp sim <file> [-i INPUT] [-o DIR] [-n SAMPLES] [--param K=V]
+gen-dsp genexpr <file> [-o FILE]   # experimental: transpile to gen~ codebox
 ```
 
 All subcommands accept both `.gdsp` and `.json` files (auto-detected by extension).
@@ -395,6 +396,19 @@ Run graphs in Python with numpy (requires `pip install gen-dsp[sim]`):
 ```bash
 gen-dsp sim lowpass.json -i in1=input.wav -o ./output/ --param cutoff=0.8
 ```
+
+### Transpile to gen~ codebox (experimental)
+
+Re-emit a graph as gen~ `codebox` (GenExpr) source, to bring a graph back into Max/MSP for further patching, and as a differential-validation oracle for gen-dsp's own C++ compiler:
+
+```bash
+gen-dsp genexpr fbdelay.gdsp                 # prints codebox to stdout
+gen-dsp genexpr fbdelay.gdsp -o fbdelay.genexpr
+```
+
+Emission is hybrid: a node maps to a native gen~ operator where its semantics match gen-dsp's C++ (`clamp`, `wrap`, `scale`, `mix`, `delta`, ...), and otherwise to faithful arithmetic mirroring the compiler -- single-sample state via `History`, ring buffers and tables via `Data` + `peek`/`poke`/`dim`. Most node types are covered; `Noise` emits gen~'s native `noise()` (valid for Max, but not deterministically comparable), while `Buffer(fill="sine")` and the `fast*` approximation ops are not expressible in a codebox and raise an error.
+
+This feature is experimental. The emitted GenExpr is checked in CI against the Python `simulate()` reference (bit-exact across a broad node corpus); validating gen-dsp's semantics against Cycling '74's actual gen~ still requires Max in the loop.
 
 ### Available Node Types
 

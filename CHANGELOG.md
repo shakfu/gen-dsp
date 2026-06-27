@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.3.1]
+
+### Added
+
+- **Experimental `.gdsp` -> gen~ codebox (GenExpr) transpiler** -- New `gen-dsp genexpr [-o FILE] <graph.gdsp|graph.json>` command (and `transpile_to_genexpr()` in `gen_dsp.graph.transpile`) re-emits a DSP graph as gen~ `codebox` source for pasting into Max/MSP, and as a differential-validation oracle for gen-dsp's own C++ compiler. Output goes to stdout by default or to a `.genexpr` file with `-o`. Emission follows a hybrid, native-preferred policy: a node maps to a native gen~ operator where its semantics provably match gen-dsp's C++ (`clamp`, `wrap`, `scale`, `mix`, `delta`, the comparison ops, ...), and otherwise to faithful arithmetic mirroring `compile/nodes.py` -- single-sample state via `History`, ring buffers and tables via `Data` + `peek`/`poke`/`dim`. Coverage spans oscillators, all five filters, delay lines (none/linear/cubic interpolation, feedback topology), the buffer/table family, the state/timing and routing nodes, and `ADSR`. `Noise` emits gen~'s native `noise()` (tagged in `NON_DETERMINISTIC_OPS`: a valid codebox for Max, but not differentially comparable). `Buffer(fill="sine")` (a codebox cannot statically initialize a wavetable) and the `fast*` approximation ops (`fastexp` is an IEEE bit-trick with no GenExpr equivalent) raise `GenExprUnsupportedError` rather than emit wrong code. The feature is experimental and intentionally not part of the public `gen_dsp.graph` API surface beyond the CLI command.
+
+- **Automated differential harness for the transpiler** -- `gen_dsp.graph.transpile_eval` is a Python gen~-semantics evaluator (tokenizer + Pratt parser + per-sample interpreter) for emitted codeboxes, modelling unit-delay `History`, immediate bounds-checked `Data`/`peek`/`poke`/`dim`, and gen~'s protected division. `tests/graph/test_transpile_differential.py` diffs `eval(transpile(graph))` against the `simulate.py` reference across a ~50-case corpus and finds them bit-exact, so a transcription bug in any node emission fails CI. This validates the transpiler's emission against an independent Python reference; validating gen-dsp's operator semantics against Cycling '74's actual gen~ still requires Max in the loop (`Noise` and other `NON_DETERMINISTIC_OPS` are excluded from the corpus).
+
 ## [0.3.0]
 
 ### Added
