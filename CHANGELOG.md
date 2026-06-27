@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Reserved-word substitutions are now obtainable as a dictionary** -- `genexpr_rename_map(graph)` in `gen_dsp.graph.transpile` (and `gen-dsp genexpr --rename-map <graph>`, which emits the same mapping as JSON) returns the exact `{original -> safe}` identifier substitutions the transpiler applies for gen~ keyword/operator collisions, without parsing the codebox header comments. The graph is subgraph-expanded first, so the map matches what `transpile_to_genexpr()` emits, and insertion order follows the source (params first, then nodes, both in declaration order). Intended for external editors and tools that need to correlate `.gdsp` source identifiers with the names appearing in generated GenExpr source.
+
 ### Changed
 
 - **gen~ transpiler auto-renames reserved-word collisions** -- A graph param name or node id that collides with a gen~ reserved word or operator (e.g. a param named `mix`, or a node named `scale`/`step`/`noise`, and the `in<N>`/`out<N>` I/O-slot names) is now automatically rewritten to a safe, unique identifier instead of raising a `ValueError`. The rename appends a single trailing underscore (`mix` -> `mix_`), falling back to a numbered suffix (`mix_2`, `mix_3`, ...) only when the underscored name is already taken, and is applied consistently everywhere the name appears -- the `Param` declaration, every reference, ref-bearing fields (`buffer`/`delay`/`gate`), output sources, and `control_nodes`. Each rename is recorded as a comment in the emitted codebox header. A `.gdsp` source therefore no longer has to be hand-edited to dodge gen~ keywords before transpiling. Invalid C identifiers and C/C++ reserved words that are not also gen~ words (e.g. `double`) still raise, since those indicate a genuinely broken graph rather than a mechanically fixable collision.

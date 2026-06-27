@@ -39,6 +39,7 @@ from gen_dsp.graph.models import (
 from gen_dsp.graph.transpile import (
     NON_DETERMINISTIC_OPS,
     GenExprUnsupportedError,
+    genexpr_rename_map,
     transpile_to_genexpr,
 )
 
@@ -479,3 +480,69 @@ class TestAutoRename:
         assert "Data step_(8);" in code
         assert "peek(step_," in code
         assert not _re.search(r"\bstep\b", _code_only(code))
+
+
+class TestRenameMap:
+    def test_empty_when_no_collision(self) -> None:
+        g = _wrap([Constant(id="c", value=1.0)], source="c")
+        assert genexpr_rename_map(g) == {}
+
+    def test_returns_substitutions(self) -> None:
+        g = _wrap([Constant(id="mix", value=1.0)], source="mix")
+        assert genexpr_rename_map(g) == {"mix": "mix_"}
+
+    def test_map_matches_emitted_comments(self) -> None:
+        # The dict must agree with the `auto-renamed` notes in the source so an
+        # editor can rely on either.
+        g = Graph(
+            name="g",
+            params=[Param(name="mix", default=0.5)],
+            nodes=[Buffer(id="step", size=8, fill="zeros")],
+            outputs=[AudioOutput(id="o", source="step")],
+        )
+        rename = genexpr_rename_map(g)
+        code = transpile_to_genexpr(g)
+        for orig, new in rename.items():
+            assert f"auto-renamed '{orig}' -> '{new}'" in code
+
+    def test_param_order_then_node_order(self) -> None:
+        # Insertion order: params first, then nodes, both in declaration order.
+        g = Graph(
+            name="g",
+            params=[Param(name="mix", default=0.5)],
+            nodes=[
+                Pass(id="mix_", a="mix"),
+                BinOp(id="o", op="add", a="mix_", b="mix"),
+            ],
+            outputs=[AudioOutput(id="out", source="o")],
+        )
+        rename = genexpr_rename_map(g)
+        assert rename == {"mix": "mix_2"}
+
+    def test_consistent_with_transpiler_through_subgraph_expansion(self) -> None:
+        # The map is built on the same expanded graph the transpiler emits, so a
+        # graph carrying a subgraph still yields a map that agrees with the
+        # `auto-renamed` notes in the generated source.
+        from gen_dsp.graph.models import Subgraph
+
+        inner = Graph(
+            name="inner",
+            inputs=[AudioInput(id="x")],
+            nodes=[BinOp(id="y", op="mul", a="x", b=2.0)],
+            outputs=[AudioOutput(id="o", source="y")],
+        )
+        g = Graph(
+            name="outer",
+            inputs=[AudioInput(id="in")],
+            params=[Param(name="mix", default=0.5)],
+            nodes=[
+                Subgraph(id="sub", graph=inner, inputs={"x": "in"}),
+                BinOp(id="o", op="mul", a="sub", b="mix"),
+            ],
+            outputs=[AudioOutput(id="out", source="o")],
+        )
+        rename = genexpr_rename_map(g)
+        assert rename == {"mix": "mix_"}
+        code = transpile_to_genexpr(g)
+        for orig, new in rename.items():
+            assert f"auto-renamed '{orig}' -> '{new}'" in code

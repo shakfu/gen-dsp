@@ -1050,6 +1050,25 @@ def _check_identifier(ident: str, kind: str) -> None:
         )
 
 
+def genexpr_rename_map(graph: Graph) -> dict[str, str]:
+    """Return the identifier substitutions the gen~ transpiler applies.
+
+    Maps each original param name / node id that collides with a GenExpr
+    reserved word or operator to the safe, unique identifier that
+    :func:`transpile_to_genexpr` substitutes for it everywhere in the emitted
+    codebox. The mapping is empty when no identifier collides, and insertion
+    order matches the comments in the generated source (params first, then
+    nodes, both in declaration order).
+
+    Intended for external editors and tools that need to correlate source
+    graph identifiers with the names appearing in generated GenExpr source
+    without parsing the transpiler's output comments. Subgraphs are expanded
+    first, exactly as the transpiler does, so node ids introduced by expansion
+    are included.
+    """
+    return _build_rename_map(expand_subgraphs(graph))
+
+
 def transpile_to_genexpr(graph: Graph) -> str:
     """Transpile a DSP graph to gen~ codebox (GenExpr) source.
 
@@ -1134,6 +1153,7 @@ def transpile_to_genexpr(graph: Graph) -> str:
 
 __all__ = [
     "transpile_to_genexpr",
+    "genexpr_rename_map",
     "GenExprUnsupportedError",
     "NON_DETERMINISTIC_OPS",
 ]

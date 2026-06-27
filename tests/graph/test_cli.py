@@ -571,3 +571,43 @@ class TestGenexprCommand:
         rc = main(["genexpr", str(p)])
         assert rc == 0
         assert "n = noise();" in capsys.readouterr().out
+
+    def test_genexpr_rename_map_empty(
+        self, graph_json: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        rc = main(["genexpr", str(graph_json), "--rename-map"])
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert json.loads(out) == {}
+
+    def test_genexpr_rename_map_reports_substitutions(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # A param named like the `mix` operator collides and is renamed.
+        data = {
+            "name": "g",
+            "params": [{"name": "mix", "default": 0.5}],
+            "nodes": [{"id": "p", "op": "pass", "a": "mix"}],
+            "outputs": [{"id": "out1", "source": "p"}],
+        }
+        p = tmp_path / "mix.json"
+        p.write_text(json.dumps(data))
+        rc = main(["genexpr", str(p), "--rename-map"])
+        assert rc == 0
+        assert json.loads(capsys.readouterr().out) == {"mix": "mix_"}
+
+    def test_genexpr_rename_map_to_file(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        data = {
+            "name": "g",
+            "params": [{"name": "mix", "default": 0.5}],
+            "nodes": [{"id": "p", "op": "pass", "a": "mix"}],
+            "outputs": [{"id": "out1", "source": "p"}],
+        }
+        src = tmp_path / "mix.json"
+        src.write_text(json.dumps(data))
+        out_file = tmp_path / "rename.json"
+        rc = main(["genexpr", str(src), "--rename-map", "-o", str(out_file)])
+        assert rc == 0
+        assert json.loads(out_file.read_text()) == {"mix": "mix_"}

@@ -17,7 +17,11 @@ from pydantic import ValidationError
 from gen_dsp.graph.compile import compile_graph, compile_graph_to_file
 from gen_dsp.graph.models import Graph
 from gen_dsp.graph.optimize import optimize_graph
-from gen_dsp.graph.transpile import GenExprUnsupportedError, transpile_to_genexpr
+from gen_dsp.graph.transpile import (
+    GenExprUnsupportedError,
+    genexpr_rename_map,
+    transpile_to_genexpr,
+)
 from gen_dsp.graph.validate import validate_graph
 from gen_dsp.graph.visualize import graph_to_dot, graph_to_dot_file
 
@@ -389,6 +393,15 @@ def cmd_genexpr(args: argparse.Namespace) -> int:
     """Transpile a graph to gen~ codebox (GenExpr) source. EXPERIMENTAL."""
     try:
         graph = _load_graph(args.file)
+        if getattr(args, "rename_map", False):
+            rename = genexpr_rename_map(graph)
+            out = json.dumps(rename, indent=2)
+            if args.output:
+                Path(args.output).write_text(out + "\n", encoding="utf-8")
+                print(f"wrote {args.output}", file=sys.stderr)
+            else:
+                print(out)
+            return 0
         code = transpile_to_genexpr(graph)
         if args.output:
             Path(args.output).write_text(code, encoding="utf-8")
@@ -510,6 +523,14 @@ def add_genexpr_parser(
         "--output",
         metavar="FILE",
         help="Output .genexpr file (default: stdout)",
+    )
+    p.add_argument(
+        "--rename-map",
+        action="store_true",
+        help=(
+            "Emit the keyword-collision identifier substitutions as a JSON "
+            "object instead of codebox source (for external editors/tools)"
+        ),
     )
 
 

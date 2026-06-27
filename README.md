@@ -404,9 +404,12 @@ Re-emit a graph as gen~ `codebox` (GenExpr) source, to bring a graph back into M
 ```bash
 gen-dsp genexpr fbdelay.gdsp                 # prints codebox to stdout
 gen-dsp genexpr fbdelay.gdsp -o fbdelay.genexpr
+gen-dsp genexpr fbdelay.gdsp --rename-map    # JSON {original -> safe} substitutions
 ```
 
 Emission is hybrid: a node maps to a native gen~ operator where its semantics match gen-dsp's C++ (`clamp`, `wrap`, `scale`, `mix`, `delta`, ...), and otherwise to faithful arithmetic mirroring the compiler -- single-sample state via `History`, ring buffers and tables via `Data` + `peek`/`poke`/`dim`. Most node types are covered; `Noise` emits gen~'s native `noise()` (valid for Max, but not deterministically comparable), while `Buffer(fill="sine")` and the `fast*` approximation ops are not expressible in a codebox and raise an error.
+
+Param names and node ids that collide with a gen~ reserved word or operator (e.g. a param named `mix`) are auto-renamed to a safe identifier and recorded as comments in the emitted header. `--rename-map` emits those `{original -> safe}` substitutions as a JSON object instead of the codebox, so external editors and tools can correlate `.gdsp` identifiers with the generated names (also available programmatically as `genexpr_rename_map(graph)` in `gen_dsp.graph.transpile`).
 
 This feature is experimental. The emitted GenExpr is checked in CI against the Python `simulate()` reference (bit-exact across a broad node corpus); validating gen-dsp's semantics against Cycling '74's actual gen~ still requires Max in the loop.
 
