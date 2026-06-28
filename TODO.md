@@ -56,6 +56,10 @@ gen-dsp can be consumed as a library by [dsp-graph](https://github.com/shakfu/ds
 
 - [x] **`pyproject.toml` classifiers** -- Done: added `"Operating System :: Microsoft :: Windows"`.
 
+### Experimental
+
+- [ ] **Drop the pydantic dependency from the graph frontend (make it truly zero-dependency)** -- The `[graph]` extra exists solely to pull pydantic, and pydantic v2 also pulls `pydantic-core` (a compiled Rust binary), so the graph path is *not* "pure Python" despite the package's headline claim. Audit shows pydantic is used only as a tagged-union JSON codec: ~54 `BaseModel` node classes in `graph/models.py`, the `Field(discriminator="op")` union, `model_validate`/`model_dump`(`_json`), `model_rebuild` for the `Subgraph -> Graph` circular ref, and `ValidationError`. No constraints, validators, `ConfigDict`, or JSON-schema generation are used. Semantic validation (`graph/validate.py`) and the Circle multi-plugin path (`core/graph.py`) are already dict-based and pydantic-free. **Plan:** convert the node models to `@dataclass` and hand-write a discriminated-union codec (`op -> class` registry + recursive `from_dict`/`to_dict`, ~150-250 lines) plus int->float coercion and a custom `ValidationError`. `serialize.py` (Graph -> `.gdsp`) and the DSL parser construct models by kwargs / dispatch via `isinstance`, so they port unchanged. **Cost:** owning the tagged-union (de)serializer in lockstep with the model defs, and rewriting ~49 `model_dump_json`/`model_validate_json` assertions in `tests/graph/test_models.py` (or adding shim methods). **Benefit:** `pip install gen-dsp` alone enables `.gdsp`/JSON/Python authoring; the "zero-dependency pure Python" claim becomes true end-to-end. Recommend spiking on a worktree first to measure real blast radius before committing.
+
 ---
 
 ## New Backends
