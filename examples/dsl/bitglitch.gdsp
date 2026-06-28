@@ -1,0 +1,24 @@
+# Bitwise oscillator cross-modulation (chiptune / "byte beat" flavour).
+# XORs the integer forms of two saw oscillators for a harsh digital timbre,
+# then ORs in a low-bit floor. Exercises bitxor and bitor.
+
+graph bitglitch {
+    out out1 = result
+
+    param freq_a 20..2000 = 110
+    param freq_b 20..2000 = 165
+    param amp    0..1     = 0.25
+
+    a = sawosc(freq_a)
+    b = sawosc(freq_b)
+
+    # Quantize each to a small integer range so the bit patterns are audible.
+    ai = trunc(a * 64)
+    bi = trunc(b * 64)
+
+    # XOR cross-modulation, then OR a 2-bit floor for extra grit.
+    x       = bitxor(ai, bi)
+    floored = bitor(x, 3)
+
+    result = floored / 64 * amp
+}

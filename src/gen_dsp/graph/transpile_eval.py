@@ -36,6 +36,8 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from gen_dsp.graph.bitops import _eval_bitnot, _eval_bitop
+
 try:
     import numpy as np
     from numpy.typing import NDArray
@@ -481,6 +483,10 @@ def _eval_named(name: str, a: list[float]) -> float:
         return _eval_compare(name, a[0], a[1])
     if name in ("gtp", "ltp", "gtep", "ltep", "eqp", "neqp"):
         return _eval_compare_pass(name, a[0], a[1])
+    if name in ("bitand", "bitor", "bitxor", "bitshift"):
+        return _eval_bitop(name, a[0], a[1])
+    if name == "bitnot":
+        return _eval_bitnot(a[0])
     raise ValueError(f"unknown function: {name!r}")
 
 

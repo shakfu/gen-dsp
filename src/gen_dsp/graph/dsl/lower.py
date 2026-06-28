@@ -67,6 +67,7 @@ from gen_dsp.graph.models import (
     GateRoute,
     Graph,
     History,
+    Interp,
     Latch,
     Lookup,
     Mix,
@@ -92,6 +93,7 @@ from gen_dsp.graph.models import (
     SmoothParam,
     Splat,
     Subgraph,
+    Train,
     TriOsc,
     UnaryOp,
     Wave,
@@ -171,6 +173,7 @@ _UNARY_OPS = {
     "fastcos",
     "fasttan",
     "fastexp",
+    "bitnot",
 }
 
 
@@ -186,6 +189,10 @@ _BINOP_FUNCS = {
     "or",
     "xor",
     "fastpow",
+    "bitand",
+    "bitor",
+    "bitxor",
+    "bitshift",
 }
 
 
@@ -196,6 +203,7 @@ _BUILTINS: dict[str, tuple[type, list[str], dict[str, str]]] = {
     "triosc": (TriOsc, ["freq"], {}),
     "sawosc": (SawOsc, ["freq"], {}),
     "pulseosc": (PulseOsc, ["freq", "width"], {}),
+    "train": (Train, ["freq"], {}),
     "noise": (Noise, [], {}),
     "onepole": (OnePole, ["a", "coeff"], {}),
     "svf": (SVF, ["a", "freq", "q"], {}),
@@ -207,6 +215,7 @@ _BUILTINS: dict[str, tuple[type, list[str], dict[str, str]]] = {
     "fold": (Fold, ["a", "lo", "hi"], {}),
     "scale": (Scale, ["a", "in_lo", "in_hi", "out_lo", "out_hi"], {}),
     "mix": (Mix, ["a", "b", "t"], {}),
+    "interp": (Interp, ["a", "b", "t"], {}),
     "smoothstep": (Smoothstep, ["a", "edge0", "edge1"], {}),
     "smooth": (SmoothParam, ["a", "coeff"], {}),
     "slide": (Slide, ["a", "up", "down"], {}),

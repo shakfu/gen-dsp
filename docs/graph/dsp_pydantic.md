@@ -100,7 +100,7 @@ class DelayRead(BaseModel):
     op: Literal["delay_read"] = "delay_read"
     delay: str                  # delay line ID
     tap: str | float            # tap position node ID or literal
-    interp: Literal["none", "linear", "cubic"] = "none"
+    interp: Literal["none", "nearest", "linear", "cubic"] = "none"
 
 
 class DelayWrite(BaseModel):
@@ -173,7 +173,7 @@ class Graph(BaseModel):
 | Feedback | `History` | 1 sample |
 | Buffer | `Buffer`, `BufRead`, `BufWrite`, `Splat`, `BufSize`, `Cycle`, `Wave`, `Lookup` | N samples (random access) |
 | Filters | `Biquad`, `SVF`, `OnePole`, `DCBlock`, `Allpass`, `Slide` | 1-4 samples |
-| Oscillators | `Phasor`, `SinOsc`, `TriOsc`, `SawOsc`, `PulseOsc`, `Noise` | 1 sample (phase/seed) |
+| Oscillators | `Phasor`, `SinOsc`, `TriOsc`, `SawOsc`, `PulseOsc`, `Train`, `Noise` | 1 sample (phase/seed) |
 | State | `Delta`, `Change`, `SampleHold`, `Latch`, `Accum`, `Counter`, `MulAccum`, `Elapsed`, `RateDiv` | 1-2 samples |
 | Control | `SmoothParam` | 1 sample |
 | Environment | `SampleRate`, `Pass` | none |
@@ -398,7 +398,7 @@ code = compile_graph(graph)  # complete C++ string
 | IR format | C++ (opaque) | JSON (inspectable, transformable) |
 | Compiler | gen~ (closed source) | `gen_dsp.graph` (open, extensible) |
 | Host wrappers | gen-dsp platform backends | Same gen-dsp platform backends |
-| Operator set | gen~ vocabulary | 53 node types (~89% gen~ coverage) |
+| Operator set | gen~ vocabulary | 55 node types (~90% gen~ coverage) |
 | Simulation | N/A | Python/numpy (`simulate()`) |
 
 The JSON IR is the key artifact: it's diffable, version-controllable, and machine-transformable. Both paths produce the same `wrapper_*` C++ interface, so all 11 gen-dsp platform backends work identically regardless of which frontend was used.

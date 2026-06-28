@@ -21,6 +21,7 @@ from gen_dsp.graph.models import (
     GateRoute,
     Graph,
     History,
+    Interp,
     Lookup,
     NamedConstant,
     Node,
@@ -61,6 +62,7 @@ _BUILTIN_FIELDS: dict[str, list[str]] = {
     "triosc": ["freq"],
     "sawosc": ["freq"],
     "pulseosc": ["freq", "width"],
+    "train": ["freq"],
     "noise": [],
     "onepole": ["a", "coeff"],
     "dcblock": ["a"],
@@ -311,6 +313,11 @@ def _node_to_expr(
     if isinstance(node, SVF):
         mode_part = f", mode={node.mode}" if node.mode != "lp" else ""
         return f"svf({ref(node.a)}, {ref(node.freq)}, {ref(node.q)}{mode_part})"
+
+    # Interp: optional mode kwarg (omit if default 'linear')
+    if isinstance(node, Interp):
+        mode_part = f", mode={node.mode}" if node.mode != "linear" else ""
+        return f"interp({ref(node.a)}, {ref(node.b)}, {ref(node.t)}{mode_part})"
 
     # Selector: variable-length inputs
     if isinstance(node, Selector):

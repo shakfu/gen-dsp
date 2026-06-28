@@ -1,0 +1,18 @@
+# Lo-fi wavetable oscillator using nearest-sample buffer reads.
+# Same structure as wavetable.gdsp, but reads the table with `interp=nearest`
+# (round to the closest sample) for a grittier, aliased character instead of
+# the smooth linear read. Exercises the new `nearest` interpolation mode.
+
+graph lofi_wavetable {
+    out out1 = sample
+
+    param freq 0.1..20000 = 440
+    param amp  0..1       = 0.5
+
+    buffer wt 256 fill=sine
+    wt_len = buf_size(wt)
+
+    phase  = phasor(freq)
+    idx    = phase * wt_len
+    sample = buf_read(wt, idx, interp=nearest) * amp
+}

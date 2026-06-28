@@ -41,6 +41,7 @@ from gen_dsp.graph.models import (
     Slide,
     SmoothParam,
     Splat,
+    Train,
     TriOsc,
     Wave,
 )
@@ -258,6 +259,7 @@ _STATE_EMITTERS: dict[type, _StateEmitter] = {
     TriOsc: _S_PHASE,
     SawOsc: _S_PHASE,
     PulseOsc: _S_PHASE,
+    Train: _S_PHASE,
     Noise: _FieldState(_StateField("_seed", "uint32_t", "123456789u", "123456789u")),
     Delta: _S_PREV,
     Change: _S_PREV,

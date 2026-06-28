@@ -35,6 +35,7 @@ from gen_dsp.graph.models import (
     GateRoute,
     Graph,
     History,
+    Interp,
     Latch,
     Lookup,
     Mix,
@@ -59,6 +60,7 @@ from gen_dsp.graph.models import (
     SmoothParam,
     Splat,
     Subgraph,
+    Train,
     TriOsc,
     UnaryOp,
     Wave,
@@ -98,6 +100,8 @@ def _node_attrs(node: object) -> tuple[str, str, str]:
         return "box", "#fff3cd", f"{node.id}\\nfold"
     if isinstance(node, Mix):
         return "box", "#fff3cd", f"{node.id}\\nmix"
+    if isinstance(node, Interp):
+        return "box", "#fff3cd", f"{node.id}\\ninterp {node.mode}"
     if isinstance(node, Delta):
         return "box", "#fde0c8", f"{node.id}\\ndelta"
     if isinstance(node, Change):
@@ -120,6 +124,8 @@ def _node_attrs(node: object) -> tuple[str, str, str]:
         return "box", "#e2d5f1", f"{node.id}\\nsawosc"
     if isinstance(node, PulseOsc):
         return "box", "#e2d5f1", f"{node.id}\\npulseosc"
+    if isinstance(node, Train):
+        return "box", "#e2d5f1", f"{node.id}\\ntrain"
     if isinstance(node, SampleHold):
         return "box", "#fde0c8", f"{node.id}\\nsample_hold"
     if isinstance(node, Latch):

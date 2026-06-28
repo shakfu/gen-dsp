@@ -161,7 +161,7 @@ The number of names on the left must equal the `count` argument.
 delay_write NAME (value_expr)                        # statement (no assignment)
 tap = delay_read NAME (tap_expr)                     # expression
 tap = delay_read NAME (tap_expr, interp=linear)      # with interpolation
-tap = delay_read NAME (tap_expr, interp=cubic)
+tap = delay_read NAME (tap_expr, interp=cubic)       # interp: none|nearest|linear|cubic
 ```
 
 `delay_write` is a statement, not an expression -- it produces a `DelayWrite` node but has no output to assign. `delay_read` is an expression that produces a `DelayRead` node.
@@ -177,7 +177,7 @@ val = cycle(tbl, phase)                    # wavetable [0,1) phase, wraps
 val = wave(tbl, phase)                     # wavetable [-1,1] phase
 val = lookup(tbl, index)                   # [0,1] index, clamped
 val = buf_read(tbl, index)                 # raw sample index
-val = buf_read(tbl, index, interp=linear)  # interpolated
+val = buf_read(tbl, index, interp=linear)  # interp: none|nearest|linear|cubic
 sz  = buf_size(tbl)                        # buffer size
 ```
 
@@ -231,7 +231,7 @@ asin(x) acos(x) atan(x) asinh(x) acosh(x) atanh(x)
 exp(x)  exp2(x) log(x)  log2(x)  log10(x)
 abs(x)  sqrt(x) neg(x)  sign(x)
 floor(x) ceil(x) round(x) trunc(x) fract(x)
-not(x)  bool(x)
+not(x)  bool(x)  bitnot(x)
 mtof(x) ftom(x) atodb(x) dbtoa(x)
 phasewrap(x) degrees(x) radians(x)
 mstosamps(x) sampstoms(x) t60(x) t60time(x)
@@ -247,7 +247,11 @@ Note: `fastpow(a, b)` is a `BinOp(op="fastpow")`, not unary.
 min(a, b)     max(a, b)     atan2(a, b)
 hypot(a, b)   absdiff(a, b) step(a, b)
 and(a, b)     or(a, b)      xor(a, b)
+bitand(a, b)  bitor(a, b)   bitxor(a, b)
+bitshift(a, b)              # b >= 0 shifts left, b < 0 shifts right
 ```
+
+The bitwise ops (`bitand`/`bitor`/`bitxor`/`bitshift`/`bitnot`) act on the 32-bit-integer value of their float operands.
 
 **Oscillators**:
 
@@ -257,6 +261,7 @@ sinosc(freq)                  # sine wave
 triosc(freq)                  # triangle wave
 sawosc(freq)                  # sawtooth wave
 pulseosc(freq, width)         # pulse wave
+train(freq)                   # impulse train: 1.0 for one sample each cycle
 noise()                       # white noise
 ```
 
@@ -278,6 +283,7 @@ wrap(x, lo, hi)
 fold(x, lo, hi)
 scale(x, in_lo, in_hi, out_lo, out_hi)
 mix(a, b, t)                  # linear interpolate
+interp(a, b, t, mode=cosine)  # linear (default) or cosine blend
 smoothstep(x, edge0, edge1)
 ```
 

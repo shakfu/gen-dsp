@@ -68,6 +68,7 @@ from gen_dsp.graph.models import (
     GateRoute,
     Graph,
     History,
+    Interp,
     Latch,
     Lookup,
     Mix,
@@ -92,6 +93,7 @@ from gen_dsp.graph.models import (
     Smoothstep,
     SmoothParam,
     Splat,
+    Train,
     TriOsc,
     UnaryOp,
     Wave,
@@ -195,6 +197,12 @@ _GENEXPR_RESERVED: frozenset[str] = frozenset(
         "xor",
         "not",
         "bool",
+        # bitwise operators
+        "bitand",
+        "bitor",
+        "bitxor",
+        "bitnot",
+        "bitshift",
         # comparison ops
         "gt",
         "lt",
@@ -365,6 +373,8 @@ def _emit_binop(node: BinOp, ctx: _Ctx) -> None:
         ctx.emit(f"{nid} = {op}({a}, {b});")
     elif op == "fastpow":
         ctx.emit(f"{nid} = exp2({b} * log2({a}));")
+    elif op in ("bitand", "bitor", "bitxor", "bitshift"):
+        ctx.emit(f"{nid} = {op}({a}, {b});")
     else:  # pragma: no cover - exhaustive over the BinOp literal
         raise GenExprUnsupportedError(f"BinOp '{op}' not supported")
 
@@ -420,6 +430,8 @@ def _emit_unaryop(node: UnaryOp, ctx: _Ctx) -> None:
         ctx.emit(f"{nid} = ((abs({a}) < 1e-18 && {a} != 0) ? 1 : 0);")
     elif op == "isnan":
         ctx.emit(f"{nid} = ({a} != {a} ? 1 : 0);")
+    elif op == "bitnot":
+        ctx.emit(f"{nid} = bitnot({a});")
     else:  # pragma: no cover - exhaustive over the UnaryOp literal
         raise GenExprUnsupportedError(f"UnaryOp '{op}' not supported")
 
@@ -477,6 +489,15 @@ def _emit_node(node: Node, ctx: _Ctx) -> None:
     elif isinstance(node, Mix):
         a, b, t = ctx.ref(node.a), ctx.ref(node.b), ctx.ref(node.t)
         ctx.emit(f"{nid} = mix({a}, {b}, {t});")
+
+    elif isinstance(node, Interp):
+        a, b, t = ctx.ref(node.a), ctx.ref(node.b), ctx.ref(node.t)
+        if node.mode == "linear":
+            # gen~ `mix` is the linear interpolation a + (b-a)*t.
+            ctx.emit(f"{nid} = mix({a}, {b}, {t});")
+        else:  # cosine
+            ctx.emit(f"{nid}_f = (1 - cos(3.14159265 * {t})) * 0.5;")
+            ctx.emit(f"{nid} = mix({a}, {b}, {nid}_f);")
 
     elif isinstance(node, Smoothstep):
         a = ctx.ref(node.a)
@@ -552,6 +573,16 @@ def _emit_node(node: Node, ctx: _Ctx) -> None:
         ctx.history(f"{nid}_phase", 0.0)
         ctx.emit(f"{nid} = ({nid}_phase < {ctx.ref(node.width)} ? 1 : -1);")
         _emit_phase_step(ctx, nid, ctx.ref(node.freq))
+
+    elif isinstance(node, Train):
+        # Impulse train: emit 1 on the sample whose phase increment crosses 1.0.
+        # Output depends on the NEW phase, so the wrap is computed before storing.
+        freq = ctx.ref(node.freq)
+        ctx.history(f"{nid}_phase", 0.0)
+        ctx.emit(f"{nid}_p = {nid}_phase + {freq} / samplerate;")
+        ctx.emit(f"{nid} = ({nid}_p >= 1 ? 1 : 0);")
+        ctx.emit(f"{nid}_p = ({nid}_p >= 1 ? {nid}_p - 1 : {nid}_p);")
+        ctx.emit(f"{nid}_phase = {nid}_p;")
 
     elif isinstance(node, Noise):
         # gen~'s native white-noise generator. gen-dsp's Noise is a specific LCG
@@ -868,6 +899,11 @@ def _emit_delay_read(node: DelayRead, ctx: _Ctx) -> None:
         ctx.emit(f"{nid}_pos = {nid}_b - {nid}_n * floor({nid}_b / {nid}_n);")
         ctx.emit(f"{nid} = peek({dl}, {nid}_pos);")
         return
+    if node.interp == "nearest":
+        ctx.emit(f"{nid}_b = {dl}_wr - floor({tap} + 0.5);")
+        ctx.emit(f"{nid}_pos = {nid}_b - {nid}_n * floor({nid}_b / {nid}_n);")
+        ctx.emit(f"{nid} = peek({dl}, {nid}_pos);")
+        return
     ctx.emit(f"{nid}_tap = {tap};")
     ctx.emit(f"{nid}_itap = trunc({nid}_tap);")
     ctx.emit(f"{nid}_frac = {nid}_tap - {nid}_itap;")
@@ -898,6 +934,11 @@ def _emit_buf_read(node: BufRead, ctx: _Ctx) -> None:
     ctx.emit(f"{nid}_dm = dim({buf}) - 1;")
     if node.interp == "none":
         ctx.emit(f"{nid}_i = trunc({idx});")
+        ctx.emit(f"{nid}_i = max(0, min({nid}_i, {nid}_dm));")
+        ctx.emit(f"{nid} = peek({buf}, {nid}_i);")
+        return
+    if node.interp == "nearest":
+        ctx.emit(f"{nid}_i = floor({idx} + 0.5);")
         ctx.emit(f"{nid}_i = max(0, min({nid}_i, {nid}_dm));")
         ctx.emit(f"{nid} = peek({buf}, {nid}_i);")
         return

@@ -32,6 +32,7 @@ from gen_dsp.graph.models import (
     GateOut,
     GateRoute,
     History,
+    Interp,
     Latch,
     Lookup,
     Mix,
@@ -56,6 +57,7 @@ from gen_dsp.graph.models import (
     Smoothstep,
     SmoothParam,
     Splat,
+    Train,
     TriOsc,
     UnaryOp,
     Wave,
@@ -195,6 +197,27 @@ def _emit_node_compute(
             w(f"        float {node.id} = ({a} != {b}) ? {a} : 0.0f;")
         elif node.op == "fastpow":
             w(f"        float {node.id} = exp2f({ref(node.b)} * log2f({ref(node.a)}));")
+        elif node.op == "bitand":
+            w(
+                f"        float {node.id} = (float)((int32_t)({ref(node.a)}) & (int32_t)({ref(node.b)}));"
+            )
+        elif node.op == "bitor":
+            w(
+                f"        float {node.id} = (float)((int32_t)({ref(node.a)}) | (int32_t)({ref(node.b)}));"
+            )
+        elif node.op == "bitxor":
+            w(
+                f"        float {node.id} = (float)((int32_t)({ref(node.a)}) ^ (int32_t)({ref(node.b)}));"
+            )
+        elif node.op == "bitshift":
+            nid = node.id
+            w(f"        int32_t {nid}_v = (int32_t)({ref(node.a)});")
+            w(f"        int32_t {nid}_sh = (int32_t)({ref(node.b)});")
+            w(
+                f"        float {nid} = (float)({nid}_sh >= 0 "
+                f"? (int32_t)((uint32_t){nid}_v << ({nid}_sh & 31)) "
+                f": ({nid}_v >> ((-{nid}_sh) & 31)));"
+            )
         else:
             sym = _BINOP_SYMBOLS[node.op]
             w(f"        float {node.id} = {ref(node.a)} {sym} {ref(node.b)};")
@@ -296,6 +319,8 @@ def _emit_node_compute(
             w(f"        union {{ float f; int32_t i; }} {node.id}_u;")
             w(f"        {node.id}_u.i = (int32_t)(12102203.0f * {a} + 1065353216.0f);")
             w(f"        float {node.id} = {node.id}_u.f;")
+        elif node.op == "bitnot":
+            w(f"        float {node.id} = (float)(~(int32_t)({ref(node.a)}));")
         else:
             func = _UNARYOP_FUNCS[node.op]
             w(f"        float {node.id} = {func}({ref(node.a)});")
@@ -324,6 +349,12 @@ def _emit_node_compute(
                 f"(({dl}_wr - (int)({tap})) % {dl}_len + {dl}_len) % {dl}_len;"
             )
             w(f"        float {node.id} = {dl}_buf[{node.id}_pos];")
+        elif node.interp == "nearest":
+            w(
+                f"        int {node.id}_pos = "
+                f"(({dl}_wr - (int)floorf({tap} + 0.5f)) % {dl}_len + {dl}_len) % {dl}_len;"
+            )
+            w(f"        float {node.id} = {dl}_buf[{node.id}_pos];")
         elif node.interp == "linear":
             nid = node.id
             _emit_interp_linear(nid, dl, tap, w)
@@ -342,6 +373,13 @@ def _emit_node_compute(
         w(f"        float {node.id} = {node.id}_phase;")
         w(f"        {node.id}_phase += {freq} / sr;")
         w(f"        if ({node.id}_phase >= 1.0f) {node.id}_phase -= 1.0f;")
+
+    elif isinstance(node, Train):
+        nid = node.id
+        freq = ref(node.freq)
+        w(f"        {nid}_phase += {freq} / sr;")
+        w(f"        float {nid} = {nid}_phase >= 1.0f ? 1.0f : 0.0f;")
+        w(f"        if ({nid}_phase >= 1.0f) {nid}_phase -= 1.0f;")
 
     elif isinstance(node, Noise):
         w(f"        {node.id}_seed = {node.id}_seed * 1664525u + 1013904223u;")
@@ -377,6 +415,15 @@ def _emit_node_compute(
     elif isinstance(node, Mix):
         a_r, b_r, t_r = ref(node.a), ref(node.b), ref(node.t)
         w(f"        float {node.id} = {a_r} + ({b_r} - {a_r}) * {t_r};")
+
+    elif isinstance(node, Interp):
+        nid = node.id
+        a_r, b_r, t_r = ref(node.a), ref(node.b), ref(node.t)
+        if node.mode == "linear":
+            w(f"        float {nid} = {a_r} + ({b_r} - {a_r}) * {t_r};")
+        else:  # cosine
+            w(f"        float {nid}_f = (1.0f - cosf(3.14159265f * {t_r})) * 0.5f;")
+            w(f"        float {nid} = {a_r} + ({b_r} - {a_r}) * {nid}_f;")
 
     elif isinstance(node, Delta):
         nid = node.id
@@ -550,6 +597,11 @@ def _emit_node_compute(
         idx = ref(node.index)
         if node.interp == "none":
             w(f"        int {nid}_idx = (int)({idx});")
+            w(f"        if ({nid}_idx < 0) {nid}_idx = 0;")
+            w(f"        if ({nid}_idx >= {buf}_len) {nid}_idx = {buf}_len - 1;")
+            w(f"        float {nid} = {buf}_buf[{nid}_idx];")
+        elif node.interp == "nearest":
+            w(f"        int {nid}_idx = (int)floorf({idx} + 0.5f);")
             w(f"        if ({nid}_idx < 0) {nid}_idx = 0;")
             w(f"        if ({nid}_idx >= {buf}_len) {nid}_idx = {buf}_len - 1;")
             w(f"        float {nid} = {buf}_buf[{nid}_idx];")

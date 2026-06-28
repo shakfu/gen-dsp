@@ -235,8 +235,8 @@ gen-dsp graph.json -n myeffect -p clap -o build/myeffect
 
 | Node | `op` | Fields | Purpose |
 |------|------|--------|---------|
-| `BinOp` | `add`, `sub`, `mul`, `div`, `min`, `max`, `mod`, `pow`, `rsub`, `rdiv`, `rmod`, `absdiff`, `hypot`, `atan2`, `step`, `and`, `or`, `xor`, `gtp`, `ltp`, `gtep`, `ltep`, `eqp`, `neqp`, `fastpow` | `a`, `b` | Binary arithmetic |
-| `UnaryOp` | `sin`, `cos`, `tanh`, `exp`, `log`, `abs`, `sqrt`, `neg`, `floor`, `ceil`, `round`, `sign`, `atan`, `asin`, `acos`, `not`, `bool`, `exp2`, `log2`, `log10`, `sinh`, `cosh`, `asinh`, `acosh`, `atanh`, `trunc`, `fract`, `atodb`, `dbtoa`, `ftom`, `mtof`, `phasewrap`, `degrees`, `radians`, `mstosamps`, `sampstoms`, `t60`, `t60time`, `fixdenorm`, `fixnan`, `isdenorm`, `isnan`, `fastsin`, `fastcos`, `fasttan`, `fastexp` | `a` | Unary math functions |
+| `BinOp` | `add`, `sub`, `mul`, `div`, `min`, `max`, `mod`, `pow`, `rsub`, `rdiv`, `rmod`, `absdiff`, `hypot`, `atan2`, `step`, `and`, `or`, `xor`, `bitand`, `bitor`, `bitxor`, `bitshift`, `gtp`, `ltp`, `gtep`, `ltep`, `eqp`, `neqp`, `fastpow` | `a`, `b` | Binary arithmetic |
+| `UnaryOp` | `sin`, `cos`, `tanh`, `exp`, `log`, `abs`, `sqrt`, `neg`, `floor`, `ceil`, `round`, `sign`, `atan`, `asin`, `acos`, `not`, `bool`, `bitnot`, `exp2`, `log2`, `log10`, `sinh`, `cosh`, `asinh`, `acosh`, `atanh`, `trunc`, `fract`, `atodb`, `dbtoa`, `ftom`, `mtof`, `phasewrap`, `degrees`, `radians`, `mstosamps`, `sampstoms`, `t60`, `t60time`, `fixdenorm`, `fixnan`, `isdenorm`, `isnan`, `fastsin`, `fastcos`, `fasttan`, `fastexp` | `a` | Unary math functions |
 | `Clamp` | `clamp` | `a`, `lo`, `hi` | Saturate to `[lo, hi]` |
 | `Constant` | `constant` | `value` | Literal float value |
 | `Compare` | `gt`, `lt`, `gte`, `lte`, `eq` | `a`, `b` | Comparison (returns 0.0 or 1.0) |
@@ -248,6 +248,7 @@ gen-dsp graph.json -n myeffect -p clap -o build/myeffect
 | `Wrap` | `wrap` | `a`, `lo`, `hi` | Wrap value into range |
 | `Fold` | `fold` | `a`, `lo`, `hi` | Fold (reflect) value into range |
 | `Mix` | `mix` | `a`, `b`, `t` | Linear interpolation: `a + (b - a) * t` |
+| `Interp` | `interp` | `a`, `b`, `t`, `mode` | Two-point interpolation (linear/cosine) |
 | `Scale` | `scale` | `a`, `in_lo`, `in_hi`, `out_lo`, `out_hi` | Linear range mapping |
 
 ### Delay
@@ -255,7 +256,7 @@ gen-dsp graph.json -n myeffect -p clap -o build/myeffect
 | Node | `op` | Fields | Purpose |
 |------|------|--------|---------|
 | `DelayLine` | `delay` | `max_samples` | Circular buffer declaration |
-| `DelayRead` | `delay_read` | `delay`, `tap`, `interp` | Read from delay line (none/linear/cubic) |
+| `DelayRead` | `delay_read` | `delay`, `tap`, `interp` | Read from delay line (none/nearest/linear/cubic) |
 | `DelayWrite` | `delay_write` | `delay`, `value` | Write to delay line |
 | `History` | `history` | `input`, `init` | Single-sample delay (z^-1 feedback) |
 
@@ -264,7 +265,7 @@ gen-dsp graph.json -n myeffect -p clap -o build/myeffect
 | Node | `op` | Fields | Purpose |
 |------|------|--------|---------|
 | `Buffer` | `buffer` | `size` | Random-access data buffer |
-| `BufRead` | `buf_read` | `buffer`, `index`, `interp` | Read from buffer (none/linear/cubic, clamped) |
+| `BufRead` | `buf_read` | `buffer`, `index`, `interp` | Read from buffer (none/nearest/linear/cubic, clamped) |
 | `BufWrite` | `buf_write` | `buffer`, `index`, `value` | Write to buffer at index |
 | `Splat` | `splat` | `buffer`, `index`, `value` | Overdub write (buf[idx] += value) |
 | `BufSize` | `buf_size` | `buffer` | Returns buffer length as float |
@@ -291,6 +292,7 @@ gen-dsp graph.json -n myeffect -p clap -o build/myeffect
 | `TriOsc` | `triosc` | `freq` | Triangle wave |
 | `SawOsc` | `sawosc` | `freq` | Bipolar saw (-1..1) |
 | `PulseOsc` | `pulseosc` | `freq`, `width` | Pulse/square with variable duty cycle |
+| `Train` | `train` | `freq` | Impulse train (1.0 for one sample per cycle) |
 | `Noise` | `noise` | -- | White noise source |
 
 ### State / Timing

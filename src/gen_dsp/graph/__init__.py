@@ -1,6 +1,6 @@
 """DSP signal graph DSL: define, validate, compile to C++, and optimize.
 
-Provides 43 node types (arithmetic, filters, oscillators, delays, buffers,
+Provides 45 node types (arithmetic, filters, oscillators, delays, buffers,
 state/timing, subgraph, utility), graph validation, topological sort, Graphviz
 visualization, and a multi-pass optimizing compiler targeting standalone C++.
 
@@ -62,6 +62,7 @@ else:
         GateRoute,
         Graph,
         History,
+        Interp,
         Latch,
         Lookup,
         Mix,
@@ -89,6 +90,7 @@ else:
         SmoothParam,
         Splat,
         Subgraph,
+        Train,
         TriOsc,
         UnaryOp,
         Wave,
@@ -160,6 +162,7 @@ __all__ = [
     "Graph",
     "GraphValidationError",
     "History",
+    "Interp",
     "Latch",
     "Lookup",
     "Mix",
@@ -188,6 +191,7 @@ __all__ = [
     "SmoothParam",
     "Splat",
     "Subgraph",
+    "Train",
     "TriOsc",
     "UnaryOp",
     "Wave",

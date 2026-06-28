@@ -1,0 +1,23 @@
+# Bit-depth reducer (bitcrush) using the bitwise operators.
+# Quantizes the input to `bits` bits by masking off the low bits of its
+# integer representation. Exercises bitshift, bitnot, and bitand.
+
+graph bitcrush {
+    in in1
+    out out1 = crushed
+
+    param bits 1..16 = 8
+
+    # Map the [-1, 1] sample onto a 16-bit integer range.
+    sample_int = trunc(in1 * 32768)
+
+    # Number of low bits to discard (bits=16 -> 0, no crush; bits=4 -> 12).
+    depth = trunc(16 - bits)
+
+    # high-bit mask = ~((1 << depth) - 1): keeps the top `16 - depth` bits.
+    low_mask  = bitshift(1, depth) - 1
+    high_mask = bitnot(low_mask)
+    quantized = bitand(sample_int, high_mask)
+
+    crushed = quantized / 32768
+}

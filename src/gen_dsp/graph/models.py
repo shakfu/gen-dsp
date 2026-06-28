@@ -62,6 +62,10 @@ class BinOp(BaseModel):
         "eqp",
         "neqp",
         "fastpow",
+        "bitand",
+        "bitor",
+        "bitxor",
+        "bitshift",
     ]
     a: Ref
     b: Ref
@@ -117,6 +121,7 @@ class UnaryOp(BaseModel):
         "fastcos",
         "fasttan",
         "fastexp",
+        "bitnot",
     ]
     a: Ref
 
@@ -153,7 +158,7 @@ class DelayRead(BaseModel):
     op: Literal["delay_read"] = "delay_read"
     delay: str  # delay line ID
     tap: Ref  # tap position: node ID or literal
-    interp: Literal["none", "linear", "cubic"] = "none"
+    interp: Literal["none", "nearest", "linear", "cubic"] = "none"
 
 
 class DelayWrite(BaseModel):
@@ -167,6 +172,12 @@ class Phasor(BaseModel):
     id: str
     op: Literal["phasor"] = "phasor"
     freq: Ref
+
+
+class Train(BaseModel):
+    id: str
+    op: Literal["train"] = "train"
+    freq: Ref  # impulse rate in Hz; emits a one-sample 1.0 each cycle, else 0.0
 
 
 class Noise(BaseModel):
@@ -211,6 +222,15 @@ class Mix(BaseModel):
     a: Ref
     b: Ref
     t: Ref
+
+
+class Interp(BaseModel):
+    id: str
+    op: Literal["interp"] = "interp"
+    a: Ref
+    b: Ref
+    t: Ref
+    mode: Literal["linear", "cosine"] = "linear"
 
 
 class Delta(BaseModel):
@@ -473,7 +493,7 @@ class BufRead(BaseModel):
     op: Literal["buf_read"] = "buf_read"
     buffer: str  # Buffer node ID
     index: Ref  # read position (float, will be clamped)
-    interp: Literal["none", "linear", "cubic"] = "none"
+    interp: Literal["none", "nearest", "linear", "cubic"] = "none"
 
 
 class BufWrite(BaseModel):
@@ -564,6 +584,7 @@ Node = Annotated[
         Wrap,
         Fold,
         Mix,
+        Interp,
         Delta,
         Change,
         Biquad,
@@ -575,6 +596,7 @@ Node = Annotated[
         TriOsc,
         SawOsc,
         PulseOsc,
+        Train,
         SampleHold,
         Latch,
         Accum,

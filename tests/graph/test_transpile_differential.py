@@ -44,6 +44,7 @@ from gen_dsp.graph.models import (
     GateOut,
     GateRoute,
     Graph,
+    Interp,
     Latch,
     Lookup,
     Mix,
@@ -65,6 +66,7 @@ from gen_dsp.graph.models import (
     Smoothstep,
     SmoothParam,
     Splat,
+    Train,
     TriOsc,
     UnaryOp,
     Wrap,
@@ -172,6 +174,53 @@ def _cases() -> list[tuple[str, Graph, dict, dict]]:
     add("accum", [Accum(id="o", incr=0.01, reset="r")], inputs={"r": _pulse(50)})
     add("elapsed", [Elapsed(id="el"), BinOp(id="o", op="mul", a="el", b=0.001)])
 
+    # -- bitwise ops (integer-valued operands) ------------------------------
+    bi_a = (np.arange(N) % 13).astype(np.float32)
+    bi_b = ((np.arange(N) % 7) - 3).astype(np.float32)
+    bi_sh = ((np.arange(N) % 5) - 2).astype(np.float32)
+    add(
+        "bitand",
+        [BinOp(id="o", op="bitand", a="a", b="b")],
+        inputs={"a": bi_a, "b": bi_b},
+    )
+    add(
+        "bitor",
+        [BinOp(id="o", op="bitor", a="a", b="b")],
+        inputs={"a": bi_a, "b": bi_b},
+    )
+    add(
+        "bitxor",
+        [BinOp(id="o", op="bitxor", a="a", b="b")],
+        inputs={"a": bi_a, "b": bi_b},
+    )
+    add(
+        "bitshift",
+        [BinOp(id="o", op="bitshift", a="a", b="s")],
+        inputs={"a": bi_a, "s": bi_sh},
+    )
+    add("bitnot", [UnaryOp(id="o", op="bitnot", a="a")], inputs={"a": bi_a})
+
+    # -- interp node (linear + cosine blend) --------------------------------
+    it_t = ((np.arange(N) % 64) / 64.0).astype(np.float32)
+    add(
+        "interp_linear",
+        [Interp(id="o", a="a", b="b", t="s", mode="linear")],
+        inputs={"a": x, "b": x2, "s": it_t},
+    )
+    add(
+        "interp_cosine",
+        [Interp(id="o", a="a", b="b", t="s", mode="cosine")],
+        inputs={"a": x, "b": x2, "s": it_t},
+    )
+
+    # -- train (impulse generator) ------------------------------------------
+    add("train", [Train(id="o", freq=2000.0)])
+    add(
+        "train_gated",
+        [Train(id="tr", freq=3000.0), BinOp(id="o", op="mul", a="tr", b="a")],
+        inputs={"a": x},
+    )
+
     # -- oscillators --------------------------------------------------------
     add("sinosc", [SinOsc(id="o", freq=440.0)])
     add("phasor", [Phasor(id="o", freq=330.0)])
@@ -204,7 +253,7 @@ def _cases() -> list[tuple[str, Graph, dict, dict]]:
     add("allpass", [Allpass(id="o", a="a", coeff=0.5)], inputs={"a": x})
 
     # -- delays (feedback topology: read-before-write) ----------------------
-    for interp in ("none", "linear", "cubic"):
+    for interp in ("none", "nearest", "linear", "cubic"):
         add(
             f"comb_{interp}",
             [
@@ -231,7 +280,7 @@ def _cases() -> list[tuple[str, Graph, dict, dict]]:
         inputs={"ix": np.linspace(0, 1, N).astype(np.float32)},
         buf={"b": _TABLE},
     )
-    for interp in ("none", "linear", "cubic"):
+    for interp in ("none", "nearest", "linear", "cubic"):
         add(
             f"bufread_{interp}",
             [

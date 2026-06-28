@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 from typing import NamedTuple, Union
 
+from gen_dsp.graph.bitops import _eval_bitnot, _eval_bitop
 from gen_dsp.graph.models import (
     SVF,
     ADSR,
@@ -33,6 +34,7 @@ from gen_dsp.graph.models import (
     GateRoute,
     Graph,
     History,
+    Interp,
     Latch,
     Lookup,
     Mix,
@@ -57,6 +59,7 @@ from gen_dsp.graph.models import (
     Smoothstep,
     SmoothParam,
     Splat,
+    Train,
     TriOsc,
     UnaryOp,
     Wave,
@@ -82,6 +85,7 @@ _STATEFUL_TYPES = (
     TriOsc,
     SawOsc,
     PulseOsc,
+    Train,
     SampleHold,
     Latch,
     Accum,
@@ -136,6 +140,10 @@ _BINOP_EVAL: dict[str, object] = {
     "eqp": lambda a, b: a if a == b else 0.0,
     "neqp": lambda a, b: a if a != b else 0.0,
     "fastpow": lambda a, b: a**b,
+    "bitand": lambda a, b: _eval_bitop("bitand", a, b),
+    "bitor": lambda a, b: _eval_bitop("bitor", a, b),
+    "bitxor": lambda a, b: _eval_bitop("bitxor", a, b),
+    "bitshift": lambda a, b: _eval_bitop("bitshift", a, b),
 }
 
 _UNARYOP_EVAL: dict[str, object] = {
@@ -182,6 +190,7 @@ _UNARYOP_EVAL: dict[str, object] = {
     "fastcos": math.cos,
     "fasttan": math.tan,
     "fastexp": math.exp,
+    "bitnot": _eval_bitnot,
 }
 
 _COMPARE_EVAL: dict[str, object] = {
@@ -275,6 +284,16 @@ def _try_fold(node: Node, constants: dict[str, float]) -> float | None:
         mix_t = _resolve_ref(node.t, constants)
         if a is not None and b is not None and mix_t is not None:
             return a + (b - a) * mix_t
+        return None
+
+    if isinstance(node, Interp):
+        a = _resolve_ref(node.a, constants)
+        b = _resolve_ref(node.b, constants)
+        it = _resolve_ref(node.t, constants)
+        if a is not None and b is not None and it is not None:
+            if node.mode == "linear":
+                return a + (b - a) * it
+            return a + (b - a) * ((1.0 - math.cos(math.pi * it)) * 0.5)
         return None
 
     if isinstance(node, Scale):
@@ -599,6 +618,8 @@ def _cse_key(
         return ("fold", r(node.a), r(node.lo), r(node.hi))
     if isinstance(node, Mix):
         return ("mix", r(node.a), r(node.b), r(node.t))
+    if isinstance(node, Interp):
+        return ("interp", node.mode, r(node.a), r(node.b), r(node.t))
     if isinstance(node, Scale):
         return (
             "scale",

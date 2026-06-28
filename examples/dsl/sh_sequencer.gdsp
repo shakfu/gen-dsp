@@ -1,0 +1,25 @@
+# Sample-and-hold random sequencer.
+# A `train` impulse generator clocks a sample_hold over a noise source,
+# producing a stepped random pitch line driving a saw oscillator.
+# Exercises the new `train` node together with sample_hold.
+
+graph sh_sequencer {
+    out out1 = voice
+
+    param rate      0.5..20  = 4
+    param base_freq 50..400  = 110
+    param range     0..2000  = 800
+    param amp       0..1     = 0.3
+
+    # One impulse per step at `rate` Hz.
+    clock = train(rate)
+
+    # Latch a fresh random value on each clock impulse.
+    rnd  = noise()
+    step = sample_hold(rnd, clock)
+
+    # Map the held value [-1, 1] to a pitch and play it.
+    norm  = step * 0.5 + 0.5
+    pitch = base_freq + norm * range
+    voice = sawosc(pitch) * amp
+}

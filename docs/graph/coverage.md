@@ -1,8 +1,31 @@
 # gen_dsp.graph Operator Coverage vs gen~ Operators
 
-This document compares the operators available in `gen_dsp.graph` against the operators documented in the [gen~ operator reference](https://docs.cycling74.com/userguide/gen/gen~_operators) and [gen common operator reference](https://docs.cycling74.com/userguide/gen/gen_common_operators).
+This document compares the operators available in `gen_dsp.graph` against the operators documented in the [gen~ operator reference](https://docs.cycling74.com/userguide/gen/gen~_operators) and [gen common operator reference](https://docs.cycling74.com/userguide/gen/gen_common_operators). It is both a per-operator coverage matrix (below) and the forward-looking gap analysis (roadmap and recommendation at the end).
 
-Last updated: 2026-02-28
+Last updated: 2026-06-28
+
+## Scope and framing
+
+Coverage is not a subset relation, and "close the gap" should not be read as "reach parity with gen~". The graph frontend exists to exercise gen-dsp's platform backends without requiring gen~ exports; the zero-dependency C++-export path (`core/parser.py`) already handles real gen~ patches for plugin generation. So the target is not full gen~ semantics -- it is enough scalar and stateful coverage that backend tests are representative, plus one escape hatch for everything else.
+
+Two asymmetries matter:
+
+- The graph is a pure dataflow DAG; gen~ / GenExpr is an imperative language. The whole pipeline (`toposort`, `simulate`, `optimize`, `transpile`, and the 11 backends) depends on the acyclic scalar-dataflow invariant. Some gaps are cheap node additions; others cannot be expressed without breaking that invariant (see "Structural / semantic gaps" below).
+- gen-dsp is not strictly narrower than gen~. It adds higher-level DSP blocks that gen~ has no primitive for (`Biquad`, `SVF`, `OnePole`, `Allpass`, `ADSR`, and the `SinOsc`/`TriOsc`/`SawOsc`/`PulseOsc` family). So the frontend is a curated, higher-level DSP vocabulary: narrower on language expressiveness, wider on ready-made blocks.
+
+The honest one-line summary: the frontend covers gen~'s straight-line scalar arithmetic, single-sample state, and 1-D buffer/delay access essentially completely, and adds convenience DSP blocks on top. It cannot express gen~'s imperative layer (loops, conditionals, functions), the spectral/complex domain, multichannel or host-bound buffers, or integer-mode operators.
+
+## Recent additions (2026-06-28)
+
+Tier 1 of the roadmap below was implemented and fully tested (full suite green). Each item was wired through every touchpoint -- model, C++ emitter, simulator, constant-fold/CSE, transpiler, differential evaluator, DSL, serializer, visualizer -- with a dedicated test module and differential-corpus cases.
+
+- Bitwise `bitand` / `bitor` / `bitxor` / `bitshift` / `bitnot`. Shared 32-bit-int scalar semantics live in `graph/bitops.py` so the three Python evaluators (simulate, fold, transpile-eval) cannot drift. gen~ `bitshift` direction is a defined-but-Max-unverified convention (non-negative shifts left, negative right, amount masked to `[0, 31]`).
+- `interp` node with `linear` and `cosine` modes (the `Mix`-is-linear-only gap). 4-point cubic/spline is deferred.
+- `nearest` interpolation mode on `BufRead` / `DelayRead` (round-half-up index vs `none`'s truncation).
+- `train` impulse-generator node (one-sample `1.0` each cycle, distinct from the bipolar `PulseOsc`).
+- Deferred: `rate` (ambiguous gen~ ramp-resync semantics; `RateDiv` already covers rate-division).
+
+Five demo patches in `examples/dsl/` exercise these: `bitcrush`, `bitglitch`, `sh_sequencer`, `wavemorph`, `lofi_wavetable`.
 
 ## Summary
 
@@ -11,13 +34,14 @@ Last updated: 2026-02-28
 | Math / Arithmetic | 12 | 12 | 100% |
 | Comparison | 15 | 15 | 100% |
 | Logic | 5 | 5 | 100% |
+| Bitwise | 5 | 5 | 100% |
 | Trigonometry | 19 | 19 | 100% |
 | Powers | 9 | 9 | 100% |
 | Numeric | 7 | 7 | 100% |
 | Constants | 17 | 15 | 88% |
 | Range | 4 | 4 | 100% |
 | Route / Mixing | 7 | 5 | 71% |
-| Filter | 8 | 7 | 88% |
+| Filter | 8 | 8 | 100% |
 | Waveform / Oscillators | 5 | 5 | 100% |
 | Integrator / State | 3 | 3 | 100% |
 | Feedback / Delay | 2 | 2 | 100% |
@@ -28,7 +52,7 @@ Last updated: 2026-02-28
 | Global | 5 | 1 | 20% |
 | I/O / Declare | 4 | 3 | 75% |
 | Subpatcher | 2 | 1 | 50% |
-| **Total** | **~149** | **~133** | **~89%** |
+| **Total** | **~154** | **~139** | **~90%** |
 
 Note: Some gen~ operators have aliases (e.g. `ln`/`log`, `clip`/`clamp`). Each unique function is counted once. The "p" comparison variants (`eqp`, `gtp`, etc.) are counted as separate operators since they have distinct semantics (return value vs return 1/0).
 
@@ -86,6 +110,18 @@ Note: Some gen~ operators have aliases (e.g. `ln`/`log`, `clip`/`clamp`). Each u
 | `\|\|` / `or` | `BinOp("or")` | |
 | `^^` / `xor` | `BinOp("xor")` | |
 | `bool` | `UnaryOp("bool")` | |
+
+**Full coverage.**
+
+### Bitwise
+
+| gen~ Operator | gen_dsp.graph | Notes |
+|--------------|---------------|-------|
+| `&` / `bitand` | `BinOp("bitand")` | Operates on the 32-bit-int value |
+| `\|` / `bitor` | `BinOp("bitor")` | |
+| `^` / `bitxor` | `BinOp("bitxor")` | |
+| `<<` `>>` / `bitshift` | `BinOp("bitshift")` | `b >= 0` left, `b < 0` right |
+| `~` / `bitnot` | `UnaryOp("bitnot")` | |
 
 **Full coverage.**
 
@@ -205,9 +241,9 @@ Note: Some gen~ operators have aliases (e.g. `ln`/`log`, `clip`/`clamp`). Each u
 | `sah` | `SampleHold` | Sample-and-hold |
 | `slide` | `Slide` | Asymmetric slew limiter |
 | `phasewrap` | `UnaryOp("phasewrap")` | Wrap to [-pi, pi] |
-| `interp` | -- | Functionally equivalent to `Mix` |
+| `interp` | `Interp` | Two-point interpolation (linear/cosine) |
 
-**Missing**: `interp` (functionally equivalent to `Mix`).
+**Full coverage** for the two-point modes. gen~'s 4-point `interp` (cubic/spline) is deferred; the `buf_read`/`delay_read` cubic paths already cover 4-point table interpolation.
 
 ### Waveform / Oscillators
 
@@ -215,7 +251,7 @@ Note: Some gen~ operators have aliases (e.g. `ln`/`log`, `clip`/`clamp`). Each u
 |--------------|---------------|-------|
 | `noise` | `Noise` | |
 | `phasor` | `Phasor` | |
-| `train` | `PulseOsc` | Pulse train |
+| `train` | `Train` | Impulse train (`PulseOsc` is the bipolar pulse oscillator) |
 | `triangle` | `TriOsc` | |
 | `rate` | -- | Phase rate-scaling (composable) |
 
@@ -254,10 +290,10 @@ Note: gen_dsp.graph also provides `SinOsc` and `SawOsc` which are not direct gen
 | `splat` | `Splat` | Overdub write (buf[idx] += value) |
 | `buffer` | -- | External buffer~ ref |
 | `channels` | -- | Multi-channel query |
-| `nearest` | -- | `BufRead(interp="none")` |
-| `sample` | -- | `BufRead(interp="linear")` |
+| `nearest` | `BufRead(interp="nearest")` | Round-to-nearest index read |
+| `sample` | `BufRead(interp="linear")` | Normalized/interpolated read |
 
-**Missing**: `buffer` (external buffer~ references are out of scope), `channels` (no multi-channel buffer support). `nearest` and `sample` are aliases for `BufRead` with different interpolation modes.
+**Missing**: `buffer` (external buffer~ references are out of scope -- see the Tier 2 spike finding below), `channels` (no multi-channel buffer support).
 
 ### Convert
 
@@ -361,11 +397,7 @@ These higher-level nodes provide convenience abstractions that would require mul
 
 ### Trivially Composable
 
-- `interp` -- functionally equivalent to `Mix`
-
-- `rate` -- phase multiplication via `BinOp("mul")`
-
-- `nearest`/`sample` -- `BufRead(interp="none"/"linear")`
+- `rate` -- phase multiplication via `BinOp("mul")` (a dedicated node is deferred; ambiguous gen~ semantics)
 
 ### Not Yet Implemented
 
@@ -378,3 +410,60 @@ These higher-level nodes provide convenience abstractions that would require mul
 - `setparam` -- handled by `Subgraph.params`
 
 - `expr` -- inline GenExpr (not applicable)
+
+---
+
+## Structural / semantic gaps (beyond the operator matrix)
+
+The matrix above counts operators. The larger gaps are not missing operators but things the IR cannot represent by construction, because a `Graph` is a pure dataflow DAG:
+
+- Imperative control flow and loops. GenExpr codeboxes have `if/else`, `for`, `while`, local variables, and local arrays. A `for` loop over buffer samples (the idiom for block / FFT-style work, custom convolution, variable-length scans) has no expressible form in a node DAG. This is the single largest gap; the transpiler emits into GenExpr but only uses its straight-line subset.
+- User-defined functions. GenExpr allows `f(x){...}` declarations and calls. `Subgraph` covers macro inlining and reuse, but not recursion or arbitrary-arity local functions.
+- Spectral / complex domain: `fft`, `ifft`, `fftinfo`, and complex arithmetic (`cartopol`, `poltocar`, complex multiply). Absent entirely.
+- Multichannel buffers. gen~ `Data`/`Buffer` are N-channel; the frontend `Buffer` is strictly mono (1-D).
+- Host-bound buffers. gen~ `Buffer "name"` references a Max `buffer~` by name; the frontend `Buffer` is internal-only with `fill in {zeros, sine}`.
+
+## Roadmap: what could be added
+
+Tiers are ordered by how much they disturb the dataflow-DAG invariant. The tier boundary, not the operator count, drives the decision.
+
+### Tier 1 -- new node types, zero IR change (done)
+
+The cheap, in-scope additions -- each a Pydantic class in `models.py` plus emission in `compile/nodes.py` / `simulate.py` / `transpile.py`, a `validate.py` rule, and tests. This tier is implemented (bitwise, `interp` linear/cosine, `nearest`, `train`); see "Recent additions" above. `rate` and 4-point cubic/spline `interp` are deferred.
+
+### Tier 2 -- model extensions that bend the DAG but do not break it
+
+Still dataflow, but they touch the buffer / IO model and ripple into `adapter.py` and each backend's buffer-header generation: multichannel buffers (`channels` on `Buffer`, a channel argument on the buffer ops, a `channels` node), host-bound buffers (let `Buffer` reference external sample data), and a `vectorsize` node. **Rejected for the graph path** -- see the spike finding below.
+
+#### Tier 2 spike finding (2026-06-28): rejected for the graph path
+
+A design spike for the combined "multichannel + host-bound buffers" path found it leads to a mess and was not implemented. The decisive facts:
+
+- The multichannel host-buffer machinery already exists in the genlib / platform layer, not the graph path. A host buffer is a `DataInterface` (channel-aware C++ class); the WebAudio backend already loads interleaved multichannel data via `wrapper_load_buffer(index, data, frames, channels)` with `WebaudioBuffer : DataInterface` storing `data[frame*channels + ch]`. So multichannel sample playback is already achievable today on the platform built for it, through the gen~-export path.
+- The graph compile path is deliberately genlib-free: buffers are raw `float*` arrays, no `DataInterface`. Giving them multichannel host loading would re-implement a channel-aware buffer abstraction next to the real one -- exactly the drift the header-isolation / manifest split exists to prevent.
+- The shared `Manifest` IR carries only buffer names (`buffers: list[str]`). Adding size/channels metadata ripples into the gen~-export producer (`manifest_from_export_info`), which has no source for buffer channel counts.
+- Host buffer loading is per-platform and already fragmented: only WebAudio has a real multichannel bridge; the graph adapter hard-stubs `wrapper_load_buffer(...) { return -1; }` everywhere else.
+
+Routing by goal instead: multichannel sample playback in a shipping plugin -> use the genlib/export path (WebAudio already does it). Multichannel / wavetable *synthesis* inside the graph frontend -> the only self-contained win is small (`Buffer.channels` plus a 2D/bilinear lookup node, filled procedurally, no Manifest / IR / platform changes). Otherwise -> defer.
+
+### Tier 3 -- breaks the pure-DAG invariant (expensive, mostly out of scope)
+
+Loops, `if/for/while`, local functions, and FFT/complex cannot be node-graph dataflow. Two options, the first not recommended:
+
+1. Rebuild the IR to a control-flow graph, or let nodes contain sub-blocks. This contaminates `toposort`, `simulate`, `optimize`, and the differential harness, all of which assume acyclic scalar dataflow. High cost, high blast radius -- justified only if authoring in the graph frontend becomes a real goal, which it is not under the current project purpose.
+2. An escape-hatch node: `RawCodebox` / `RawExpr` holding literal GenExpr (and/or literal C++) with declared input refs and output ids. The transpiler emits it verbatim; `compile/nodes.py` inlines it; `validate` checks only the I/O wiring; `simulate` and `optimize` treat it as opaque, and `transpile_eval` skips it exactly as it skips `NON_DETERMINISTIC_OPS` for `noise`. This unblocks loops, functions, and FFT without touching the IR for the graphs that do not need them. The price is honest and bounded: a raw node is a black box to the optimizer and the differential harness.
+
+FFT as first-class high-level nodes is separately large because the standalone C++ path has no genlib FFT to lean on; it would mean shipping an FFT implementation across backends. Worth it only with concrete spectral demand.
+
+## Recommendation
+
+```
+Done:      Tier 1 operators (bitwise, train, interp linear/cosine, nearest) -> shipped, full suite green
+Deferred:  rate (ambiguous gen~ semantics) and 4-point cubic/spline interp
+Do next:   RawCodebox escape-hatch node -> unblocks loops/functions/FFT without IR damage
+Rejected:  multichannel + host buffers for the graph path -> duplicates the genlib path (spike finding)
+Maybe:     small 2D/bilinear lookup node -> only if graph-frontend wavetable synthesis is wanted
+Don't:     rebuild IR for native control flow -> wrong cost/scope for a backend-testing tool
+```
+
+Tier 1 plus the `RawCodebox` escape hatch reaches the actual goal (representative backend coverage, with an outlet for everything else) at a fraction of the cost of Tier 3.

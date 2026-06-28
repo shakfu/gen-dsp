@@ -53,6 +53,7 @@ from gen_dsp.graph.models import (
     GateRoute,
     Graph,
     History,
+    Interp,
     Latch,
     Lookup,
     Mix,
@@ -77,11 +78,13 @@ from gen_dsp.graph.models import (
     Smoothstep,
     SmoothParam,
     Splat,
+    Train,
     TriOsc,
     UnaryOp,
     Wave,
     Wrap,
 )
+from gen_dsp.graph.bitops import _eval_bitnot, _eval_bitop
 from gen_dsp.graph.compile.nodes import _NAMED_CONSTANT_VALUES
 from gen_dsp.graph.subgraph import expand_subgraphs
 from gen_dsp.graph.toposort import toposort
@@ -128,7 +131,7 @@ class SimState:
             elif isinstance(node, (DCBlock, Allpass)):
                 self._state[f"{nid}.xprev"] = 0.0
                 self._state[f"{nid}.yprev"] = 0.0
-            elif isinstance(node, (SinOsc, TriOsc, SawOsc, PulseOsc)):
+            elif isinstance(node, (SinOsc, TriOsc, SawOsc, PulseOsc, Train)):
                 self._state[f"{nid}.phase"] = 0.0
             elif isinstance(node, (SampleHold, Latch)):
                 self._state[f"{nid}.held"] = 0.0
@@ -175,7 +178,7 @@ class SimState:
                 buf = self._state[f"{nid}.buf"]
                 buf[:] = 0.0
                 self._state[f"{nid}.wr"] = 0
-            elif isinstance(node, (Phasor, SinOsc, TriOsc, SawOsc, PulseOsc)):
+            elif isinstance(node, (Phasor, SinOsc, TriOsc, SawOsc, PulseOsc, Train)):
                 self._state[f"{nid}.phase"] = 0.0
             elif isinstance(node, Noise):
                 self._state[f"{nid}.seed"] = np.uint32(123456789)
@@ -487,6 +490,8 @@ def _compute_node(
             vals[nid] = a if a != b else 0.0
         elif node.op == "fastpow":
             vals[nid] = math.pow(a, b)
+        elif node.op in ("bitand", "bitor", "bitxor", "bitshift"):
+            vals[nid] = _eval_bitop(node.op, a, b)
 
     elif isinstance(node, UnaryOp):
         a = ref(node.a)
@@ -591,6 +596,8 @@ def _compute_node(
             vals[nid] = math.tan(a)
         elif node.op == "fastexp":
             vals[nid] = math.exp(a)
+        elif node.op == "bitnot":
+            vals[nid] = _eval_bitnot(a)
 
     elif isinstance(node, Clamp):
         a, lo, hi = ref(node.a), ref(node.lo), ref(node.hi)
@@ -617,6 +624,9 @@ def _compute_node(
         if node.interp == "none":
             pos = (wr - int(tap)) % length
             vals[nid] = float(buf[pos])
+        elif node.interp == "nearest":
+            pos = (wr - int(math.floor(tap + 0.5))) % length
+            vals[nid] = float(buf[pos])
         elif node.interp == "linear":
             vals[nid] = _interp_linear_delay(tap, buf, length, wr)
         elif node.interp == "cubic":
@@ -636,6 +646,15 @@ def _compute_node(
         phase = state._state[f"{nid}.phase"]
         vals[nid] = phase
         phase += freq / state.sr
+        if phase >= 1.0:
+            phase -= 1.0
+        state._state[f"{nid}.phase"] = phase
+
+    elif isinstance(node, Train):
+        freq = ref(node.freq)
+        phase = state._state[f"{nid}.phase"]
+        phase += freq / state.sr
+        vals[nid] = 1.0 if phase >= 1.0 else 0.0
         if phase >= 1.0:
             phase -= 1.0
         state._state[f"{nid}.phase"] = phase
@@ -687,6 +706,14 @@ def _compute_node(
     elif isinstance(node, Mix):
         a_v, b_v, t_v = ref(node.a), ref(node.b), ref(node.t)
         vals[nid] = a_v + (b_v - a_v) * t_v
+
+    elif isinstance(node, Interp):
+        a_v, b_v, t_v = ref(node.a), ref(node.b), ref(node.t)
+        if node.mode == "linear":
+            vals[nid] = a_v + (b_v - a_v) * t_v
+        else:  # cosine
+            f = (1.0 - math.cos(math.pi * t_v)) * 0.5
+            vals[nid] = a_v + (b_v - a_v) * f
 
     elif isinstance(node, Delta):
         a = ref(node.a)
@@ -873,6 +900,10 @@ def _compute_node(
         buf_len: int = state._state[f"{buf_id}.len"]
         if node.interp == "none":
             ii = int(idx)
+            ii = max(0, min(ii, buf_len - 1))
+            vals[nid] = float(buf[ii])
+        elif node.interp == "nearest":
+            ii = int(math.floor(idx + 0.5))
             ii = max(0, min(ii, buf_len - 1))
             vals[nid] = float(buf[ii])
         elif node.interp == "linear":
