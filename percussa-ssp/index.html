@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://shakfu.github.io/gen-dsp/cheatsheet/">
+        <link rel="canonical" href="https://shakfu.github.io/gen-dsp/percussa-ssp/">
       
       
-        <link rel="prev" href="..">
+        <link rel="prev" href="../move-everything/">
       
       
-        <link rel="next" href="../architecture/">
+        <link rel="next" href="../changelog/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Getting Started - gen-dsp</title>
+        <title>Percussa SSP - gen-dsp</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#gen-dsp-cli-cheatsheet" class="md-skip">
+        <a href="#percussa-ssp-backend-assessment" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Getting Started
+              Percussa SSP
             
           </span>
         </div>
@@ -258,37 +258,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Getting Started
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../cheatsheet/" class="md-nav__link">
         
   
   
@@ -304,180 +277,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#default-command-generate-a-plugin-project" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Default Command -- Generate a Plugin Project
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#build-build-an-existing-project" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        build -- Build an Existing Project
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#detect-analyze-a-gen-export-or-graph-file" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        detect -- Analyze a gen~ Export or Graph File
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#manifest-emit-json-manifest" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        manifest -- Emit JSON Manifest
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#patch-apply-platform-specific-patches" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        patch -- Apply Platform-Specific Patches
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#chain-multi-plugin-chain-mode-circle" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        chain -- Multi-Plugin Chain Mode (Circle)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#compile-compile-graph-to-c-requires-gen-dspgraph" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        compile -- Compile Graph to C++ (requires gen-dsp[graph])
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#validate-validate-a-graph-file-requires-gen-dspgraph" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        validate -- Validate a Graph File (requires gen-dsp[graph])
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#viz-generate-graph-visualization-dot-requires-gen-dspgraph" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        viz -- Generate Graph Visualization (DOT) (requires gen-dsp[graph])
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sim-simulate-a-graph-requires-gen-dspsim" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        sim -- Simulate a Graph (requires gen-dsp[sim])
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#list-list-available-platforms" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        list -- List Available Platforms
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cache-show-or-prune-cached-sdks" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        cache -- Show or Prune Cached SDKs
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#doctor-check-build-prerequisites" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        doctor -- Check Build Prerequisites
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#global-options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Global Options
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2166,8 +1965,10 @@
       
   
   
+    
   
   
+  
     
     
     
@@ -2178,13 +1979,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
         
           
           <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
@@ -2205,7 +2004,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_8">
             <span class="md-nav__icon md-icon"></span>
             
@@ -2248,10 +2047,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../percussa-ssp/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Percussa SSP
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -2267,6 +2093,236 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-is-the-percussa-ssp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is the Percussa SSP?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugin-api-percussah-api-35" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugin API (Percussa.h, API 3.5)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#build-toolchain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build &amp; toolchain
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Build &amp; toolchain">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-xcsspcmake-actually-sets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What xcSSP.cmake actually sets
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#constraints-vs-gen-dsp-typical-backends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Constraints vs. gen-dsp typical backends
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#feasibility-yes-a-good-fit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Feasibility: Yes -- a good fit
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementation-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation requirements
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reference-implementation-thetechnobear" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reference implementation (TheTechnobear)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementation-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implementation plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#files-to-add" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Files to add
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build-toolchain-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build &amp; toolchain strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#process-bridge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        process() bridge
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameter-encoder-layer-model-sspextendedapi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameter -&gt; encoder layer (model: SSPExtendedApi)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#descriptor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Descriptor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phasing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phasing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#decisions-risks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decisions / risks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#closest-analog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Closest analog
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions-confirm-on-device" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open questions (confirm on device)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -2333,10 +2389,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#default-command-generate-a-plugin-project" class="md-nav__link">
+  <a href="#what-is-the-percussa-ssp" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Default Command -- Generate a Plugin Project
+        What is the Percussa SSP?
       
     </span>
   </a>
@@ -2344,10 +2400,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#build-build-an-existing-project" class="md-nav__link">
+  <a href="#plugin-api-percussah-api-35" class="md-nav__link">
     <span class="md-ellipsis">
       
-        build -- Build an Existing Project
+        Plugin API (Percussa.h, API 3.5)
       
     </span>
   </a>
@@ -2355,10 +2411,38 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#detect-analyze-a-gen-export-or-graph-file" class="md-nav__link">
+  <a href="#build-toolchain" class="md-nav__link">
     <span class="md-ellipsis">
       
-        detect -- Analyze a gen~ Export or Graph File
+        Build &amp; toolchain
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Build &amp; toolchain">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-xcsspcmake-actually-sets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What xcSSP.cmake actually sets
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#constraints-vs-gen-dsp-typical-backends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Constraints vs. gen-dsp typical backends
       
     </span>
   </a>
@@ -2366,10 +2450,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#manifest-emit-json-manifest" class="md-nav__link">
+  <a href="#feasibility-yes-a-good-fit" class="md-nav__link">
     <span class="md-ellipsis">
       
-        manifest -- Emit JSON Manifest
+        Feasibility: Yes -- a good fit
       
     </span>
   </a>
@@ -2377,10 +2461,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#patch-apply-platform-specific-patches" class="md-nav__link">
+  <a href="#implementation-requirements" class="md-nav__link">
     <span class="md-ellipsis">
       
-        patch -- Apply Platform-Specific Patches
+        Implementation requirements
       
     </span>
   </a>
@@ -2388,10 +2472,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#chain-multi-plugin-chain-mode-circle" class="md-nav__link">
+  <a href="#reference-implementation-thetechnobear" class="md-nav__link">
     <span class="md-ellipsis">
       
-        chain -- Multi-Plugin Chain Mode (Circle)
+        Reference implementation (TheTechnobear)
       
     </span>
   </a>
@@ -2399,10 +2483,104 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#compile-compile-graph-to-c-requires-gen-dspgraph" class="md-nav__link">
+  <a href="#implementation-plan" class="md-nav__link">
     <span class="md-ellipsis">
       
-        compile -- Compile Graph to C++ (requires gen-dsp[graph])
+        Implementation plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implementation plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#files-to-add" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Files to add
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build-toolchain-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build &amp; toolchain strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#process-bridge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        process() bridge
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameter-encoder-layer-model-sspextendedapi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameter -&gt; encoder layer (model: SSPExtendedApi)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#descriptor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Descriptor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phasing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phasing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#decisions-risks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decisions / risks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#closest-analog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Closest analog
       
     </span>
   </a>
@@ -2410,76 +2588,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#validate-validate-a-graph-file-requires-gen-dspgraph" class="md-nav__link">
+  <a href="#open-questions-confirm-on-device" class="md-nav__link">
     <span class="md-ellipsis">
       
-        validate -- Validate a Graph File (requires gen-dsp[graph])
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#viz-generate-graph-visualization-dot-requires-gen-dspgraph" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        viz -- Generate Graph Visualization (DOT) (requires gen-dsp[graph])
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sim-simulate-a-graph-requires-gen-dspsim" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        sim -- Simulate a Graph (requires gen-dsp[sim])
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#list-list-available-platforms" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        list -- List Available Platforms
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cache-show-or-prune-cached-sdks" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        cache -- Show or Prune Cached SDKs
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#doctor-check-build-prerequisites" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        doctor -- Check Build Prerequisites
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#global-options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Global Options
+        Open questions (confirm on device)
       
     </span>
   </a>
@@ -2506,284 +2618,268 @@
   
 
 
-<h1 id="gen-dsp-cli-cheatsheet">gen-dsp CLI Cheatsheet<a class="headerlink" href="#gen-dsp-cli-cheatsheet" title="Permanent link">&para;</a></h1>
-<h2 id="default-command-generate-a-plugin-project">Default Command -- Generate a Plugin Project<a class="headerlink" href="#default-command-generate-a-plugin-project" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>gen-dsp<span class="w"> </span>&lt;source&gt;<span class="w"> </span>-p<span class="w"> </span>&lt;platform&gt;<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
-</code></pre></div>
-<p>Source type is auto-detected: directory (gen~ export), <code>.gdsp</code> file, or <code>.json</code> file.</p>
-<table>
-<thead>
-<tr>
-<th>Option</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>-p, --platform PLATFORM</code></td>
-<td>Target platform(s) (required): a name, a comma-separated list (<code>clap,vst3,au</code>), or <code>all</code>. Names: <code>au</code>, <code>auv3</code>, <code>chuck</code>, <code>circle</code>, <code>clap</code>, <code>csound</code>, <code>daisy</code>, <code>lv2</code>, <code>max</code>, <code>pd</code>, <code>sc</code>, <code>standalone</code>, <code>vcvrack</code>, <code>vst3</code>, <code>webaudio</code></td>
-</tr>
-<tr>
-<td><code>-n, --name NAME</code></td>
-<td>Plugin name (default: inferred from source)</td>
-</tr>
-<tr>
-<td><code>-o, --output DIR</code></td>
-<td>Output directory (default: <code>&lt;name&gt;_&lt;platform&gt;</code>; parent dir for multi-target)</td>
-</tr>
-<tr>
-<td><code>--config PATH</code></td>
-<td>Read defaults from a <code>gen-dsp.toml</code> (default: <code>./gen-dsp.toml</code> if present)</td>
-</tr>
-<tr>
-<td><code>--no-build</code></td>
-<td>Skip building after project creation</td>
-</tr>
-<tr>
-<td><code>--dry-run</code></td>
-<td>Show what would be done without creating files</td>
-</tr>
-<tr>
-<td><code>--buffers NAME [...]</code></td>
-<td>Explicit buffer names (overrides auto-detection)</td>
-</tr>
-<tr>
-<td><code>--no-patch</code></td>
-<td>Skip platform patches (e.g. <code>exp2f</code> fix)</td>
-</tr>
-<tr>
-<td><code>--no-shared-cache</code></td>
-<td>Disable shared OS cache for FetchContent downloads</td>
-</tr>
-<tr>
-<td><code>--cache-dir DIR</code></td>
-<td>Explicit FetchContent cache directory (baked into CMakeLists.txt)</td>
-</tr>
-<tr>
-<td><code>--board BOARD</code></td>
-<td>Board variant (see <code>gen-dsp list --boards daisy\|circle</code>)</td>
-</tr>
-<tr>
-<td><code>--no-midi</code></td>
-<td>Disable MIDI note handling</td>
-</tr>
-<tr>
-<td><code>--midi-gate NAME</code></td>
-<td>MIDI gate parameter name</td>
-</tr>
-<tr>
-<td><code>--midi-freq NAME</code></td>
-<td>MIDI frequency parameter name</td>
-</tr>
-<tr>
-<td><code>--midi-vel NAME</code></td>
-<td>MIDI velocity parameter name</td>
-</tr>
-<tr>
-<td><code>--midi-freq-unit {hz,midi}</code></td>
-<td>Unit for MIDI frequency parameter</td>
-</tr>
-<tr>
-<td><code>--voices N</code></td>
-<td>Polyphony voices (default: 1)</td>
-</tr>
-<tr>
-<td><code>--inputs-as-params [NAME ...]</code></td>
-<td>Remap signal inputs to parameters (no names = all; with names = only those)</td>
-</tr>
-</tbody>
-</table>
-<p>Examples:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>gen-dsp<span class="w"> </span>./my_export<span class="w"> </span>-p<span class="w"> </span>vst3
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>gen-dsp<span class="w"> </span>./my_export<span class="w"> </span>-p<span class="w"> </span>clap<span class="w"> </span>-n<span class="w"> </span>myeffect<span class="w"> </span>-o<span class="w"> </span>./build
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>gen-dsp<span class="w"> </span>./my_export<span class="w"> </span>-p<span class="w"> </span>daisy<span class="w"> </span>--board<span class="w"> </span>pod
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>gen-dsp<span class="w"> </span>./my_export<span class="w"> </span>-p<span class="w"> </span>pd<span class="w"> </span>--no-build<span class="w"> </span>--buffers<span class="w"> </span>sample<span class="w"> </span>envelope
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>gen-dsp<span class="w"> </span>synth.gdsp<span class="w"> </span>-p<span class="w"> </span>clap<span class="w"> </span>--midi-freq<span class="w"> </span>freq<span class="w"> </span>--midi-gate<span class="w"> </span>gate<span class="w"> </span>--voices<span class="w"> </span><span class="m">4</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>gen-dsp<span class="w"> </span>./my_export<span class="w"> </span>-p<span class="w"> </span>clap,vst3,au<span class="w">          </span><span class="c1"># multi-target</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>gen-dsp<span class="w"> </span>./my_export<span class="w"> </span>-p<span class="w"> </span>all<span class="w"> </span>--no-build<span class="w">        </span><span class="c1"># every platform</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>gen-dsp<span class="w">                                       </span><span class="c1"># uses ./gen-dsp.toml</span>
-</code></pre></div>
-<p>A <code>gen-dsp.toml</code> in the project directory supplies defaults (keys mirror the options above; <code>platform</code> may be a list or <code>all</code>). CLI flags override it.</p>
-<h2 id="build-build-an-existing-project">build -- Build an Existing Project<a class="headerlink" href="#build-build-an-existing-project" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>gen-dsp<span class="w"> </span>build<span class="w"> </span><span class="o">[</span>project-path<span class="o">]</span><span class="w"> </span><span class="o">[</span>-p<span class="w"> </span>PLATFORM<span class="o">]</span><span class="w"> </span><span class="o">[</span>--clean<span class="o">]</span><span class="w"> </span><span class="o">[</span>-v<span class="o">]</span>
-</code></pre></div>
-<table>
-<thead>
-<tr>
-<th>Option</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>project-path</code></td>
-<td>Path to project directory (default: current directory)</td>
-</tr>
-<tr>
-<td><code>-p, --platform PLATFORM</code></td>
-<td>Target platform (default: <code>pd</code>)</td>
-</tr>
-<tr>
-<td><code>--clean</code></td>
-<td>Clean before building</td>
-</tr>
-<tr>
-<td><code>-v, --verbose</code></td>
-<td>Show build output</td>
-</tr>
-</tbody>
-</table>
-<h2 id="detect-analyze-a-gen-export-or-graph-file">detect -- Analyze a gen~ Export or Graph File<a class="headerlink" href="#detect-analyze-a-gen-export-or-graph-file" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>gen-dsp<span class="w"> </span>detect<span class="w"> </span>&lt;path&gt;<span class="w"> </span><span class="o">[</span>--json<span class="o">]</span>
-</code></pre></div>
-<p>For a gen~ export directory: name, signal I/O counts, parameters, detected buffers, and needed patches. For a <code>.gdsp</code>/<code>.json</code> graph file: name, I/O, parameters with ranges, node-type breakdown, buffers, delay lines, and validity.</p>
-<h2 id="manifest-emit-json-manifest">manifest -- Emit JSON Manifest<a class="headerlink" href="#manifest-emit-json-manifest" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>gen-dsp<span class="w"> </span>manifest<span class="w"> </span>&lt;export-path&gt;<span class="w"> </span><span class="o">[</span>--buffers<span class="w"> </span>NAME<span class="w"> </span>...<span class="o">]</span>
-</code></pre></div>
-<p>Outputs a JSON manifest describing I/O counts, parameters with ranges, and buffers.</p>
-<h2 id="patch-apply-platform-specific-patches">patch -- Apply Platform-Specific Patches<a class="headerlink" href="#patch-apply-platform-specific-patches" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>gen-dsp<span class="w"> </span>patch<span class="w"> </span>&lt;target-path&gt;<span class="w"> </span><span class="o">[</span>--dry-run<span class="o">]</span>
-</code></pre></div>
-<p>Currently applies the <code>exp2f -&gt; exp2</code> fix for macOS compatibility with Max 9 exports.</p>
-<h2 id="chain-multi-plugin-chain-mode-circle">chain -- Multi-Plugin Chain Mode (Circle)<a class="headerlink" href="#chain-multi-plugin-chain-mode-circle" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>gen-dsp<span class="w"> </span>chain<span class="w"> </span>&lt;export-path&gt;<span class="w"> </span>--graph<span class="w"> </span>GRAPH<span class="w"> </span>-n<span class="w"> </span>NAME<span class="w"> </span><span class="o">[</span>-p<span class="w"> </span>PLATFORM<span class="o">]</span><span class="w"> </span><span class="o">[</span>-o<span class="w"> </span>OUTPUT<span class="o">]</span><span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
-</code></pre></div>
-<table>
-<thead>
-<tr>
-<th>Option</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>export-path</code></td>
-<td>Base directory for gen~ exports</td>
-</tr>
-<tr>
-<td><code>--graph GRAPH</code></td>
-<td>JSON graph file for multi-plugin chain (required)</td>
-</tr>
-<tr>
-<td><code>-n, --name NAME</code></td>
-<td>Name for the chain project (required)</td>
-</tr>
-<tr>
-<td><code>-p, --platform PLATFORM</code></td>
-<td>Target platform (default: <code>circle</code>)</td>
-</tr>
-<tr>
-<td><code>-o, --output OUTPUT</code></td>
-<td>Output directory (default: <code>./&lt;name&gt;</code>)</td>
-</tr>
-<tr>
-<td><code>--export EXPORTS</code></td>
-<td>Additional export path (repeatable)</td>
-</tr>
-<tr>
-<td><code>--board BOARD</code></td>
-<td>Board variant</td>
-</tr>
-<tr>
-<td><code>--no-patch</code></td>
-<td>Skip platform patches</td>
-</tr>
-<tr>
-<td><code>--no-build</code></td>
-<td>Skip building</td>
-</tr>
-<tr>
-<td><code>--dry-run</code></td>
-<td>Show what would be done</td>
-</tr>
-</tbody>
-</table>
-<h2 id="compile-compile-graph-to-c-requires-gen-dspgraph">compile -- Compile Graph to C++ (requires gen-dsp[graph])<a class="headerlink" href="#compile-compile-graph-to-c-requires-gen-dspgraph" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>gen-dsp<span class="w"> </span>compile<span class="w"> </span>&lt;file&gt;<span class="w"> </span><span class="o">[</span>-o<span class="w"> </span>DIR<span class="o">]</span><span class="w"> </span><span class="o">[</span>--optimize<span class="o">]</span>
-</code></pre></div>
-<p>Compiles a <code>.gdsp</code> or <code>.json</code> graph file to C++. Outputs to stdout by default, or to a directory with <code>-o</code>.</p>
-<h2 id="validate-validate-a-graph-file-requires-gen-dspgraph">validate -- Validate a Graph File (requires gen-dsp[graph])<a class="headerlink" href="#validate-validate-a-graph-file-requires-gen-dspgraph" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>gen-dsp<span class="w"> </span>validate<span class="w"> </span>&lt;file&gt;<span class="w"> </span><span class="o">[</span>--warn-unmapped-params<span class="o">]</span>
-</code></pre></div>
-<p>Checks graph connectivity and type correctness.</p>
-<h2 id="viz-generate-graph-visualization-dot-requires-gen-dspgraph">viz -- Generate Graph Visualization (DOT) (requires gen-dsp[graph])<a class="headerlink" href="#viz-generate-graph-visualization-dot-requires-gen-dspgraph" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>gen-dsp<span class="w"> </span>viz<span class="w"> </span>&lt;file&gt;<span class="w"> </span><span class="o">[</span>-o<span class="w"> </span>DIR<span class="o">]</span><span class="w">   </span><span class="c1"># &#39;dot&#39; is a deprecated alias</span>
-</code></pre></div>
-<p>Generates a Graphviz DOT file for the graph.</p>
-<h2 id="sim-simulate-a-graph-requires-gen-dspsim">sim -- Simulate a Graph (requires gen-dsp[sim])<a class="headerlink" href="#sim-simulate-a-graph-requires-gen-dspsim" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>gen-dsp<span class="w"> </span>sim<span class="w"> </span>&lt;file&gt;<span class="w"> </span><span class="o">[</span>-i<span class="w"> </span><span class="o">[</span><span class="nv">NAME</span><span class="o">=]</span>FILE<span class="o">]</span><span class="w"> </span><span class="o">[</span>-o<span class="w"> </span>DIR<span class="o">]</span><span class="w"> </span><span class="o">[</span>-n<span class="w"> </span>SAMPLES<span class="o">]</span><span class="w"> </span><span class="o">[</span>--param<span class="w"> </span><span class="nv">NAME</span><span class="o">=</span>VALUE<span class="o">]</span><span class="w"> </span><span class="o">[</span>--sample-rate<span class="w"> </span>SR<span class="o">]</span><span class="w"> </span><span class="o">[</span>--optimize<span class="o">]</span>
-</code></pre></div>
-<table>
-<thead>
-<tr>
-<th>Option</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>-i, --input [NAME=]FILE</code></td>
-<td>Map audio input to WAV file (repeatable)</td>
-</tr>
-<tr>
-<td><code>-o, --output DIR</code></td>
-<td>Output directory (default: current dir)</td>
-</tr>
-<tr>
-<td><code>-n, --samples N</code></td>
-<td>Number of samples (required for generators)</td>
-</tr>
-<tr>
-<td><code>--param NAME=VALUE</code></td>
-<td>Set parameter (repeatable)</td>
-</tr>
-<tr>
-<td><code>--sample-rate SR</code></td>
-<td>Override sample rate</td>
-</tr>
-<tr>
-<td><code>--optimize</code></td>
-<td>Optimize before simulation</td>
-</tr>
-</tbody>
-</table>
-<h2 id="list-list-available-platforms">list -- List Available Platforms<a class="headerlink" href="#list-list-available-platforms" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>gen-dsp<span class="w"> </span>list<span class="w">                  </span><span class="c1"># platform names, one per line</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>gen-dsp<span class="w"> </span>list<span class="w"> </span>-v<span class="w">               </span><span class="c1"># name, build system, extension, description</span>
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>gen-dsp<span class="w"> </span>list<span class="w"> </span>--json<span class="w">           </span><span class="c1"># machine-readable metadata</span>
-<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>gen-dsp<span class="w"> </span>list<span class="w"> </span>--boards<span class="w"> </span>daisy<span class="w">   </span><span class="c1"># valid --board variants for a platform</span>
-</code></pre></div>
-<h2 id="cache-show-or-prune-cached-sdks">cache -- Show or Prune Cached SDKs<a class="headerlink" href="#cache-show-or-prune-cached-sdks" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>gen-dsp<span class="w"> </span>cache<span class="w">                    </span><span class="c1"># list cached SDKs with sizes</span>
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>gen-dsp<span class="w"> </span>cache<span class="w"> </span>--prune<span class="w">            </span><span class="c1"># delete them (asks for confirmation)</span>
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>gen-dsp<span class="w"> </span>cache<span class="w"> </span>--prune<span class="w"> </span>-y<span class="w">         </span><span class="c1"># delete without prompting</span>
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>gen-dsp<span class="w"> </span>cache<span class="w"> </span>--prune<span class="w"> </span>--dry-run<span class="w">  </span><span class="c1"># preview what would be removed</span>
-</code></pre></div>
-<h2 id="doctor-check-build-prerequisites">doctor -- Check Build Prerequisites<a class="headerlink" href="#doctor-check-build-prerequisites" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>gen-dsp<span class="w"> </span>doctor<span class="w">              </span><span class="c1"># all platforms</span>
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>gen-dsp<span class="w"> </span>doctor<span class="w"> </span>-p<span class="w"> </span>daisy<span class="w">     </span><span class="c1"># one platform</span>
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>gen-dsp<span class="w"> </span>doctor<span class="w"> </span>--json<span class="w">       </span><span class="c1"># machine-readable</span>
-</code></pre></div>
-<p>Reports, per platform, whether the host has the tools needed to build (compilers, CMake/Make, cross-toolchains, Emscripten, Xcode, git), with install hints. Exits non-zero when a requested platform is not ready (usable as a CI gate).</p>
-<h2 id="global-options">Global Options<a class="headerlink" href="#global-options" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Option</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>-V, --version</code></td>
-<td>Show version</td>
-</tr>
-<tr>
-<td><code>-h, --help</code></td>
-<td>Show help</td>
-</tr>
-</tbody>
-</table>
+<h1 id="percussa-ssp-backend-assessment">Percussa SSP Backend Assessment<a class="headerlink" href="#percussa-ssp-backend-assessment" title="Permanent link">&para;</a></h1>
+<p>Assessment of the <a href="https://github.com/percussa/ssp-sdk">Percussa SSP SDK</a> as a
+gen-dsp backend. Mirrors the structure of <a href="../move-everything/">move-everything.md</a>.</p>
+<h2 id="what-is-the-percussa-ssp">What is the Percussa SSP?<a class="headerlink" href="#what-is-the-percussa-ssp" title="Permanent link">&para;</a></h2>
+<p>The Percussa SSP (Super Signal Processor) is a high-end, ARM-Linux-based Eurorack
+module / standalone: a programmable multi-channel DSP host with a colour display,
+four encoders, and eight soft keys. The SDK lets third parties build native
+modules that run on the device as shared libraries.</p>
+<h2 id="plugin-api-percussah-api-35">Plugin API (Percussa.h, API 3.5)<a class="headerlink" href="#plugin-api-percussah-api-35" title="Permanent link">&para;</a></h2>
+<p>SSP modules are <code>.so</code> shared libraries that export three C functions and
+implement a small C++ interface in namespace <code>Percussa::SSP</code>:</p>
+<ul>
+<li><strong>C exports:</strong> <code>createDescriptor() -&gt; PluginDescriptor*</code>,
+  <code>createInstance() -&gt; PluginInterface*</code>,
+  <code>getApiVersion(unsigned&amp; major, unsigned&amp; minor)</code>.</li>
+<li><strong><code>PluginInterface</code></strong> (audio processor):</li>
+<li><code>prepare(double sampleRate, int samplesPerBlock)</code> -- init (~ gen~ <code>create</code>).</li>
+<li><code>process(float** channelData, int numChannels, int numSamples)</code> -- the DSP
+    callback. Samples are <strong>float32, planar</strong> (<code>float**</code>).</li>
+<li><code>buttonPressed(int n, bool)</code> -- soft keys (0-7), navigation (8-11), shift (12-13).</li>
+<li><code>encoderPressed(int n, bool)</code> / <code>encoderTurned(int n, int)</code> -- encoders 0-3.</li>
+<li><code>inputEnabled(int n, bool)</code> / <code>outputEnabled(int n, bool)</code> -- per-channel enable.</li>
+<li><code>getState(void**, size_t*)</code> / <code>setState(void*, size_t)</code> -- preset save/load.</li>
+<li><code>getEditor() -&gt; PluginEditorInterface*</code>.</li>
+<li><strong><code>PluginEditorInterface</code></strong> (display): <code>renderToImage(unsigned char*, w, h)</code> (BGRA
+  pixel buffer), <code>draw(w, h)</code> (OpenGL ES), <code>frameStart()</code>, <code>visibilityChanged(bool)</code>.</li>
+<li><strong><code>PluginDescriptor</code></strong> (metadata): <code>name</code>, <code>descriptiveName</code>, <code>manufacturerName</code>,
+  <code>version</code>, <code>uid</code> (matches the VST uid for preset compatibility),
+  <code>inputChannelNames</code> / <code>outputChannelNames</code> (<code>vector&lt;string&gt;</code>), <code>colour</code> (BGRA).</li>
+</ul>
+<p>Example module (<code>examples/api/test</code>): a <code>TestPluginInterface : Percussa::SSP::PluginInterface</code>
+declaring 2 in / 2 out (<code>"In 1/2"</code>, <code>"Out 1/2"</code>), uid <code>0x54455354</code>.</p>
+<p><strong>Channel layout (resolved).</strong> <code>channelData</code> is a JUCE-style in-place buffer:
+TheTechnobear's bridge wraps it directly as
+<code>AudioSampleBuffer buffer(channelData, numChannels, numSamples)</code> and calls
+<code>processBlock</code> with no copy. So the raw <code>float**</code> pointers are usable as-is; gen-dsp
+would map them straight to genlib's <code>t_sample**</code> ins/outs. The exact input/output
+split (separate <code>numIn</code> + <code>numOut</code> pointers vs. an in-place <code>max(in,out)</code> buffer) is
+the one detail to confirm at runtime on the device.</p>
+<h2 id="build-toolchain">Build &amp; toolchain<a class="headerlink" href="#build-toolchain" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>CMake</strong> with a cross-compilation toolchain file <code>xcSSP.cmake</code>. The SSP runs
+  <strong>Rockchip ARM 32-bit hard-float Linux</strong> (Buildroot); target triple
+  <code>arm-rockchip-linux-gnueabihf</code>. Output is a <code>.so</code>.</li>
+<li>The toolchain + sysroot is a <strong>free, public tarball</strong> (a Buildroot SDK), not
+  device- or account-tied:
+  <code>https://sw13072022.s3.us-west-1.amazonaws.com/arm-rockchip-linux-gnueabihf_sdk-buildroot.tar.gz</code>.
+  It is extracted under <code>~/buildroot/...</code> and the build points at it via
+  <code>export BUILDROOT=...</code>. Because the URL is public, gen-dsp could <strong>auto-fetch and
+  cache</strong> it the way it already does for libDaisy / Circle / the Rack SDK.</li>
+<li>The official SDK build also references Steinberg's <strong>VST3 SDK</strong> (<code>export VSTSDK=...</code>),
+  but that is for the <code>examples/vst/</code> wrappers; the native <code>examples/api/</code> path -- the
+  one gen-dsp would target -- should not need it (confirm).</li>
+<li>Dev hosts: macOS / Linux.</li>
+<li>Build: <code>cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../xcSSP.cmake ..</code>
+  then <code>cmake --build . -- -j4</code>.</li>
+</ul>
+<h3 id="what-xcsspcmake-actually-sets">What <code>xcSSP.cmake</code> actually sets<a class="headerlink" href="#what-xcsspcmake-actually-sets" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>CMAKE_SYSTEM_NAME Linux</code>, <code>CMAKE_SYSTEM_PROCESSOR armv7l</code>, triple
+  <code>arm-linux-gnueabihf</code>.</li>
+<li><strong>Compiler is host Clang, not the Buildroot GCC.</strong> <code>CMAKE_C/CXX_COMPILER</code> =
+  <code>${TOOLSROOT}/clang(++)</code> with <code>CMAKE_C/CXX_COMPILER_TARGET=arm-linux-gnueabihf</code>.
+  <code>TOOLSROOT</code> defaults to Homebrew LLVM on macOS (<code>/opt/homebrew/opt/llvm/bin</code> or
+  <code>/usr/local/opt/llvm/bin</code>) and <code>/usr/bin</code> on Linux. So the host needs <strong>LLVM/Clang</strong>;
+  the Buildroot tree supplies only the sysroot + GCC 8.4.0 libstdc++ (clang is pointed at
+  its C++ headers via explicit <code>-I${BUILDROOT}/.../include/c++/8.4.0[...]</code>).</li>
+<li><code>CMAKE_SYSROOT = ${BUILDROOT}/arm-rockchip-linux-gnueabihf/sysroot</code>;
+  <code>GCCROOT = ${BUILDROOT}/lib/gcc/arm-rockchip-linux-gnueabihf/8.4.0</code>.</li>
+<li><strong>CPU flags:</strong> <code>-mcpu=cortex-a17 -mfloat-abi=hard -mfpu=neon-vfpv4</code> -- the SSP is a
+  <strong>Cortex-A17</strong> SoC (Rockchip RK3288-class), NEON / hard-float.</li>
+<li>Link flags add <code>-L/-B/-Wl,-rpath-link</code> for <code>${CMAKE_SYSROOT}/lib</code> and <code>${GCCROOT}</code>,
+  applied to exe/module/shared linker flags.</li>
+<li>Env overrides: <code>BUILDROOT</code> (sysroot root) and <code>TOOLSROOT</code> (clang location).</li>
+</ul>
+<p>This is reproducible by gen-dsp directly: emit a toolchain file that runs the host Clang
+with <code>--target=arm-linux-gnueabihf</code>, the cached Buildroot sysroot, the libstdc++ 8.4.0
+include paths, and the cortex-a17 NEON flags -- no Percussa <code>xcSSP.cmake</code> needed at
+generation time. A <code>doctor</code> check would verify Clang and the Buildroot sysroot are
+present.</p>
+<h2 id="constraints-vs-gen-dsp-typical-backends">Constraints vs. gen-dsp typical backends<a class="headerlink" href="#constraints-vs-gen-dsp-typical-backends" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>float32 planar</strong> matches gen-dsp's <code>GENLIB_USE_FLOAT32</code> (<code>t_sample = float</code>) and
+  gen~'s <code>float**</code> perform signature -- essentially a direct mapping, no int16 or
+  interleave conversion (unlike Move).</li>
+<li><strong>No float-parameter API.</strong> Control is via 4 encoders + 8 soft keys, not a CLAP/VST
+  parameter list. gen~ params must be mapped onto the encoders with paging (as the
+  Daisy/Circle backends map params to hardware knobs), with <code>getState</code>/<code>setState</code>
+  serializing the current values for presets.</li>
+<li><strong>Cross-compile sysroot -- but auto-fetchable.</strong> Unlike a device-tied SDK, the
+  <code>arm-rockchip-linux-gnueabihf</code> Buildroot toolchain is a public tarball, so gen-dsp can
+  download and cache it automatically (as it does libDaisy / Circle / Rack SDK) instead
+  of requiring a user-set path. A <code>BUILDROOT</code> override (cf. <code>RACK_DIR</code>) can still point
+  at an existing install.</li>
+<li><strong>AGPL-3.0 SDK.</strong> <code>Percussa.h</code> is AGPL-3.0. Generated glue that includes it is
+  AGPL-encumbered, and the resulting module is AGPL. gen-dsp itself is MIT; the
+  SSP-specific template/glue files would carry the AGPL implications (the genlib and
+  user DSP are separate TUs under the header-isolation pattern). Worth flagging to
+  users, not a blocker.</li>
+<li><strong>Optional display.</strong> <code>renderToImage</code>/<code>draw</code> can be stubbed or used to render a
+  minimal parameter readout; not required for audio to work.</li>
+</ul>
+<h2 id="feasibility-yes-a-good-fit">Feasibility: Yes -- a good fit<a class="headerlink" href="#feasibility-yes-a-good-fit" title="Permanent link">&para;</a></h2>
+<p>The shared-library-plus-descriptor/instance model is very close to gen-dsp's existing
+CLAP / LV2 backends, and <code>prepare</code>/<code>process</code> map almost 1:1 onto gen~'s
+<code>create</code>/<code>perform</code>. float32 planar audio removes the format-conversion friction that
+complicates the Move backend. The user owns the hardware, so the build and audio path
+can be verified on-device.</p>
+<h2 id="implementation-requirements">Implementation requirements<a class="headerlink" href="#implementation-requirements" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Platform key <code>"ssp"</code>; <code>platforms/ssp.py</code> plus a <code>templates/ssp/</code> set.</li>
+<li>Header-isolation bridge <code>_ext_ssp.cpp</code> / <code>_ext_ssp.h</code>: the SSP-side <code>.cpp</code> includes
+  only <code>Percussa.h</code>; the genlib-side <code>_ext*.cpp</code> includes only genlib; they meet at an
+  opaque <code>GenState*</code> C interface (the established gen-dsp pattern).</li>
+<li><code>process()</code> bridge: slice <code>channelData</code> into gen~ inputs (<code>[0 .. numIn)</code>) and outputs
+  (<code>[numIn .. numIn+numOut)</code>) -- <strong>exact layout to confirm on device</strong> -- and call the
+  genlib perform.</li>
+<li>Parameter -&gt; encoder mapping with paging, plus <code>getState</code>/<code>setState</code> (de)serialization
+  of param values; map <code>PluginDescriptor.inputChannelNames</code>/<code>outputChannelNames</code> from the
+  manifest I/O.</li>
+<li>CMakeLists wired to a <code>xcSSP.cmake</code>-style toolchain. gen-dsp can auto-download and
+  cache the public Buildroot toolchain tarball (like libDaisy / Circle), with a
+  <code>BUILDROOT</code> env override for an existing install.</li>
+<li>Optional minimal <code>PluginEditorInterface</code> rendering param names/values.</li>
+</ul>
+<h2 id="reference-implementation-thetechnobear">Reference implementation (TheTechnobear)<a class="headerlink" href="#reference-implementation-thetechnobear" title="Permanent link">&para;</a></h2>
+<p><a href="https://github.com/TheTechnobear/SSP">TheTechnobear/SSP</a> is a mature, ~39-module
+collection that proves the path end to end. Its <code>technobear/common/</code> provides a
+reusable framework:</p>
+<ul>
+<li><code>SSPApiProcessor.{h,cpp}</code> -- bridges <code>Percussa::SSP::PluginInterface</code> to a JUCE
+  <code>AudioProcessor</code> (<code>AudioSampleBuffer buffer(channelData, numChannels, numSamples);
+  processor_-&gt;processBlock(buffer, midi)</code>).</li>
+<li><code>SSPExApi.h</code> (<code>SSPExtendedApi</code>) -- an <strong>extended parameter model</strong> layered on the raw
+  SDK: <code>numberOfParameters()</code>, <code>parameterDesc(idx, ...)</code>, <code>parameterValue(idx)</code>, with
+  <code>buttonPressed</code>/<code>encoderTurned</code> translated to parameter updates and paged across the
+  four encoders. This is the cleanest reference for gen-dsp's param-&gt;encoder mapping.</li>
+<li>Editor base (<code>SSPApiEditor.{h,cpp}</code>) for the display.</li>
+</ul>
+<p><strong>Two implementation paths for gen-dsp:</strong></p>
+<ol>
+<li><strong>Native (recommended)</strong> -- generate a module that implements
+   <code>Percussa::SSP::PluginInterface</code> directly against the official <code>Percussa.h</code>, bridging
+   <code>process()</code> to genlib with no JUCE. Matches gen-dsp's other backends (minimal wrapper,
+   no heavy framework dependency) and the official <code>examples/api/test</code>.</li>
+<li><strong>JUCE-based</strong> -- reuse TheTechnobear's <code>SSPApiProcessor</code>/<code>SSPExtendedApi</code>. More
+   machinery (JUCE + madronalib submodules) but a ready-made parameter/encoder/editor
+   layer. Heavier; only worth it if the display/param UX is a priority.</li>
+</ol>
+<p>Either way, TheTechnobear's <code>SSPExtendedApi</code> parameter abstraction is the model to copy
+for mapping gen~ params onto the encoders.</p>
+<h2 id="implementation-plan">Implementation plan<a class="headerlink" href="#implementation-plan" title="Permanent link">&para;</a></h2>
+<p>A concrete, phased plan to add an <code>"ssp"</code> backend, native (no JUCE), following the
+existing gen-dsp backend anatomy (header isolation + a per-platform bridge over the
+shared <code>wrapper_*</code> C interface, as in the Web Audio backend).</p>
+<h3 id="files-to-add">Files to add<a class="headerlink" href="#files-to-add" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>src/gen_dsp/platforms/ssp.py</code> -- <code>SspPlatform(Platform)</code>; register <code>"ssp"</code> in
+  <code>platforms/__init__.py</code> <code>PLATFORM_REGISTRY</code>. Implements <code>generate_project</code>, <code>build</code>,
+  <code>clean</code>, <code>find_output</code>, <code>get_build_instructions</code>, <code>extension</code> (<code>.so</code>), <code>description</code>,
+  <code>build_system</code> (<code>"CMake (clang cross)"</code>), and <code>list_boards()</code> -&gt; <code>[]</code>.</li>
+<li><code>src/gen_dsp/templates/ssp/</code>:</li>
+<li><code>_ext_ssp.cpp</code> (static) -- genlib side: includes genlib + the exported gen~ code,
+    defines the <code>wrapper_*</code> functions in <code>WRAPPER_NAMESPACE</code>. Mirrors
+    <code>_ext_webaudio.cpp</code> (drop the buffer section unless/until SSP buffers are wired).</li>
+<li><code>gen_ext_common_ssp.h</code> (static) -- the <code>WRAPPER_NAMESPACE</code> macros.</li>
+<li><code>_ext_ssp.h</code> -- generated from the shared <code>gen_ext_h.template</code> (opaque <code>GenState*</code>
+    C interface). Reused unchanged.</li>
+<li><code>ssp_plugin.cpp.template</code> -- <strong>the only genuinely new code</strong>: implements
+    <code>Percussa::SSP::PluginInterface</code>, <code>createDescriptor</code>/<code>createInstance</code>/<code>getApiVersion</code>,
+    the <code>process()</code> bridge, the param-&gt;encoder layer, and <code>getState</code>/<code>setState</code>.</li>
+<li><code>CMakeLists.txt.template</code> -- builds the <code>.so</code>; pulls in the generated toolchain.</li>
+<li><code>ssp_toolchain.cmake.template</code> -- emitted per project (see below).</li>
+<li><code>src/gen_dsp/core/doctor.py</code> -- add an <code>ssp</code> entry checking for <code>clang</code>/<code>clang++</code> and
+  the Buildroot sysroot.</li>
+</ul>
+<h3 id="build-toolchain-strategy">Build &amp; toolchain strategy<a class="headerlink" href="#build-toolchain-strategy" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Fetch the SDK like Daisy/Circle fetch theirs</strong>, but as a tarball, not a clone: a
+  helper (cf. <code>daisy._resolve_libdaisy_dir</code>) downloads
+  <code>arm-rockchip-linux-gnueabihf_sdk-buildroot.tar.gz</code> into the shared cache
+  (<code>core/cache.get_cache_dir()</code>), extracts once, and returns the root. A <code>BUILDROOT</code>
+  env var overrides to an existing install. Pin the URL + a version/sha constant.</li>
+<li><strong>Emit our own toolchain file</strong> rather than depend on Percussa's <code>xcSSP.cmake</code>:
+  <code>ssp_toolchain.cmake</code> sets <code>CMAKE_SYSTEM_NAME Linux</code>, <code>SYSTEM_PROCESSOR armv7l</code>,
+  <code>CMAKE_C/CXX_COMPILER</code> = host <code>clang/clang++</code> with
+  <code>--target=arm-linux-gnueabihf</code>, <code>CMAKE_SYSROOT</code> = cached Buildroot sysroot, the
+  libstdc++ 8.4.0 include paths, <code>-mcpu=cortex-a17 -mfloat-abi=hard -mfpu=neon-vfpv4</code>,
+  and the sysroot/GCCROOT link flags. (Reproduces <code>xcSSP.cmake</code> from values we now know.)</li>
+<li><code>build()</code> resolves the SDK, writes the toolchain into the project, then runs
+  <code>cmake -DCMAKE_TOOLCHAIN_FILE=ssp_toolchain.cmake -B build</code> + <code>cmake --build build</code>.
+  This makes <code>ssp</code> the first <strong>CMake cross-compile</strong> backend (existing cross-compile
+  backends -- Daisy, Circle -- are Make-based).</li>
+</ul>
+<h3 id="process-bridge"><code>process()</code> bridge<a class="headerlink" href="#process-bridge" title="Permanent link">&para;</a></h3>
+<p>The SSP gives <code>process(float** channelData, int numChannels, int numSamples)</code>. genlib's
+<code>perform(state, t_sample** ins, long nins, t_sample** outs, long nouts, long n)</code> takes the
+same planar <code>float**</code>. Bridge: pass <code>channelData[0 .. num_inputs)</code> as ins and
+<code>channelData[num_inputs .. num_inputs+num_outputs)</code> as outs (the <strong>inputs-then-outputs</strong>
+assumption). Guard with a one-time check of <code>numChannels</code> vs <code>num_inputs+num_outputs</code>;
+keep an in-place fallback (<code>outs</code> overlap <code>ins</code>) behind a clearly marked switch, to flip
+after the on-device confirmation. genlib already tolerates <code>t_sample = float</code>.</p>
+<h3 id="parameter-encoder-layer-model-sspextendedapi">Parameter -&gt; encoder layer (model: <code>SSPExtendedApi</code>)<a class="headerlink" href="#parameter-encoder-layer-model-sspextendedapi" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The manifest's <code>ParamInfo[]</code> (name/min/max/default) drives a fixed param table.</li>
+<li>Four encoders address a <strong>page</strong> of four params; <code>encoderTurned(n, delta)</code> updates param
+  <code>page*4 + n</code> by <code>delta * (max-min) * step</code>, clamped; <code>encoderPressed</code> resets to default.</li>
+<li>Soft keys / navigation buttons change page; the editor's <code>renderToImage</code> draws the
+  current page's four <code>name: value</code> rows (BGRA). The editor can be a stub initially.</li>
+<li><code>getState</code>/<code>setState</code> serialize the param-value array (+ current page) to a blob for
+  presets. (gen~ MIDI-to-CV is <strong>N/A</strong> for SSP -- no MIDI in the callback; treat all I/O
+  as audio/CV and disable the MIDI path for this backend.)</li>
+</ul>
+<h3 id="descriptor">Descriptor<a class="headerlink" href="#descriptor" title="Permanent link">&para;</a></h3>
+<p><code>createDescriptor()</code> fills <code>name</code>/<code>manufacturerName</code>/<code>version</code> from the project config,
+a deterministic <code>uid</code> (e.g. hashed from the name), and
+<code>inputChannelNames</code>/<code>outputChannelNames</code> sized from <code>manifest.num_inputs</code>/<code>num_outputs</code>
+(generic <code>"In N"</code>/<code>"Out N"</code>, or gen~ I/O names when present).</p>
+<h3 id="phasing">Phasing<a class="headerlink" href="#phasing" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Scaffold + generation</strong> (verifiable here, in CI): platform + templates + registry;
+   <code>generate_project</code> emits all files. Always-run generation tests (cf. the webaudio
+   tests): files present, descriptor channel counts match the manifest, toolchain carries
+   the cortex-a17/clang flags, param-table code present. No cross-build needed.</li>
+<li><strong>Toolchain + build</strong> (verified on the user's device): SDK auto-fetch, toolchain emit,
+   <code>build()</code> -&gt; <code>.so</code>; <code>doctor</code> entry. Build/integration tests gated on <code>clang</code> +
+   <code>BUILDROOT</code> (skipped in CI, like the <code>emcc</code> gate).</li>
+<li><strong>Param/encoder + display</strong>: the <code>SSPExtendedApi</code>-style layer, paging, <code>getState</code>/
+   <code>setState</code>, <code>renderToImage</code> param readout.</li>
+<li><strong>Polish</strong>: confirm the channel split on device, presets, docs + an example, and a
+   backend page under <code>docs/backends/</code>.</li>
+</ol>
+<h3 id="decisions-risks">Decisions / risks<a class="headerlink" href="#decisions-risks" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Licensing.</strong> <code>ssp_plugin.cpp</code> includes the AGPL-3.0 <code>Percussa.h</code>, so the <em>generated
+  SSP project</em> is AGPL-3.0 (genlib + user DSP remain separate TUs). gen-dsp's generator
+  code stays MIT (it only emits text). Mark the SSP template/bridge files and generated
+  project with an AGPL notice and document it. Not a code blocker.</li>
+<li><strong>On-device confirmations</strong> before calling it done: the exact in/out channel split;
+  whether the native <code>api/</code> path needs the VST3 SDK (the <code>vst/</code> examples do); the module
+  install path on the device.</li>
+<li><strong>What can be validated in CI vs. on device.</strong> Generation (phase 1) runs everywhere;
+  the cross-build + audio (phases 2-4) require the Cortex-A17 sysroot + clang target and
+  the hardware, so they live behind a tool gate and are validated by the device owner.</li>
+</ul>
+<h2 id="closest-analog">Closest analog<a class="headerlink" href="#closest-analog" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Code shape:</strong> CLAP / LV2 (a <code>.so</code> plugin: descriptor + instance factory,
+  <code>prepare</code>/<code>process</code>).</li>
+<li><strong>Build &amp; control:</strong> Circle / Daisy / VCV Rack (cross-compile against an externally
+  installed SDK; map params onto fixed hardware controls).</li>
+</ul>
+<h2 id="open-questions-confirm-on-device">Open questions (confirm on device)<a class="headerlink" href="#open-questions-confirm-on-device" title="Permanent link">&para;</a></h2>
+<ul>
+<li>The input/output split within <code>channelData</code>: separate <code>numIn</code> + <code>numOut</code> pointers, or
+  an in-place <code>max(numIn, numOut)</code> JUCE buffer? (Wrapping is confirmed in-place; only the
+  bus interpretation remains.)</li>
+<li>The SSP's fixed I/O width / maximum channel count.</li>
+<li>Module install path on the device (SD card folder?).</li>
+<li>Whether the native <code>api/</code> build path needs the VST3 SDK or only the <code>vst/</code> wrappers do.</li>
+<li>AGPL-3.0 implications for distributing generated modules.</li>
+</ul>
 
 
 

@@ -2279,6 +2279,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../percussa-ssp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Percussa SSP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -2642,7 +2670,7 @@
 <a id="__codelineno-1-84" name="__codelineno-1-84" href="#__codelineno-1-84"></a>    <span class="n">op</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;delay_read&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;delay_read&quot;</span>
 <a id="__codelineno-1-85" name="__codelineno-1-85" href="#__codelineno-1-85"></a>    <span class="n">delay</span><span class="p">:</span> <span class="nb">str</span>                  <span class="c1"># delay line ID</span>
 <a id="__codelineno-1-86" name="__codelineno-1-86" href="#__codelineno-1-86"></a>    <span class="n">tap</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">float</span>            <span class="c1"># tap position node ID or literal</span>
-<a id="__codelineno-1-87" name="__codelineno-1-87" href="#__codelineno-1-87"></a>    <span class="n">interp</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="s2">&quot;linear&quot;</span><span class="p">,</span> <span class="s2">&quot;cubic&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;none&quot;</span>
+<a id="__codelineno-1-87" name="__codelineno-1-87" href="#__codelineno-1-87"></a>    <span class="n">interp</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="s2">&quot;nearest&quot;</span><span class="p">,</span> <span class="s2">&quot;linear&quot;</span><span class="p">,</span> <span class="s2">&quot;cubic&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;none&quot;</span>
 <a id="__codelineno-1-88" name="__codelineno-1-88" href="#__codelineno-1-88"></a>
 <a id="__codelineno-1-89" name="__codelineno-1-89" href="#__codelineno-1-89"></a>
 <a id="__codelineno-1-90" name="__codelineno-1-90" href="#__codelineno-1-90"></a><span class="k">class</span><span class="w"> </span><span class="nc">DelayWrite</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
@@ -2750,7 +2778,7 @@
 </tr>
 <tr>
 <td>Oscillators</td>
-<td><code>Phasor</code>, <code>SinOsc</code>, <code>TriOsc</code>, <code>SawOsc</code>, <code>PulseOsc</code>, <code>Noise</code></td>
+<td><code>Phasor</code>, <code>SinOsc</code>, <code>TriOsc</code>, <code>SawOsc</code>, <code>PulseOsc</code>, <code>Train</code>, <code>Noise</code></td>
 <td>1 sample (phase/seed)</td>
 </tr>
 <tr>
@@ -3015,7 +3043,7 @@
 <tr>
 <td>Operator set</td>
 <td>gen~ vocabulary</td>
-<td>53 node types (~89% gen~ coverage)</td>
+<td>55 node types (~90% gen~ coverage)</td>
 </tr>
 <tr>
 <td>Simulation</td>

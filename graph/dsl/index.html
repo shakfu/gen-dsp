@@ -2533,6 +2533,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../percussa-ssp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Percussa SSP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3194,7 +3222,7 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>delay_write NAME (value_expr)                        # statement (no assignment)
 <a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>tap = delay_read NAME (tap_expr)                     # expression
 <a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>tap = delay_read NAME (tap_expr, interp=linear)      # with interpolation
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>tap = delay_read NAME (tap_expr, interp=cubic)
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>tap = delay_read NAME (tap_expr, interp=cubic)       # interp: none|nearest|linear|cubic
 </code></pre></div>
 <p><code>delay_write</code> is a statement, not an expression -- it produces a <code>DelayWrite</code> node but has no output to assign. <code>delay_read</code> is an expression that produces a <code>DelayRead</code> node.</p>
 <h3 id="buffer-operations">Buffer Operations<a class="headerlink" href="#buffer-operations" title="Permanent link">&para;</a></h3>
@@ -3205,7 +3233,7 @@
 <a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>val = wave(tbl, phase)                     # wavetable [-1,1] phase
 <a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>val = lookup(tbl, index)                   # [0,1] index, clamped
 <a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>val = buf_read(tbl, index)                 # raw sample index
-<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>val = buf_read(tbl, index, interp=linear)  # interpolated
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>val = buf_read(tbl, index, interp=linear)  # interp: none|nearest|linear|cubic
 <a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>sz  = buf_size(tbl)                        # buffer size
 </code></pre></div>
 <p>Buffer writes are statements:</p>
@@ -3281,7 +3309,7 @@
 <a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>exp(x)  exp2(x) log(x)  log2(x)  log10(x)
 <a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>abs(x)  sqrt(x) neg(x)  sign(x)
 <a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>floor(x) ceil(x) round(x) trunc(x) fract(x)
-<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>not(x)  bool(x)
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>not(x)  bool(x)  bitnot(x)
 <a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>mtof(x) ftom(x) atodb(x) dbtoa(x)
 <a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>phasewrap(x) degrees(x) radians(x)
 <a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>mstosamps(x) sampstoms(x) t60(x) t60time(x)
@@ -3293,14 +3321,18 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>min(a, b)     max(a, b)     atan2(a, b)
 <a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>hypot(a, b)   absdiff(a, b) step(a, b)
 <a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>and(a, b)     or(a, b)      xor(a, b)
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>bitand(a, b)  bitor(a, b)   bitxor(a, b)
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>bitshift(a, b)              # b &gt;= 0 shifts left, b &lt; 0 shifts right
 </code></pre></div>
+<p>The bitwise ops (<code>bitand</code>/<code>bitor</code>/<code>bitxor</code>/<code>bitshift</code>/<code>bitnot</code>) act on the 32-bit-integer value of their float operands.</p>
 <p><strong>Oscillators</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>phasor(freq)                  # 0..1 ramp
 <a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>sinosc(freq)                  # sine wave
 <a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>triosc(freq)                  # triangle wave
 <a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>sawosc(freq)                  # sawtooth wave
 <a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>pulseosc(freq, width)         # pulse wave
-<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>noise()                       # white noise
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>train(freq)                   # impulse train: 1.0 for one sample each cycle
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>noise()                       # white noise
 </code></pre></div>
 <p><strong>Filters</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>onepole(input, coeff)
@@ -3315,7 +3347,8 @@
 <a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>fold(x, lo, hi)
 <a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>scale(x, in_lo, in_hi, out_lo, out_hi)
 <a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>mix(a, b, t)                  # linear interpolate
-<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>smoothstep(x, edge0, edge1)
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>interp(a, b, t, mode=cosine)  # linear (default) or cosine blend
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>smoothstep(x, edge0, edge1)
 </code></pre></div>
 <p><strong>Control / dynamics</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>smooth(x, coeff)              # one-pole parameter smoother

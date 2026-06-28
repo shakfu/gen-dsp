@@ -2305,6 +2305,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../percussa-ssp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Percussa SSP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -2807,13 +2835,13 @@
 <tbody>
 <tr>
 <td><code>BinOp</code></td>
-<td><code>add</code>, <code>sub</code>, <code>mul</code>, <code>div</code>, <code>min</code>, <code>max</code>, <code>mod</code>, <code>pow</code>, <code>rsub</code>, <code>rdiv</code>, <code>rmod</code>, <code>absdiff</code>, <code>hypot</code>, <code>atan2</code>, <code>step</code>, <code>and</code>, <code>or</code>, <code>xor</code>, <code>gtp</code>, <code>ltp</code>, <code>gtep</code>, <code>ltep</code>, <code>eqp</code>, <code>neqp</code>, <code>fastpow</code></td>
+<td><code>add</code>, <code>sub</code>, <code>mul</code>, <code>div</code>, <code>min</code>, <code>max</code>, <code>mod</code>, <code>pow</code>, <code>rsub</code>, <code>rdiv</code>, <code>rmod</code>, <code>absdiff</code>, <code>hypot</code>, <code>atan2</code>, <code>step</code>, <code>and</code>, <code>or</code>, <code>xor</code>, <code>bitand</code>, <code>bitor</code>, <code>bitxor</code>, <code>bitshift</code>, <code>gtp</code>, <code>ltp</code>, <code>gtep</code>, <code>ltep</code>, <code>eqp</code>, <code>neqp</code>, <code>fastpow</code></td>
 <td><code>a</code>, <code>b</code></td>
 <td>Binary arithmetic</td>
 </tr>
 <tr>
 <td><code>UnaryOp</code></td>
-<td><code>sin</code>, <code>cos</code>, <code>tanh</code>, <code>exp</code>, <code>log</code>, <code>abs</code>, <code>sqrt</code>, <code>neg</code>, <code>floor</code>, <code>ceil</code>, <code>round</code>, <code>sign</code>, <code>atan</code>, <code>asin</code>, <code>acos</code>, <code>not</code>, <code>bool</code>, <code>exp2</code>, <code>log2</code>, <code>log10</code>, <code>sinh</code>, <code>cosh</code>, <code>asinh</code>, <code>acosh</code>, <code>atanh</code>, <code>trunc</code>, <code>fract</code>, <code>atodb</code>, <code>dbtoa</code>, <code>ftom</code>, <code>mtof</code>, <code>phasewrap</code>, <code>degrees</code>, <code>radians</code>, <code>mstosamps</code>, <code>sampstoms</code>, <code>t60</code>, <code>t60time</code>, <code>fixdenorm</code>, <code>fixnan</code>, <code>isdenorm</code>, <code>isnan</code>, <code>fastsin</code>, <code>fastcos</code>, <code>fasttan</code>, <code>fastexp</code></td>
+<td><code>sin</code>, <code>cos</code>, <code>tanh</code>, <code>exp</code>, <code>log</code>, <code>abs</code>, <code>sqrt</code>, <code>neg</code>, <code>floor</code>, <code>ceil</code>, <code>round</code>, <code>sign</code>, <code>atan</code>, <code>asin</code>, <code>acos</code>, <code>not</code>, <code>bool</code>, <code>bitnot</code>, <code>exp2</code>, <code>log2</code>, <code>log10</code>, <code>sinh</code>, <code>cosh</code>, <code>asinh</code>, <code>acosh</code>, <code>atanh</code>, <code>trunc</code>, <code>fract</code>, <code>atodb</code>, <code>dbtoa</code>, <code>ftom</code>, <code>mtof</code>, <code>phasewrap</code>, <code>degrees</code>, <code>radians</code>, <code>mstosamps</code>, <code>sampstoms</code>, <code>t60</code>, <code>t60time</code>, <code>fixdenorm</code>, <code>fixnan</code>, <code>isdenorm</code>, <code>isnan</code>, <code>fastsin</code>, <code>fastcos</code>, <code>fasttan</code>, <code>fastexp</code></td>
 <td><code>a</code></td>
 <td>Unary math functions</td>
 </tr>
@@ -2884,6 +2912,12 @@
 <td>Linear interpolation: <code>a + (b - a) * t</code></td>
 </tr>
 <tr>
+<td><code>Interp</code></td>
+<td><code>interp</code></td>
+<td><code>a</code>, <code>b</code>, <code>t</code>, <code>mode</code></td>
+<td>Two-point interpolation (linear/cosine)</td>
+</tr>
+<tr>
 <td><code>Scale</code></td>
 <td><code>scale</code></td>
 <td><code>a</code>, <code>in_lo</code>, <code>in_hi</code>, <code>out_lo</code>, <code>out_hi</code></td>
@@ -2912,7 +2946,7 @@
 <td><code>DelayRead</code></td>
 <td><code>delay_read</code></td>
 <td><code>delay</code>, <code>tap</code>, <code>interp</code></td>
-<td>Read from delay line (none/linear/cubic)</td>
+<td>Read from delay line (none/nearest/linear/cubic)</td>
 </tr>
 <tr>
 <td><code>DelayWrite</code></td>
@@ -2949,7 +2983,7 @@
 <td><code>BufRead</code></td>
 <td><code>buf_read</code></td>
 <td><code>buffer</code>, <code>index</code>, <code>interp</code></td>
-<td>Read from buffer (none/linear/cubic, clamped)</td>
+<td>Read from buffer (none/nearest/linear/cubic, clamped)</td>
 </tr>
 <tr>
 <td><code>BufWrite</code></td>
@@ -3072,6 +3106,12 @@
 <td><code>pulseosc</code></td>
 <td><code>freq</code>, <code>width</code></td>
 <td>Pulse/square with variable duty cycle</td>
+</tr>
+<tr>
+<td><code>Train</code></td>
+<td><code>train</code></td>
+<td><code>freq</code></td>
+<td>Impulse train (1.0 for one sample per cycle)</td>
 </tr>
 <tr>
 <td><code>Noise</code></td>
