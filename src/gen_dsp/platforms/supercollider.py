@@ -24,6 +24,20 @@ from gen_dsp.platforms.cmake_platform import CMakePlatform
 from gen_dsp.templates import get_sc_templates_dir
 
 
+# sclang reserved words that cannot be used as a method-argument name.
+# fmt: off
+SC_RESERVED = frozenset(
+    {
+        "arg", "classvar", "const", "false", "inf", "nil", "super", "this",
+        "true", "var",
+        # Pseudo-variables that are also invalid as argument names.
+        "thisFunction", "thisFunctionDef", "thisMethod", "thisProcess",
+        "thisThread",
+    }
+)
+# fmt: on
+
+
 class SuperColliderPlatform(CMakePlatform):
     """SuperCollider UGen platform implementation using CMake."""
 
@@ -142,14 +156,22 @@ class SuperColliderPlatform(CMakePlatform):
         for i in range(num_inputs):
             args.append(f"in{i}")
             arg_names.append(f"in{i}")
+
+        # Parameters share one argument list with the audio inputs above, so
+        # the param names are disambiguated as a group and seeded with the
+        # already-emitted in<i> names.
+        param_names = self.uniquify_identifiers(
+            [
+                self._sanitize_sc_arg(params[i].name)
+                if i < len(params)
+                else f"param{i}"
+                for i in range(num_params)
+            ],
+            taken=set(arg_names),
+        )
         for i in range(num_params):
-            if i < len(params):
-                p = params[i]
-                pname = self._sanitize_sc_arg(p.name)
-                default = p.default
-            else:
-                pname = f"param{i}"
-                default = 0.0
+            pname = param_names[i]
+            default = params[i].default if i < len(params) else 0.0
             default_str = self._format_sc_number(default)
             args.append(f"{pname}={default_str}")
             arg_names.append(pname)
@@ -206,7 +228,10 @@ class SuperColliderPlatform(CMakePlatform):
         # names reduce to leading underscores).
         if sanitized and not ("a" <= sanitized[0] <= "z"):
             sanitized = "p_" + sanitized
-        return sanitized or "param"
+        sanitized = sanitized or "param"
+        if sanitized in SC_RESERVED:
+            sanitized += "_"
+        return sanitized
 
     @staticmethod
     def _format_sc_number(value: float) -> str:

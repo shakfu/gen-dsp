@@ -207,18 +207,35 @@ class Lv2Platform(CMakePlatform):
             total_ports += 1  # atom port for MIDI
         port_index = 0
 
+        # lv2:symbol must be unique across every port of the plugin, so the
+        # control-port symbols are disambiguated as a group and seeded with the
+        # audio/MIDI port symbols emitted below.
+        reserved_symbols = (
+            {f"in{i}" for i in range(num_inputs)}
+            | {f"out{i}" for i in range(num_outputs)}
+            | ({"midi_in"} if midi_enabled else set())
+        )
+        param_symbols = self.uniquify_identifiers(
+            [
+                self.sanitize_c_identifier(params[i].name)
+                if i < len(params)
+                else f"param_{i}"
+                for i in range(num_params)
+            ],
+            taken=reserved_symbols,
+        )
+
         # Control input ports (parameters)
         for i in range(num_params):
             # Use parsed param info if available, else generic
+            symbol = param_symbols[i]
             if i < len(params):
                 p = params[i]
-                symbol = self.sanitize_c_identifier(p.name)
                 pname = p.name
                 pmin = p.min
                 pmax = p.max
                 pdefault = p.default
             else:
-                symbol = f"param_{i}"
                 pname = f"Parameter {i}"
                 pmin = 0.0
                 pmax = 1.0

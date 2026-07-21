@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from gen_dsp.version import __version__
+from gen_dsp.core.naming import uniquify_identifiers
 from gen_dsp.core.parser import ExportInfo
 
 
@@ -345,9 +346,16 @@ def apply_inputs_as_params(
     remapped: list[RemappedInput] = []
     next_param_idx = len(new_params)
 
-    for gen_idx in indices_to_remap:
+    # Synthetic params are appended to the existing ones, so their names are
+    # disambiguated against each other and against the params already present.
+    synthetic_names = uniquify_identifiers(
+        [_sanitize_input_name(input_names[i]) for i in indices_to_remap],
+        taken={p.name for p in manifest.params},
+    )
+
+    for slot, gen_idx in enumerate(indices_to_remap):
         name = input_names[gen_idx]
-        param_name = _sanitize_input_name(name)
+        param_name = synthetic_names[slot]
         new_params.append(
             ParamInfo(
                 index=next_param_idx,

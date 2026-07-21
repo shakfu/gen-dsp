@@ -7,6 +7,7 @@ Provides common functionality shared across all platforms.
 import re
 import subprocess
 from abc import ABC, abstractmethod
+from collections.abc import Iterable, Sequence
 from enum import Enum
 from pathlib import Path
 from string import Template
@@ -17,6 +18,7 @@ import shutil
 from gen_dsp.version import __version__
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest
+from gen_dsp.core.naming import uniquify_identifiers
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
 
@@ -422,11 +424,36 @@ class Platform(ABC):
 
         Replaces non-alphanumeric characters with underscores and prefixes a
         leading digit with an underscore; falls back to ``"param"`` if empty.
+
+        Two limitations are deliberate:
+
+        - This is a per-name coercion and so cannot detect collisions between
+          two different inputs that sanitize to the same identifier. Pass the
+          results through :meth:`uniquify_identifiers` for that.
+        - C/C++ keywords are **not** escaped. The only current caller is the
+          LV2 backend, which uses the result as an ``lv2:symbol``, where the
+          spec's constraint is the character-class pattern
+          ``[_a-zA-Z][_a-zA-Z0-9]*`` -- ``float`` is a valid symbol, and a
+          symbol is a strong identifier that hosts persist for automation, so
+          rewriting it would break saved sessions for no benefit. A future
+          caller that emits a param name into *actual* C or C++ source must
+          escape keywords itself.
         """
         sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", name)
         if sanitized and sanitized[0].isdigit():
             sanitized = "_" + sanitized
         return sanitized or "param"
+
+    @staticmethod
+    def uniquify_identifiers(
+        names: Sequence[str], taken: Iterable[str] | None = None
+    ) -> list[str]:
+        """Disambiguate duplicate identifiers by appending a numeric suffix.
+
+        Exposed on ``Platform`` for platform authors; see
+        :func:`gen_dsp.core.naming.uniquify_identifiers` for the details.
+        """
+        return uniquify_identifiers(names, taken)
 
     def generate_buffer_header(
         self,

@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.3.3]
+
+### Fixed
+
+- **Parameter identifier collisions no longer produce duplicate symbols** -- The three identifier sanitizers (`Platform.sanitize_c_identifier`, `SuperColliderPlatform._sanitize_sc_arg`, `_sanitize_input_name`) coerce one name at a time and so could not see that two distinct parameter names had reduced to the same identifier: `"a b"`, `"a-b"`, `"a/b"` and `"a.b"` all became `a_b`, and (for input remapping) `""` and `"!!!"` both became `input_`. The result was duplicate `lv2:symbol` values in a plugin's TTL (an LV2 spec violation, since symbols must be unique across all ports), duplicate SuperCollider `*ar` argument names, and duplicate manifest parameter names. A new group-level pass, `gen_dsp.core.naming.uniquify_identifiers` (also exposed as `Platform.uniquify_identifiers` for platform authors), now disambiguates each generator's identifiers as a set: the first occurrence is left untouched -- so the common no-collision case is byte-identical to before -- and later ones become `a_b_2`, `a_b_3`, ... , skipping any suffix already in use. This matches the renaming convention the gen~ transpiler adopted in 0.3.2.
+
+- **Parameters can no longer shadow audio, MIDI, or input port names** -- The LV2 control-port symbols are now disambiguated against the `in<i>`/`out<i>`/`midi_in` port symbols emitted alongside them, and the SuperCollider parameter arguments against the `in<i>` audio-input arguments they share a single `*ar` argument list with. A parameter named `in0` previously emitted a second port with that symbol (LV2) or a repeated argument name (SC). Remapped-input parameters are likewise disambiguated against the parameters already present in the manifest.
+
+- **SuperCollider reserved words are escaped in generated argument names** -- A parameter named after an sclang keyword (`var`, `arg`, `this`, `nil`, `true`, `false`, ...) or pseudo-variable (`thisProcess`, ...) previously passed through `_sanitize_sc_arg` unchanged and emitted a `.sc` class file that sclang rejects as a syntax error. Such names now take a trailing underscore (`var` -> `var_`), consistent with the collision-renaming convention above. The keyword set is `gen_dsp.platforms.supercollider.SC_RESERVED`.
+
+  C and C++ keywords are deliberately *not* escaped by `Platform.sanitize_c_identifier`. Its only caller is the LV2 backend, which uses the result as an `lv2:symbol`; the LV2 spec constrains a symbol to the character-class pattern `[_a-zA-Z][_a-zA-Z0-9]*` (`lv2core.ttl`), which `float` satisfies, and the accompanying prose notes only that this class "is, among other things, a valid C identifier" rather than reserving keywords. Since a symbol is a strong identifier that hosts persist for automation and preset state, rewriting it would break saved sessions to fix nothing. A backend that emits a parameter name into actual C or C++ source must escape keywords at that site; the docstring records this.
+
 ## [0.3.2]
 
 ### Added
