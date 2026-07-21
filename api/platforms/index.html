@@ -1919,6 +1919,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#gen_dsp.platforms.base.Platform.uniquify_identifiers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        uniquify_identifiers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#gen_dsp.platforms.base.Platform.generate_buffer_header" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2810,6 +2821,17 @@
     <span class="md-ellipsis">
       
         sanitize_c_identifier
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gen_dsp.platforms.base.Platform.uniquify_identifiers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        uniquify_identifiers
       
     </span>
   </a>
@@ -3858,6 +3880,48 @@ matches. Shared by platforms whose <code>find_output</code> is a simple glob.</p
         <p>Coerce a name into a valid C identifier.</p>
 <p>Replaces non-alphanumeric characters with underscores and prefixes a
 leading digit with an underscore; falls back to <code>"param"</code> if empty.</p>
+<p>Two limitations are deliberate:</p>
+<ul>
+<li>This is a per-name coercion and so cannot detect collisions between
+  two different inputs that sanitize to the same identifier. Pass the
+  results through :meth:<code>uniquify_identifiers</code> for that.</li>
+<li>C/C++ keywords are <strong>not</strong> escaped. The only current caller is the
+  LV2 backend, which uses the result as an <code>lv2:symbol</code>, where the
+  spec's constraint is the character-class pattern
+  <code>[_a-zA-Z][_a-zA-Z0-9]*</code> -- <code>float</code> is a valid symbol, and a
+  symbol is a strong identifier that hosts persist for automation, so
+  rewriting it would break saved sessions for no benefit. A future
+  caller that emits a param name into <em>actual</em> C or C++ source must
+  escape keywords itself.</li>
+</ul>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="gen_dsp.platforms.base.Platform.uniquify_identifiers" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">uniquify_identifiers</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-staticmethod"><code>staticmethod</code></small>
+  </span>
+
+<a href="#gen_dsp.platforms.base.Platform.uniquify_identifiers" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">uniquify_identifiers</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">names</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">taken</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Disambiguate duplicate identifiers by appending a numeric suffix.</p>
+<p>Exposed on <code>Platform</code> for platform authors; see
+:func:<code>gen_dsp.core.naming.uniquify_identifiers</code> for the details.</p>
 
 
     </div>
