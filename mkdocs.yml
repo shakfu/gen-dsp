@@ -54,6 +54,7 @@ nav:
   - Guides:
     - MIDI / CV: midi-cv.md
     - Input Remapping: inputs_as_params.md
+    - TouchOSC Surfaces: tosc.md
     - Validating Plugins: validating_plugins.md
     - Adding New Backends: new_backends.md
     - Multi-Plugin Circle: multi-circle.md
@@ -93,6 +94,7 @@ nav:
       - MIDI: api/midi.md
     - Platforms:
       - Platform Base: api/platforms.md
+    - TouchOSC: api/tosc.md
     - Errors: api/errors.md
     - Graph:
       - Models: api/graph-models.md

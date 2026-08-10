@@ -354,6 +354,9 @@ sim = [
     { name = "numpy", version = "2.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "pydantic" },
 ]
+tosc = [
+    { name = "py2tosc" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -361,6 +364,7 @@ dev = [
     { name = "mypy" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "py2tosc" },
     { name = "pydantic" },
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -371,16 +375,18 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "numpy", marker = "extra == 'sim'", specifier = ">=1.24" },
+    { name = "py2tosc", marker = "extra == 'tosc'", specifier = ">=0.3.2" },
     { name = "pydantic", marker = "extra == 'graph'", specifier = ">=2.0" },
     { name = "pydantic", marker = "extra == 'sim'", specifier = ">=2.0" },
 ]
-provides-extras = ["graph", "sim"]
+provides-extras = ["graph", "sim", "tosc"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "minihost", specifier = ">=0.1.2" },
     { name = "mypy", specifier = ">=1.19.1" },
     { name = "numpy", specifier = ">=1.24" },
+    { name = "py2tosc", specifier = ">=0.3.2" },
     { name = "pydantic", specifier = ">=2.0" },
     { name = "pytest", specifier = ">=8.4.2" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
@@ -888,6 +894,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f9/e2/3e91f31a7d2b083fe6ef3fa267035b518369d9511ffab804f839851d2779/pluggy-1.6.0.tar.gz", hash = "sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3", size = 69412, upload-time = "2025-05-15T12:30:07.975Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl", hash = "sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746", size = 20538, upload-time = "2025-05-15T12:30:06.134Z" },
+]
+
+[[package]]
+name = "py2tosc"
+version = "0.3.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/2e/aa/05a564c620fae03e1ba9a7f6aea5b5833b48ac39e4f06689bea341c5cec6/py2tosc-0.3.2.tar.gz", hash = "sha256:a9acd27d95210e22cfc906db4fef13a42681e3d37f687c0d69448cd8e74c6094", size = 67654, upload-time = "2026-08-07T20:40:46.807Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/48/92/0cab1f75ef5376a5d70df84c7731f714e68e0e5de0d72c4e2cd352d29186/py2tosc-0.3.2-py3-none-any.whl", hash = "sha256:b1d3206d09248e13b3be99e1d2e0227879890a30067829d2d4ac12742879666f", size = 63307, upload-time = "2026-08-07T20:40:45.542Z" },
 ]
 
 [[package]]

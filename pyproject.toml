@@ -27,6 +27,8 @@ keywords = [
     "vcvrack",
     "daisy",
     "circle",
+    "touchosc",
+    "osc",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -51,12 +53,14 @@ dependencies = []
 [project.optional-dependencies]
 graph = ["pydantic>=2.0"]
 sim = ["pydantic>=2.0", "numpy>=1.24"]
+tosc = ["py2tosc>=0.3.2"]
 
 [dependency-groups]
 dev = [
     "minihost>=0.1.2",
     "mypy>=1.19.1",
     "numpy>=1.24",
+    "py2tosc>=0.3.2",
     "pydantic>=2.0",
     "pytest>=8.4.2",
     "pytest-cov>=7.0.0",

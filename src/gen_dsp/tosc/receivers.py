@@ -1,0 +1,355 @@
+"""Receiver glue for the platforms that can already speak OSC.
+
+A ``.tosc`` layout only sends; something has to listen. Two of gen-dsp's
+backends need no new C++ to do so -- a Pd patch can parse OSC with vanilla
+objects, and sclang has an OSC dispatcher built in -- so for those the
+receiving half can be generated too, addressed to match the surface.
+
+Nothing here imports py2tosc: the addresses come from
+:mod:`gen_dsp.tosc.addresses`, so a bare install can still emit the patches
+even when it cannot build the layout.
+"""
+
+from __future__ import annotations
+
+import re
+from typing import TYPE_CHECKING, Optional
+
+from gen_dsp.tosc.addresses import OscParam, osc_params, resolve_prefix
+
+if TYPE_CHECKING:
+    from gen_dsp.core.manifest import Manifest
+
+#: Pd's default OSC listening port for the generated patch. Arbitrary, but it
+#: is what TouchOSC offers first, so the two line up out of the box.
+DEFAULT_PORT = 8000
+
+#: sclang's OSC port. Unlike Pd's it is not ours to choose: the language
+#: listens on ``NetAddr.langPort``, which is 57120 unless another sclang
+#: already holds it.
+SC_LANG_PORT = 57120
+
+# A parameter name that survives a Pd message box unescaped. Pd splits on
+# whitespace, treats ";" and "," as terminators and "$" as a dollarsign
+# argument, so a name containing any of them cannot address the external from
+# a message box at all.
+_PD_SAFE_NAME = re.compile(r"^[^\s;,$\\{}]+$")
+
+
+# ---------------------------------------------------------------------------
+# Pure Data
+# ---------------------------------------------------------------------------
+
+
+class _PdPatch:
+    """Accumulates Pd patch statements, tracking object indices.
+
+    Pd addresses connections by creation order over every ``#X`` element --
+    comments included -- so the index has to come from whatever emitted the
+    element rather than be counted afterwards.
+    """
+
+    def __init__(self, width: int, height: int, font: int = 12) -> None:
+        self.lines = [f"#N canvas 0 50 {width} {height} {font};"]
+        self.count = 0
+
+    def _add(self, statement: str) -> int:
+        self.lines.append(statement)
+        index = self.count
+        self.count += 1
+        return index
+
+    def obj(self, x: int, y: int, text: str) -> int:
+        """Add an object box and return its index."""
+        return self._add(f"#X obj {x} {y} {text};")
+
+    def msg(self, x: int, y: int, text: str) -> int:
+        """Add a message box and return its index."""
+        return self._add(f"#X msg {x} {y} {text};")
+
+    def comment(self, x: int, y: int, text: str) -> int:
+        """Add a comment and return its index."""
+        return self._add(f"#X text {x} {y} {text};")
+
+    def connect(self, src: int, outlet: int, dst: int, inlet: int) -> None:
+        """Connect one outlet to one inlet."""
+        self.lines.append(f"#X connect {src} {outlet} {dst} {inlet};")
+
+    def render(self) -> str:
+        return "\n".join(self.lines) + "\n"
+
+
+def _pd_escape(text: str) -> str:
+    """Escape a literal for a Pd patch statement."""
+    return (
+        text.replace("\\", "\\\\")
+        .replace(";", "\\;")
+        .replace(",", "\\,")
+        .replace("$", "\\$")
+    )
+
+
+def generate_pd_receiver(
+    manifest: "Manifest",
+    *,
+    prefix: Optional[str] = None,
+    port: int = DEFAULT_PORT,
+    lib_name: Optional[str] = None,
+) -> str:
+    """Generate a Pd patch that drives the external from OSC.
+
+    The patch is a complete, playable test bed: a ``netreceive``/``oscparse``
+    chain routing each address onto the message the external answers to, the
+    external itself, and ``adc~``/``dac~`` wiring around it.
+
+    The routing works because the generated external already accepts a message
+    named after each gen~ parameter, so an address's last segment only has to
+    be mapped back to that name.
+
+    Args:
+        manifest: The plugin manifest.
+        prefix: OSC namespace. Defaults to the manifest's ``gen_name``.
+        port: UDP port to listen on.
+        lib_name: The external's name, without the ``~``. Defaults to the
+            manifest's ``gen_name``.
+
+    Returns:
+        The patch, as the contents of a ``.pd`` file.
+
+    Raises:
+        ValueError: If ``port`` is not a usable UDP port.
+    """
+    if not 1 <= port <= 65535:
+        raise ValueError(f"port must be between 1 and 65535, got {port}")
+
+    external = f"{lib_name or manifest.gen_name}~"
+    ns = resolve_prefix(manifest, prefix)
+    params = osc_params(manifest, prefix)
+    routable = [p for p in params if _PD_SAFE_NAME.match(p.name)]
+
+    # Wide enough for the row of parameter message boxes, tall enough for the
+    # receive chain plus the audio wiring below it.
+    width = max(640, 120 * max(len(routable), 1) + 80)
+    patch = _PdPatch(width, 620)
+
+    patch.comment(20, 10, _pd_escape(f"OSC receiver for [{external}]"))
+    patch.comment(20, 30, _pd_escape("generated by gen-dsp -- edit freely"))
+
+    y = 60
+    chain = patch.obj(20, y, f"netreceive -u -b {port}")
+    y += 30
+    parse = patch.obj(20, y, "oscparse")
+    patch.connect(chain, 0, parse, 0)
+    chain = parse
+
+    # oscparse emits the address as leading symbols of a list; "list trim"
+    # promotes the first of them to the selector so "route" can match it.
+    for segment in [s for s in ns.split("/") if s]:
+        y += 30
+        trim = patch.obj(20, y, "list trim")
+        patch.connect(chain, 0, trim, 0)
+        y += 30
+        route = patch.obj(20, y, f"route {_pd_escape(segment)}")
+        patch.connect(trim, 0, route, 0)
+        chain = route
+
+    y += 30
+    trim = patch.obj(20, y, "list trim")
+    patch.connect(chain, 0, trim, 0)
+
+    y += 30
+    if routable:
+        selectors = " ".join(_pd_escape(p.slug) for p in routable)
+        param_route = patch.obj(20, y, f"route {selectors}")
+        patch.connect(trim, 0, param_route, 0)
+    else:
+        param_route = None
+
+    # One message box per parameter, restating the name the external expects.
+    y += 40
+    msg_boxes = []
+    for i, param in enumerate(routable):
+        box = patch.msg(20 + i * 120, y, f"{_pd_escape(param.name)} \\$1")
+        assert param_route is not None
+        patch.connect(param_route, i, box, 0)
+        msg_boxes.append(box)
+
+    # adc~ and dac~ are stereo, so anything wider than two channels folds onto
+    # the pair rather than being dropped: a 4-in/4-out gen~ patch should still
+    # make a sound here, even if not the one it makes in a DAW.
+    y += 60
+    adc = patch.obj(20, y, "adc~") if manifest.num_inputs > 0 else None
+
+    y += 40
+    obj = patch.obj(20, y, external)
+    for box in msg_boxes:
+        patch.connect(box, 0, obj, 0)
+    for i in range(manifest.num_inputs):
+        assert adc is not None
+        patch.connect(adc, i % 2, obj, i)
+
+    y += 40
+    if manifest.num_outputs > 0:
+        dac = patch.obj(20, y, "dac~")
+        for i in range(manifest.num_outputs):
+            patch.connect(obj, i, dac, i % 2)
+
+    routed_names = {p.name for p in routable}
+    skipped = [p.name for p in params if p.name not in routed_names]
+    if skipped:
+        y += 40
+        patch.comment(
+            20,
+            y,
+            _pd_escape(
+                "not routed (name is not addressable from a Pd message box): "
+                + ", ".join(skipped)
+            ),
+        )
+
+    return patch.render()
+
+
+# ---------------------------------------------------------------------------
+# SuperCollider
+# ---------------------------------------------------------------------------
+
+
+def _sc_number(value: float) -> str:
+    """Format a float for SC source, dropping a trailing ``.0``."""
+    return str(int(value)) if value == int(value) else str(value)
+
+
+def _sc_string(text: str) -> str:
+    """Quote a literal for SC source."""
+    return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def _sc_arg_names(manifest: "Manifest") -> list[str]:
+    """Return the SynthDef control names, matching the generated ``.sc`` class.
+
+    The class file disambiguates parameter names against the ``in<i>``
+    arguments they share a list with; the SynthDef repeats that so the two
+    files name the same parameter the same way.
+    """
+    from gen_dsp.core.naming import uniquify_identifiers
+    from gen_dsp.platforms.supercollider import SuperColliderPlatform
+
+    taken = {f"in{i}" for i in range(manifest.num_inputs)}
+    return uniquify_identifiers(
+        [SuperColliderPlatform._sanitize_sc_arg(p.name) for p in manifest.params],
+        taken=taken | {"out"},
+    )
+
+
+def generate_sc_receiver(
+    manifest: "Manifest",
+    *,
+    prefix: Optional[str] = None,
+    lib_name: Optional[str] = None,
+) -> str:
+    """Generate an sclang script that drives the UGen from OSC.
+
+    The script boots the server, wraps the generated UGen in a SynthDef whose
+    controls carry the parameter defaults, starts one instance, and installs an
+    ``OSCdef`` per parameter.
+
+    Unlike the Pd patch this has no port of its own: sclang listens on
+    ``NetAddr.langPort``, so the surface must be pointed at that instead.
+
+    Args:
+        manifest: The plugin manifest.
+        prefix: OSC namespace. Defaults to the manifest's ``gen_name``.
+        lib_name: The UGen's library name. Defaults to the manifest's
+            ``gen_name``.
+
+    Returns:
+        The script, as the contents of a ``.scd`` file.
+    """
+    from gen_dsp.platforms.base import Platform
+
+    name = lib_name or manifest.gen_name
+    ugen = Platform.capitalize_first(name)
+    params = osc_params(manifest, prefix)
+    arg_names = _sc_arg_names(manifest)
+
+    controls = ["out = 0"] + [
+        f"{arg} = {_sc_number(p.default)}" for arg, p in zip(arg_names, params)
+    ]
+    ugen_args = [f"SoundIn.ar({i})" for i in range(manifest.num_inputs)] + arg_names
+
+    lines = [
+        f"// {name}_osc.scd -- OSC receiver for {ugen}",
+        "// Generated by gen-dsp. Point TouchOSC at this machine on the port",
+        f"// printed below (sclang's default is {SC_LANG_PORT}).",
+        "",
+        "(",
+        "s.waitForBoot({",
+        f"    SynthDef(\\{name}, {{ |{', '.join(controls)}|",
+        f"        Out.ar(out, {ugen}.ar({', '.join(ugen_args)}));",
+        "    }).add;",
+        "    s.sync;",
+        "",
+        f"    ~{name} = Synth(\\{name});",
+        "",
+    ]
+
+    if params:
+        lines.append("    // One dispatcher per parameter, addressed to match the")
+        lines.append("    // generated TouchOSC surface.")
+    for arg, param in zip(arg_names, params):
+        lines.append(
+            f"    OSCdef(\\{name}_{param.slug}, {{ |msg| "
+            f"~{name}.set(\\{arg}, msg[1]) }}, '{param.address}');"
+        )
+
+    lines += [
+        "",
+        f'    ("listening for OSC on port " ++ NetAddr.langPort ++ ", '
+        f"address prefix {params[0].address.rsplit('/', 1)[0] if params else '/'}"
+        '").postln;',
+        "});",
+        ")",
+        "",
+        "// Tear down with:",
+        f"// (~{name}.free; OSCdef.freeAll;)",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def receiver_for_platform(
+    platform: str,
+    manifest: "Manifest",
+    *,
+    prefix: Optional[str] = None,
+    port: int = DEFAULT_PORT,
+    lib_name: Optional[str] = None,
+) -> Optional[tuple[str, str]]:
+    """Return ``(filename, contents)`` of the receiver for a platform.
+
+    Returns None for the platforms with no OSC path of their own -- the plugin
+    formats, where the surface's MIDI bindings are the way in.
+    """
+    name = lib_name or manifest.gen_name
+    if platform == "pd":
+        return (
+            f"{name}_osc.pd",
+            generate_pd_receiver(manifest, prefix=prefix, port=port, lib_name=lib_name),
+        )
+    if platform == "sc":
+        return (
+            f"{name}_osc.scd",
+            generate_sc_receiver(manifest, prefix=prefix, lib_name=lib_name),
+        )
+    return None
+
+
+__all__ = [
+    "DEFAULT_PORT",
+    "SC_LANG_PORT",
+    "OscParam",
+    "generate_pd_receiver",
+    "generate_sc_receiver",
+    "receiver_for_platform",
+]

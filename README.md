@@ -116,6 +116,12 @@ With graph simulation (requires pydantic + numpy):
 pip install gen-dsp[sim]
 ```
 
+With TouchOSC surface generation (requires py2tosc):
+
+```bash
+pip install gen-dsp[tosc]
+```
+
 Or install from source:
 
 ```bash
@@ -272,6 +278,19 @@ gen-dsp doctor                 # all platforms
 gen-dsp doctor -p daisy        # one platform
 gen-dsp doctor --json          # machine-readable
 ```
+
+### tosc (requires `gen-dsp[tosc]`)
+
+Generate a TouchOSC control surface from a plugin's parameter list. The source
+can be a generated project, a gen~ export, a `manifest.json`, or a graph file:
+
+```bash
+gen-dsp tosc build/gigaverb_pd            # regenerate in place
+gen-dsp tosc ./my_export -n myeffect      # from a gen~ export
+gen-dsp tosc patch.gdsp -o surfaces/patch.tosc
+```
+
+See [TouchOSC Surfaces](#touchosc-surfaces) below.
 
 ### Graph subcommands (requires `gen-dsp[graph]`)
 
@@ -434,6 +453,34 @@ gen-dsp ./fm_bells -p clap --inputs-as-params carrier "c/m ratio"
 ```
 
 This turns a 2-input effect into a 0-input generator/instrument with 2 additional parameters. Works on all 15 platforms. See [docs/inputs_as_params.md](docs/inputs_as_params.md) for details.
+
+### TouchOSC Surfaces
+
+A plugin's manifest already describes every parameter it exposes, which is most
+of what a control surface needs. With `pip install gen-dsp[tosc]`, `--tosc`
+turns that into a [TouchOSC](https://hexler.net/touchosc) layout alongside the
+project:
+
+```bash
+gen-dsp ./my_export -n myeffect -p pd --tosc
+# Output: myeffect.tosc + myeffect_osc.pd
+```
+
+Each parameter becomes a captioned fader carrying two bindings: an OSC address
+`/myeffect/<param>` whose argument is scaled into the parameter's declared range
+(a room-size parameter over `[0.1, 300]` sends 150, not a bare 0.5), and a MIDI
+control change numbered by parameter index for hosts that MIDI-learn. Faders
+start at the parameter's default rather than at zero.
+
+The generated plugins do not speak OSC themselves, so for the two backends that
+can receive it without new C++ the receiving half is generated too: a playable
+Pd patch wired from `netreceive`/`oscparse` into the external, or an sclang
+script that wraps the UGen in a SynthDef and installs an `OSCdef` per parameter.
+For the plugin formats, the MIDI bindings are the way into a host.
+
+Layout generation uses [py2tosc](https://github.com/shakfu/py2tosc). See
+[docs/tosc.md](docs/tosc.md) for the full option set, the address scheme, and
+library use.
 
 ### Automatic Buffer Detection
 

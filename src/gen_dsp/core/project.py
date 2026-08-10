@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from gen_dsp.core.manifest import Manifest
     from gen_dsp.core.midi import MidiMapping
     from gen_dsp.graph.models import Graph
+    from gen_dsp.tosc.emit import ToscOptions, ToscResult
 
 
 @dataclass
@@ -65,6 +66,12 @@ class ProjectConfig:
     # Signal inputs to remap as parameters.
     # None = don't remap, [] = remap all, ["name", ...] = remap named subset
     inputs_as_params: Optional[list[str]] = None
+
+    # Generate a TouchOSC control surface (requires py2tosc). When the target
+    # platform has an OSC path of its own (pd, sc), matching receiver glue is
+    # written alongside it.
+    tosc: bool = False
+    tosc_options: Optional["ToscOptions"] = None
 
     # Computed MIDI mapping (populated by ProjectGenerator.generate())
     midi_mapping: Optional["MidiMapping"] = None
@@ -155,6 +162,11 @@ class ProjectGenerator:
         self.config = config
         self._graph: Optional[Graph] = None
         self._manifest: Optional[Manifest] = None
+        # Populated by generate() when config.tosc is set, so callers can
+        # report exactly which files were written -- or, in tosc_skipped, why
+        # no surface was.
+        self.tosc_result: Optional["ToscResult"] = None
+        self.tosc_skipped: Optional[str] = None
 
     @classmethod
     def from_graph(cls, graph: "Graph", config: ProjectConfig) -> "ProjectGenerator":
@@ -175,6 +187,8 @@ class ProjectGenerator:
         instance.config = config
         instance._graph = graph
         instance._manifest = generate_manifest_obj(graph)
+        instance.tosc_result = None
+        instance.tosc_skipped = None
         return instance
 
     def generate(self, output_dir: Optional[Path] = None) -> Path:
@@ -278,6 +292,10 @@ class ProjectGenerator:
             patcher = Patcher(output_dir)
             patcher.apply_exp2f_fix()
 
+        # Last, so that a TouchOSC failure cannot leave the project itself
+        # half-written.
+        self._write_tosc(manifest, output_dir)
+
         return output_dir
 
     def _generate_from_graph(self, output_dir: Path) -> Path:
@@ -323,16 +341,48 @@ class ProjectGenerator:
         manifest_path = output_dir / "manifest.json"
         manifest_path.write_text(manifest.to_json(), encoding="utf-8")
         self._write_project_marker(output_dir)
+        self._write_tosc(manifest, output_dir)
 
         return output_dir
 
+    def _write_tosc(self, manifest: "Manifest", output_dir: Path) -> None:
+        """Write the TouchOSC surface and receiver glue, if requested.
+
+        The two ways this can fail are not equally serious. A missing py2tosc
+        means ``--tosc`` cannot be honoured at all, which is a configuration
+        problem the user has to fix, so it is raised as a project error. A
+        plugin with no parameters simply has nothing to put on a surface --
+        the project around it is perfectly good, so the reason is recorded in
+        ``tosc_skipped`` for the caller to report and generation continues.
+        """
+        if not self.config.tosc:
+            return
+
+        from gen_dsp.errors import ProjectError, ValidationError
+        from gen_dsp.tosc.emit import emit
+
+        try:
+            self.tosc_result = emit(
+                manifest,
+                output_dir,
+                self.config.name,
+                platform=self.config.platform,
+                options=self.config.tosc_options,
+            )
+        except ImportError as e:
+            raise ProjectError(str(e)) from e
+        except ValidationError as e:
+            self.tosc_skipped = str(e)
+
     def _write_project_marker(self, output_dir: Path) -> None:
-        """Write ``.gen-dsp.json`` recording the target platform.
+        """Write ``.gen-dsp.json`` recording the target platform and name.
 
         Lets ``gen-dsp build`` auto-detect the platform of an existing project
-        without an explicit ``-p``. Kept separate from ``manifest.json`` (the
-        front-end-agnostic IR) because the target platform is an output concern,
-        not part of the manifest.
+        without an explicit ``-p``, and ``gen-dsp tosc`` recover the name the
+        project was generated under (which is the user's ``-n``, not the gen~
+        export's internal ``gen_name``). Kept separate from ``manifest.json``
+        (the front-end-agnostic IR) because both are output concerns, not part
+        of the manifest.
         """
         import json
 
@@ -340,6 +390,7 @@ class ProjectGenerator:
             "tool": "gen-dsp",
             "version": __version__,
             "platform": self.config.platform,
+            "name": self.config.name,
         }
         if self.config.board is not None:
             marker["board"] = self.config.board

@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **TouchOSC control surfaces generated from the manifest** -- A new optional frontend, `gen_dsp.tosc`, turns a plugin's parameter list into a [TouchOSC](https://hexler.net/touchosc) layout via [py2tosc](https://github.com/shakfu/py2tosc) (`pip install gen-dsp[tosc]`). Add `--tosc` to any generate command to write `<name>.tosc` into the project, or run `gen-dsp tosc <source>` against a generated project, a gen~ export, a `manifest.json` or a graph file. Each parameter becomes a captioned fader carrying both an OSC binding addressed `/<plugin>/<param>` and a MIDI CC numbered by parameter index. The OSC argument is scaled into the parameter's declared range and the fader starts at its default, so a room-size parameter over `[0.1, 300]` sends 150 rather than a bare 0.5 -- the reason gen-dsp builds its own layout instead of calling py2tosc's name-only `surface.build()`. Options cover the OSC namespace (`--tosc-prefix`, several segments deep if wanted), page geometry, canvas size, either binding alone, and XML output; `tosc` and `tosc-port` are also accepted in `gen-dsp.toml`. Documented in [docs/tosc.md](docs/tosc.md).
+
+- **OSC receiver glue for the Pd and SuperCollider backends** -- The generated plugins do not speak OSC, so for the two backends that can receive it without new C++ the receiving half is generated too, addressed from the same code as the layout. `<name>_osc.pd` is a playable patch -- `netreceive -u -b <port>` into `oscparse`, routed onto the messages the external already answers to, wired between `adc~` and `dac~`; a parameter whose name contains whitespace, `;`, `,` or `$` cannot be addressed from a Pd message box and is listed in a comment instead of being silently dropped. `<name>_osc.scd` boots the server, wraps the UGen in a SynthDef whose controls carry the parameter defaults, and installs an `OSCdef` per parameter; it has no port of its own, since sclang listens on `NetAddr.langPort`. For the plugin formats no receiver is generated and the surface's MIDI bindings are the way in. Both generators are dependency-free and work without py2tosc installed.
+
+### Changed
+
+- **`.gen-dsp.json` now records the plugin name** -- The project marker carried only the target platform, so a command run against an existing project could not recover the name it was generated under (the user's `-n`, which is usually not the gen~ export's internal `gen_name`). `gen-dsp tosc <project-dir>` uses it to name its output and its OSC namespace consistently with the rest of the project. Markers written by earlier versions lack the key and fall back to the manifest's `gen_name`.
+
 ## [0.3.3]
 
 ### Fixed

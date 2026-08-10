@@ -14,18 +14,22 @@ Usage:
     gen-dsp list
     gen-dsp cache
     gen-dsp manifest <export-path>
+    gen-dsp tosc <source> [-o out.tosc]
 """
 
 import argparse
 import json
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 from gen_dsp.version import __version__
 
 if TYPE_CHECKING:
+    from gen_dsp.core.manifest import Manifest
     from gen_dsp.graph.models import Graph
+    from gen_dsp.tosc.emit import ToscOptions
 
 from gen_dsp.core.parser import GenExportParser
 from gen_dsp.core.project import ProjectGenerator, ProjectConfig
@@ -51,6 +55,7 @@ SUBCOMMANDS = {
     "manifest",
     "chain",
     "doctor",
+    "tosc",
 }
 
 
@@ -88,6 +93,9 @@ Default command (auto-detects source type):
   --voices N                Polyphony voices (default: 1)
   --inputs-as-params [NAME ...]
                             Remap signal inputs to params (all or named)
+  --tosc                    Also generate a TouchOSC control surface
+  --tosc-prefix NS          OSC namespace (default: the plugin name)
+  --tosc-port PORT          UDP port for the generated Pd receiver
 
 Subcommands:
   compile <file>            Compile graph to C++ (stdout or -o dir)
@@ -102,6 +110,7 @@ Subcommands:
   cache                     Show cached SDKs
   doctor                    Check build prerequisites per platform
   manifest <dir>            Emit JSON manifest for a gen~ export
+  tosc <src>                Generate a TouchOSC control surface
 
 Options:
   -V, --version             Show version
@@ -111,6 +120,10 @@ Options:
 
 def _make_default_parser() -> argparse.ArgumentParser:
     """Parser for the default command: <source> -p <platform> [flags]."""
+    # Imported here rather than at module scope: pulling in the tosc package
+    # probes for py2tosc, and only the default command needs the constant.
+    from gen_dsp.tosc.receivers import DEFAULT_PORT as DEFAULT_OSC_PORT
+
     parser = argparse.ArgumentParser(
         prog="gen-dsp",
         add_help=False,
@@ -222,6 +235,25 @@ def _make_default_parser() -> argparse.ArgumentParser:
         metavar="NAME",
         help="Remap signal inputs to parameters. "
         "No names = remap all; with names = remap only those inputs.",
+    )
+    parser.add_argument(
+        "--tosc",
+        action="store_true",
+        help="Also generate a TouchOSC control surface (requires py2tosc). "
+        "For pd and sc targets, matching OSC receiver glue is written too.",
+    )
+    parser.add_argument(
+        "--tosc-prefix",
+        metavar="NS",
+        default=None,
+        help="OSC namespace for the surface (default: the plugin name)",
+    )
+    parser.add_argument(
+        "--tosc-port",
+        type=int,
+        default=DEFAULT_OSC_PORT,
+        metavar="PORT",
+        help=f"UDP port for the generated Pd receiver (default: {DEFAULT_OSC_PORT})",
     )
     parser.add_argument(
         "--dry-run",
@@ -340,6 +372,86 @@ def _make_subcommand_parser() -> argparse.ArgumentParser:
     )
 
     # manifest command
+    # tosc command
+    tosc_parser = subparsers.add_parser(
+        "tosc", help="Generate a TouchOSC control surface"
+    )
+    tosc_parser.add_argument(
+        "source",
+        type=Path,
+        help="gen~ export directory, project directory, manifest.json, "
+        ".gdsp file, or graph JSON file",
+    )
+    tosc_parser.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        default=None,
+        help="Output file or directory (default: <name>.tosc in the project "
+        "directory, or in the current directory for other sources)",
+    )
+    tosc_parser.add_argument(
+        "-n",
+        "--name",
+        default=None,
+        help="Base name for the generated files (default: from the manifest)",
+    )
+    tosc_parser.add_argument(
+        "--prefix",
+        metavar="NS",
+        default=None,
+        help="OSC namespace (default: the plugin name)",
+    )
+    tosc_parser.add_argument(
+        "--port",
+        type=int,
+        default=None,
+        metavar="PORT",
+        help="UDP port for the generated Pd receiver (default: 8000)",
+    )
+    tosc_parser.add_argument(
+        "--columns",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Controls across each page (default: 4)",
+    )
+    tosc_parser.add_argument(
+        "--rows",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Controls down each page (default: 3)",
+    )
+    tosc_parser.add_argument(
+        "--size",
+        default=None,
+        metavar="WxH",
+        help="Design canvas, e.g. 1024x768 (default: 568x320)",
+    )
+    tosc_parser.add_argument(
+        "--no-osc",
+        action="store_true",
+        help="Omit OSC bindings (MIDI only)",
+    )
+    tosc_parser.add_argument(
+        "--no-midi",
+        action="store_true",
+        help="Omit MIDI CC bindings (OSC only)",
+    )
+    tosc_parser.add_argument(
+        "--xml",
+        action="store_true",
+        help="Write the readable .xml form instead of a binary .tosc",
+    )
+    tosc_parser.add_argument(
+        "--receiver",
+        choices=["pd", "sc", "none"],
+        default=None,
+        help="Also write OSC receiver glue for this platform "
+        "(default: the project's platform, when the source is a project)",
+    )
+
     manifest_parser = subparsers.add_parser("manifest", help="Emit JSON manifest")
     manifest_parser.add_argument(
         "export_path", type=Path, help="Path to gen~ export directory"
@@ -480,16 +592,26 @@ def _print_target_summary(results: list[tuple[str, str]]) -> None:
 # Keys accepted in gen-dsp.toml, mapped to default-command argparse destinations.
 _CONFIG_PATH_KEYS = frozenset({"source", "output", "cache_dir"})
 _CONFIG_BOOL_KEYS = frozenset(
-    {"no_build", "no_patch", "no_shared_cache", "no_midi", "dry_run"}
+    {"no_build", "no_patch", "no_shared_cache", "no_midi", "dry_run", "tosc"}
 )
 _CONFIG_STR_KEYS = frozenset(
-    {"name", "board", "midi_gate", "midi_freq", "midi_vel", "midi_freq_unit"}
+    {
+        "name",
+        "board",
+        "midi_gate",
+        "midi_freq",
+        "midi_vel",
+        "midi_freq_unit",
+        "tosc_prefix",
+    }
 )
+_CONFIG_INT_KEYS = frozenset({"voices", "tosc_port"})
 _CONFIG_KEYS = (
     _CONFIG_PATH_KEYS
     | _CONFIG_BOOL_KEYS
     | _CONFIG_STR_KEYS
-    | {"platform", "buffers", "voices", "inputs_as_params"}
+    | _CONFIG_INT_KEYS
+    | {"platform", "buffers", "inputs_as_params"}
 )
 
 
@@ -539,9 +661,9 @@ def _load_config(path: Path) -> tuple[dict[str, object], Optional[str]]:
         elif key in _CONFIG_STR_KEYS:
             if not isinstance(value, str):
                 return {}, f"'{raw_key}' must be a string"
-        elif key == "voices":
+        elif key in _CONFIG_INT_KEYS:
             if not isinstance(value, int) or isinstance(value, bool):
-                return {}, "'voices' must be an integer"
+                return {}, f"'{raw_key}' must be an integer"
         elif key == "buffers":
             if not (isinstance(value, list) and all(isinstance(v, str) for v in value)):
                 return {}, "'buffers' must be a list of strings"
@@ -599,6 +721,13 @@ def _cmd_default(argv: list[str]) -> int:
         )
         return 1
 
+    if args.tosc and not 1 <= args.tosc_port <= 65535:
+        print(
+            f"Error: --tosc-port must be between 1 and 65535, got {args.tosc_port}",
+            file=sys.stderr,
+        )
+        return 1
+
     source = Path(args.source).resolve()
 
     # Auto-detect source type
@@ -615,6 +744,30 @@ def _cmd_default(argv: list[str]) -> int:
             file=sys.stderr,
         )
         return 1
+
+
+def _tosc_options_from_args(
+    args: argparse.Namespace,
+) -> Optional["ToscOptions"]:
+    """Build TouchOSC options from the default command's flags, if requested."""
+    if not getattr(args, "tosc", False):
+        return None
+    from gen_dsp.tosc.emit import ToscOptions
+
+    return ToscOptions(prefix=args.tosc_prefix, port=args.tosc_port)
+
+
+def _report_tosc(generator: ProjectGenerator) -> None:
+    """Print the TouchOSC artifacts a generator wrote, or why it wrote none."""
+    if generator.tosc_skipped:
+        print(f"  Warning: no TouchOSC surface -- {generator.tosc_skipped}")
+        return
+    result = generator.tosc_result
+    if result is None:
+        return
+    print(f"  Surface: {result.surface.name}")
+    for path in result.receivers:
+        print(f"  Receiver: {path.name}")
 
 
 def _build_or_next_steps(
@@ -698,6 +851,8 @@ def _cmd_default_graph(args: argparse.Namespace, graph_path: Path) -> int:
             apply_patches=False,
             shared_cache=not getattr(args, "no_shared_cache", False),
             cache_dir=getattr(args, "cache_dir", None),
+            tosc=args.tosc,
+            tosc_options=_tosc_options_from_args(args),
         )
         config_errors = config.validate()
         if config_errors:
@@ -718,6 +873,8 @@ def _cmd_default_graph(args: argparse.Namespace, graph_path: Path) -> int:
             print(f"  Inputs: {len(graph.inputs)}")
             print(f"  Outputs: {len(graph.outputs)}")
             print(f"  Parameters: {len(graph.params)}")
+            if args.tosc:
+                print(f"  Would write TouchOSC surface: {args.name}.tosc")
             if not args.no_build:
                 print("  Would build after creating")
             results.append((platform, "dry-run"))
@@ -731,6 +888,7 @@ def _cmd_default_graph(args: argparse.Namespace, graph_path: Path) -> int:
             print(f"  Platform: {platform}")
             if graph.params:
                 print(f"  Parameters: {', '.join(p.name for p in graph.params)}")
+            _report_tosc(generator)
         except Exception as e:
             print(f"Error creating project: {e}", file=sys.stderr)
             results.append((platform, "generate error"))
@@ -825,6 +983,8 @@ def _cmd_default_export(args: argparse.Namespace, export_path: Path) -> int:
             midi_freq_unit=args.midi_freq_unit,
             num_voices=args.voices,
             inputs_as_params=args.inputs_as_params,
+            tosc=args.tosc,
+            tosc_options=_tosc_options_from_args(args),
         )
         errors = config.validate()
         if errors:
@@ -849,6 +1009,8 @@ def _cmd_default_export(args: argparse.Namespace, export_path: Path) -> int:
             print(f"  Buffers: {buffers if buffers else '(none)'}")
             if export_info.has_exp2f_issue and not args.no_patch:
                 print("  Would apply exp2f -> exp2 patch")
+            if args.tosc:
+                print(f"  Would write TouchOSC surface: {args.name}.tosc")
             if not args.no_build:
                 print("  Would build after creating")
             results.append((platform, "dry-run"))
@@ -862,6 +1024,7 @@ def _cmd_default_export(args: argparse.Namespace, export_path: Path) -> int:
             print(f"  Platform: {platform}")
             if buffers:
                 print(f"  Buffers: {', '.join(buffers)}")
+            _report_tosc(generator)
         except GenExtError as e:
             print(f"Error creating project: {e}", file=sys.stderr)
             results.append((platform, "generate error"))
@@ -1178,6 +1341,203 @@ def cmd_manifest(args: argparse.Namespace) -> int:
     return 0
 
 
+@dataclass
+class _ToscSource:
+    """What the ``tosc`` command could recover from its source argument.
+
+    ``platform``, ``name`` and ``project_dir`` are only known when the source
+    is a generated project, which records the first two in ``.gen-dsp.json``.
+    Everywhere else they stay None and the caller falls back to the manifest
+    and the current directory.
+    """
+
+    manifest: Optional["Manifest"] = None
+    platform: Optional[str] = None
+    name: Optional[str] = None
+    project_dir: Optional[Path] = None
+    error: Optional[str] = None
+
+
+def _tosc_source_from_project(source: Path, manifest_path: Path) -> _ToscSource:
+    """Read a generated project's manifest and its recorded platform/name."""
+    from gen_dsp.core.manifest import Manifest
+
+    platform: Optional[str] = None
+    name: Optional[str] = None
+    marker = source / ".gen-dsp.json"
+    if marker.is_file():
+        try:
+            data = json.loads(marker.read_text())
+        except (OSError, json.JSONDecodeError):
+            data = {}
+        if isinstance(data, dict):
+            platform = data.get("platform")
+            # Projects generated before the marker carried a name fall back to
+            # the manifest's gen_name.
+            name = data.get("name")
+
+    try:
+        manifest = Manifest.from_json(manifest_path.read_text())
+    except (OSError, json.JSONDecodeError, KeyError) as e:
+        return _ToscSource(error=f"cannot read {manifest_path}: {e}")
+    return _ToscSource(
+        manifest=manifest, platform=platform, name=name, project_dir=source
+    )
+
+
+def _tosc_source(source: Path) -> _ToscSource:
+    """Resolve a manifest from whatever the user pointed ``tosc`` at.
+
+    Accepts a generated project directory (which also carries the platform and
+    plugin name), a gen~ export directory, a ``manifest.json``, or a graph
+    file.
+    """
+    from gen_dsp.core.manifest import Manifest, manifest_from_export_info
+
+    if source.is_dir():
+        manifest_path = source / "manifest.json"
+        if manifest_path.is_file():
+            return _tosc_source_from_project(source, manifest_path)
+
+        try:
+            export_info = GenExportParser(source).parse()
+        except GenExtError as e:
+            return _ToscSource(error=f"error parsing export: {e}")
+        return _ToscSource(
+            manifest=manifest_from_export_info(
+                export_info, export_info.buffers, __version__
+            )
+        )
+
+    if not source.is_file():
+        return _ToscSource(error=f"source not found: {source}")
+
+    if source.suffix == ".json":
+        try:
+            data = json.loads(source.read_text())
+        except (OSError, json.JSONDecodeError) as e:
+            return _ToscSource(error=f"cannot read {source}: {e}")
+        # A manifest and a graph are both JSON objects; only the manifest has
+        # a gen_name, so that is what tells them apart.
+        if isinstance(data, dict) and "gen_name" in data:
+            try:
+                return _ToscSource(manifest=Manifest.from_dict(data))
+            except KeyError as e:
+                return _ToscSource(
+                    error=f"incomplete manifest in {source}: missing {e}"
+                )
+
+    if source.suffix in (".gdsp", ".json"):
+        graph, err = _load_graph_file(source)
+        if err:
+            return _ToscSource(error=err)
+        assert graph is not None
+        from gen_dsp.graph.adapter import generate_manifest_obj
+
+        return _ToscSource(manifest=generate_manifest_obj(graph), name=graph.name)
+
+    return _ToscSource(
+        error=(
+            f"unrecognized source: {source}. Expected a project or gen~ export "
+            "directory, a manifest.json, or a .gdsp/.json graph file."
+        )
+    )
+
+
+def _parse_canvas_size(spec: str) -> tuple[Optional[tuple[int, int]], Optional[str]]:
+    """Parse a ``WxH`` canvas spec. Returns ``(size, error)``."""
+    parts = spec.lower().split("x")
+    if len(parts) != 2:
+        return None, f"invalid --size '{spec}'; expected WxH (e.g. 1024x768)"
+    try:
+        width, height = int(parts[0]), int(parts[1])
+    except ValueError:
+        return None, f"invalid --size '{spec}'; expected WxH (e.g. 1024x768)"
+    if width < 1 or height < 1:
+        return None, f"invalid --size '{spec}'; both dimensions must be positive"
+    return (width, height), None
+
+
+def cmd_tosc(args: argparse.Namespace) -> int:
+    """Handle the tosc command."""
+    from gen_dsp.tosc import _AVAILABLE
+    from gen_dsp.tosc.emit import ToscOptions, emit
+    from gen_dsp.tosc.receivers import DEFAULT_PORT
+
+    if not _AVAILABLE:
+        print(
+            "Error: TouchOSC generation requires py2tosc. "
+            "Install with: pip install gen-dsp[tosc]",
+            file=sys.stderr,
+        )
+        return 1
+
+    resolved = _tosc_source(args.source.resolve())
+    if resolved.error:
+        print(f"Error: {resolved.error}", file=sys.stderr)
+        return 1
+    manifest = resolved.manifest
+    assert manifest is not None
+
+    size = None
+    if args.size is not None:
+        size, size_err = _parse_canvas_size(args.size)
+        if size_err:
+            print(f"Error: {size_err}", file=sys.stderr)
+            return 1
+
+    xml = args.xml
+    name = args.name or resolved.name or manifest.gen_name
+    # Regenerating for an existing project writes back into it; anything else
+    # lands in the current directory unless told otherwise.
+    output_dir = resolved.project_dir or Path.cwd()
+    filename = None
+    if args.output is not None:
+        if args.output.suffix in (".tosc", ".xml"):
+            # A file target names the surface only; the receiver and the OSC
+            # namespace stay tied to the plugin.
+            output_dir = args.output.parent
+            filename = args.output.name
+            xml = args.output.suffix == ".xml"
+        else:
+            output_dir = args.output
+
+    # --receiver wins; otherwise fall back to the platform the project records.
+    if args.receiver is not None:
+        platform = None if args.receiver == "none" else args.receiver
+    else:
+        platform = resolved.platform
+
+    options = ToscOptions(
+        prefix=args.prefix,
+        port=args.port if args.port is not None else DEFAULT_PORT,
+        osc=not args.no_osc,
+        midi=not args.no_midi,
+        columns=args.columns,
+        rows=args.rows,
+        size=size,
+        xml=xml,
+    )
+
+    try:
+        result = emit(
+            manifest,
+            output_dir,
+            name,
+            platform=platform,
+            options=options,
+            filename=filename,
+        )
+    except (GenExtError, ImportError, ValueError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+    print(f"Surface: {result.surface}")
+    for path in result.receivers:
+        print(f"Receiver: {path}")
+    return 0
+
+
 def _resolve_cache_dir() -> tuple[Path, bool]:
     """Return (cache_dir, from_env) for the shared FetchContent cache."""
     import os
@@ -1408,6 +1768,7 @@ def _dispatch_subcommand(argv: list[str]) -> int:
         "manifest": cmd_manifest,
         "chain": cmd_chain,
         "doctor": cmd_doctor,
+        "tosc": cmd_tosc,
     }
 
     # Add graph subcommand handlers if available

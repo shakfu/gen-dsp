@@ -28,6 +28,9 @@ Source type is auto-detected: directory (gen~ export), `.gdsp` file, or `.json` 
 | `--midi-freq-unit {hz,midi}` | Unit for MIDI frequency parameter |
 | `--voices N` | Polyphony voices (default: 1) |
 | `--inputs-as-params [NAME ...]` | Remap signal inputs to parameters (no names = all; with names = only those) |
+| `--tosc` | Also generate a TouchOSC control surface (requires `gen-dsp[tosc]`), plus OSC receiver glue for `pd` and `sc` |
+| `--tosc-prefix NS` | OSC namespace (default: the plugin name) |
+| `--tosc-port PORT` | UDP port for the generated Pd receiver (default: 8000) |
 
 Examples:
 
@@ -72,6 +75,25 @@ gen-dsp manifest <export-path> [--buffers NAME ...]
 ```
 
 Outputs a JSON manifest describing I/O counts, parameters with ranges, and buffers.
+
+## tosc -- Generate a TouchOSC Control Surface
+
+Requires `pip install gen-dsp[tosc]`.
+
+```bash
+gen-dsp tosc <source> [-o PATH] [-n NAME] [--prefix NS] [--port PORT]
+                      [--columns N] [--rows N] [--size WxH]
+                      [--no-osc] [--no-midi] [--xml] [--receiver pd|sc|none]
+```
+
+The source can be a generated project, a gen~ export, a `manifest.json`, or a
+`.gdsp`/`.json` graph file. One captioned fader per parameter, each sending OSC
+scaled into the parameter's range and a MIDI CC numbered by parameter index.
+Pointing it at a generated project reuses that project's platform and name and
+writes back into it, including OSC receiver glue for the `pd` and `sc` targets.
+
+`--tosc` on the default command does the same as part of project generation;
+see [TouchOSC Surfaces](tosc.md).
 
 ## patch -- Apply Platform-Specific Patches
 
