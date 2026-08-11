@@ -66,6 +66,7 @@ struct ClapGenPlugin {
 #else
     GenState*           genState;
 #endif
+    float*              paramDefaults;
     float               sampleRate;
     uint32_t            maxFrames;
     int                 numInputs;
@@ -73,6 +74,61 @@ struct ClapGenPlugin {
     int                 numParams;
     bool                active;
 };
+
+// ---------------------------------------------------------------------------
+// Parameter helpers (hide the monophonic / polyphonic split)
+// ---------------------------------------------------------------------------
+
+static GenState* plugin_query_state(ClapGenPlugin* plug) {
+#if NUM_VOICES > 1
+    return plug->voiceAlloc.states[0];
+#else
+    return plug->genState;
+#endif
+}
+
+static float plugin_get_param(ClapGenPlugin* plug, int index) {
+#if NUM_VOICES > 1
+    return voice_alloc_get_param(&plug->voiceAlloc, index);
+#else
+    return plug->genState ? wrapper_get_param(plug->genState, index) : 0.0f;
+#endif
+}
+
+static void plugin_set_param(ClapGenPlugin* plug, int index, float value) {
+#if NUM_VOICES > 1
+    voice_alloc_set_global_param(&plug->voiceAlloc, index, value);
+#else
+    if (plug->genState) wrapper_set_param(plug->genState, index, value);
+#endif
+}
+
+// gen~ initial values can sit outside the declared [min, max] range. Pull the
+// live value into range once, at creation, and record it as the CLAP default so
+// get_info() reports a constant that always agrees with get_value(). A default
+// that tracks the current value would force a full parameter rescan on every
+// state load, which hosts do not expect.
+static void plugin_init_param_defaults(ClapGenPlugin* plug) {
+    if (plug->numParams <= 0) return;
+
+    plug->paramDefaults = (float*)calloc((size_t)plug->numParams, sizeof(float));
+    if (!plug->paramDefaults) return;
+
+    GenState* queryState = plugin_query_state(plug);
+    for (int i = 0; i < plug->numParams; i++) {
+        float val = plugin_get_param(plug, i);
+        if (queryState && wrapper_param_hasminmax(queryState, i)) {
+            float lo = wrapper_param_min(queryState, i);
+            float hi = wrapper_param_max(queryState, i);
+            if (val < lo) val = lo;
+            if (val > hi) val = hi;
+            plugin_set_param(plug, i, val);
+            // Read back: the gen~ setter may clamp or quantize further
+            val = plugin_get_param(plug, i);
+        }
+        plug->paramDefaults[i] = val;
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Audio ports extension
@@ -135,11 +191,7 @@ static bool params_get_info(const clap_plugin_t* plugin,
     info->flags = CLAP_PARAM_IS_AUTOMATABLE;
 
     // Get metadata from gen~ wrapper
-#if NUM_VOICES > 1
-    GenState* queryState = plug->voiceAlloc.states[0];
-#else
-    GenState* queryState = plug->genState;
-#endif
+    GenState* queryState = plugin_query_state(plug);
     if (queryState) {
         const char* pname = wrapper_param_name(queryState, (int)param_index);
         if (pname) {
@@ -159,8 +211,11 @@ static bool params_get_info(const clap_plugin_t* plugin,
             info->max_value = 1.0;
         }
 
-        double def = (double)wrapper_get_param(queryState, (int)param_index);
-        // Clamp default to declared range -- gen~ initial values may exceed it
+        // Snapshot taken at creation, already clamped to the declared range.
+        // It must stay constant for the lifetime of the instance.
+        double def = plug->paramDefaults
+                         ? (double)plug->paramDefaults[param_index]
+                         : (double)wrapper_get_param(queryState, (int)param_index);
         if (def < info->min_value) def = info->min_value;
         if (def > info->max_value) def = info->max_value;
         info->default_value = def;
@@ -336,6 +391,17 @@ static bool state_load(const clap_plugin_t* plugin,
         wrapper_set_param(plug->genState, i, val);
 #endif
     }
+
+    // The host's cached parameter values are now stale. load() runs on the main
+    // thread, so rescan() can be called directly.
+    if (plug->host) {
+        const clap_host_params_t* host_params =
+            (const clap_host_params_t*)plug->host->get_extension(plug->host,
+                                                                 CLAP_EXT_PARAMS);
+        if (host_params && host_params->rescan) {
+            host_params->rescan(plug->host, CLAP_PARAM_RESCAN_VALUES);
+        }
+    }
     return true;
 }
 
@@ -391,6 +457,7 @@ static void clap_gen_destroy(const clap_plugin_t* plugin) {
         plug->genState = nullptr;
     }
 #endif
+    free(plug->paramDefaults);
     free(plug);
 }
 
@@ -404,6 +471,19 @@ static bool clap_gen_activate(const clap_plugin_t* plugin,
     plug->sampleRate = (float)sample_rate;
     plug->maxFrames = max_frames;
 
+    // Rebuilding the gen state resets every parameter to its gen~ initial
+    // value, which would silently discard host automation and any state the
+    // host loaded before activation. Carry the current values across.
+    float* saved = nullptr;
+    if (plug->numParams > 0) {
+        saved = (float*)calloc((size_t)plug->numParams, sizeof(float));
+        if (saved) {
+            for (int i = 0; i < plug->numParams; i++) {
+                saved[i] = plugin_get_param(plug, i);
+            }
+        }
+    }
+
 #if NUM_VOICES > 1
     voice_alloc_create_voices(&plug->voiceAlloc, plug->sampleRate, (long)max_frames);
     plug->active = (plug->voiceAlloc.states[0] != nullptr);
@@ -414,6 +494,15 @@ static bool clap_gen_activate(const clap_plugin_t* plugin,
     plug->genState = wrapper_create(plug->sampleRate, (long)max_frames);
     plug->active = (plug->genState != nullptr);
 #endif
+
+    if (saved) {
+        if (plug->active) {
+            for (int i = 0; i < plug->numParams; i++) {
+                plugin_set_param(plug, i, saved[i]);
+            }
+        }
+        free(saved);
+    }
     return plug->active;
 }
 
@@ -628,6 +717,8 @@ static const clap_plugin_t* factory_create_plugin(
 #else
     plug->genState   = wrapper_create(plug->sampleRate, (long)plug->maxFrames);
 #endif
+
+    plugin_init_param_defaults(plug);
 
     plug->plugin.desc            = &s_descriptor;
     plug->plugin.plugin_data     = plug;

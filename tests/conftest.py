@@ -207,44 +207,55 @@ def _build_env() -> dict[str, str]:
 # -- CLAP validator fixture ----------------------------------------------------
 
 _CLAP_VALIDATOR_DIR = _FETCHCONTENT_CACHE.parent / ".clap_validator"
+_CLAP_VALIDATOR_URL = "https://github.com/free-audio/clap-validator.git"
+# Pinned revision.  The validator tracks the CLAP spec closely and its checks
+# (and its output format) change without notice, so an unpinned checkout means
+# CI can break on an upstream commit rather than on a change of ours.  Bump this
+# deliberately.
+_CLAP_VALIDATOR_REV = "b2f1d9b79b1d264a5747f46707d72b1aa40a02ef"
 _has_cargo = shutil.which("cargo") is not None
 
 
 @pytest.fixture(scope="session")
 def clap_validator() -> Optional[Path]:
-    """Build the clap-validator once per session.
+    """Build the pinned clap-validator once per session.
 
     The validator binary persists in build/.clap_validator/ so it is only
-    compiled on first run.  Returns None if cargo is unavailable or the
-    build fails.
+    compiled on first run, and is rebuilt when the pinned revision changes.
+    Returns None if cargo is unavailable or the build fails.
     """
     if not _has_cargo:
         return None
 
     src_dir = _CLAP_VALIDATOR_DIR / "src"
     binary = src_dir / "target" / "release" / "clap-validator"
+    stamp = _CLAP_VALIDATOR_DIR / "revision.txt"
 
+    built_rev = stamp.read_text().strip() if stamp.is_file() else ""
     if binary.is_file() and os.access(binary, os.X_OK):
-        return binary
+        if built_rev == _CLAP_VALIDATOR_REV:
+            return binary
 
-    _CLAP_VALIDATOR_DIR.mkdir(parents=True, exist_ok=True)
+    src_dir.mkdir(parents=True, exist_ok=True)
 
-    if not (src_dir / "Cargo.toml").is_file():
+    # Fetch only the pinned commit; GitHub serves arbitrary reachable SHAs.
+    for cmd, timeout in (
+        (["git", "init", "-q"], 30),
+        (
+            ["git", "fetch", "--depth", "1", _CLAP_VALIDATOR_URL, _CLAP_VALIDATOR_REV],
+            180,
+        ),
+        (["git", "checkout", "-q", "--force", "FETCH_HEAD"], 60),
+    ):
         result = subprocess.run(
-            [
-                "git",
-                "clone",
-                "--depth",
-                "1",
-                "https://github.com/free-audio/clap-validator.git",
-                str(src_dir),
-            ],
+            cmd,
+            cwd=src_dir,
             capture_output=True,
             text=True,
-            timeout=120,
+            timeout=timeout,
         )
         if result.returncode != 0:
-            print(f"clap-validator clone failed:\n{result.stderr}")
+            print(f"clap-validator checkout failed ({cmd[1]}):\n{result.stderr}")
             return None
 
     result = subprocess.run(
@@ -252,13 +263,14 @@ def clap_validator() -> Optional[Path]:
         cwd=src_dir,
         capture_output=True,
         text=True,
-        timeout=300,
+        timeout=600,
     )
     if result.returncode != 0:
         print(f"clap-validator build failed:\n{result.stderr}")
         return None
 
     if binary.is_file() and os.access(binary, os.X_OK):
+        stamp.write_text(_CLAP_VALIDATOR_REV)
         return binary
 
     print("clap-validator binary not found after build")

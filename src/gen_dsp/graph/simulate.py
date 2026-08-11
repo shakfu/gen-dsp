@@ -745,7 +745,10 @@ def _compute_node(
         sr = state.sr
         s1 = state._state[f"{nid}.s1"]
         s2 = state._state[f"{nid}.s2"]
-        g = math.tan(3.14159265 * freq / sr)
+        # Matches the compiled backend: keep the prewarp below Nyquist, where
+        # tan() diverges.
+        fc = min(max(freq, 0.0), 0.49 * sr)
+        g = math.tan(3.14159265 * fc / sr)
         k = 1.0 / q
         a1 = 1.0 / (1.0 + g * (g + k))
         a2 = g * a1

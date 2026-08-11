@@ -324,6 +324,41 @@ class TestDetectCommand:
         assert "num_outputs" in data
         assert "buffers" in data
 
+    def test_detect_reports_out_of_range_initial_value(
+        self, gigaverb_export: Path, capsys
+    ):
+        """gigaverb's revtime inits to 11 with a declared max of 1."""
+        assert main(["detect", str(gigaverb_export)]) == 0
+
+        out = capsys.readouterr().out
+        assert "outside their declared range" in out
+        assert "revtime" in out
+        assert "clamped to 1.0" in out
+
+    def test_detect_json_reports_out_of_range_initial_value(
+        self, gigaverb_export: Path, capsys
+    ):
+        """The same diagnostic is machine-readable."""
+        assert main(["detect", str(gigaverb_export), "--json"]) == 0
+
+        data = json.loads(capsys.readouterr().out)
+        assert data["out_of_range_params"] == [
+            {
+                "name": "revtime",
+                "initial": 11.0,
+                "min": 0.1,
+                "max": 1.0,
+                "clamped_to": 1.0,
+            }
+        ]
+
+    def test_detect_json_no_out_of_range_params(self, mono_gain_export: Path, capsys):
+        """A self-consistent export reports none."""
+        assert main(["detect", str(mono_gain_export), "--json"]) == 0
+
+        data = json.loads(capsys.readouterr().out)
+        assert data["out_of_range_params"] == []
+
     def test_detect_with_buffers(self, rampleplayer_export: Path, capsys):
         """Test detect command with export that has buffers."""
         result = main(["detect", str(rampleplayer_export), "--json"])

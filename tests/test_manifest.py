@@ -155,6 +155,34 @@ class TestParamParsing:
         assert revtime.min == 0.1
         assert revtime.max == 1.0
 
+    def test_out_of_range_initial_value_is_recorded(self, gigaverb_export: Path):
+        """revtime inits to 11 with a declared max of 1; keep the raw value.
+
+        The default is clamped for the backends, but the discrepancy is a bug
+        in the source patch, so ``detect`` needs the pre-clamp value to report.
+        """
+        parser = GenExportParser(gigaverb_export)
+        params = parse_params_from_export(parser.parse())
+
+        revtime = next(p for p in params if p.name == "revtime")
+        assert revtime.raw_default == 11.0
+        assert revtime.default == 1.0
+
+        # Every other gigaverb param is self-consistent
+        for p in params:
+            if p.name != "revtime":
+                assert p.raw_default is None
+                assert p.min <= p.default <= p.max
+
+    def test_raw_default_is_not_serialized(self, gigaverb_export: Path):
+        """The diagnostic stays out of the manifest JSON schema."""
+        parser = GenExportParser(gigaverb_export)
+        params = parse_params_from_export(parser.parse())
+
+        revtime = next(p for p in params if p.name == "revtime")
+        assert "raw_default" not in revtime.to_dict()
+        assert ParamInfo.from_dict(revtime.to_dict()).raw_default is None
+
     def test_parse_spectraldelayfb_params(self, spectraldelayfb_export: Path):
         """Test parsing parameters from spectraldelayfb (0 params)."""
         parser = GenExportParser(spectraldelayfb_export)

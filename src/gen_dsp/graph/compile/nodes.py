@@ -457,7 +457,10 @@ def _emit_node_compute(
         a = ref(node.a)
         freq = ref(node.freq)
         q = ref(node.q)
-        w(f"        float {nid}_g = tanf(3.14159265f * {freq} / sr);")
+        # The prewarp tangent diverges at Nyquist, so a cutoff at or above
+        # sr/2 (easy to hit at low sample rates) would blow the filter up.
+        w(f"        float {nid}_fc = fminf(fmaxf({freq}, 0.0f), 0.49f * sr);")
+        w(f"        float {nid}_g = tanf(3.14159265f * {nid}_fc / sr);")
         w(f"        float {nid}_k = 1.0f / {q};")
         w(f"        float {nid}_a1 = 1.0f / (1.0f + {nid}_g * ({nid}_g + {nid}_k));")
         w(f"        float {nid}_a2 = {nid}_g * {nid}_a1;")

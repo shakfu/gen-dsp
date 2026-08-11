@@ -779,6 +779,25 @@ class TestFilters:
         # DC should pass through, so after settling the output approaches 1.0
         assert r.outputs["out1"][-1] == pytest.approx(1.0, abs=0.01)
 
+    def test_svf_cutoff_above_nyquist_stays_finite(self) -> None:
+        """A cutoff at or above Nyquist must not blow the filter up.
+
+        The prewarp tangent diverges at sr/2, which is easy to reach at low
+        sample rates (hosts probe down to ~1 kHz), so the cutoff is clamped
+        just below it.
+        """
+        g = Graph(
+            name="t",
+            inputs=[AudioInput(id="in1")],
+            outputs=[AudioOutput(id="out1", source="sv")],
+            nodes=[SVF(id="sv", a="in1", freq=2000.0, q=2.0, mode="lp")],
+            sample_rate=1234.57,
+        )
+        rng = np.random.default_rng(7)
+        inp = rng.standard_normal(200).astype(np.float32)
+        r = simulate(g, inputs={"in1": inp})
+        assert np.all(np.isfinite(r.outputs["out1"]))
+
     def test_allpass_energy_preservation(self) -> None:
         """Allpass should not change signal energy in steady state."""
         g = Graph(

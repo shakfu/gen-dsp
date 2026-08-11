@@ -217,6 +217,52 @@ class TestClapProjectGeneration:
         assert "GEN_DSP_CACHE_DIR" in cmake
 
 
+class TestClapHostContract:
+    """Guards for the host-contract behaviour clap-validator checks.
+
+    ``TestClapBuildIntegration`` exercises these against the real validator,
+    but that needs cargo.  These assertions keep them covered in a bare
+    environment, where a regression would otherwise go unnoticed.
+    """
+
+    def _wrapper_source(self, export: Path, tmp_project: Path) -> str:
+        parser = GenExportParser(export)
+        config = ProjectConfig(name="testverb", platform="clap")
+        generator = ProjectGenerator(parser.parse(), config)
+        project_dir = generator.generate(tmp_project)
+        return (project_dir / "gen_ext_clap.cpp").read_text()
+
+    def test_state_load_requests_param_rescan(
+        self, gigaverb_export: Path, tmp_project: Path
+    ):
+        """Loading state must tell the host its cached values are stale."""
+        src = self._wrapper_source(gigaverb_export, tmp_project)
+        load_body = src.split("static bool state_load(")[1].split("\nstatic ")[0]
+        assert "CLAP_PARAM_RESCAN_VALUES" in load_body
+
+    def test_param_default_is_snapshot_at_creation(
+        self, gigaverb_export: Path, tmp_project: Path
+    ):
+        """get_info() must report a constant default, not the current value."""
+        src = self._wrapper_source(gigaverb_export, tmp_project)
+        assert "plugin_init_param_defaults(plug);" in src
+
+        info_body = src.split("static bool params_get_info(")[1].split("\nstatic ")[0]
+        assert "paramDefaults" in info_body
+        assert "wrapper_get_param(queryState" not in info_body.split("paramDefaults")[0]
+
+    def test_activate_preserves_param_values(
+        self, gigaverb_export: Path, tmp_project: Path
+    ):
+        """Rebuilding the gen state must not discard host-set values."""
+        src = self._wrapper_source(gigaverb_export, tmp_project)
+        activate_body = src.split("static bool clap_gen_activate(")[1].split(
+            "\nstatic "
+        )[0]
+        assert "plugin_get_param(plug, i)" in activate_body
+        assert "plugin_set_param(plug, i, saved[i])" in activate_body
+
+
 class TestClapMidiGeneration:
     """Test MIDI compile definitions in generated CLAP projects."""
 

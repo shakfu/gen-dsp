@@ -184,6 +184,39 @@ static void RestoreParams(AUGenPlugin* plug, const float* saved, int count) {
 #endif
 }
 
+// Pull every parameter into its declared [min, max] range.
+//
+// gen~ initial values can sit outside that range (e.g. gigaverb's revtime
+// inits to 11 with a max of 1) because the initializer writes the member
+// directly, bypassing the setter's clamp.  Without this, the plugin reports a
+// clamped default via kAudioUnitProperty_ParameterInfo while actually running
+// at the raw value, and the two only converge when something first writes the
+// parameter -- an audible jump.  Called once, at creation, before any host
+// query; AUGenInitialize() then carries the values across re-initialization.
+static void ClampParamsToRange(AUGenPlugin* plug) {
+#if NUM_VOICES > 1
+    GenState* queryState = plug->voiceAlloc.states[0];
+#else
+    GenState* queryState = plug->genState;
+#endif
+    if (!queryState) return;
+
+    for (int i = 0; i < plug->numParams; i++) {
+        if (!wrapper_param_hasminmax(queryState, i)) continue;
+        float val = wrapper_get_param(queryState, i);
+        const float lo = wrapper_param_min(queryState, i);
+        const float hi = wrapper_param_max(queryState, i);
+        if (val < lo) val = lo;
+        else if (val > hi) val = hi;
+        else continue;
+#if NUM_VOICES > 1
+        voice_alloc_set_global_param(&plug->voiceAlloc, i, val);
+#else
+        wrapper_set_param(plug->genState, i, val);
+#endif
+    }
+}
+
 // Fire property change notifications to all registered listeners
 static void FirePropertyChanged(AUGenPlugin* plug, AudioUnitPropertyID prop,
                                 AudioUnitScope scope, AudioUnitElement elem) {
@@ -1194,6 +1227,8 @@ extern "C" void* AUGenFactory(const AudioComponentDescription* desc) {
 #else
     plug->genState = wrapper_create((float)plug->sampleRate, (long)plug->maxFramesPerSlice);
 #endif
+
+    ClampParamsToRange(plug);
 
     return plug;
 }

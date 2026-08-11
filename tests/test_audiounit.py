@@ -372,6 +372,27 @@ class TestAudioUnitProjectGeneration:
         assert f"AU_NUM_OUTPUTS={export_info.num_outputs}" in cmake
 
 
+class TestAudioUnitParamRange:
+    """The live parameter values must respect the declared range."""
+
+    def test_params_clamped_at_creation(self, gigaverb_export: Path, tmp_project: Path):
+        """Otherwise the host shows a clamped default while the plugin runs
+        at the raw gen~ initial value (gigaverb revtime: 11, max 1), and the
+        two only converge -- audibly -- on the first parameter write.
+        """
+        parser = GenExportParser(gigaverb_export)
+        config = ProjectConfig(name="testverb", platform="au")
+        generator = ProjectGenerator(parser.parse(), config)
+        project_dir = generator.generate(tmp_project)
+
+        src = (project_dir / "gen_ext_au.cpp").read_text()
+        assert "static void ClampParamsToRange(" in src
+        # Called from the factory, after the eager gen-state creation and
+        # before any host query.
+        factory = src.split("calloc(1, sizeof(AUGenPlugin))")[1]
+        assert "ClampParamsToRange(plug);" in factory
+
+
 class TestAudioUnitBuildIntegration:
     """Integration tests that generate and compile an AudioUnit.
 

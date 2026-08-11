@@ -8,6 +8,7 @@ All validators are optional -- if the tool is unavailable, validation is
 silently skipped (the function returns immediately).
 """
 
+import re
 import shutil
 import socket
 import subprocess
@@ -120,6 +121,21 @@ def fetchcontent_cmake_args(cache: Path) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
+_ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
+# "44 tests run, 33 passed, 0 failed, 0 warnings, 11 skipped"
+_CLAP_SUMMARY_RE = re.compile(r"(\d+) failed")
+
+# A panic inside the validator itself, which it reports as a failed test.  It
+# self-diagnoses these: "param-conversions crashed: attempt to divide by zero.
+# This is a bug in the validator".  The current pinned revision hits one on any
+# plugin that exposes zero parameters (it divides by the parameter count), which
+# says nothing about the plugin under test.
+_CLAP_VALIDATOR_BUG_RE = re.compile(
+    r"Test (\S+) crashed:[^\n]*This is a bug in the validator"
+)
+
+
 def validate_clap(validator: Optional[Path], clap_bundle: Path) -> None:
     """Run the CLAP validator against a plugin, if available."""
     if validator is None:
@@ -130,12 +146,21 @@ def validate_clap(validator: Optional[Path], clap_bundle: Path) -> None:
         text=True,
         timeout=60,
     )
-    assert "0 failed" in result.stdout, (
-        f"CLAP validation failed:\n{result.stdout}\n{result.stderr}"
+    # clap-validator colours its summary line unconditionally (it honours
+    # neither NO_COLOR nor a non-tty stdout), so the counts are only visible
+    # once the escape sequences are stripped.
+    stdout = _ANSI_ESCAPE_RE.sub("", result.stdout)
+    stderr = _ANSI_ESCAPE_RE.sub("", result.stderr)
+    summary = _CLAP_SUMMARY_RE.search(stdout)
+    assert summary is not None, (
+        f"could not find the clap-validator summary line:\n{stdout}\n{stderr}"
     )
-    assert result.returncode == 0, (
-        f"CLAP validation failed:\n{result.stdout}\n{result.stderr}"
-    )
+
+    failed = int(summary.group(1))
+    validator_bugs = set(_CLAP_VALIDATOR_BUG_RE.findall(stdout + stderr))
+    assert failed <= len(validator_bugs), f"CLAP validation failed:\n{stdout}\n{stderr}"
+    if not validator_bugs:
+        assert result.returncode == 0, f"CLAP validation failed:\n{stdout}\n{stderr}"
 
 
 # ---------------------------------------------------------------------------

@@ -1199,6 +1199,16 @@ def _detect_export(args: argparse.Namespace, export_path: Path) -> int:
         print(f"Error: {e}", file=sys.stderr)
         return 1
 
+    # Parameters whose gen~ initial value falls outside their own declared
+    # range.  gen-dsp clamps them (as gen~'s own setter would on the first
+    # write), but the discrepancy is a bug in the source patch, so report it
+    # rather than fix it silently.
+    from gen_dsp.core.manifest import parse_params_from_export
+
+    out_of_range = [
+        p for p in parse_params_from_export(info) if p.raw_default is not None
+    ]
+
     if args.json:
         data = {
             "name": info.name,
@@ -1210,6 +1220,16 @@ def _detect_export(args: argparse.Namespace, export_path: Path) -> int:
             "has_exp2f_issue": info.has_exp2f_issue,
             "cpp_file": str(info.cpp_path) if info.cpp_path else None,
             "h_file": str(info.h_path) if info.h_path else None,
+            "out_of_range_params": [
+                {
+                    "name": p.name,
+                    "initial": p.raw_default,
+                    "min": p.min,
+                    "max": p.max,
+                    "clamped_to": p.default,
+                }
+                for p in out_of_range
+            ],
         }
         print(json.dumps(data, indent=2))
     else:
@@ -1221,6 +1241,14 @@ def _detect_export(args: argparse.Namespace, export_path: Path) -> int:
         print(f"  Buffers: {info.buffers if info.buffers else '(none detected)'}")
         if info.has_exp2f_issue:
             print("  Patch needed: exp2f -> exp2 (macOS compatibility)")
+        if out_of_range:
+            print("  Parameters initialized outside their declared range:")
+            for p in out_of_range:
+                print(
+                    f"    - {p.name}: initial {p.raw_default} "
+                    f"outside [{p.min}, {p.max}], clamped to {p.default}"
+                )
+            print("    (fix the range or the initial value in the Max patch)")
 
     return 0
 

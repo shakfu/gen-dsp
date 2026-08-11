@@ -15,7 +15,7 @@ import json
 import re
 from dataclasses import dataclass, field
 
-from typing import Any
+from typing import Any, Optional
 
 from gen_dsp.version import __version__
 from gen_dsp.core.naming import uniquify_identifiers
@@ -32,6 +32,12 @@ class ParamInfo:
     min: float
     max: float
     default: float
+    # The gen~ initial value, when it fell outside [min, max] and ``default``
+    # is therefore a clamped version of it.  ``None`` whenever the export is
+    # self-consistent.  Deliberately not serialized: it is a parse-time
+    # diagnostic about the source patch, not part of the IR that backends
+    # consume, and every manifest on disk already carries a clamped default.
+    raw_default: Optional[float] = None
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable dict of this parameter's fields."""
@@ -234,11 +240,14 @@ def parse_params_from_export(export_info: ExportInfo) -> list[ParamInfo]:
 
         # Try to extract the actual default value from pi->defaultvalue
         default = output_min  # fallback
+        out_of_range = None
         var_name = _parse_default_var_for_param(content, m.start())
         if var_name and var_name in member_values:
             raw_default = member_values[var_name]
             # Clamp to declared range -- gen~ initial values may exceed it
             default = max(output_min, min(output_max, raw_default))
+            if default != raw_default:
+                out_of_range = raw_default
 
         params.append(
             ParamInfo(
@@ -248,6 +257,7 @@ def parse_params_from_export(export_info: ExportInfo) -> list[ParamInfo]:
                 min=output_min,
                 max=output_max,
                 default=default,
+                raw_default=out_of_range,
             )
         )
     params.sort(key=lambda p: p.index)
