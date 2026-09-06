@@ -40,7 +40,7 @@ jobs:
       GEN_DSP_CACHE_DIR: ${{ github.workspace }}/build/.fetchcontent_cache
       GIT_TERMINAL_PROMPT: "0"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: astral-sh/setup-uv@v4
         with:
