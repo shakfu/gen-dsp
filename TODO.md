@@ -6,7 +6,11 @@ Completed items are recorded in [CHANGELOG.md](CHANGELOG.md) rather than kept he
 
 ---
 
-## Medium Priority
+## Critical
+
+## High
+
+## Medium
 
 ### Web Audio backend follow-ups
 
@@ -14,9 +18,7 @@ Completed items are recorded in [CHANGELOG.md](CHANGELOG.md) rather than kept he
   availability (skipped in CI). Consider adding Emscripten to CI or a
   lightweight WASM validation step.
 
----
-
-## Low Priority / Housekeeping
+## Low
 
 ### Experimental
 
@@ -61,11 +63,7 @@ Completed items are recorded in [CHANGELOG.md](CHANGELOG.md) rather than kept he
   afterwards is pydantic's error-message quality; that is what a spike should
   actually measure.
 
----
-
-## New Backends
-
-### Embedded / Hardware
+### New Backends: Embedded / Hardware
 
 - [ ] **Bela** - BeagleBone-based real-time audio platform. C++ API, ultra-low latency.
 
@@ -79,7 +77,7 @@ Completed items are recorded in [CHANGELOG.md](CHANGELOG.md) rather than kept he
 
   - Docs: <https://www.rebeltech.org/docs/>
 
-### Plugin Frameworks
+### New Backends: Plugin Frameworks
 
 - [ ] **DISTRHO Plugin Framework (DPF)** - Can build LADSPA, DSSI, LV2, VST2, VST3, and CLAP. Main value-add over current coverage is LADSPA/DSSI. JACK/Standalone mode useful for headless testing.
 
@@ -89,7 +87,7 @@ Completed items are recorded in [CHANGELOG.md](CHANGELOG.md) rather than kept he
 
   - Docs: <https://juce.com/>
 
-### Hardware Platforms
+### New Backends: Hardware Platforms
 
 - [ ] **Move Everything (Ableton Move)** - Unofficial framework for custom DSP on Ableton Move hardware. ARM64 Linux `.so` plugins via C plugin API v2. Key challenges: int16 stereo interleaved audio (not float), cross-compilation, stereo-only I/O. CC BY-NC-SA 4.0 license may constrain template code. Closest analog: Daisy backend.
 
@@ -112,7 +110,7 @@ Completed items are recorded in [CHANGELOG.md](CHANGELOG.md) rather than kept he
 
   - Assessment: [docs/percussa-ssp.md](docs/percussa-ssp.md)
 
-### Game Audio
+### New Backends: Game Audio
 
 - [ ] **FMOD plugin** - Game audio middleware with a clean C DSP plugin API. Taps into game audio market that gen-dsp currently doesn't reach.
 
