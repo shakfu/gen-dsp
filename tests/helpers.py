@@ -46,6 +46,7 @@ def _sdk_sentinel(platform: str, cache: Path) -> Optional[tuple[Path, str]]:
         "vst3": "vst3sdk-src",
         "lv2": "lv2-src",
         "sc": "supercollider-src",
+        "ssp": "ssp_sdk-src",
     }
     if platform in cmake_src:
         return cache / cmake_src[platform], "github.com"
@@ -86,7 +87,7 @@ def skip_if_sdk_download_needed(platform: str, cache: Path) -> None:
 # FetchContent_Declare names used by the CMake platform templates (clap, vst3,
 # lv2, sc), mapped to their cached source-tree subdirectory under the shared
 # cache.  Used to point CMake at a pre-populated checkout.
-_FETCHCONTENT_SDKS = ("clap", "vst3sdk", "lv2", "supercollider")
+_FETCHCONTENT_SDKS = ("clap", "vst3sdk", "lv2", "supercollider", "ssp_sdk")
 
 
 def fetchcontent_cmake_args(cache: Path) -> list[str]:

@@ -10,9 +10,11 @@ rather than hard prerequisites.
 
 from __future__ import annotations
 
+import os
 import shutil
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable, Optional
 
 
@@ -99,6 +101,35 @@ CIRCLE_XCC = Tool(
     "(64-bit Pi boards) for your target board.",
     _which("arm-none-eabi-gcc", "aarch64-none-elf-gcc"),
 )
+
+
+def _ssp_clang_probe() -> Optional[str]:
+    """Find clang++ where ssp_toolchain.cmake looks: $TOOLSROOT, Homebrew LLVM, PATH."""
+    dirs = [
+        os.environ.get("TOOLSROOT", ""),
+        "/opt/homebrew/opt/llvm/bin",
+        "/usr/local/opt/llvm/bin",
+    ]
+    for d in dirs:
+        if d and (Path(d) / "clang++").is_file():
+            return str(Path(d) / "clang++")
+    return shutil.which("clang++")
+
+
+SSP_CLANG = Tool(
+    "ssp-clang",
+    "clang (cross)",
+    "Install LLVM clang (Homebrew 'llvm' on macOS, 'clang' on Linux), or set TOOLSROOT.",
+    _ssp_clang_probe,
+)
+LLD = Tool(
+    "ld.lld",
+    "LLVM linker (lld)",
+    "Install lld (Homebrew 'lld' on macOS, 'lld' on Linux).",
+    _which("ld.lld"),
+)
+
+
 MACOS = Tool(
     "macos",
     "macOS",
@@ -145,6 +176,13 @@ PLATFORM_REQUIREMENTS: dict[str, tuple[list[Tool], list[str]]] = {
         ["Needs the Csound development headers (csdl.h); see docs/backends/csound.md"],
     ),
     "auv3": ([MACOS, CMAKE, XCODE], []),
+    "ssp": (
+        [CMAKE, SSP_CLANG, LLD],
+        [
+            _auto("Percussa SSP SDK"),
+            _auto("SSP buildroot sysroot (608 MB; SSP_BUILDROOT overrides)"),
+        ],
+    ),
 }
 
 

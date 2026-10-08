@@ -160,6 +160,7 @@ _BUILD_SYSTEM_FILES = {
     "standalone": "Makefile",
     "csound": "Makefile",
     "auv3": "CMakeLists.txt",
+    "ssp": "CMakeLists.txt",
 }
 
 

@@ -10,6 +10,16 @@ Completed items are recorded in [CHANGELOG.md](CHANGELOG.md) rather than kept he
 
 ## High
 
+- [ ] **Percussa SSP: confirm on hardware** - The `ssp` backend builds and passes host tests,
+  but no module has run on a device. Check that Synthor lists `gvrb` (gigaverb), that audio
+  passes, that encoders, pages and the screen work, and that presets restore. See
+  [docs/backends/ssp.md](docs/backends/ssp.md).
+
+- [ ] **Percussa SSP: JUCE mode for rack and XMX** - Native modules do not load in
+  TheTechnobear's rack-style hosts, which need the JUCE-based `SSPExtendedApi`. A second mode
+  could emit a JUCE plugin modelled on his RNBO template
+  (<https://github.com/thetechnobear/rnbo.example.ssp>). Decide after the hardware check.
+
 ## Medium
 
 ### Web Audio backend follow-ups
@@ -94,21 +104,6 @@ Completed items are recorded in [CHANGELOG.md](CHANGELOG.md) rather than kept he
   - Repo: <https://github.com/charlesvestal/move-everything>
 
   - Assessment: [docs/move-everything.md](docs/move-everything.md)
-
-- [ ] **Percussa SSP** - ARM-Linux Eurorack DSP host. Native `.so` modules via a small
-  C++ API (`Percussa::SSP::PluginInterface`: `prepare()`/`process(float**, ...)`, encoder/
-  soft-key control, `getState`/`setState` presets) plus C factory exports. float32 planar
-  audio maps ~1:1 to gen~; closest analog: CLAP/LV2 code shape + Circle/Daisy/VCV cross-
-  compile-against-external-SDK build. Key challenges: param->encoder mapping, the Percussa
-  cross-compile sysroot (not FetchContent-able), and AGPL-3.0 SDK licensing. Good fit; a
-  contributor has the hardware to test.
-
-  - Repo: <https://github.com/percussa/ssp-sdk>
-
-  - Reference modules (proves the path; ~39 modules + a reusable param/encoder framework):
-    <https://github.com/TheTechnobear/SSP>
-
-  - Assessment: [docs/percussa-ssp.md](docs/percussa-ssp.md)
 
 ### New Backends: Game Audio
 

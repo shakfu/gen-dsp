@@ -73,6 +73,10 @@ def get_webaudio_templates_dir() -> Path:
     return get_templates_dir("webaudio")
 
 
+def get_ssp_templates_dir() -> Path:
+    return get_templates_dir("ssp")
+
+
 def get_standalone_templates_dir() -> Path:
     return get_templates_dir("standalone")
 

@@ -85,6 +85,7 @@ Default command (auto-detects source type):
   --no-shared-cache         Disable shared OS cache for FetchContent downloads
   --cache-dir DIR           Explicit FetchContent cache directory
   --board BOARD             Board variant (see 'list --boards daisy|circle')
+  --ssp-name NAME           Percussa SSP module name and uid, 4 letters/digits
   --no-midi                 Disable MIDI note handling
   --midi-gate NAME          MIDI gate parameter name
   --midi-freq NAME          MIDI frequency parameter name
@@ -194,6 +195,11 @@ def _make_default_parser() -> argparse.ArgumentParser:
         "--board",
         help="Board variant for embedded platforms "
         "(see 'gen-dsp list --boards daisy|circle')",
+    )
+    parser.add_argument(
+        "--ssp-name",
+        help="Percussa SSP module name, also spelled by its uid: exactly 4 "
+        "letters or digits (default: derived from --name, e.g. gigaverb -> gvrb)",
     )
     parser.add_argument(
         "--no-midi",
@@ -589,6 +595,20 @@ def _print_target_summary(results: list[tuple[str, str]]) -> None:
         print(f"  {platform:<10}  {status}")
 
 
+def _ssp_name_error(args: argparse.Namespace, platforms: list[str]) -> Optional[str]:
+    if getattr(args, "ssp_name", None) and "ssp" not in platforms:
+        return "--ssp-name is only valid for ssp"
+    return None
+
+
+def _report_ssp_name(platform: str, config: ProjectConfig) -> None:
+    if platform == "ssp":
+        from gen_dsp.platforms.ssp import resolve_ssp_name
+
+        name = resolve_ssp_name(config, config.name)
+        print(f"  SSP module: {name} (uid {name.upper()}); --ssp-name overrides")
+
+
 # Keys accepted in gen-dsp.toml, mapped to default-command argparse destinations.
 _CONFIG_PATH_KEYS = frozenset({"source", "output", "cache_dir"})
 _CONFIG_BOOL_KEYS = frozenset(
@@ -598,6 +618,7 @@ _CONFIG_STR_KEYS = frozenset(
     {
         "name",
         "board",
+        "ssp_name",
         "midi_gate",
         "midi_freq",
         "midi_vel",
@@ -837,6 +858,10 @@ def _cmd_default_graph(args: argparse.Namespace, graph_path: Path) -> int:
         print(f"Error: {perr}", file=sys.stderr)
         return 1
     multi = len(platforms) > 1
+    serr = _ssp_name_error(args, platforms)
+    if serr:
+        print(f"Error: {serr}", file=sys.stderr)
+        return 1
 
     results: list[tuple[str, str]] = []
     overall = 0
@@ -847,6 +872,7 @@ def _cmd_default_graph(args: argparse.Namespace, graph_path: Path) -> int:
         config = ProjectConfig(
             name=args.name,
             platform=platform,
+            ssp_name=args.ssp_name if platform == "ssp" else None,
             buffers=[],
             apply_patches=False,
             shared_cache=not getattr(args, "no_shared_cache", False),
@@ -888,6 +914,7 @@ def _cmd_default_graph(args: argparse.Namespace, graph_path: Path) -> int:
             print(f"  Platform: {platform}")
             if graph.params:
                 print(f"  Parameters: {', '.join(p.name for p in graph.params)}")
+            _report_ssp_name(platform, config)
             _report_tosc(generator)
         except Exception as e:
             print(f"Error creating project: {e}", file=sys.stderr)
@@ -947,6 +974,10 @@ def _cmd_default_export(args: argparse.Namespace, export_path: Path) -> int:
             file=sys.stderr,
         )
         return 1
+    serr = _ssp_name_error(args, platforms)
+    if serr:
+        print(f"Error: {serr}", file=sys.stderr)
+        return 1
 
     # Validate --voices (platform-independent)
     if args.voices < 1:
@@ -976,6 +1007,7 @@ def _cmd_default_export(args: argparse.Namespace, export_path: Path) -> int:
             shared_cache=not args.no_shared_cache,
             cache_dir=args.cache_dir,
             board=board,
+            ssp_name=args.ssp_name if platform == "ssp" else None,
             no_midi=args.no_midi,
             midi_gate=args.midi_gate,
             midi_freq=args.midi_freq,
@@ -1024,6 +1056,7 @@ def _cmd_default_export(args: argparse.Namespace, export_path: Path) -> int:
             print(f"  Platform: {platform}")
             if buffers:
                 print(f"  Buffers: {', '.join(buffers)}")
+            _report_ssp_name(platform, config)
             _report_tosc(generator)
         except GenExtError as e:
             print(f"Error creating project: {e}", file=sys.stderr)

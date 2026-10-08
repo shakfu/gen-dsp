@@ -4,7 +4,7 @@
 
 gen-dsp turns Max/MSP gen~ code exports into complete, buildable audio plugin projects. A gen~ export is just a bundle of C++ and the genlib runtime; turning it into a plugin a host can load still means writing host glue, build files, parameter wiring, and platform-specific fixes by hand -- once for every target you care about. gen-dsp automates that end to end: from a single export it scaffolds a ready-to-build project for any of 15 targets, handling I/O and buffer detection, parameter metadata extraction, and platform-specific patching. It is a zero-dependency pure Python package -- `pip install gen-dsp`, then one command per target.
 
-The 15 targets are PureData, Max/MSP, ChucK, AudioUnit (AUv2), AUv3, CLAP, VST3, LV2, SuperCollider, VCV Rack, Daisy, Circle, Web Audio (WASM), Standalone (miniaudio), and Csound -- spanning desktop plugin formats, embedded firmware, and the browser.
+The 16 targets are PureData, Max/MSP, ChucK, AudioUnit (AUv2), AUv3, CLAP, VST3, LV2, SuperCollider, VCV Rack, Daisy, Circle, Percussa SSP, Web Audio (WASM), Standalone (miniaudio), and Csound -- spanning desktop plugin formats, embedded firmware, and the browser.
 
 gen-dsp also optionally provides its own alternative DSP DSL called GDSP, short for GRAPH DSP (`pip install gen-dsp[graph]`), another way to author DSP directly in gen-dsp as an alternative to gen~. You define a signal graph in purpose-built `.gdsp` files, and compile it to any of the 15 targets through the same pipeline -- no Max or gen~ export required. A graph can even be transpiled back to gen~ `codebox` source (experimental), so work started in GDSP can return to Max. The separate, optional [dsp-graph](https://github.com/shakfu/dsp-graph) package adds a web-based visual editor and debugger (React + FastAPI) for viewing and driving gen-dsp operations from a browser.
 
@@ -28,6 +28,7 @@ gen-dsp builds on macOS, Linux, and Windows. All platforms are tested in CI via 
 | VCV Rack | yes | yes | -- | make (Rack SDK) | `plugin.dylib` / `.so` / `.dll` |
 | Daisy | -- | yes | -- | make (libDaisy) | `.bin` (firmware) |
 | Circle | -- | yes | -- | make (Circle SDK) | `.img` (kernel image) |
+| Percussa SSP | yes | yes | -- | CMake (clang cross) | `.so` module |
 | Web Audio | yes | yes | yes | make (Emscripten) | `.wasm` + `processor.js` |
 | Standalone | yes | yes | yes | make (miniaudio) | native executable |
 | Csound | yes | yes | -- | make | `.dylib` / `.so` opcode |
@@ -48,6 +49,7 @@ Each platform has a detailed guide covering prerequisites, build details, SDK co
 | VCV Rack | [docs/backends/vcvrack.md](docs/backends/vcvrack.md) |
 | Daisy | [docs/backends/daisy.md](docs/backends/daisy.md) |
 | Circle | [docs/backends/circle.md](docs/backends/circle.md) |
+| Percussa SSP | [docs/backends/ssp.md](docs/backends/ssp.md) |
 | Web Audio | [docs/backends/webaudio.md](docs/backends/webaudio.md) |
 | Standalone | [docs/backends/standalone.md](docs/backends/standalone.md) |
 | Csound | [docs/backends/csound.md](docs/backends/csound.md) |
@@ -160,13 +162,14 @@ The source type is auto-detected:
 
 Options:
 
-- `-p, --platform` - Target platform(s) (required): a single name, a comma-separated list, or `all`. Names: `pd`, `max`, `chuck`, `au`, `auv3`, `clap`, `vst3`, `lv2`, `sc`, `vcvrack`, `daisy`, `circle`, `webaudio`, `standalone`, `csound`. With multiple targets the source is parsed once and each is generated/built in turn (a per-target summary is printed); `-o` then acts as a parent directory, with each target in `<output>/<name>_<platform>`. Example: `gen-dsp ./export -p clap,vst3,au`
+- `-p, --platform` - Target platform(s) (required): a single name, a comma-separated list, or `all`. Names: `pd`, `max`, `chuck`, `au`, `auv3`, `clap`, `vst3`, `lv2`, `sc`, `vcvrack`, `daisy`, `circle`, `webaudio`, `standalone`, `csound`, `ssp`. With multiple targets the source is parsed once and each is generated/built in turn (a per-target summary is printed); `-o` then acts as a parent directory, with each target in `<output>/<name>_<platform>`. Example: `gen-dsp ./export -p clap,vst3,au`
 - `-n, --name` - Name for the plugin (default: inferred from source)
 - `-o, --output` - Output directory (default: `./<name>_<platform>`)
 - `--no-build` - Skip building after project creation
 - `--buffers` - Explicit buffer names (overrides auto-detection)
 - `--no-shared-cache` - Disable shared OS cache for FetchContent downloads (clap, vst3, lv2, sc; shared cache is enabled by default)
 - `--board` - Board variant for embedded platforms (Daisy: `seed`, `pod`, etc.; Circle: `pi3-i2s`, `pi4-usb`, etc.)
+- `--ssp-name` - Percussa SSP module name, also spelled by its uid: exactly 4 letters or digits (default: derived from `--name`, e.g. `gigaverb` -> `gvrb`)
 - `--no-patch` - Skip automatic exp2f fix
 - `--no-midi` - Disable MIDI note handling
 - `--midi-gate NAME` - MIDI gate parameter name
@@ -750,6 +753,17 @@ cd myeffect_csound && make all
 
 Generates Csound opcode plugins. Audio inputs map to a-rate args, parameters to k-rate args. Install the built `lib*.dylib`/`.so` to `OPCODE6DIR64` for Csound to discover it.
 
+## Percussa SSP
+
+See the [Percussa SSP guide](docs/backends/ssp.md) for full details.
+
+```bash
+gen-dsp ./my_export -n myverb -p ssp
+# Output: myverb_ssp/build/myverb.so -> copy to plugins/ on the SD card's BOOT partition
+```
+
+Generates native SSP modules against the Percussa SDK's `PluginInterface`, without JUCE. The four encoders edit pages of four parameters, and the screen shows their names and values. Cross-compiles with host clang and lld; the Percussa buildroot (608 MB) is downloaded on first build unless `SSP_BUILDROOT` points to one.
+
 ## Shared FetchContent Cache
 
 CLAP, VST3, LV2, and SC backends use CMake FetchContent to download their SDKs/headers at configure time. By default, gen-dsp bakes an OS-appropriate shared cache path into the generated CMakeLists.txt so that multiple projects share a single SDK download. Pass `--no-shared-cache` to disable this and use CMake's default project-local `build/_deps/` instead.
@@ -790,6 +804,7 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 - Web Audio: requires Emscripten SDK (`emcc` on PATH); buffer loading not yet supported (browser file I/O is async/platform-specific)
 - Standalone: requires curl (for miniaudio.h download on first build)
 - AUv3: macOS only; requires full Xcode (not just Command Line Tools) for the CMake Xcode generator; host app must be run once to register the extension with PluginKit
+- Percussa SSP: requires LLVM clang and lld; first build downloads the buildroot (608 MB) unless `SSP_BUILDROOT` is set; module name and uid are the same 4 characters (`--ssp-name`), and names must not collide on the card; does not load in JUCE-based rack hosts; not yet confirmed on hardware
 - Csound: requires Csound headers (`csdl.h`); MYFLT is double in Csound 6/7, so there is a float-to-double conversion cost per sample
 - Graph frontend: requires pydantic >= 2.0; simulation additionally requires numpy >= 1.24; Daisy, Circle, and VCV Rack platforms not yet supported for graph sources
 
@@ -888,6 +903,11 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 - macOS
 - Xcode (full IDE, not just Command Line Tools)
 - CMake >= 3.19
+
+### Percussa SSP builds
+
+- CMake >= 3.19
+- LLVM clang and lld
 
 ### Csound builds
 

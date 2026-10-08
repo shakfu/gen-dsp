@@ -27,6 +27,7 @@ from gen_dsp.platforms.webaudio import WebAudioPlatform
 from gen_dsp.platforms.standalone import StandalonePlatform
 from gen_dsp.platforms.csound import CsoundPlatform
 from gen_dsp.platforms.auv3 import Auv3Platform
+from gen_dsp.platforms.ssp import SspPlatform
 
 
 # Registry mapping platform names to their implementation classes.
@@ -50,6 +51,7 @@ PLATFORM_REGISTRY: dict[str, Type[Platform]] = {
     "standalone": StandalonePlatform,
     "csound": CsoundPlatform,
     "auv3": Auv3Platform,
+    "ssp": SspPlatform,
 }
 
 
@@ -147,6 +149,7 @@ __all__ = [
     "StandalonePlatform",
     "CsoundPlatform",
     "Auv3Platform",
+    "SspPlatform",
     "PLATFORM_REGISTRY",
     "get_platform",
     "get_platform_class",

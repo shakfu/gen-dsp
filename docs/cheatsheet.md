@@ -10,7 +10,7 @@ Source type is auto-detected: directory (gen~ export), `.gdsp` file, or `.json` 
 
 | Option | Description |
 |--------|-------------|
-| `-p, --platform PLATFORM` | Target platform(s) (required): a name, a comma-separated list (`clap,vst3,au`), or `all`. Names: `au`, `auv3`, `chuck`, `circle`, `clap`, `csound`, `daisy`, `lv2`, `max`, `pd`, `sc`, `standalone`, `vcvrack`, `vst3`, `webaudio` |
+| `-p, --platform PLATFORM` | Target platform(s) (required): a name, a comma-separated list (`clap,vst3,au`), or `all`. Names: `au`, `auv3`, `chuck`, `circle`, `clap`, `csound`, `daisy`, `lv2`, `max`, `pd`, `sc`, `ssp`, `standalone`, `vcvrack`, `vst3`, `webaudio` |
 | `-n, --name NAME` | Plugin name (default: inferred from source) |
 | `-o, --output DIR` | Output directory (default: `<name>_<platform>`; parent dir for multi-target) |
 | `--config PATH` | Read defaults from a `gen-dsp.toml` (default: `./gen-dsp.toml` if present) |
@@ -21,6 +21,7 @@ Source type is auto-detected: directory (gen~ export), `.gdsp` file, or `.json` 
 | `--no-shared-cache` | Disable shared OS cache for FetchContent downloads |
 | `--cache-dir DIR` | Explicit FetchContent cache directory (baked into CMakeLists.txt) |
 | `--board BOARD` | Board variant (see `gen-dsp list --boards daisy\|circle`) |
+| `--ssp-name NAME` | Percussa SSP module name and uid: exactly 4 letters or digits (default derived from `-n`) |
 | `--no-midi` | Disable MIDI note handling |
 | `--midi-gate NAME` | MIDI gate parameter name |
 | `--midi-freq NAME` | MIDI frequency parameter name |

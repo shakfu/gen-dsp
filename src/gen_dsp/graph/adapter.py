@@ -37,6 +37,7 @@ _PLATFORM_INFO: dict[str, tuple[str, str]] = {
     "standalone": ("STANDALONE_EXT_NAME", "_standalone"),
     "csound": ("CSOUND_EXT_NAME", "_csound"),
     "auv3": ("AUV3_EXT_NAME", "_auv3"),
+    "ssp": ("SSP_EXT_NAME", "_ssp"),
 }
 
 SUPPORTED_PLATFORMS = set(_PLATFORM_INFO.keys())
@@ -342,6 +343,7 @@ def generate_graph_build_file(
         "webaudio": _makefile_webaudio,
         "standalone": _makefile_standalone,
         "csound": _makefile_csound,
+        "ssp": _cmake_ssp,
     }
 
     generator = _build_file_generators.get(platform)
@@ -483,6 +485,22 @@ endif()
     path = output_dir / "CMakeLists.txt"
     path.write_text(content)
     return path
+
+
+def _cmake_ssp(**kwargs: object) -> Path:
+    from gen_dsp.platforms.ssp import ssp_module_name, write_cmakelists
+
+    output_dir = kwargs["output_dir"]
+    assert isinstance(output_dir, Path)
+    return write_cmakelists(
+        output_dir,
+        lib_name=str(kwargs["lib_name"]),
+        gen_name=str(kwargs["gen_name"]),
+        sources=["gen_ext_ssp.cpp", "_ext_ssp.cpp"],
+        include_dirs=[],
+        module_name=ssp_module_name(str(kwargs["lib_name"])),
+        use_shared_cache="ON" if kwargs["shared_cache"] else "OFF",
+    )
 
 
 def _cmake_au(**kwargs: object) -> Path:

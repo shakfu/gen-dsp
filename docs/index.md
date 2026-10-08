@@ -23,6 +23,7 @@ See the [Architecture](architecture.md) page for a visual overview of the pipeli
 | Web Audio | `webaudio` | make (Emscripten) | `.wasm` + `processor.js` |
 | Standalone | `standalone` | make (miniaudio) | native executable |
 | Csound | `csound` | make | `.dylib` / `.so` opcode |
+| Percussa SSP | `ssp` | CMake (clang cross) | `.so` module |
 
 ## Quick Start
 

@@ -155,7 +155,7 @@ _FETCHCONTENT_CACHE = (
 
 # Network platforms whose build tests may download an SDK on first run, matched
 # against the platform token embedded in each test name (e.g. test_build_clap_*).
-_NETWORK_PLATFORMS = ("vcvrack", "daisy", "circle", "clap", "vst3", "lv2", "sc")
+_NETWORK_PLATFORMS = ("vcvrack", "daisy", "circle", "clap", "vst3", "lv2", "sc", "ssp")
 
 
 @pytest.fixture(autouse=True)

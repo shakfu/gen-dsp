@@ -3,6 +3,28 @@
 Assessment of the [Percussa SSP SDK](https://github.com/percussa/ssp-sdk) as a
 gen-dsp backend. Mirrors the structure of [move-everything.md](move-everything.md).
 
+## Status
+
+Implemented as the native path: see [backends/ssp.md](backends/ssp.md). The
+implementation settled or corrected these points from the assessment below:
+
+- **Licence (correction).** `Percussa.h` is GPL-2.0-or-later *or* AGPL-3.0, not
+  AGPL-only. gen-dsp fetches it at configure time and does not ship it.
+- **Channel layout (resolved).** One in-place buffer of `max(inputs, outputs)`
+  channels: the shape TheTechnobear's rack (`Module.cpp`) and the ssp repo's
+  test host pass. The module copies inputs before `perform`.
+- **VST3 SDK (resolved).** Not needed. VST was the 2018 module format; current
+  firmware loads the native API, and Percussa's 2022 SDK topic lists JUCE/VST as
+  "not a requirement".
+- **SDK fetch.** An archive of a pinned commit, not a clone: the repository's
+  submodules include JUCE and the VST3 SDK.
+- **Naming (new).** Synthor lists a module only if its name is 4 characters and
+  its uid spells the same 4, an undocumented rule observed on the device.
+  `--ssp-name` sets both; the default is derived from `-n`.
+- **rack (new).** Native modules do not load in rack-style hosts, which require
+  the JUCE-based `SSPExtendedApi`.
+- **Open.** On-device confirmation, tracked in [TODO.md](../TODO.md).
+
 ## What is the Percussa SSP?
 
 The Percussa SSP (Super Signal Processor) is a high-end, ARM-Linux-based Eurorack

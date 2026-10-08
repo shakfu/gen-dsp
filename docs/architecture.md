@@ -62,11 +62,13 @@ flowchart TD
     REG --> CMX["CMake (Xcode)"]
     REG --> MK["Make"]
     REG --> EM["Make (emcc)"]
+    REG --> CC["CMake (clang cross)"]
 
     CM --> CM1["au · clap · vst3 · lv2 · sc · max"]
     CMX --> CMX1["auv3"]
     MK --> MK1["pd · chuck · vcvrack · daisy · circle · standalone · csound"]
     EM --> EM1["webaudio"]
+    CC --> CC1["ssp"]
 ```
 
 Each `Platform` implements `generate_project()`, `build()`, `clean()`, `find_output()`, and `get_build_instructions()`. SDKs for CMake/FetchContent and several Make backends are auto-downloaded into a shared cache.

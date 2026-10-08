@@ -55,6 +55,10 @@ class ProjectConfig:
     #   Circle: pi3-i2s, pi4-i2s
     board: Optional[str] = None
 
+    # Percussa SSP module name: exactly 4 letters or digits, also spelled by the
+    # uid. None derives one from `name` (see platforms/ssp.py).
+    ssp_name: Optional[str] = None
+
     # MIDI-to-CV configuration
     no_midi: bool = False
     midi_gate: Optional[str] = None
@@ -116,6 +120,13 @@ class ProjectConfig:
         for buf_name in self.buffers:
             if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", buf_name):
                 errors.append(f"Buffer name '{buf_name}' is not a valid C identifier.")
+
+        if self.ssp_name is not None and not re.fullmatch(
+            r"[A-Za-z0-9]{4}", self.ssp_name
+        ):
+            errors.append(
+                f"SSP module name '{self.ssp_name}' must be exactly 4 letters or digits."
+            )
 
         # Validate Daisy board name
         if self.board is not None and self.platform == "daisy":
