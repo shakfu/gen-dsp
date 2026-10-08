@@ -170,6 +170,8 @@ Options:
 - `--no-shared-cache` - Disable shared OS cache for FetchContent downloads (clap, vst3, lv2, sc; shared cache is enabled by default)
 - `--board` - Board variant for embedded platforms (Daisy: `seed`, `pod`, etc.; Circle: `pi3-i2s`, `pi4-usb`, etc.)
 - `--ssp-name` - Percussa SSP module name, also spelled by its uid: exactly 4 letters or digits (default: derived from `--name`, e.g. `gigaverb` -> `gvrb`)
+- `--ssp-format` - Percussa SSP module format: `native` (default) or `juce` (also loads in rack-style hosts)
+- `--ssp-dev-dir` - JUCE format: an existing SSP dev tree (a shakfu/ssp checkout) instead of a download
 - `--no-patch` - Skip automatic exp2f fix
 - `--no-midi` - Disable MIDI note handling
 - `--midi-gate NAME` - MIDI gate parameter name

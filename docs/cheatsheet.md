@@ -22,6 +22,8 @@ Source type is auto-detected: directory (gen~ export), `.gdsp` file, or `.json` 
 | `--cache-dir DIR` | Explicit FetchContent cache directory (baked into CMakeLists.txt) |
 | `--board BOARD` | Board variant (see `gen-dsp list --boards daisy\|circle`) |
 | `--ssp-name NAME` | Percussa SSP module name and uid: exactly 4 letters or digits (default derived from `-n`) |
+| `--ssp-format FORMAT` | Percussa SSP module format: `native` (default) or `juce` |
+| `--ssp-dev-dir DIR` | JUCE format: an existing SSP dev tree instead of a download |
 | `--no-midi` | Disable MIDI note handling |
 | `--midi-gate NAME` | MIDI gate parameter name |
 | `--midi-freq NAME` | MIDI frequency parameter name |

@@ -71,6 +71,10 @@ set(CMAKE_EXE_LINKER_FLAGS_INIT "${_ssp_link}")
 set(CMAKE_SHARED_LINKER_FLAGS_INIT "${_ssp_link}")
 set(CMAKE_MODULE_LINKER_FLAGS_INIT "${_ssp_link}")
 
+# pkg-config (JUCE's FreeType lookup) must search the sysroot. The settings go inside
+# ENV{PKG_CONFIG}, which JUCE unsets for its host juceaide build.
+set(ENV{PKG_CONFIG} "${CMAKE_COMMAND} -E env --unset=PKG_CONFIG_PATH PKG_CONFIG_LIBDIR=${_ssp_sysroot}/usr/lib/pkgconfig:${_ssp_sysroot}/usr/share/pkgconfig PKG_CONFIG_SYSROOT_DIR=${_ssp_sysroot} pkg-config")
+
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)

@@ -10,15 +10,19 @@ Completed items are recorded in [CHANGELOG.md](CHANGELOG.md) rather than kept he
 
 ## High
 
-- [ ] **Percussa SSP: confirm on hardware** - The `ssp` backend builds and passes host tests,
-  but no module has run on a device. Check that Synthor lists `gvrb` (gigaverb), that audio
-  passes, that encoders, pages and the screen work, and that presets restore. See
-  [docs/backends/ssp.md](docs/backends/ssp.md).
+- [ ] **Percussa SSP: JUCE format in rack** - `gvbj` (gigaverb) runs in Synthor. Load it in a
+  rack slot and check the compact view and encoders; check preset save and reload.
 
-- [ ] **Percussa SSP: JUCE mode for rack and XMX** - Native modules do not load in
-  TheTechnobear's rack-style hosts, which need the JUCE-based `SSPExtendedApi`. A second mode
-  could emit a JUCE plugin modelled on his RNBO template
-  (<https://github.com/thetechnobear/rnbo.example.ssp>). Decide after the hardware check.
+- [ ] **Percussa SSP: JUCE format UI** - The framework's Load button does nothing in a gen~
+  module, and the version string overlaps the DSP readout. Both live in the framework
+  (`EngineEditor`), so fixing them moves the pinned shakfu/ssp commit.
+
+- [ ] **Percussa SSP: export only the entry points** - genlib's replacement `operator new` and
+  `delete` are exported too. Use a linker version script and test the exported symbol set. See
+  [docs/percussa-ssp.md](docs/percussa-ssp.md#validation-2026-10-08).
+
+- [ ] **Percussa SSP: remaining device checks** - preset save and reload; silence on unpatched
+  inputs; whether Synthor calls `prepare()` during playback.
 
 ## Medium
 

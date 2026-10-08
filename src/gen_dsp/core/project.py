@@ -59,6 +59,14 @@ class ProjectConfig:
     # uid. None derives one from `name` (see platforms/ssp.py).
     ssp_name: Optional[str] = None
 
+    # Percussa SSP module format: "native" (Percussa API only) or "juce" (the
+    # SSP plugin framework and JUCE; also loads in rack-style hosts).
+    ssp_format: str = "native"
+
+    # JUCE format: an existing SSP dev tree (a shakfu/ssp checkout). None
+    # downloads pinned archives at configure time.
+    ssp_dev_dir: Optional[Path] = None
+
     # MIDI-to-CV configuration
     no_midi: bool = False
     midi_gate: Optional[str] = None
@@ -127,6 +135,8 @@ class ProjectConfig:
             errors.append(
                 f"SSP module name '{self.ssp_name}' must be exactly 4 letters or digits."
             )
+        if self.ssp_format not in ("native", "juce"):
+            errors.append(f"SSP format '{self.ssp_format}' must be 'native' or 'juce'.")
 
         # Validate Daisy board name
         if self.board is not None and self.platform == "daisy":

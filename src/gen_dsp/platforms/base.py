@@ -167,6 +167,7 @@ class Platform(ABC):
         project_dir: Path,
         clean: bool = False,
         verbose: bool = False,
+        build_args: Sequence[str] = (),
     ) -> BuildResult:
         """Build a project using CMake (configure + build).
 
@@ -195,7 +196,7 @@ class Platform(ABC):
             )
 
         build_result = self.run_command(
-            ["cmake", "--build", "."], build_dir, verbose=verbose
+            ["cmake", "--build", ".", *build_args], build_dir, verbose=verbose
         )
 
         output_file = self.find_output(project_dir)

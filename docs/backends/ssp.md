@@ -1,10 +1,15 @@
 # Percussa SSP
 
-Generates native modules (`.so`) for the [Percussa SSP](https://www.percussa.com/) from gen~ exports or graph files. Modules implement `Percussa::SSP::PluginInterface` from the [Percussa SSP SDK](https://github.com/percussa/ssp-sdk) (API 3.5) directly, without JUCE, and cross-compile with host clang against the Percussa buildroot.
+Generates modules (`.so`) for the [Percussa SSP](https://www.percussa.com/) from gen~ exports or graph files, in two formats. Both cross-compile with host clang against the Percussa buildroot.
+
+| `--ssp-format` | Built on | Loads in | Size |
+|-|-|-|-|
+| `native` (default) | `Percussa::SSP::PluginInterface` from the [Percussa SSP SDK](https://github.com/percussa/ssp-sdk) (API 3.5), no JUCE | Synthor | 70 KB |
+| `juce` | the SSP plugin framework and JUCE, as the SSP's own modules are; see [JUCE format](#juce-format) | Synthor, rack-style hosts | 10 MB |
 
 **OS support (build host):** macOS, Linux
 
-**Device status:** builds and passes host tests; not yet confirmed on SSP hardware.
+**Device status:** `native` runs on an SSP: listed by Synthor, audio, encoders, paging and the display confirmed. Preset save and reload not yet tested. `juce` runs in Synthor (`gvbj`, gigaverb); rack and presets not yet tested.
 
 ## Prerequisites
 
@@ -32,9 +37,31 @@ cmake -B build && cmake --build build
 
 Copy the `.so` to the `plugins/` folder on the SD card's `BOOT` partition. Synthor lists it as `myvr`.
 
+## JUCE format
+
+```bash
+gen-dsp ./my_export -n myverb -p ssp --ssp-format juce                          # downloads a dev tree
+gen-dsp ./my_export -n myverb -p ssp --ssp-format juce --ssp-dev-dir ~/ssp      # uses a checkout
+```
+
+The module builds on `plugins/common` of [shakfu/ssp](https://github.com/shakfu/ssp): TheTechnobear's SSP framework with its `ssp::engine` layer. It gets the framework's editor, compact view and preset handling, and exports `SSPExtendedApi`, so rack-style hosts load it.
+
+The dev tree is a shakfu/ssp checkout with its `juce` (TheTechnobear's fork) and `ssp-sdk` submodules:
+
+- **Downloaded** (default): pinned archives of all three, cached in the FetchContent cache (23 MB).
+- **Existing** (`--ssp-dev-dir`, `ssp_dev_dir` in `gen-dsp.toml`, or `SSP_DEV_DIR` at configure time): the checkout as it is. Its `buildroot/` is used too, unless `SSP_BUILDROOT` is set.
+
+The framework's source lists come from the dev tree's own `CMakeLists.txt` files, so a newer checkout builds without a gen-dsp change.
+
+Building needs the host headers that JUCE's `juceaide` tool uses: X11, FreeType and fontconfig (`libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxrender-dev libxcomposite-dev libfreetype-dev libfontconfig1-dev` on Debian/Ubuntu). The first build compiles JUCE and the framework: about 7 CPU-minutes; ccache (`CMAKE_CXX_COMPILER_LAUNCHER=ccache`) makes later builds faster.
+
+Output: `build/<module name>.so`, copied from the VST3 bundle JUCE builds.
+
+Controls follow the framework, not the table below: encoders move one step per call (1% of the range, 0.1% fine) and need the editor, which Synthor creates. The framework's Load button has no use in a gen~ module.
+
 ## Module name
 
-A module's name must be exactly 4 letters or digits, and its uid must spell the same 4 characters. Synthor does not list a module whose uid differs from its name. This rule was inferred from the 39 modules on one SSP card; Percussa does not document it. gen-dsp derives both from one value, so they always match: the name in lowercase, the uid in uppercase.
+Synthor does not list a module whose uid does not spell its name. Percussa does not document this rule; renaming one module's uid on a device confirmed it. gen-dsp requires exactly 4 letters or digits, which is stricter than the device: `shq` (uid `SHQ4`) is listed. gen-dsp derives both from one value, so they always match: the name in lowercase, the uid in uppercase.
 
 Two names on one card collide. gen-dsp cannot see the card, so choose the name yourself when the default might clash:
 
@@ -54,7 +81,7 @@ Without `--ssp-name`, gen-dsp derives the name from `-n` and prints it. It keeps
 
 The check runs in gen-dsp, in CMake, and as a C++ `static_assert`.
 
-## Controls and display
+## Controls and display (native)
 
 | Control | Action |
 |-|-|
@@ -66,7 +93,7 @@ The check runs in gen-dsp, in CMake, and as a C++ `static_assert`.
 
 The screen shows the module name, the page number, and each encoder's parameter name, value and position in its range. It scales with the screen height, so the compact view works too.
 
-## How it works
+## How it works (native)
 
 - `gen_ext_ssp.cpp` -- the module: includes only `Percussa.h` and `_ext_ssp.h`
 
@@ -80,7 +107,7 @@ The screen shows the module name, the page number, and each encoder's parameter 
 
 **State.** `getState`/`setState` use a text blob: the page, then one `name value` line per parameter. Parameters are matched by name, so presets survive reordering in the patch.
 
-**Symbols.** Synthor loads every module into one process. Symbols are hidden by default, so two gen~ modules cannot bind each other's genlib. The three entry points stay exported.
+**Symbols.** Synthor loads every module into one process. Symbols are hidden by default, so two gen~ modules cannot bind each other's genlib. The three entry points stay exported, and so do genlib's replacement `operator new` and `delete`; see [Validation](../percussa-ssp.md#validation-2026-10-08).
 
 ## Toolchain
 
@@ -92,16 +119,17 @@ The screen shows the module name, the page number, and each encoder's parameter 
 | `TOOLSROOT` (env) | directory holding `clang`/`clang++`; default Homebrew LLVM, then `PATH` |
 | `SSP_HOST_BUILD=ON` | build for the host, for testing off the device |
 | `SSP_MODULE_NAME` | module name, see above |
+| `SSP_DEV_DIR` (`-D` or env) | JUCE format: the dev tree, see above |
 
 Without `SSP_BUILDROOT`, the buildroot is downloaded once to `<FetchContent cache>/ssp-buildroot/`.
 
 ## Testing off the device
 
-`tests/data/ssp_host.cpp` loads a module with `dlopen` and drives it through the Percussa API, as Synthor does: descriptor, `prepare`, `process`, encoders, buttons, state and screen rendering. `tests/test_ssp.py` builds modules with `SSP_HOST_BUILD=ON` and runs it. The cross build test runs when a buildroot is available.
+`tests/data/ssp_host.cpp` loads a module with `dlopen` and drives it through the Percussa API, as Synthor does: descriptor, `prepare`, `process`, encoders, buttons, state and screen rendering. `tests/test_ssp.py` builds modules with `SSP_HOST_BUILD=ON` and runs it. The cross build test runs when a buildroot is available. The JUCE tests run when `SSP_DEV_DIR` names a dev tree; one checks that the JUCE module's output matches the native module's, sample for sample.
 
 ## Limitations
 
-- **rack and XMX.** TheTechnobear's rack-style hosts load only modules that export the JUCE-based `SSPExtendedApi`, so these modules do not load inside them. His [RNBO template](https://github.com/thetechnobear/rnbo.example.ssp) takes the JUCE route for RNBO exports.
+- **rack and XMX.** TheTechnobear's rack-style hosts load only modules that export the JUCE-based `SSPExtendedApi`. Use the JUCE format for them.
 
 - **No MIDI.** The Percussa API passes no MIDI, so gen-dsp's MIDI-to-CV mapping does not apply.
 
@@ -109,4 +137,4 @@ Without `SSP_BUILDROOT`, the buildroot is downloaded once to `<FetchContent cach
 
 ## Licence
 
-`Percussa.h` is licensed GPL-2.0-or-later or AGPL-3.0. gen-dsp fetches it at configure time and does not ship it. A built module includes it, so the module is covered by one of those licences.
+`Percussa.h` is licensed GPL-2.0-or-later or AGPL-3.0. gen-dsp fetches it at configure time and does not ship it. A built module includes it, so the module is covered by one of those licences. The JUCE format also builds on the SSP framework (AGPL-3.0), so a JUCE-format module is AGPL-3.0.

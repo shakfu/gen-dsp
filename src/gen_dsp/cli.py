@@ -22,7 +22,7 @@ import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from gen_dsp.version import __version__
 
@@ -86,6 +86,8 @@ Default command (auto-detects source type):
   --cache-dir DIR           Explicit FetchContent cache directory
   --board BOARD             Board variant (see 'list --boards daisy|circle')
   --ssp-name NAME           Percussa SSP module name and uid, 4 letters/digits
+  --ssp-format FORMAT       Percussa SSP module format: native (default) or juce
+  --ssp-dev-dir DIR         JUCE format: existing SSP dev tree instead of a download
   --no-midi                 Disable MIDI note handling
   --midi-gate NAME          MIDI gate parameter name
   --midi-freq NAME          MIDI frequency parameter name
@@ -200,6 +202,20 @@ def _make_default_parser() -> argparse.ArgumentParser:
         "--ssp-name",
         help="Percussa SSP module name, also spelled by its uid: exactly 4 "
         "letters or digits (default: derived from --name, e.g. gigaverb -> gvrb)",
+    )
+    parser.add_argument(
+        "--ssp-format",
+        choices=["native", "juce"],
+        default=None,
+        help="Percussa SSP module format: native (Percussa API only, the default) "
+        "or juce (the SSP plugin framework; also loads in rack-style hosts)",
+    )
+    parser.add_argument(
+        "--ssp-dev-dir",
+        type=Path,
+        default=None,
+        help="JUCE format: an existing SSP dev tree (a shakfu/ssp checkout with "
+        "submodules) instead of downloading pinned archives",
     )
     parser.add_argument(
         "--no-midi",
@@ -596,9 +612,29 @@ def _print_target_summary(results: list[tuple[str, str]]) -> None:
 
 
 def _ssp_name_error(args: argparse.Namespace, platforms: list[str]) -> Optional[str]:
-    if getattr(args, "ssp_name", None) and "ssp" not in platforms:
-        return "--ssp-name is only valid for ssp"
+    if "ssp" in platforms:
+        if (
+            getattr(args, "ssp_dev_dir", None)
+            and getattr(args, "ssp_format", None) != "juce"
+        ):
+            return "--ssp-dev-dir requires --ssp-format juce"
+        return None
+    for opt in ("ssp_name", "ssp_format", "ssp_dev_dir"):
+        if getattr(args, opt, None):
+            return f"--{opt.replace('_', '-')} is only valid for ssp"
     return None
+
+
+def _ssp_options(args: argparse.Namespace, platform: str) -> dict[str, Any]:
+    """ProjectConfig fields for the SSP options; empty for other platforms."""
+    if platform != "ssp":
+        return {}
+    dev_dir = getattr(args, "ssp_dev_dir", None)
+    return {
+        "ssp_name": args.ssp_name,
+        "ssp_format": getattr(args, "ssp_format", None) or "native",
+        "ssp_dev_dir": dev_dir.expanduser().resolve() if dev_dir else None,
+    }
 
 
 def _report_ssp_name(platform: str, config: ProjectConfig) -> None:
@@ -610,7 +646,7 @@ def _report_ssp_name(platform: str, config: ProjectConfig) -> None:
 
 
 # Keys accepted in gen-dsp.toml, mapped to default-command argparse destinations.
-_CONFIG_PATH_KEYS = frozenset({"source", "output", "cache_dir"})
+_CONFIG_PATH_KEYS = frozenset({"source", "output", "cache_dir", "ssp_dev_dir"})
 _CONFIG_BOOL_KEYS = frozenset(
     {"no_build", "no_patch", "no_shared_cache", "no_midi", "dry_run", "tosc"}
 )
@@ -619,6 +655,7 @@ _CONFIG_STR_KEYS = frozenset(
         "name",
         "board",
         "ssp_name",
+        "ssp_format",
         "midi_gate",
         "midi_freq",
         "midi_vel",
@@ -872,7 +909,7 @@ def _cmd_default_graph(args: argparse.Namespace, graph_path: Path) -> int:
         config = ProjectConfig(
             name=args.name,
             platform=platform,
-            ssp_name=args.ssp_name if platform == "ssp" else None,
+            **_ssp_options(args, platform),
             buffers=[],
             apply_patches=False,
             shared_cache=not getattr(args, "no_shared_cache", False),
@@ -1007,7 +1044,7 @@ def _cmd_default_export(args: argparse.Namespace, export_path: Path) -> int:
             shared_cache=not args.no_shared_cache,
             cache_dir=args.cache_dir,
             board=board,
-            ssp_name=args.ssp_name if platform == "ssp" else None,
+            **_ssp_options(args, platform),
             no_midi=args.no_midi,
             midi_gate=args.midi_gate,
             midi_freq=args.midi_freq,

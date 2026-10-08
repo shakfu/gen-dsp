@@ -1,21 +1,27 @@
 """
 Percussa SSP platform implementation.
 
-Generates native SSP modules (``.so``) against the Percussa SSP SDK's
-``Percussa::SSP::PluginInterface``, without JUCE. The project cross-compiles
-with host clang and the Percussa buildroot sysroot through its own
-``ssp_toolchain.cmake``; ``-DSSP_HOST_BUILD=ON`` builds for the host instead.
+Generates SSP modules (``.so``) in one of two formats:
 
-Without JUCE the module loads in Synthor but not in TheTechnobear's rack-style
-hosts, which require the JUCE-based ``SSPExtendedApi``.
+- ``native``: implements the Percussa SDK's ``Percussa::SSP::PluginInterface``
+  directly, without JUCE. Loads in Synthor but not in TheTechnobear's
+  rack-style hosts, which require the JUCE-based ``SSPExtendedApi``.
+- ``juce``: builds on the SSP plugin framework (``plugins/common`` of
+  shakfu/ssp) and TheTechnobear's JUCE fork, as the SSP's own modules are.
+  Exports ``SSPExtendedApi`` too, so rack-style hosts load it.
+
+Both cross-compile with host clang and the Percussa buildroot sysroot through
+``ssp_toolchain.cmake``; ``-DSSP_HOST_BUILD=ON`` builds for the host instead.
 """
 
+import os
 import re
 import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 from gen_dsp.version import __version__
+from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import ProjectError
@@ -32,6 +38,17 @@ _STATIC_FILES = (
     "ssp_font.h",
     "ssp_toolchain.cmake",
 )
+
+
+# JUCE format, ad hoc dev tree: shakfu/ssp supplies plugins/common; its juce
+# submodule is TheTechnobear's fork at the commit below.
+_FRAMEWORK_COMMIT = "bc73d70d28ca9546d8bb09369846c24c83e14006"
+_FRAMEWORK_SHA256 = "8ece06d802d0d89eb13b1a26f4a3a90af195c4943ff968b97609f802fc14ee99"
+_JUCE_COMMIT = "ed1da021a045632a8f4dca65056f93b31ef3834f"
+_JUCE_SHA256 = "5c2ea7181f666069afe71889fd7a2771bad75f796afc50630e9d62eed9620205"
+
+# Copied into every JUCE-format project, from templates/ssp/juce
+_JUCE_FILES = ("PluginProcessor.h", "PluginProcessor.cpp", "SSPApi.cpp")
 
 
 def ssp_module_name(lib_name: str) -> str:
@@ -100,6 +117,50 @@ def write_cmakelists(
     return path
 
 
+def write_juce_cmakelists(
+    output_dir: Path,
+    lib_name: str,
+    gen_name: str,
+    sources: list[str],
+    include_dirs: list[str],
+    module_name: str,
+    dev_dir: Optional[Path] = None,
+    use_shared_cache: str = "OFF",
+    cache_dir: str = "",
+    remap_defines: str = "",
+) -> Path:
+    """Render the JUCE-format SSP CMakeLists.txt. Shared by the export and graph paths."""
+    path = output_dir / "CMakeLists.txt"
+    version = re.match(r"\d+(\.\d+){0,2}", __version__)
+    SspPlatform().render_template(
+        get_ssp_templates_dir() / "juce" / "CMakeLists.txt.template",
+        path,
+        label="JUCE CMakeLists.txt template",
+        lib_name=lib_name,
+        gen_name=gen_name,
+        module_name=module_name,
+        gendsp_version=__version__,
+        project_version=version.group(0) if version else "0.0.0",
+        dev_dir=dev_dir.as_posix() if dev_dir else "",
+        framework_commit=_FRAMEWORK_COMMIT,
+        framework_sha256=_FRAMEWORK_SHA256,
+        juce_commit=_JUCE_COMMIT,
+        juce_sha256=_JUCE_SHA256,
+        sources="\n".join(f'    "${{CMAKE_CURRENT_SOURCE_DIR}}/{s}"' for s in sources),
+        include_dirs="\n".join(
+            f'    "${{CMAKE_CURRENT_SOURCE_DIR}}/{d}"' for d in include_dirs
+        ),
+        use_shared_cache=use_shared_cache,
+        cache_dir=cache_dir,
+        remap_defines=remap_defines,
+    )
+    return path
+
+
+def _is_juce(config: Optional[ProjectConfig]) -> bool:
+    return config is not None and config.ssp_format == "juce"
+
+
 class SspPlatform(CMakePlatform):
     """Percussa SSP platform implementation using CMake and a clang cross toolchain."""
 
@@ -124,7 +185,7 @@ class SspPlatform(CMakePlatform):
         if not templates_dir.is_dir():
             raise ProjectError(f"SSP templates not found at {templates_dir}")
 
-        self._copy_static_files(output_dir)
+        self._copy_static_files(output_dir, config)
         shutil.copy2(templates_dir / "_ext_ssp.cpp", output_dir / "_ext_ssp.cpp")
         shutil.copy2(templates_dir / "ssp_buffer.h", output_dir / "ssp_buffer.h")
         self.generate_ext_header(output_dir, "ssp")
@@ -137,22 +198,18 @@ class SspPlatform(CMakePlatform):
             header_comment="Buffer configuration for gen_dsp SSP wrapper",
         )
 
-        use_shared_cache, cache_dir = self.resolve_shared_cache(config)
-        write_cmakelists(
+        self._write_cmakelists(
             output_dir,
             lib_name,
             manifest.gen_name,
+            config,
             sources=[
-                "gen_ext_ssp.cpp",
                 "_ext_ssp.cpp",
                 "gen/gen_dsp/genlib.cpp",
                 "gen/gen_dsp/json.c",
                 "gen/gen_dsp/json_builder.c",
             ],
             include_dirs=["gen", "gen/gen_dsp"],
-            module_name=resolve_ssp_name(config, lib_name),
-            use_shared_cache=use_shared_cache,
-            cache_dir=cache_dir,
             remap_defines=build_remap_defines(manifest),
         )
 
@@ -171,17 +228,56 @@ class SspPlatform(CMakePlatform):
         super().generate_from_graph(
             graph, manifest, output_dir, name, config, midi_defines
         )
-        use_shared_cache, cache_dir = self.resolve_shared_cache(config)
-        write_cmakelists(
+        if _is_juce(config):
+            # the shared step copies the native module source
+            (output_dir / "gen_ext_ssp.cpp").unlink(missing_ok=True)
+        self._write_cmakelists(
             output_dir,
             name,
             graph.name,
-            sources=["gen_ext_ssp.cpp", "_ext_ssp.cpp"],
+            config,
+            sources=["_ext_ssp.cpp"],
             include_dirs=[],
-            module_name=resolve_ssp_name(config, name),
-            use_shared_cache=use_shared_cache,
-            cache_dir=cache_dir,
         )
+
+    def _write_cmakelists(
+        self,
+        output_dir: Path,
+        lib_name: str,
+        gen_name: str,
+        config: Optional[ProjectConfig],
+        sources: list[str],
+        include_dirs: list[str],
+        remap_defines: str = "",
+    ) -> None:
+        use_shared_cache, cache_dir = self.resolve_shared_cache(config)
+        module_name = resolve_ssp_name(config, lib_name)
+        if _is_juce(config):
+            assert config is not None
+            write_juce_cmakelists(
+                output_dir,
+                lib_name,
+                gen_name,
+                sources=["PluginProcessor.cpp", *sources],
+                include_dirs=include_dirs,
+                module_name=module_name,
+                dev_dir=config.ssp_dev_dir,
+                use_shared_cache=use_shared_cache,
+                cache_dir=cache_dir,
+                remap_defines=remap_defines,
+            )
+        else:
+            write_cmakelists(
+                output_dir,
+                lib_name,
+                gen_name,
+                sources=["gen_ext_ssp.cpp", *sources],
+                include_dirs=include_dirs,
+                module_name=module_name,
+                use_shared_cache=use_shared_cache,
+                cache_dir=cache_dir,
+                remap_defines=remap_defines,
+            )
 
     def _write_graph_platform_files(
         self,
@@ -191,14 +287,34 @@ class SspPlatform(CMakePlatform):
         name: str,
         config: ProjectConfig,
     ) -> None:
-        """Graph path: copy the font and toolchain the shared template copy skips."""
-        self._copy_static_files(output_dir)
+        """Graph path: copy the files the shared template copy skips."""
+        self._copy_static_files(output_dir, config)
 
     @staticmethod
-    def _copy_static_files(output_dir: Path) -> None:
+    def _copy_static_files(output_dir: Path, config: Optional[ProjectConfig]) -> None:
         templates_dir = get_ssp_templates_dir()
-        for filename in _STATIC_FILES:
-            shutil.copy2(templates_dir / filename, output_dir / filename)
+        if _is_juce(config):
+            for filename in ("gen_ext_common_ssp.h", "ssp_toolchain.cmake"):
+                shutil.copy2(templates_dir / filename, output_dir / filename)
+            for filename in _JUCE_FILES:
+                shutil.copy2(templates_dir / "juce" / filename, output_dir / filename)
+        else:
+            for filename in _STATIC_FILES:
+                shutil.copy2(templates_dir / filename, output_dir / filename)
+
+    def build(
+        self,
+        project_dir: Path,
+        clean: bool = False,
+        verbose: bool = False,
+    ) -> BuildResult:
+        """Build with CMake, one job per CPU: the JUCE format compiles JUCE too."""
+        return self._build_with_cmake(
+            project_dir,
+            clean,
+            verbose,
+            build_args=["--parallel", str(os.cpu_count() or 1)],
+        )
 
     def find_output(self, project_dir: Path) -> Optional[Path]:
         """Find the built SSP module."""

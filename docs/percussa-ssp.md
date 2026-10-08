@@ -18,12 +18,57 @@ implementation settled or corrected these points from the assessment below:
   "not a requirement".
 - **SDK fetch.** An archive of a pinned commit, not a clone: the repository's
   submodules include JUCE and the VST3 SDK.
-- **Naming (new).** Synthor lists a module only if its name is 4 characters and
-  its uid spells the same 4, an undocumented rule observed on the device.
-  `--ssp-name` sets both; the default is derived from `-n`.
+- **Naming (new).** Synthor lists a module only if its uid spells its name,
+  an undocumented rule. Renaming one module's uid from `SFRD` to `RDIO` made it
+  appear, which confirms it. `--ssp-name` sets both; the default is derived from
+  `-n`.
 - **rack (new).** Native modules do not load in rack-style hosts, which require
   the JUCE-based `SSPExtendedApi`.
-- **Open.** On-device confirmation, tracked in [TODO.md](../TODO.md).
+- **Device (confirmed).** `gvrb` (gigaverb) runs on an SSP: Synthor lists it,
+  the reverb works, and the encoders work across both parameter pages. See
+  [Validation](#validation-2026-10-08).
+
+The assessment below predates the implementation. Where it disagrees with this
+section, this section is correct.
+
+## Validation (2026-10-08)
+
+Checked against `Percussa.h` (API 3.5), a cross build and the device.
+
+Confirmed:
+
+- **API.** `getState` returns a `new char[]` buffer, which the host frees with
+  `delete[]`. The plugin owns its editor. Threads match the header:
+  `encoderTurned` runs on the audio callback; `buttonPressed`, `setState` and
+  `prepare` run on the UI thread.
+- **Binary.** ELF32 ARM, `Tag_CPU_name 7VE`, VFPv4 + NEON, `-O3`. Needs only
+  `libstdc++`, `libm`, `libgcc_s` and `libc`, up to `GLIBCXX_3.4.20` and
+  `GLIBC_2.29`. The sysroot's `libstdc++` provides up to `3.4.25`.
+- **Channel layout.** JUCE-based SSP modules wrap `channelData` in place as a
+  JUCE `AudioSampleBuffer` and work, so Synthor reads output `c` from channel `c`.
+  The module only touches channels below `numChannels`, so it works with either
+  `max(in, out)` or `in + out` channels.
+- **Device.** Synthor lists the native module, which has no JUCE inside. Audio,
+  encoders, paging and the display work.
+
+Open:
+
+- **Exported allocator.** The module exports `operator new`, `new[]`, `delete`
+  and `delete[]` as well as the three entry points. genlib's `genlib.cpp`
+  replaces them, and the hidden-visibility preset does not cover them because
+  `<new>` declares them with default visibility. `libstdc++` comes earlier in
+  symbol lookup order, and both versions call `malloc`, so this has no observed
+  effect. Fix: a linker version script that exports only the entry points.
+- **Name rule.** gen-dsp requires exactly 4 characters. The card shows the rule
+  is looser: `shq` (uid `SHQ4`) is listed, which suggests a prefix match. Exactly
+  4 is a safe subset.
+- **`prepare()` during playback.** `prepare()` frees and reallocates buffers when
+  the rate or block size changes. This is safe only if Synthor never calls it
+  while `process()` runs. The header says only that it comes before processing.
+- **Unpatched inputs.** The module ignores `inputEnabled` and reads whatever the
+  host leaves in the buffer. If an unpatched channel keeps stale data, the module
+  hears its own previous output. JUCE-based SSP modules share this exposure.
+- **Presets.** Save and reload were not tested on the device.
 
 ## What is the Percussa SSP?
 

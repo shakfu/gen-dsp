@@ -431,3 +431,235 @@ def test_cross_build_ssp_gigaverb(gigaverb_export, tmp_path, fetchcontent_cache)
     assert elf[4] == 1  # ELFCLASS32
     assert elf[16] == 3  # ET_DYN
     assert int.from_bytes(elf[18:20], "little") == 40  # EM_ARM
+
+
+# -- JUCE format -----------------------------------------------------------------------
+
+
+class TestSspJuceGeneration:
+    def test_files(self, gigaverb_export, tmp_path):
+        project = _generate(
+            gigaverb_export, tmp_path / "p", "gigaverb", ssp_format="juce"
+        )
+        for f in (
+            "CMakeLists.txt",
+            "ssp_toolchain.cmake",
+            "PluginProcessor.h",
+            "PluginProcessor.cpp",
+            "SSPApi.cpp",
+            "_ext_ssp.cpp",
+            "_ext_ssp.h",
+            "gen_ext_common_ssp.h",
+            "gen_buffer.h",
+            "ssp_buffer.h",
+        ):
+            assert (project / f).is_file(), f
+        # the native module and its font are not part of this format
+        assert not (project / "gen_ext_ssp.cpp").exists()
+        assert not (project / "ssp_font.h").exists()
+
+    def test_cmakelists(self, gigaverb_export, tmp_path):
+        project = _generate(
+            gigaverb_export, tmp_path / "p", "gigaverb", ssp_format="juce"
+        )
+        cmake = (project / "CMakeLists.txt").read_text()
+        assert "juce_add_plugin(${PROJECT_NAME}" in cmake
+        assert "PLUGIN_CODE ${_ssp_code}" in cmake
+        assert 'set(SSP_MODULE_NAME "gvrb" CACHE STRING' in cmake
+        assert 'set(SSP_DEV_DIR "" CACHE PATH' in cmake
+        assert "github.com/shakfu/ssp/archive/" in cmake
+        assert "github.com/TheTechnobear/juce/archive/" in cmake
+        assert '"${CMAKE_CURRENT_SOURCE_DIR}/PluginProcessor.cpp"' in cmake
+        assert '"${CMAKE_CURRENT_SOURCE_DIR}/gen/gen_dsp/genlib.cpp"' in cmake
+        assert "gen_ext_ssp.cpp" not in cmake
+        assert cmake.index("CMAKE_TOOLCHAIN_FILE") < cmake.index("\nproject(")
+
+    def test_dev_dir(self, gigaverb_export, tmp_path):
+        dev = tmp_path / "ssp"
+        project = _generate(
+            gigaverb_export,
+            tmp_path / "p",
+            "gigaverb",
+            ssp_format="juce",
+            ssp_dev_dir=dev,
+        )
+        cmake = (project / "CMakeLists.txt").read_text()
+        assert f'set(SSP_DEV_DIR "{dev.as_posix()}" CACHE PATH' in cmake
+
+    def test_toolchain_pkg_config(self, gigaverb_export, tmp_path):
+        """JUCE finds FreeType through pkg-config, which must search the sysroot."""
+        project = _generate(
+            gigaverb_export, tmp_path / "p", "gigaverb", ssp_format="juce"
+        )
+        tc = (project / "ssp_toolchain.cmake").read_text()
+        assert "PKG_CONFIG_SYSROOT_DIR=${_ssp_sysroot}" in tc
+
+    def test_graph_project(self, tmp_path):
+        pytest.importorskip("pydantic")
+        config = ProjectConfig(name="gain", platform="ssp", ssp_format="juce")
+        project = ProjectGenerator.from_graph(_gain_graph(), config).generate(
+            tmp_path / "g"
+        )
+        assert (project / "PluginProcessor.cpp").is_file()
+        assert (project / "_ext_ssp.cpp").is_file()
+        assert not (project / "gen_ext_ssp.cpp").exists()
+        cmake = (project / "CMakeLists.txt").read_text()
+        assert "juce_add_plugin" in cmake
+        assert "genlib.cpp" not in cmake
+
+    @pytest.mark.parametrize(
+        "fmt, ok", [("native", True), ("juce", True), ("vst", False)]
+    )
+    def test_validate_format(self, fmt, ok):
+        errors = ProjectConfig(name="g", platform="ssp", ssp_format=fmt).validate()
+        assert (errors == []) is ok
+
+    @pytest.mark.parametrize(
+        "args, message",
+        [
+            (
+                ["-p", "clap", "--ssp-format", "juce"],
+                "--ssp-format is only valid for ssp",
+            ),
+            (
+                ["-p", "ssp", "--ssp-dev-dir", "x"],
+                "--ssp-dev-dir requires --ssp-format juce",
+            ),
+        ],
+    )
+    def test_cli_errors(self, gigaverb_export, capsys, args, message):
+        from gen_dsp.cli import main
+
+        assert main([str(gigaverb_export), *args, "--dry-run"]) == 1
+        assert message in capsys.readouterr().err
+
+
+_SSP_DEV_DIR = os.environ.get("SSP_DEV_DIR")
+
+
+@_skip_no_host_build
+@pytest.mark.skipif(
+    not _SSP_DEV_DIR or not Path(_SSP_DEV_DIR, "juce", "CMakeLists.txt").is_file(),
+    reason="SSP_DEV_DIR (a shakfu/ssp checkout with submodules) required",
+)
+def test_host_build_ssp_juce_matches_native(
+    gigaverb_export, tmp_path, fetchcontent_cache
+):
+    """The JUCE module produces the native module's audio, through the Percussa API."""
+    assert _SSP_DEV_DIR is not None
+    dev = Path(_SSP_DEV_DIR)
+    native = _host_build(
+        _generate(gigaverb_export, tmp_path / "gigaverb", "gigaverb"),
+        fetchcontent_cache,
+    )
+    project = _generate(
+        gigaverb_export,
+        tmp_path / "juce",
+        "gigaverb",
+        ssp_format="juce",
+        ssp_dev_dir=dev,
+    )
+    build = project / "build"
+    for step in (
+        ["cmake", "-S", str(project), "-B", str(build), "-DSSP_HOST_BUILD=ON"],
+        ["cmake", "--build", str(build), "--parallel", str(os.cpu_count() or 1)],
+    ):
+        r = subprocess.run(step, capture_output=True, text=True, env=_build_env())
+        assert r.returncode == 0, f"{step}\n{r.stdout[-4000:]}\n{r.stderr[-4000:]}"
+    juce = SspPlatform().find_output(project)
+    assert juce is not None and juce.name == "gvrb.so"
+
+    exe = tmp_path / "ssp_host"
+    cmd = [_HOST_CXX, "-std=c++17", "-O1", f"-I{dev / 'ssp-sdk'}", str(_HARNESS)]
+    r = subprocess.run([*cmd, "-o", str(exe), "-ldl"], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+
+    def levels(so: Path, *cmds: object) -> list[list[str]]:
+        return [f for f in _drive(exe, so, *cmds) if f[0] == "level"]
+
+    out = _drive(exe, juce, "desc")
+    assert ["name", "gvrb"] in out
+    assert ["uid", "47565242"] in out
+    assert ["io", "2", "2"] in out
+
+    run = ("prepare", 48000, 64, "run", 50, 200)
+    assert levels(juce, *run) == levels(native, *run)
+
+    # the framework routes encoders through the editor, which the host creates
+    # before turning them; it takes one step per call, 1% of the range
+    turned = levels(
+        juce,
+        "prepare",
+        48000,
+        64,
+        "render",
+        320,
+        240,
+        tmp_path / "s.ppm",
+        "turn",
+        0,
+        1,
+        "run",
+        50,
+        200,
+    )
+    assert turned == levels(native, "prepare", 48000, 64, "turn", 0, 1, "run", 50, 200)
+    assert turned != levels(native, *run)
+
+    # setState restores what getState saved
+    restored = levels(
+        juce,
+        "prepare",
+        48000,
+        64,
+        "render",
+        320,
+        240,
+        tmp_path / "s.ppm",
+        "save",
+        "turn",
+        0,
+        1,
+        "load",
+        "run",
+        50,
+        200,
+    )
+    assert restored == levels(native, *run)
+
+
+@pytest.mark.skipif(
+    _buildroot() is None
+    or shutil.which("ld.lld") is None
+    or not _SSP_DEV_DIR
+    or not Path(_SSP_DEV_DIR, "juce", "CMakeLists.txt").is_file(),
+    reason="SSP buildroot, ld.lld and SSP_DEV_DIR required",
+)
+def test_cross_build_ssp_juce(gigaverb_export, tmp_path):
+    """Cross-compiles the JUCE format; links against the sysroot's FreeType."""
+    assert _SSP_DEV_DIR is not None
+    project = _generate(
+        gigaverb_export,
+        tmp_path / "gigaverb",
+        "gigaverb",
+        ssp_format="juce",
+        ssp_dev_dir=Path(_SSP_DEV_DIR),
+    )
+    build = project / "build"
+    for step in (
+        [
+            "cmake",
+            "-S",
+            str(project),
+            "-B",
+            str(build),
+            f"-DSSP_BUILDROOT={_buildroot()}",
+        ],
+        ["cmake", "--build", str(build), "--parallel", str(os.cpu_count() or 1)],
+    ):
+        r = subprocess.run(step, capture_output=True, text=True, env=_build_env())
+        assert r.returncode == 0, f"{step}\n{r.stdout[-4000:]}\n{r.stderr[-4000:]}"
+    so = build / "gvrb.so"
+    elf = so.read_bytes()[:20]
+    assert elf[:4] == b"\x7fELF" and elf[4] == 1
+    assert int.from_bytes(elf[18:20], "little") == 40  # EM_ARM
