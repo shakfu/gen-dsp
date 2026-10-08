@@ -53,12 +53,11 @@ Confirmed:
 
 Open:
 
-- **Exported allocator.** The module exports `operator new`, `new[]`, `delete`
-  and `delete[]` as well as the three entry points. genlib's `genlib.cpp`
-  replaces them, and the hidden-visibility preset does not cover them because
-  `<new>` declares them with default visibility. `libstdc++` comes earlier in
-  symbol lookup order, and both versions call `malloc`, so this has no observed
-  effect. Fix: a linker version script that exports only the entry points.
+- **Exported allocator (fixed).** The module exported genlib's replacement
+  `operator new`/`delete` and inline `std::` instances as well as the entry
+  points: `<new>` and libstdc++ declare them with default visibility, which the
+  hidden preset does not override. A version script, `ssp_exports.map`, now
+  exports only the entry points.
 - **Name rule.** gen-dsp requires exactly 4 characters. The card shows the rule
   is looser: `shq` (uid `SHQ4`) is listed, which suggests a prefix match. Exactly
   4 is a safe subset.

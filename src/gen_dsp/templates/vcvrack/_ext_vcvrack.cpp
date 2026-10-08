@@ -4,6 +4,8 @@
 
 #include "gen_ext_common_vcvrack.h"
 
+#include <atomic>  // gen_remap_inputs.h, included inside a namespace below
+
 // genlib_ops.h defines inline exp2(float) and trunc(float) inside
 // #ifndef WIN32, which conflict with std::exp2/std::trunc pulled into
 // the global namespace by <cmath> on modern compilers. We define WIN32
@@ -109,10 +111,13 @@ static float _silence[8192] = {0};
 
 // Wrapper function implementations
 GenState* wrapper_create(float sr, long bs) {
-    return (GenState*)create((double)sr, (long)bs);
+    CommonState* state = (CommonState*)create((double)sr, (long)bs);
+    _remap_attach(state, bs);
+    return (GenState*)state;
 }
 
 void wrapper_destroy(GenState* state) {
+    _remap_detach((CommonState*)state);
     destroy((CommonState*)state);
 }
 
@@ -192,7 +197,7 @@ char wrapper_param_hasminmax(GenState* state, int index) {
 void wrapper_set_param(GenState* state, int index, float value) {
 #if defined(REMAP_INPUT_COUNT) && REMAP_INPUT_COUNT > 0
     if (_is_remap_param(index)) {
-        _remap_param_values[_remap_slot_from_param(index)] = value;
+        _remap_values((CommonState*)state)[_remap_slot_from_param(index)] = value;
         return;
     }
 #endif
@@ -202,7 +207,7 @@ void wrapper_set_param(GenState* state, int index, float value) {
 float wrapper_get_param(GenState* state, int index) {
 #if defined(REMAP_INPUT_COUNT) && REMAP_INPUT_COUNT > 0
     if (_is_remap_param(index))
-        return _remap_param_values[_remap_slot_from_param(index)];
+        return _remap_values((CommonState*)state)[_remap_slot_from_param(index)];
 #endif
     t_param val = 0;
     getparameter((CommonState*)state, index, &val);

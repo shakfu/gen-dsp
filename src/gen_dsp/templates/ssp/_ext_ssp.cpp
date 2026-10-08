@@ -4,6 +4,8 @@
 
 #include "gen_ext_common_ssp.h"
 
+#include <atomic>  // gen_remap_inputs.h, included inside a namespace below
+
 // genlib_ops.h defines inline exp2(float) and trunc(float) inside
 // #ifndef WIN32, which conflict with std::exp2/std::trunc pulled into
 // the global namespace by <cmath> on modern compilers. We define WIN32
@@ -42,34 +44,26 @@ typedef void GenState;
 
 namespace WRAPPER_NAMESPACE {
 
-// Define buffer instances
-#ifdef WRAPPER_BUFFER_NAME_0
-    SspBuffer WRAPPER_BUFFER_NAME_0;
-#endif
-#ifdef WRAPPER_BUFFER_NAME_1
-    SspBuffer WRAPPER_BUFFER_NAME_1;
-#endif
-#ifdef WRAPPER_BUFFER_NAME_2
-    SspBuffer WRAPPER_BUFFER_NAME_2;
-#endif
-#ifdef WRAPPER_BUFFER_NAME_3
-    SspBuffer WRAPPER_BUFFER_NAME_3;
-#endif
-#ifdef WRAPPER_BUFFER_NAME_4
-    SspBuffer WRAPPER_BUFFER_NAME_4;
-#endif
-#ifdef WRAPPER_BUFFER_NAME_5
-    SspBuffer WRAPPER_BUFFER_NAME_5;
-#endif
-#ifdef WRAPPER_BUFFER_NAME_6
-    SspBuffer WRAPPER_BUFFER_NAME_6;
-#endif
-#ifdef WRAPPER_BUFFER_NAME_7
-    SspBuffer WRAPPER_BUFFER_NAME_7;
-#endif
+// An instance: the gen~ state and its own buffers. The exported code reaches it through
+// CommonState::api, which genlib leaves to the host.
+struct SspInstance {
+    CommonState* gen = nullptr;
+    SspBufferSlot buffers[WRAPPER_BUFFER_COUNT > 0 ? WRAPPER_BUFFER_COUNT : 1];
+    SspBufferView views[WRAPPER_BUFFER_COUNT > 0 ? WRAPPER_BUFFER_COUNT : 1];  // audio thread
+};
+
+// ssp_buffer_names.h renames each buffer the exported code names, e.g. `sample`, to
+// SSP_BUFFER(k). That reads `__commonstate`, so it works inside State's methods, which is
+// where gen~ code uses buffers; elsewhere it fails to compile. create() runs reset()
+// before api is set, so reset() must not use a buffer.
+#define SSP_BUFFER(k) (static_cast<SspInstance*>(__commonstate.api)->views[k])
 
 // Include the exported gen~ code
+#include "ssp_buffer_names.h"
 #include GEN_EXPORTED_CPP
+#define SSP_BUFFER_NAMES_END
+#include "ssp_buffer_names.h"
+#undef SSP_BUFFER
 
 // Buffer name array for iteration
 static const char* buffer_names[] = {
@@ -107,22 +101,43 @@ static float _silence[8192] = {0};
 // Input-to-parameter remapping support
 #include "gen_remap_inputs.h"
 
+static CommonState* gen_of(GenState* state) {
+    return static_cast<SspInstance*>(state)->gen;
+}
+
 // Wrapper function implementations
 GenState* wrapper_create(float sr, long bs) {
-    return (GenState*)create((double)sr, (long)bs);
+    auto* inst = new SspInstance;
+    inst->gen = (CommonState*)create((double)sr, (long)bs);
+    inst->gen->api = inst;
+    _remap_attach(inst->gen, bs);
+    return inst;
 }
 
 void wrapper_destroy(GenState* state) {
-    destroy((CommonState*)state);
+    _remap_detach(gen_of(state));
+    destroy(gen_of(state));
+    delete static_cast<SspInstance*>(state);
 }
 
 void wrapper_reset(GenState* state) {
-    reset((CommonState*)state);
+    reset(gen_of(state));
+}
+
+long wrapper_buffer_load(GenState* state, int index, const char* path) {
+    if (index < 0 || index >= WRAPPER_BUFFER_COUNT) return -1;
+    SspBufferData* d = ssp_read_wav(path);
+    if (!d) return -1;
+    long frames = d->frames;
+    static_cast<SspInstance*>(state)->buffers[index].publish(d);
+    return frames;
 }
 
 void wrapper_perform(GenState* state, float** ins, long numins, float** outs, long numouts, long n) {
+    auto* inst = static_cast<SspInstance*>(state);
+    for (int k = 0; k < WRAPPER_BUFFER_COUNT; k++) inst->views[k].bind(inst->buffers[k].adopt());
 #if defined(REMAP_INPUT_COUNT) && REMAP_INPUT_COUNT > 0
-    _remap_perform((CommonState*)state, ins, numins, outs, numouts, n);
+    _remap_perform(gen_of(state), ins, numins, outs, numouts, n);
 #else
     // t_sample is float (GENLIB_USE_FLOAT32), so we can cast directly
     long gen_ins = (long)num_inputs();
@@ -135,7 +150,7 @@ void wrapper_perform(GenState* state, float** ins, long numins, float** outs, lo
         numins = gen_ins;
     }
 
-    perform((CommonState*)state, (t_sample**)ins, numins, (t_sample**)outs, numouts, n);
+    perform(gen_of(state), (t_sample**)ins, numins, (t_sample**)outs, numouts, n);
 #endif
 }
 
@@ -164,7 +179,7 @@ const char* wrapper_param_name(GenState* state, int index) {
     if (_is_remap_param(index))
         return _remap_param_names[_remap_slot_from_param(index)];
 #endif
-    return getparametername((CommonState*)state, index);
+    return getparametername(gen_of(state), index);
 }
 
 const char* wrapper_param_units(GenState* state, int index) {
@@ -172,7 +187,7 @@ const char* wrapper_param_units(GenState* state, int index) {
     if (_is_remap_param(index))
         return "";
 #endif
-    return getparameterunits((CommonState*)state, index);
+    return getparameterunits(gen_of(state), index);
 }
 
 float wrapper_param_min(GenState* state, int index) {
@@ -180,7 +195,7 @@ float wrapper_param_min(GenState* state, int index) {
     if (_is_remap_param(index))
         return 0.0f;
 #endif
-    return (float)getparametermin((CommonState*)state, index);
+    return (float)getparametermin(gen_of(state), index);
 }
 
 float wrapper_param_max(GenState* state, int index) {
@@ -188,7 +203,7 @@ float wrapper_param_max(GenState* state, int index) {
     if (_is_remap_param(index))
         return 1.0f;
 #endif
-    return (float)getparametermax((CommonState*)state, index);
+    return (float)getparametermax(gen_of(state), index);
 }
 
 char wrapper_param_hasminmax(GenState* state, int index) {
@@ -196,26 +211,26 @@ char wrapper_param_hasminmax(GenState* state, int index) {
     if (_is_remap_param(index))
         return 0;
 #endif
-    return getparameterhasminmax((CommonState*)state, index);
+    return getparameterhasminmax(gen_of(state), index);
 }
 
 void wrapper_set_param(GenState* state, int index, float value) {
 #if defined(REMAP_INPUT_COUNT) && REMAP_INPUT_COUNT > 0
     if (_is_remap_param(index)) {
-        _remap_param_values[_remap_slot_from_param(index)] = value;
+        _remap_values(gen_of(state))[_remap_slot_from_param(index)] = value;
         return;
     }
 #endif
-    setparameter((CommonState*)state, index, (double)value, nullptr);
+    setparameter(gen_of(state), index, (double)value, nullptr);
 }
 
 float wrapper_get_param(GenState* state, int index) {
 #if defined(REMAP_INPUT_COUNT) && REMAP_INPUT_COUNT > 0
     if (_is_remap_param(index))
-        return _remap_param_values[_remap_slot_from_param(index)];
+        return _remap_values(gen_of(state))[_remap_slot_from_param(index)];
 #endif
     t_param val = 0;
-    getparameter((CommonState*)state, index, &val);
+    getparameter(gen_of(state), index, &val);
     return (float)val;
 }
 

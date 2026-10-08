@@ -151,6 +151,7 @@ target_compile_definitions($${PROJECT_NAME} PUBLIC
     COMPACT_UI_SCALE=2
     SSP_TITLE_NO_MANUFACTURER=1
     SSP_VERSION_FROM_PROJECT=1
+    SSP_MODULE_NAME="$${SSP_MODULE_NAME}"
     GENLIB_USE_FLOAT32
     SSP_EXT_NAME=$lib_name
     GEN_EXPORTED_NAME=$gen_name
@@ -170,6 +171,13 @@ set_target_properties($${PROJECT_NAME} $${PROJECT_NAME}_VST3 PROPERTIES
     VISIBILITY_INLINES_HIDDEN ON
 )
 set_target_properties($${PROJECT_NAME}_VST3 PROPERTIES PREFIX "")
+# Visibility misses genlib's replacement operator new/delete and inline std::
+# instances: the version script hides them. Apple's linker has no version scripts.
+if(NOT APPLE)
+    set(_ssp_map "$${CMAKE_CURRENT_SOURCE_DIR}/ssp_exports.map")
+    target_link_options($${PROJECT_NAME}_VST3 PRIVATE "-Wl,--version-script=$${_ssp_map}")
+    set_property(TARGET $${PROJECT_NAME}_VST3 APPEND PROPERTY LINK_DEPENDS "$${_ssp_map}")
+endif()
 
 # the .so inside the VST3 bundle is the module; copy it out under its card name
 add_custom_command(TARGET $${PROJECT_NAME}_VST3 POST_BUILD

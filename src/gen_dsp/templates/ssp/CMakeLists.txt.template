@@ -83,6 +83,7 @@ target_compile_definitions($${PROJECT_NAME} PRIVATE
 )
 
 target_compile_options($${PROJECT_NAME} PRIVATE -Wno-unused-function -Wno-unused-variable)
+target_link_libraries($${PROJECT_NAME} PRIVATE $${CMAKE_DL_LIBS})  # dladdr
 
 # Synthor loads every module into one process: hide everything except the
 # three entry points, so two gen~ modules never bind each other's genlib.
@@ -95,3 +96,10 @@ set_target_properties($${PROJECT_NAME} PROPERTIES
     CXX_VISIBILITY_PRESET hidden
     VISIBILITY_INLINES_HIDDEN ON
 )
+# Visibility misses genlib's replacement operator new/delete and inline std::
+# instances: the version script hides them. Apple's linker has no version scripts.
+if(NOT APPLE)
+    set(_ssp_map "$${CMAKE_CURRENT_SOURCE_DIR}/ssp_exports.map")
+    target_link_options($${PROJECT_NAME} PRIVATE "-Wl,--version-script=$${_ssp_map}")
+    set_property(TARGET $${PROJECT_NAME} APPEND PROPERTY LINK_DEPENDS "$${_ssp_map}")
+endif()

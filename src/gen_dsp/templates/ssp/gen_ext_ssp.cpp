@@ -3,7 +3,8 @@
 //
 // Controls: the four encoders edit a page of four parameters (Shift L/R held:
 // fine steps; encoder press: reset to default). Left/Up and Right/Down change
-// page; soft key N jumps to page N.
+// page; soft key N jumps to page N. Each gen~ buffer loads <buffer>.wav from the
+// module's folder on the card (see ssp_buffer_dir).
 
 #include <algorithm>
 #include <atomic>
@@ -17,6 +18,7 @@
 
 #include "Percussa.h"
 #include "_ext_ssp.h"
+#include "_ext_ssp_buffers.h"
 #include "ssp_font.h"
 
 using namespace WRAPPER_NAMESPACE;
@@ -91,6 +93,7 @@ public:
             values_[i].store(p.def);
         }
         allocate();
+        loadBuffers();
     }
 
     ~Plugin() override {
@@ -112,6 +115,7 @@ public:
             wrapper_destroy(state_);
             state_ = wrapper_create(float(sr_), block_);
             allocate();
+            loadBuffers();  // a new instance starts with empty buffers
         }
     }
 
@@ -218,6 +222,7 @@ public:
     int page() const { return page_.load(); }
     const Param& param(int i) const { return params_[size_t(i)]; }
     float value(int i) const { return values_[size_t(i)].load(); }
+    const std::vector<std::string>& bufferStatus() const { return bufferStatus_; }
 
 private:
     static float clamp(const Param& p, float v) { return std::min(p.max, std::max(p.min, v)); }
@@ -234,6 +239,21 @@ private:
         outPtrs_.resize(size_t(nOut_));
         for (int c = 0; c < nIn_; c++) inPtrs_[size_t(c)] = inBuf_.data() + size_t(c) * size_t(block_);
         dirty_.assign(params_.size(), true);
+    }
+
+    // UI thread (constructor, prepare): reads each buffer's file, if there is one.
+    void loadBuffers() {
+        bufferStatus_.clear();
+        std::string dir = ssp_buffer_dir(SSP_MODULE_NAME);
+        for (int i = 0; i < wrapper_num_buffers(); i++) {
+            std::string name = wrapper_buffer_name(i);
+#if WRAPPER_BUFFER_COUNT > 0
+            long frames = wrapper_buffer_load(state_, i, (dir + "/" + name + ".wav").c_str());
+#else
+            long frames = -1;
+#endif
+            bufferStatus_.push_back(name + ": " + (frames < 0 ? "no " SSP_MODULE_NAME "/" + name + ".wav" : std::to_string(frames) + " frames"));
+        }
     }
 
     // Audio thread: genlib parameter state is only touched here.
@@ -266,6 +286,7 @@ private:
     std::vector<float> spare_;  // outputs the host buffer lacks
     std::vector<float*> inPtrs_;
     std::vector<float*> outPtrs_;
+    std::vector<std::string> bufferStatus_;  // UI thread
 };
 
 // -- Display --------------------------------------------------------------------
@@ -311,6 +332,12 @@ void Editor::renderToImage(unsigned char* buffer, int width, int height) {
     char title[64];
     std::snprintf(title, sizeof(title), "%s  %d/%d", SSP_DESCRIPTION, p_.page() + 1, p_.numPages());
     cv.text(2 * s, 2 * s, s, title, width / (6 * s), accent);
+    int y = 14 * s;
+    for (const std::string& line : p_.bufferStatus()) {
+        if (y + 8 * s > height / 2) break;  // above the parameter rows
+        cv.text(2 * s, y, s, line, width / (6 * s), white);
+        y += 10 * s;
+    }
 
     int yName = height / 2;
     int yValue = yName + 10 * s;

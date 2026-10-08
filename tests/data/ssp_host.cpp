@@ -8,7 +8,11 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <chrono>
+#include <fstream>
+#include <iterator>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "Percussa.h"
@@ -99,6 +103,15 @@ int main(int argc, char** argv) {
             saved = getState(p);
         } else if (cmd == "load") {
             p->setState(saved.data(), saved.size());
+        } else if (cmd == "savefile") {  // savefile PATH: getState to a file
+            std::string s = getState(p);
+            std::ofstream(argv[++a], std::ios::binary).write(s.data(), std::streamsize(s.size()));
+        } else if (cmd == "loadfile") {  // loadfile PATH: setState from a file
+            std::ifstream f(argv[++a], std::ios::binary);
+            std::string s((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+            p->setState(s.data(), s.size());
+        } else if (cmd == "sleep") {  // sleep MS: lets a module's worker thread run
+            std::this_thread::sleep_for(std::chrono::milliseconds(std::atoi(argv[++a])));
         } else if (cmd == "render") {  // render W H OUT.ppm
             int w = std::atoi(argv[a + 1]), h = std::atoi(argv[a + 2]);
             const char* path = argv[a + 3];

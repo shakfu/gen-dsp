@@ -1,0 +1,15 @@
+/* ssp_exports.map - export only the Percussa, SSPExtendedApi and VST3 entry points.
+   Hides genlib's replacement operator new/delete and inline std:: instances,
+   so modules loaded into one Synthor process cannot bind each other's. */
+{
+  global:
+    createDescriptor;
+    createInstance;
+    getApiVersion;
+    apiExtensions;
+    createExtendedDescriptor;
+    GetPluginFactory;
+    ModuleEntry;
+    ModuleExit;
+  local: *;
+};

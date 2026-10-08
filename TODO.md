@@ -13,16 +13,15 @@ Completed items are recorded in [CHANGELOG.md](CHANGELOG.md) rather than kept he
 - [ ] **Percussa SSP: JUCE format in rack** - `gvbj` (gigaverb) runs in Synthor. Load it in a
   rack slot and check the compact view and encoders; check preset save and reload.
 
-- [ ] **Percussa SSP: JUCE format UI** - The framework's Load button does nothing in a gen~
-  module, and the version string overlaps the DSP readout. Both live in the framework
-  (`EngineEditor`), so fixing them moves the pinned shakfu/ssp commit.
+- [ ] **Percussa SSP: JUCE format UI** - The version string overlaps the DSP readout at the top
+  right of the full screen. Both are drawn by the SSP framework, not gen-dsp: the version in
+  `plugins/common/ssp/EditorHost.cpp:112`, the readout in `plugins/common/engine/EngineEditor.cpp:165`.
+  The fix goes in shakfu/ssp, and gen-dsp's pinned framework commit (`_FRAMEWORK_COMMIT` in
+  `platforms/ssp.py`) then has to move to it.
 
-- [ ] **Percussa SSP: export only the entry points** - genlib's replacement `operator new` and
-  `delete` are exported too. Use a linker version script and test the exported symbol set. See
-  [docs/percussa-ssp.md](docs/percussa-ssp.md#validation-2026-10-08).
-
-- [ ] **Percussa SSP: remaining device checks** - preset save and reload; silence on unpatched
-  inputs; whether Synthor calls `prepare()` during playback.
+- [ ] **Percussa SSP: remaining device checks** - silence on unpatched inputs; whether Synthor
+  calls `prepare()` during playback; the JUCE format's `load into` choice (needs a patch with
+  several buffers).
 
 ## Medium
 

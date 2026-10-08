@@ -27,6 +27,37 @@ _SOFT_KEY_1 = 0
 _SHIFT_L = 12
 
 
+_NATIVE_EXPORTS = {"createDescriptor", "createInstance", "getApiVersion"}
+_JUCE_EXPORTS = _NATIVE_EXPORTS | {
+    "apiExtensions",
+    "createExtendedDescriptor",
+    "GetPluginFactory",
+    "ModuleEntry",
+    "ModuleExit",
+}
+
+
+def _assert_exports(so: Path, expected: set[str]) -> None:
+    """Checks the module's defined dynamic symbols. ELF only: Apple's linker has no version scripts."""
+    if os.uname().sysname == "Darwin":
+        return
+    readelf = shutil.which("readelf")
+    assert readelf is not None, "readelf (binutils) required"
+    r = subprocess.run(
+        [readelf, "--dyn-syms", "-W", str(so)],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    exported = set()
+    for line in r.stdout.splitlines():
+        f = line.split()
+        # Num: Value Size Type Bind Vis Ndx Name
+        if len(f) >= 8 and f[4] in ("GLOBAL", "WEAK") and f[6] != "UND":
+            exported.add(f[7].split("@")[0])
+    assert exported == expected
+
+
 def _build_env() -> dict[str, str]:
     env = os.environ.copy()
     env["GIT_TERMINAL_PROMPT"] = "0"
@@ -133,6 +164,7 @@ class TestSspProjectGeneration:
             "ssp_buffer.h",
             "ssp_font.h",
             "gen_remap_inputs.h",
+            "ssp_exports.map",
         ):
             assert (project / f).is_file(), f
         assert (project / "gen" / "gen_dsp" / "genlib.cpp").is_file()
@@ -147,6 +179,7 @@ class TestSspProjectGeneration:
         assert '"${CMAKE_CURRENT_SOURCE_DIR}/gen/gen_dsp"' in cmake
         assert "ssp_toolchain.cmake" in cmake
         assert "CXX_VISIBILITY_PRESET hidden" in cmake
+        assert "--version-script=${_ssp_map}" in cmake
         # the toolchain must be chosen before project()
         assert cmake.index("CMAKE_TOOLCHAIN_FILE") < cmake.index("\nproject(")
 
@@ -171,6 +204,9 @@ class TestSspProjectGeneration:
             "#define WRAPPER_BUFFER_NAME_0 sample"
             in (project / "gen_buffer.h").read_text()
         )
+        names = (project / "ssp_buffer_names.h").read_text()
+        assert "#define sample SSP_BUFFER(0)" in names
+        assert "#undef sample" in names
 
     def test_graph_project(self, tmp_path):
         pytest.importorskip("pydantic")
@@ -183,6 +219,7 @@ class TestSspProjectGeneration:
             "_ext_ssp.h",
             "ssp_font.h",
             "ssp_toolchain.cmake",
+            "ssp_exports.map",
         ):
             assert (project / f).is_file(), f
         cmake = (project / "CMakeLists.txt").read_text()
@@ -266,6 +303,7 @@ class TestSspHostBuild:
         assert ["name", "gvrb"] in out
         assert ["uid", "47565242"] in out  # "GVRB"
         assert ["io", "2", "2"] in out
+        _assert_exports(so, _NATIVE_EXPORTS)
         # 200-sample blocks exceed the announced 64, so the module splits them
         levels = [float(f[2]) for f in out if f[0] == "level"]
         assert len(levels) == 2 and all(v > 0 for v in levels)
@@ -346,6 +384,7 @@ class TestSspHostBuild:
         out = _drive(host, so, "desc")
         assert ["name", "gn01"] in out
         assert ["uid", "474e3031"] in out  # "GN01": the same 4 characters
+        _assert_exports(so, _NATIVE_EXPORTS)
         # impulse of 1.0 times volume 0.5
         out = _drive(host, so, "prepare", 48000, 64, "run", 1, 64)
         assert ["level", "0", "0.5"] in out
@@ -431,6 +470,7 @@ def test_cross_build_ssp_gigaverb(gigaverb_export, tmp_path, fetchcontent_cache)
     assert elf[4] == 1  # ELFCLASS32
     assert elf[16] == 3  # ET_DYN
     assert int.from_bytes(elf[18:20], "little") == 40  # EM_ARM
+    _assert_exports(so, _NATIVE_EXPORTS)
 
 
 # -- JUCE format -----------------------------------------------------------------------
@@ -452,8 +492,10 @@ class TestSspJuceGeneration:
             "gen_ext_common_ssp.h",
             "gen_buffer.h",
             "ssp_buffer.h",
+            "ssp_exports.map",
         ):
             assert (project / f).is_file(), f
+        assert "ModuleEntry;" in (project / "ssp_exports.map").read_text()
         # the native module and its font are not part of this format
         assert not (project / "gen_ext_ssp.cpp").exists()
         assert not (project / "ssp_font.h").exists()
@@ -568,6 +610,7 @@ def test_host_build_ssp_juce_matches_native(
         assert r.returncode == 0, f"{step}\n{r.stdout[-4000:]}\n{r.stderr[-4000:]}"
     juce = SspPlatform().find_output(project)
     assert juce is not None and juce.name == "gvrb.so"
+    _assert_exports(juce, _JUCE_EXPORTS)
 
     exe = tmp_path / "ssp_host"
     cmd = [_HOST_CXX, "-std=c++17", "-O1", f"-I{dev / 'ssp-sdk'}", str(_HARNESS)]
@@ -663,3 +706,185 @@ def test_cross_build_ssp_juce(gigaverb_export, tmp_path):
     elf = so.read_bytes()[:20]
     assert elf[:4] == b"\x7fELF" and elf[4] == 1
     assert int.from_bytes(elf[18:20], "little") == 40  # EM_ARM
+    _assert_exports(so, _JUCE_EXPORTS)
+
+
+# -- Buffers -----------------------------------------------------------------------------
+
+_BUFFERS_TEST = Path(__file__).parent / "data" / "ssp_buffers_test.cpp"
+_HOST_CC = shutil.which("clang") or shutil.which("cc")
+
+
+def _write_wav(path: Path, value: int, frames: int = 1000) -> Path:
+    """Mono 16-bit WAV holding a constant."""
+    import struct
+    import wave
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(path), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(48000)
+        w.writeframes(struct.pack(f"<{frames}h", *([value] * frames)))
+    return path
+
+
+@pytest.mark.skipif(
+    shutil.which("clang++") is None
+    or _HOST_CC is None
+    or os.uname().sysname == "Darwin",
+    reason="clang++ with sanitizers on Linux required",
+)
+@pytest.mark.parametrize("sanitizer", ["address,undefined", "thread"])
+def test_buffers_per_instance_and_thread_safe(rampleplayer_export, tmp_path, sanitizer):
+    """Instances own their buffers, run on separate threads, and take loads mid-perform."""
+    project = _generate(
+        rampleplayer_export, tmp_path / "rample", "rample", buffers=["sample"]
+    )
+    defines = [
+        "-DGENLIB_USE_FLOAT32",
+        "-DSSP_EXT_NAME=rample",
+        "-DGEN_EXPORTED_NAME=RamplePlayer",
+        '-DGEN_EXPORTED_HEADER="RamplePlayer.h"',
+        '-DGEN_EXPORTED_CPP="RamplePlayer.cpp"',
+    ]
+    includes = [
+        f"-I{project}",
+        f"-I{project / 'gen'}",
+        f"-I{project / 'gen' / 'gen_dsp'}",
+    ]
+    # a shared sanitizer runtime: TSan's static one defines the operator new genlib replaces
+    flags = [
+        "-g",
+        "-O1",
+        f"-fsanitize={sanitizer}",
+        "-shared-libsan",
+        *defines,
+        *includes,
+    ]
+    objs = []
+    for c in ("json.c", "json_builder.c"):
+        obj = tmp_path / f"{c}.o"
+        subprocess.run(
+            [
+                _HOST_CC,
+                "-c",
+                *flags,
+                str(project / "gen" / "gen_dsp" / c),
+                "-o",
+                str(obj),
+            ],
+            check=True,
+        )
+        objs.append(str(obj))
+    exe = tmp_path / "ssp_buffers_test"
+    runtime = subprocess.run(
+        ["clang++", "--print-runtime-dir"], capture_output=True, text=True, check=True
+    ).stdout.strip()
+    r = subprocess.run(
+        [
+            "clang++",
+            "-std=c++17",
+            "-pthread",
+            *flags,
+            str(_BUFFERS_TEST),
+            str(project / "_ext_ssp.cpp"),
+            str(project / "gen" / "gen_dsp" / "genlib.cpp"),
+            *objs,
+            "-ldl",
+            f"-Wl,-rpath,{runtime}",
+            "-o",
+            str(exe),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert r.returncode == 0, r.stderr
+    a = _write_wav(tmp_path / "a.wav", 16384)  # 0.5
+    b = _write_wav(tmp_path / "b.wav", 8192)  # 0.25
+    env = dict(os.environ, TSAN_OPTIONS="exitcode=66")
+    r = subprocess.run(
+        [str(exe), str(a), str(b)], capture_output=True, text=True, env=env, timeout=300
+    )
+    assert r.returncode == 0, r.stderr[-4000:]
+    assert r.stdout.strip() == "ok"
+
+
+def _rample_levels(lines: list[list[str]]) -> list[float]:
+    return [float(f[2]) for f in lines if f[0] == "level"]
+
+
+@_skip_no_host_build
+def test_host_build_ssp_loads_buffer_file(
+    rampleplayer_export, tmp_path, fetchcontent_cache
+):
+    """The native module reads <card>/<module>/<buffer>.wav beside plugins/."""
+    project = _generate(
+        rampleplayer_export, tmp_path / "rample", "rample", buffers=["sample"]
+    )
+    so = _host_build(project, fetchcontent_cache)
+    host = TestSspHostBuild._harness(fetchcontent_cache, tmp_path)
+    run = ("prepare", 48000, 64, "run", 4, 64)
+    # out1 plays the buffer; without a file it is empty
+    assert _rample_levels(_drive(host, so, *run))[0] == 0
+    # the module is build/rample.so, so its folder is <project>/rmpl
+    _write_wav(project / "rmpl" / "sample.wav", 16384)  # 0.5
+    assert _rample_levels(_drive(host, so, *run))[0] == pytest.approx(4 * 64 * 0.5)
+
+
+def _set_juce_path(state: bytes, attribute: str, path: str) -> bytes:
+    """Rewrites one attribute in a JUCE state blob: magic, uint32 size, XML, NUL."""
+    import re
+    import struct
+
+    magic, size = state[:4], struct.unpack("<I", state[4:8])[0]
+    xml = state[8 : 8 + size].rstrip(b"\0").decode()
+    xml = re.sub(f'{attribute}="[^"]*"', f'{attribute}="{path}"', xml)
+    body = xml.encode() + b"\0"
+    return magic + struct.pack("<I", len(body)) + body
+
+
+@_skip_no_host_build
+@pytest.mark.skipif(
+    not _SSP_DEV_DIR or not Path(_SSP_DEV_DIR, "juce", "CMakeLists.txt").is_file(),
+    reason="SSP_DEV_DIR (a shakfu/ssp checkout with submodules) required",
+)
+def test_host_build_ssp_juce_buffers(rampleplayer_export, tmp_path):
+    """The JUCE module loads the default file, keeps its path in presets, and loads a preset's."""
+    assert _SSP_DEV_DIR is not None
+    dev = Path(_SSP_DEV_DIR)
+    project = _generate(
+        rampleplayer_export,
+        tmp_path / "rample",
+        "rample",
+        buffers=["sample"],
+        ssp_format="juce",
+        ssp_dev_dir=dev,
+    )
+    build = project / "build"
+    for step in (
+        ["cmake", "-S", str(project), "-B", str(build), "-DSSP_HOST_BUILD=ON"],
+        ["cmake", "--build", str(build), "--parallel", str(os.cpu_count() or 1)],
+    ):
+        r = subprocess.run(step, capture_output=True, text=True, env=_build_env())
+        assert r.returncode == 0, f"{step}\n{r.stdout[-4000:]}\n{r.stderr[-4000:]}"
+    so = build / "rmpl.so"
+    exe = tmp_path / "ssp_host"
+    cmd = [_HOST_CXX, "-std=c++17", "-O1", f"-I{dev / 'ssp-sdk'}", str(_HARNESS)]
+    r = subprocess.run(
+        [*cmd, "-o", str(exe), "-ldl", "-pthread"], capture_output=True, text=True
+    )
+    assert r.returncode == 0, r.stderr
+
+    default = _write_wav(project / "rmpl" / "sample.wav", 16384)  # 0.5
+    other = _write_wav(tmp_path / "other.wav", 8192)  # 0.25
+    state = tmp_path / "state.bin"
+    # loads run on the module's worker thread, every 10 ms
+    run = ("prepare", 48000, 64, "sleep", 100, "run", 4, 64)
+    out = _drive(exe, so, *run, "savefile", state)
+    assert _rample_levels(out)[0] == pytest.approx(4 * 64 * 0.5)
+    assert f'buffer_sample="{default}"'.encode() in state.read_bytes()
+
+    state.write_bytes(_set_juce_path(state.read_bytes(), "buffer_sample", str(other)))
+    out = _drive(exe, so, "loadfile", state, *run)
+    assert _rample_levels(out)[0] == pytest.approx(4 * 64 * 0.25)

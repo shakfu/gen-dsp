@@ -9,7 +9,7 @@ Generates modules (`.so`) for the [Percussa SSP](https://www.percussa.com/) from
 
 **OS support (build host):** macOS, Linux
 
-**Device status:** `native` runs on an SSP: listed by Synthor, audio, encoders, paging and the display confirmed. Preset save and reload not yet tested. `juce` runs in Synthor (`gvbj`, gigaverb); rack and presets not yet tested.
+**Device status:** `native` runs on an SSP: listed by Synthor, audio, encoders, paging and the display confirmed. Presets save and reload. `juce` runs in Synthor (`gvbj`, gigaverb); presets save and reload, including loaded file paths; rack not yet tested. Buffer loading from the module's folder works in both formats, and so does the JUCE format's Load; two instances play different files (`rmpl`, `rmpj`: RamplePlayer).
 
 ## Prerequisites
 
@@ -57,7 +57,17 @@ Building needs the host headers that JUCE's `juceaide` tool uses: X11, FreeType 
 
 Output: `build/<module name>.so`, copied from the VST3 bundle JUCE builds.
 
-Controls follow the framework, not the table below: encoders move one step per call (1% of the range, 0.1% fine) and need the editor, which Synthor creates. The framework's Load button has no use in a gen~ module.
+Controls follow the framework, not the table below: encoders move one step per call (1% of the range, 0.1% fine) and need the editor, which Synthor creates. Load fills a buffer; see [Buffers](#buffers).
+
+## Buffers
+
+Each gen~ buffer (`--buffers`) loads `<buffer>.wav` from the module's folder at start: a folder named after the module, beside `plugins/`. On the card, `plugins/rmpl.so` reads `rmpl/sample.wav`.
+
+- **Formats:** WAV, PCM 16/24-bit or float 32-bit, any channel count.
+- **Size:** the buffer takes the file's length and channels. The file's sample rate is ignored: samples play as stored.
+- **Instances** keep their own buffers. A load takes effect at the start of a block, and the audio thread never reads, allocates or frees file data.
+- **Native:** the screen shows each buffer's frame count, or the missing file's name.
+- **JUCE:** Load opens the framework's file browser and fills a buffer; with several buffers, the `load into` choice on the `buffers` page picks which. Presets keep each buffer's path. The status panel shows what each buffer holds.
 
 ## Module name
 
@@ -107,7 +117,7 @@ The screen shows the module name, the page number, and each encoder's parameter 
 
 **State.** `getState`/`setState` use a text blob: the page, then one `name value` line per parameter. Parameters are matched by name, so presets survive reordering in the patch.
 
-**Symbols.** Synthor loads every module into one process. Symbols are hidden by default, so two gen~ modules cannot bind each other's genlib. The three entry points stay exported, and so do genlib's replacement `operator new` and `delete`; see [Validation](../percussa-ssp.md#validation-2026-10-08).
+**Symbols.** Synthor loads every module into one process. Symbols are hidden by default, so two gen~ modules cannot bind each other's genlib. A version script, `ssp_exports.map`, exports only the three entry points. Visibility alone leaves genlib's replacement `operator new`/`delete` and inline `std::` instances exported. Apple's linker has no version scripts, so macOS host builds skip it.
 
 ## Toolchain
 
@@ -132,8 +142,6 @@ Without `SSP_BUILDROOT`, the buildroot is downloaded once to `<FetchContent cach
 - **rack and XMX.** TheTechnobear's rack-style hosts load only modules that export the JUCE-based `SSPExtendedApi`. Use the JUCE format for them.
 
 - **No MIDI.** The Percussa API passes no MIDI, so gen-dsp's MIDI-to-CV mapping does not apply.
-
-- **Buffers** are allocated but cannot be loaded from files.
 
 ## Licence
 

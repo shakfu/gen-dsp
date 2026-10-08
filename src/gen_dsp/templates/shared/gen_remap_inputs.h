@@ -20,14 +20,19 @@
 //   getparameter()  - genlib getparameter
 //   getparametername(), getparametermin(), getparametermax(),
 //   getparameterhasminmax() - genlib parameter accessors
-//   _silence[]      - zero-filled float buffer (from bridge)
+//   _silence[]      - zero-filled float buffer of _REMAP_MAX_BLOCK (from bridge)
 //   CommonState, t_sample, t_param - genlib types
+//   <atomic>        - included at global scope: bridges include this header
+//                     inside their namespace
+//
+// Each instance keeps its values and buffers in CommonState::parammap, which
+// genlib leaves to the host: the bridge calls _remap_attach() after create()
+// and _remap_detach() before destroy(). Both are no-ops without remapping.
 
 #ifndef GEN_REMAP_INPUTS_H
 #define GEN_REMAP_INPUTS_H
 
-#ifdef REMAP_INPUT_COUNT
-#if REMAP_INPUT_COUNT > 0
+#if defined(REMAP_INPUT_COUNT) && REMAP_INPUT_COUNT > 0
 
 // ---------------------------------------------------------------------------
 // Remap table: compile-time mapping from gen~ input index to param index
@@ -91,14 +96,42 @@ static const char* _remap_param_names[] = {
 };
 
 // ---------------------------------------------------------------------------
-// Remap parameter storage (values set by host, read during perform)
+// Per-instance storage: values set by the host, buffers filled with them
 // ---------------------------------------------------------------------------
 
-static float _remap_param_values[REMAP_INPUT_COUNT] = {0};
-
-// Internal buffers for remapped inputs (filled with param values each block)
 #define _REMAP_MAX_BLOCK 8192
-static float _remap_bufs[REMAP_INPUT_COUNT][_REMAP_MAX_BLOCK];
+#define _REMAP_MIN_BLOCK 512  // a host announcing 1-sample blocks may still send more
+
+struct _RemapState {
+    std::atomic<float> values[REMAP_INPUT_COUNT];
+    long cap;     // samples per buffer; longer blocks run in pieces
+    float* bufs;  // REMAP_INPUT_COUNT * cap
+};
+
+static inline _RemapState* _remap_state(CommonState* state) {
+    return static_cast<_RemapState*>(state->parammap);
+}
+
+static inline void _remap_attach(CommonState* state, long bs) {
+    _RemapState* r = new _RemapState;
+    for (int i = 0; i < REMAP_INPUT_COUNT; i++) r->values[i].store(0.0f);
+    r->cap = bs < _REMAP_MIN_BLOCK ? _REMAP_MIN_BLOCK : bs > _REMAP_MAX_BLOCK ? _REMAP_MAX_BLOCK : bs;
+    r->bufs = new float[REMAP_INPUT_COUNT * r->cap];
+    state->parammap = r;
+}
+
+static inline void _remap_detach(CommonState* state) {
+    _RemapState* r = _remap_state(state);
+    if (!r) return;
+    delete[] r->bufs;
+    delete r;
+    state->parammap = nullptr;
+}
+
+// The remapped values of one instance, indexed by remap slot.
+static inline std::atomic<float>* _remap_values(CommonState* state) {
+    return _remap_state(state)->values;
+}
 
 // ---------------------------------------------------------------------------
 // Helper: is this gen~ input index remapped?
@@ -120,30 +153,34 @@ static inline void _remap_perform(
     float** ins, long numins,
     float** outs, long numouts, long n
 ) {
-    // Fill remapped input buffers with their parameter values
-    for (int r = 0; r < REMAP_INPUT_COUNT; r++) {
-        float val = _remap_param_values[r];
-        long clamp_n = (n < _REMAP_MAX_BLOCK) ? n : _REMAP_MAX_BLOCK;
-        for (long s = 0; s < clamp_n; s++) {
-            _remap_bufs[r][s] = val;
-        }
-    }
-
-    // Build full input array for gen~
+    _RemapState* r = _remap_state(state);
     float* full_ins[REMAP_GEN_TOTAL_INPUTS > 0 ? REMAP_GEN_TOTAL_INPUTS : 1];
-    int audio_idx = 0;
-    for (int i = 0; i < REMAP_GEN_TOTAL_INPUTS; i++) {
-        int slot = _remap_slot_for_gen_idx(i);
-        if (slot >= 0) {
-            full_ins[i] = _remap_bufs[slot];
-        } else {
-            full_ins[i] = (audio_idx < numins && ins) ? ins[audio_idx] : _silence;
-            audio_idx++;
+    float* part_outs[64];
+    if (numouts > 64) numouts = 64;
+    for (long done = 0; done < n;) {
+        long len = n - done < r->cap ? n - done : r->cap;
+        // Fill remapped input buffers with their parameter values
+        for (int s = 0; s < REMAP_INPUT_COUNT; s++) {
+            float val = r->values[s].load(std::memory_order_relaxed);
+            float* buf = r->bufs + s * r->cap;
+            for (long i = 0; i < len; i++) buf[i] = val;
         }
+        // Build full input array for gen~
+        int audio_idx = 0;
+        for (int i = 0; i < REMAP_GEN_TOTAL_INPUTS; i++) {
+            int slot = _remap_slot_for_gen_idx(i);
+            if (slot >= 0) {
+                full_ins[i] = r->bufs + slot * r->cap;
+            } else {
+                full_ins[i] = (audio_idx < numins && ins) ? ins[audio_idx] + done : _silence;
+                audio_idx++;
+            }
+        }
+        for (long o = 0; o < numouts; o++) part_outs[o] = outs[o] + done;
+        perform(state, (t_sample**)full_ins, REMAP_GEN_TOTAL_INPUTS,
+                (t_sample**)part_outs, numouts, len);
+        done += len;
     }
-
-    perform(state, (t_sample**)full_ins, REMAP_GEN_TOTAL_INPUTS,
-            (t_sample**)outs, numouts, n);
 }
 
 // ---------------------------------------------------------------------------
@@ -162,7 +199,11 @@ static inline int _remap_slot_from_param(int index) {
     return index - num_params();
 }
 
+#else
+
+static inline void _remap_attach(CommonState*, long) {}
+static inline void _remap_detach(CommonState*) {}
+
 #endif // REMAP_INPUT_COUNT > 0
-#endif // REMAP_INPUT_COUNT
 
 #endif // GEN_REMAP_INPUTS_H
