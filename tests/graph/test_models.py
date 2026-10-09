@@ -7,8 +7,8 @@ import pytest
 from pydantic import ValidationError
 
 from gen_dsp.graph import (
-    SVF,
     ADSR,
+    SVF,
     Accum,
     Allpass,
     AudioInput,
@@ -57,8 +57,8 @@ from gen_dsp.graph import (
     Selector,
     SinOsc,
     Slide,
-    Smoothstep,
     SmoothParam,
+    Smoothstep,
     Splat,
     Subgraph,
     TriOsc,

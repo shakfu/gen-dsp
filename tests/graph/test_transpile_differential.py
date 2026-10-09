@@ -18,8 +18,8 @@ pytest.importorskip("pydantic")
 np = pytest.importorskip("numpy")
 
 from gen_dsp.graph.models import (
-    SVF,
     ADSR,
+    SVF,
     Accum,
     Allpass,
     AudioInput,
@@ -50,6 +50,7 @@ from gen_dsp.graph.models import (
     Mix,
     MulAccum,
     NamedConstant,
+    Noise,
     OnePole,
     Param,
     Pass,
@@ -63,15 +64,14 @@ from gen_dsp.graph.models import (
     Selector,
     SinOsc,
     Slide,
-    Smoothstep,
     SmoothParam,
+    Smoothstep,
     Splat,
     Train,
     TriOsc,
     UnaryOp,
     Wrap,
 )
-from gen_dsp.graph.models import Noise
 from gen_dsp.graph.simulate import SimState, simulate
 from gen_dsp.graph.transpile import NON_DETERMINISTIC_OPS, transpile_to_genexpr
 from gen_dsp.graph.transpile_eval import eval_genexpr
@@ -80,12 +80,12 @@ SR = 48000.0
 N = 512
 
 
-def _signal(seed_phase: float = 0.0) -> "np.ndarray":
+def _signal(seed_phase: float = 0.0) -> np.ndarray:
     t = np.arange(N)
     return (0.7 * np.sin(2 * np.pi * 220 * t / SR + seed_phase)).astype(np.float32)
 
 
-def _pulse(period: int) -> "np.ndarray":
+def _pulse(period: int) -> np.ndarray:
     return ((np.arange(N) % period) < 1).astype(np.float32)
 
 

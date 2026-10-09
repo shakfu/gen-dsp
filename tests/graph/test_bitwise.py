@@ -6,17 +6,16 @@ import pytest
 
 pytest.importorskip("pydantic")
 
-from gen_dsp.graph.bitops import _eval_bitnot, _eval_bitop, _i32  # noqa: E402
-from gen_dsp.graph.compile import compile_graph  # noqa: E402
-from gen_dsp.graph.models import (  # noqa: E402
+from gen_dsp.graph.bitops import _eval_bitnot, _eval_bitop, _i32
+from gen_dsp.graph.compile import compile_graph
+from gen_dsp.graph.models import (
     AudioInput,
     AudioOutput,
     BinOp,
     Graph,
     UnaryOp,
 )
-from gen_dsp.graph.optimize import constant_fold  # noqa: E402
-
+from gen_dsp.graph.optimize import constant_fold
 
 # ---------------------------------------------------------------------------
 # Shared scalar semantics

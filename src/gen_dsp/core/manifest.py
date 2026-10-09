@@ -14,12 +14,11 @@ Typical data flow:
 import json
 import re
 from dataclasses import dataclass, field
+from typing import Any
 
-from typing import Any, Optional
-
-from gen_dsp.version import __version__
 from gen_dsp.core.naming import uniquify_identifiers
 from gen_dsp.core.parser import ExportInfo
+from gen_dsp.version import __version__
 
 
 @dataclass
@@ -37,7 +36,7 @@ class ParamInfo:
     # self-consistent.  Deliberately not serialized: it is a parse-time
     # diagnostic about the source patch, not part of the IR that backends
     # consume, and every manifest on disk already carries a clamped default.
-    raw_default: Optional[float] = None
+    raw_default: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable dict of this parameter's fields."""

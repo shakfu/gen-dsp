@@ -13,7 +13,7 @@ even when it cannot build the layout.
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from gen_dsp.tosc.addresses import OscParam, osc_params, resolve_prefix
 
@@ -90,11 +90,11 @@ def _pd_escape(text: str) -> str:
 
 
 def generate_pd_receiver(
-    manifest: "Manifest",
+    manifest: Manifest,
     *,
-    prefix: Optional[str] = None,
+    prefix: str | None = None,
     port: int = DEFAULT_PORT,
-    lib_name: Optional[str] = None,
+    lib_name: str | None = None,
 ) -> str:
     """Generate a Pd patch that drives the external from OSC.
 
@@ -225,7 +225,7 @@ def _sc_string(text: str) -> str:
     return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def _sc_arg_names(manifest: "Manifest") -> list[str]:
+def _sc_arg_names(manifest: Manifest) -> list[str]:
     """Return the SynthDef control names, matching the generated ``.sc`` class.
 
     The class file disambiguates parameter names against the ``in<i>``
@@ -243,10 +243,10 @@ def _sc_arg_names(manifest: "Manifest") -> list[str]:
 
 
 def generate_sc_receiver(
-    manifest: "Manifest",
+    manifest: Manifest,
     *,
-    prefix: Optional[str] = None,
-    lib_name: Optional[str] = None,
+    prefix: str | None = None,
+    lib_name: str | None = None,
 ) -> str:
     """Generate an sclang script that drives the UGen from OSC.
 
@@ -305,9 +305,11 @@ def generate_sc_receiver(
 
     lines += [
         "",
-        f'    ("listening for OSC on port " ++ NetAddr.langPort ++ ", '
-        f"address prefix {params[0].address.rsplit('/', 1)[0] if params else '/'}"
-        '").postln;',
+        (
+            f'    ("listening for OSC on port " ++ NetAddr.langPort ++ ", '
+            f"address prefix {params[0].address.rsplit('/', 1)[0] if params else '/'}"
+            '").postln;'
+        ),
         "});",
         ")",
         "",
@@ -320,12 +322,12 @@ def generate_sc_receiver(
 
 def receiver_for_platform(
     platform: str,
-    manifest: "Manifest",
+    manifest: Manifest,
     *,
-    prefix: Optional[str] = None,
+    prefix: str | None = None,
     port: int = DEFAULT_PORT,
-    lib_name: Optional[str] = None,
-) -> Optional[tuple[str, str]]:
+    lib_name: str | None = None,
+) -> tuple[str, str] | None:
     """Return ``(filename, contents)`` of the receiver for a platform.
 
     Returns None for the platforms with no OSC path of their own -- the plugin

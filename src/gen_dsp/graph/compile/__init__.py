@@ -7,10 +7,10 @@ from pathlib import Path
 from gen_dsp.core.identifiers import is_reserved_word
 from gen_dsp.graph.compile.common import (
     _C_ID_RE,
-    _Writer,
     _emit_ref,
     _float_lit,
     _to_pascal,
+    _Writer,
 )
 from gen_dsp.graph.compile.nodes import _emit_node_compute
 from gen_dsp.graph.compile.state import (

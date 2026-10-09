@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from gen_dsp.core.parser import GenExportParser
-from gen_dsp.core.project import ProjectGenerator, ProjectConfig
+from gen_dsp.core.project import ProjectConfig, ProjectGenerator
 from gen_dsp.platforms import (
     PLATFORM_REGISTRY,
     DaisyPlatform,
@@ -14,14 +14,13 @@ from gen_dsp.platforms import (
 )
 from gen_dsp.platforms.daisy import (
     DAISY_BOARDS,
-    DaisyBoardConfig,
     LIBDAISY_VERSION,
+    DaisyBoardConfig,
     _generate_main_loop_body,
     _get_default_libdaisy_dir,
     _resolve_libdaisy_dir,
     ensure_libdaisy,
 )
-
 
 # Skip conditions
 _has_make = shutil.which("make") is not None

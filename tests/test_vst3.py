@@ -9,20 +9,18 @@ import struct
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
 
 import pytest
 
-from tests.helpers import fetchcontent_cmake_args, validate_vst3
-
-from gen_dsp.version import __version__
 from gen_dsp.core.parser import GenExportParser
-from gen_dsp.core.project import ProjectGenerator, ProjectConfig
+from gen_dsp.core.project import ProjectConfig, ProjectGenerator
 from gen_dsp.platforms import (
     PLATFORM_REGISTRY,
     Vst3Platform,
     get_platform,
 )
+from gen_dsp.version import __version__
+from tests.helpers import fetchcontent_cmake_args, validate_vst3
 
 
 def _build_env():
@@ -602,7 +600,7 @@ class TestVst3BuildIntegration:
         gigaverb_export: Path,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        vst3_validator: Optional[Path],
+        vst3_validator: Path | None,
         validate_minihost,
     ):
         """Generate and compile a VST3 plugin from gigaverb (no buffers)."""
@@ -625,6 +623,7 @@ class TestVst3BuildIntegration:
             text=True,
             timeout=300,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake configure failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -638,6 +637,7 @@ class TestVst3BuildIntegration:
             text=True,
             timeout=300,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake build failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -665,7 +665,7 @@ class TestVst3BuildIntegration:
         rampleplayer_export: Path,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        vst3_validator: Optional[Path],
+        vst3_validator: Path | None,
         validate_minihost,
     ):
         """Generate and compile a VST3 plugin from RamplePlayer (has buffers)."""
@@ -691,6 +691,7 @@ class TestVst3BuildIntegration:
             text=True,
             timeout=300,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake configure failed:\nstderr: {result.stderr}"
@@ -703,6 +704,7 @@ class TestVst3BuildIntegration:
             text=True,
             timeout=300,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake build failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -724,7 +726,7 @@ class TestVst3BuildIntegration:
         spectraldelayfb_export: Path,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        vst3_validator: Optional[Path],
+        vst3_validator: Path | None,
         validate_minihost,
     ):
         """Generate and compile a VST3 plugin from spectraldelayfb (3in/2out)."""
@@ -746,6 +748,7 @@ class TestVst3BuildIntegration:
             text=True,
             timeout=300,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake configure failed:\nstderr: {result.stderr}"
@@ -758,6 +761,7 @@ class TestVst3BuildIntegration:
             text=True,
             timeout=300,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake build failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -780,12 +784,13 @@ class TestVst3BuildIntegration:
         gigaverb_export: Path,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        vst3_validator: Optional[Path],
+        vst3_validator: Path | None,
         validate_minihost,
     ):
         """Generate and compile a polyphonic VST3 plugin (NUM_VOICES=4)."""
         import shutil
         from dataclasses import replace
+
         from gen_dsp.core.manifest import manifest_from_export_info
         from gen_dsp.core.midi import detect_midi_mapping
 
@@ -829,6 +834,7 @@ class TestVst3BuildIntegration:
             text=True,
             timeout=300,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake configure failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -842,6 +848,7 @@ class TestVst3BuildIntegration:
             text=True,
             timeout=300,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake build failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"

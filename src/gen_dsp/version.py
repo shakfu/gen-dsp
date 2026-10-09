@@ -5,4 +5,4 @@ during ``gen_dsp/__init__.py`` execution) can read the version without risking
 a circular import.
 """
 
-__version__ = "0.3.4"
+__version__ = "0.4.0"

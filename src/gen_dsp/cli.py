@@ -31,13 +31,12 @@ if TYPE_CHECKING:
     from gen_dsp.graph.models import Graph
     from gen_dsp.tosc.emit import ToscOptions
 
-from gen_dsp.core.parser import GenExportParser
-from gen_dsp.core.project import ProjectGenerator, ProjectConfig
-from gen_dsp.core.patcher import Patcher
 from gen_dsp.core.builder import Builder
+from gen_dsp.core.parser import GenExportParser
+from gen_dsp.core.patcher import Patcher
+from gen_dsp.core.project import ProjectConfig, ProjectGenerator
 from gen_dsp.errors import GenExtError
-from gen_dsp.platforms import list_platforms, get_platform, is_valid_platform
-
+from gen_dsp.platforms import get_platform, is_valid_platform, list_platforms
 
 # Known subcommands for two-phase dispatch.
 SUBCOMMANDS = {
@@ -536,9 +535,9 @@ def _make_subcommand_parser() -> argparse.ArgumentParser:
         from gen_dsp.graph.cli import (
             add_compile_parser,
             add_genexpr_parser,
+            add_sim_parser,
             add_validate_parser,
             add_viz_parser,
-            add_sim_parser,
         )
 
         add_compile_parser(subparsers)
@@ -557,7 +556,7 @@ def _make_subcommand_parser() -> argparse.ArgumentParser:
 # ---------------------------------------------------------------------------
 
 
-def _resolve_platforms(spec: str) -> tuple[list[str], Optional[str]]:
+def _resolve_platforms(spec: str) -> tuple[list[str], str | None]:
     """Parse a ``--platform`` spec into an ordered, de-duplicated platform list.
 
     Accepts a single name, a comma-separated list, or ``all``. Returns
@@ -611,7 +610,7 @@ def _print_target_summary(results: list[tuple[str, str]]) -> None:
         print(f"  {platform:<10}  {status}")
 
 
-def _ssp_name_error(args: argparse.Namespace, platforms: list[str]) -> Optional[str]:
+def _ssp_name_error(args: argparse.Namespace, platforms: list[str]) -> str | None:
     if "ssp" in platforms:
         if (
             getattr(args, "ssp_dev_dir", None)
@@ -673,7 +672,7 @@ _CONFIG_KEYS = (
 )
 
 
-def _load_config(path: Path) -> tuple[dict[str, object], Optional[str]]:
+def _load_config(path: Path) -> tuple[dict[str, object], str | None]:
     """Load gen-dsp.toml into a mapping of default-command argparse defaults.
 
     Keys mirror the CLI options (hyphens or underscores accepted). Returns
@@ -747,7 +746,7 @@ def _cmd_default(argv: list[str]) -> int:
     pre = argparse.ArgumentParser(add_help=False)
     pre.add_argument("--config", type=Path, default=None)
     pre_args, _ = pre.parse_known_args(argv)
-    config_path: Optional[Path] = pre_args.config
+    config_path: Path | None = pre_args.config
     if config_path is None:
         default_cfg = Path.cwd() / "gen-dsp.toml"
         if default_cfg.is_file():
@@ -953,7 +952,7 @@ def _cmd_default_graph(args: argparse.Namespace, graph_path: Path) -> int:
                 print(f"  Parameters: {', '.join(p.name for p in graph.params)}")
             _report_ssp_name(platform, config)
             _report_tosc(generator)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 -- report any failure, continue with next platform
             print(f"Error creating project: {e}", file=sys.stderr)
             results.append((platform, "generate error"))
             overall = 1
@@ -1157,7 +1156,7 @@ def cmd_build(args: argparse.Namespace) -> int:
 
 def _load_graph_file(
     graph_path: Path,
-) -> tuple[Optional["Graph"], Optional[str]]:
+) -> tuple[Optional["Graph"], str | None]:
     """Load a ``.gdsp`` or ``.json`` graph file.
 
     Returns ``(graph, error)``; ``error`` is a message string on failure
@@ -1182,7 +1181,7 @@ def _load_graph_file(
             graph = parsed
         else:
             graph = Graph.model_validate(json.loads(graph_path.read_text()))
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 -- parse/IO/validation errors all become a message
         return None, f"error loading graph: {e}"
     return graph, None
 
@@ -1450,18 +1449,18 @@ class _ToscSource:
     """
 
     manifest: Optional["Manifest"] = None
-    platform: Optional[str] = None
-    name: Optional[str] = None
-    project_dir: Optional[Path] = None
-    error: Optional[str] = None
+    platform: str | None = None
+    name: str | None = None
+    project_dir: Path | None = None
+    error: str | None = None
 
 
 def _tosc_source_from_project(source: Path, manifest_path: Path) -> _ToscSource:
     """Read a generated project's manifest and its recorded platform/name."""
     from gen_dsp.core.manifest import Manifest
 
-    platform: Optional[str] = None
-    name: Optional[str] = None
+    platform: str | None = None
+    name: str | None = None
     marker = source / ".gen-dsp.json"
     if marker.is_file():
         try:
@@ -1542,7 +1541,7 @@ def _tosc_source(source: Path) -> _ToscSource:
     )
 
 
-def _parse_canvas_size(spec: str) -> tuple[Optional[tuple[int, int]], Optional[str]]:
+def _parse_canvas_size(spec: str) -> tuple[tuple[int, int] | None, str | None]:
     """Parse a ``WxH`` canvas spec. Returns ``(size, error)``."""
     parts = spec.lower().split("x")
     if len(parts) != 2:
@@ -1779,13 +1778,13 @@ def cmd_chain(args: argparse.Namespace) -> int:
     """Handle the chain command (multi-plugin chain mode, Circle only)."""
     from gen_dsp.core.graph import (
         parse_graph,
-        validate_linear_chain,
         validate_dag,
+        validate_linear_chain,
     )
     from gen_dsp.core.graph_init import (
-        resolve_export_dirs,
-        init_chain_linear,
         init_chain_dag,
+        init_chain_linear,
+        resolve_export_dirs,
     )
 
     if args.platform != "circle":
@@ -1896,7 +1895,7 @@ def _dispatch_subcommand(argv: list[str]) -> int:
         return 1
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     """Main entry point."""
     argv = argv if argv is not None else sys.argv[1:]
 

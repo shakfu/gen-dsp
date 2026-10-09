@@ -7,7 +7,7 @@ here accept explicit parameters instead of argparse.Namespace objects.
 
 import shutil
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from gen_dsp.version import __version__
 
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 def resolve_export_dirs(
     base_dir: Path,
     graph: "GraphConfig",
-    extra_exports: Optional[list[Path]] = None,
+    extra_exports: list[Path] | None = None,
 ) -> dict[str, Path]:
     """Resolve export directories from base path and explicit overrides.
 
@@ -35,7 +35,7 @@ def resolve_export_dirs(
     """
     export_dirs: dict[str, Path] = {}
 
-    for _node_id, node_config in graph.nodes.items():
+    for node_config in graph.nodes.values():
         if node_config.export is None:
             continue  # mixer nodes have no export
         candidate = base_dir / node_config.export / "gen"
@@ -93,7 +93,7 @@ def init_chain_linear(
     config: "ProjectConfig",
     apply_patches: bool = True,
     dry_run: bool = False,
-    board: Optional[str] = None,
+    board: str | None = None,
 ) -> int:
     """Generate a linear chain project (Phase 1 path).
 
@@ -111,9 +111,10 @@ def init_chain_linear(
         Exit code (0 for success, 1 for error).
     """
     import sys
+
     from gen_dsp.core.graph import resolve_chain
-    from gen_dsp.platforms.circle import CirclePlatform
     from gen_dsp.errors import GenExtError
+    from gen_dsp.platforms.circle import CirclePlatform
 
     try:
         chain = resolve_chain(graph, export_dirs, __version__)
@@ -172,7 +173,7 @@ def init_chain_dag(
     config: "ProjectConfig",
     apply_patches: bool = True,
     dry_run: bool = False,
-    board: Optional[str] = None,
+    board: str | None = None,
 ) -> int:
     """Generate a DAG project (Phase 2 path).
 
@@ -190,9 +191,10 @@ def init_chain_dag(
         Exit code (0 for success, 1 for error).
     """
     import sys
-    from gen_dsp.core.graph import resolve_dag, allocate_edge_buffers
-    from gen_dsp.platforms.circle import CirclePlatform
+
+    from gen_dsp.core.graph import allocate_edge_buffers, resolve_dag
     from gen_dsp.errors import GenExtError
+    from gen_dsp.platforms.circle import CirclePlatform
 
     try:
         dag_nodes = resolve_dag(graph, export_dirs, __version__)

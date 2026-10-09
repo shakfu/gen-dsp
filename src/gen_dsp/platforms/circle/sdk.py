@@ -4,11 +4,9 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Optional
 
 from gen_dsp.core.cache import get_cache_dir
 from gen_dsp.errors import BuildError
-
 
 # Circle version (latest stable release)
 CIRCLE_VERSION = "Step50.1"
@@ -48,7 +46,7 @@ def _resolve_circle_dir() -> Path:
     return _get_default_circle_dir()
 
 
-def ensure_circle(circle_dir: Optional[Path] = None, verbose: bool = False) -> Path:
+def ensure_circle(circle_dir: Path | None = None, verbose: bool = False) -> Path:
     """Ensure Circle SDK is available, cloning and building if necessary.
 
     Args:

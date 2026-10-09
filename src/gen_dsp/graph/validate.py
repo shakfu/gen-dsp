@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from typing import TYPE_CHECKING
 
 from gen_dsp.graph._deps import build_forward_deps
 from gen_dsp.graph.models import (
@@ -22,6 +23,9 @@ from gen_dsp.graph.models import (
     Wave,
 )
 from gen_dsp.graph.optimize import _STATEFUL_TYPES
+
+if TYPE_CHECKING:
+    from typing_extensions import Self
 
 
 class GraphValidationError(str):
@@ -87,7 +91,7 @@ class GraphValidationError(str):
         node_id: str | None = None,
         field_name: str | None = None,
         severity: str = "error",
-    ) -> GraphValidationError:
+    ) -> Self:
         return super().__new__(cls, message)
 
     def __init__(
@@ -236,17 +240,16 @@ def validate_graph(
                                 field_name=field_name,
                             )
                         )
-            elif isinstance(value, str):
-                if value not in all_ids:
-                    nid = node.id
-                    errors.append(
-                        GraphValidationError(
-                            "dangling_ref",
-                            f"Node '{nid}' field '{field_name}' references unknown ID '{value}'",
-                            node_id=nid,
-                            field_name=field_name,
-                        )
+            elif isinstance(value, str) and value not in all_ids:
+                nid = node.id
+                errors.append(
+                    GraphValidationError(
+                        "dangling_ref",
+                        f"Node '{nid}' field '{field_name}' references unknown ID '{value}'",
+                        node_id=nid,
+                        field_name=field_name,
                     )
+                )
 
     # 3. Output resolution -- every output source resolves to a node ID
     for out in graph.outputs:

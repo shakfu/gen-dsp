@@ -8,8 +8,8 @@ from pathlib import Path
 
 from gen_dsp.graph._deps import is_feedback_edge
 from gen_dsp.graph.models import (
-    SVF,
     ADSR,
+    SVF,
     Accum,
     Allpass,
     BinOp,
@@ -23,11 +23,11 @@ from gen_dsp.graph.models import (
     Compare,
     Constant,
     Counter,
+    Cycle,
     DCBlock,
     DelayLine,
     DelayRead,
     DelayWrite,
-    Cycle,
     Delta,
     Elapsed,
     Fold,
@@ -56,8 +56,8 @@ from gen_dsp.graph.models import (
     Selector,
     SinOsc,
     Slide,
-    Smoothstep,
     SmoothParam,
+    Smoothstep,
     Splat,
     Subgraph,
     Train,

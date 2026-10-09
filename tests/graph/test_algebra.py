@@ -535,7 +535,7 @@ class TestMerge:
 
 class TestOperators:
     def test_rshift_series(self) -> None:
-        from gen_dsp.graph.algebra import series as _series  # noqa: F811
+        from gen_dsp.graph.algebra import series as _series
 
         a = _passthrough("a")
         b = _gain("b")
@@ -546,7 +546,7 @@ class TestOperators:
         assert len(g.params) == len(expected.params)
 
     def test_floordiv_parallel(self) -> None:
-        from gen_dsp.graph.algebra import parallel as _par  # noqa: F811
+        from gen_dsp.graph.algebra import parallel as _par
 
         a = _gain("a")
         b = _gain("b")

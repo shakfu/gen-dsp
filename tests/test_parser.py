@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from gen_dsp.core.parser import GenExportParser, ExportInfo
+from gen_dsp.core.parser import ExportInfo, GenExportParser
 from gen_dsp.errors import ParseError
 
 

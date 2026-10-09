@@ -7,7 +7,6 @@ Handles issues like:
 
 import re
 from pathlib import Path
-from typing import Optional
 
 from gen_dsp.errors import PatchError
 
@@ -21,8 +20,8 @@ class PatchResult:
         patch_name: str,
         applied: bool,
         message: str,
-        original_content: Optional[str] = None,
-        new_content: Optional[str] = None,
+        original_content: str | None = None,
+        new_content: str | None = None,
     ):
         self.file_path = file_path
         self.patch_name = patch_name
@@ -70,7 +69,7 @@ class Patcher:
 
         return results
 
-    def apply_exp2f_fix(self, dry_run: bool = False) -> Optional[PatchResult]:
+    def apply_exp2f_fix(self, dry_run: bool = False) -> PatchResult | None:
         """
         Apply the exp2f -> exp2 fix for macOS compatibility.
 

@@ -28,15 +28,15 @@ import sys
 import urllib.request
 import zipfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, ClassVar
 
-from gen_dsp.version import __version__
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines_make
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform, PluginCategory
 from gen_dsp.templates import get_vcvrack_templates_dir
+from gen_dsp.version import __version__
 
 if TYPE_CHECKING:
     from gen_dsp.graph.models import Graph
@@ -104,7 +104,7 @@ def _resolve_rack_dir() -> Path:
     return _get_default_rack_sdk_dir()
 
 
-def ensure_rack_sdk(rack_dir: Optional[Path] = None, verbose: bool = False) -> Path:
+def ensure_rack_sdk(rack_dir: Path | None = None, verbose: bool = False) -> Path:
     """Ensure the Rack SDK is available, downloading if necessary.
 
     Args:
@@ -184,7 +184,7 @@ class VcvRackPlatform(Platform):
         manifest: Manifest,
         output_dir: Path,
         lib_name: str,
-        config: Optional[ProjectConfig] = None,
+        config: ProjectConfig | None = None,
     ) -> None:
         """Generate VCV Rack module project files."""
         templates_dir = get_vcvrack_templates_dir()
@@ -258,7 +258,7 @@ class VcvRackPlatform(Platform):
             header_comment="Buffer configuration for gen_dsp VCV Rack wrapper",
         )
 
-    _VCR_TAG_MAP = {
+    _VCR_TAG_MAP: ClassVar[dict[PluginCategory, list[str]]] = {
         PluginCategory.EFFECT: ["Effect"],
         PluginCategory.GENERATOR: ["Synth Voice"],
     }
@@ -426,7 +426,7 @@ class VcvRackPlatform(Platform):
         if (rack_dir / "plugin.mk").is_file():
             self.run_command(["make", "clean", f"RACK_DIR={rack_dir}"], project_dir)
 
-    def find_output(self, project_dir: Path) -> Optional[Path]:
+    def find_output(self, project_dir: Path) -> Path | None:
         """Find the built VCV Rack plugin file."""
         return self.find_output_by_pattern(
             project_dir, "plugin.dylib", "plugin.so", "plugin.dll", require_file=True

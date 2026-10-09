@@ -25,6 +25,30 @@ Completed items are recorded in [CHANGELOG.md](CHANGELOG.md) rather than kept he
 
 ## Medium
 
+### Update Dependencies
+
+- [ ] Require making python 3.12 the minimally required version. Changes look like:
+
+  ```text
+  [project.optional-dependencies]
+  graph = ["pydantic>=2.0"]
+  sim = ["pydantic>=2.0", "numpy>=2.5"]
+  tosc = ["py2tosc>=0.6.0"]
+
+  [dependency-groups]
+  dev = [
+      "minihost>=0.11.0",
+      "mypy>=2.4.0",
+      "numpy>=2.5",
+      "py2tosc>=0.6.0",
+      "pydantic>=2.0",
+      "pytest>=9.1.1",
+      "pytest-cov>=7.1.0",
+      "ruff>=0.16.0",
+      "twine>=7.0.0",
+  ]
+  ```
+
 ### Web Audio backend follow-ups
 
 - [ ] **Web Audio build integration tests** -- Currently gated by `emcc`

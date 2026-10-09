@@ -8,15 +8,14 @@ at configure time via CMake FetchContent -- no vendoring required.
 
 import shutil
 from pathlib import Path
-from typing import Optional
 
-from gen_dsp.version import __version__
 from gen_dsp.core.manifest import Manifest, build_remap_defines
 from gen_dsp.core.midi import build_midi_defines
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import ProjectError
 from gen_dsp.platforms.cmake_platform import CMakePlatform
 from gen_dsp.templates import get_clap_templates_dir
+from gen_dsp.version import __version__
 
 
 class ClapPlatform(CMakePlatform):
@@ -36,7 +35,7 @@ class ClapPlatform(CMakePlatform):
         manifest: Manifest,
         output_dir: Path,
         lib_name: str,
-        config: Optional[ProjectConfig] = None,
+        config: ProjectConfig | None = None,
     ) -> None:
         """Generate CLAP project files."""
         templates_dir = get_clap_templates_dir()
@@ -124,6 +123,6 @@ class ClapPlatform(CMakePlatform):
             remap_defines=remap_defines,
         )
 
-    def find_output(self, project_dir: Path) -> Optional[Path]:
+    def find_output(self, project_dir: Path) -> Path | None:
         """Find the built CLAP plugin file."""
         return self.find_output_by_pattern(project_dir / "build", "**/*.clap")

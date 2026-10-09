@@ -1,5 +1,7 @@
 """Tests for Audio Unit v3 (AUv3) platform implementation."""
 
+# AUv3 requires macOS + Xcode + CMake
+import platform as sys_platform
 import shutil
 import subprocess
 from pathlib import Path
@@ -7,15 +9,12 @@ from pathlib import Path
 import pytest
 
 from gen_dsp.core.parser import GenExportParser
-from gen_dsp.core.project import ProjectGenerator, ProjectConfig
+from gen_dsp.core.project import ProjectConfig, ProjectGenerator
 from gen_dsp.platforms import (
     PLATFORM_REGISTRY,
     Auv3Platform,
     get_platform,
 )
-
-# AUv3 requires macOS + Xcode + CMake
-import platform as sys_platform
 
 _is_macos = sys_platform.system() == "Darwin"
 _has_cmake = shutil.which("cmake") is not None
@@ -28,9 +27,10 @@ if _is_macos and _has_cmake:
             capture_output=True,
             text=True,
             timeout=5,
+            check=False,
         )
         _has_xcode = "Xcode" in r.stdout
-    except Exception:
+    except (OSError, subprocess.SubprocessError):
         pass
 
 _can_build = _is_macos and _has_cmake and _has_xcode

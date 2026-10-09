@@ -25,9 +25,11 @@ except ImportError as exc:
         "numpy is required for simulation. Install with: pip install gen-dsp[sim]"
     ) from exc
 
+from gen_dsp.graph.bitops import _eval_bitnot, _eval_bitop
+from gen_dsp.graph.compile.nodes import _NAMED_CONSTANT_VALUES
 from gen_dsp.graph.models import (
-    SVF,
     ADSR,
+    SVF,
     Accum,
     Allpass,
     BinOp,
@@ -75,8 +77,8 @@ from gen_dsp.graph.models import (
     Selector,
     SinOsc,
     Slide,
-    Smoothstep,
     SmoothParam,
+    Smoothstep,
     Splat,
     Train,
     TriOsc,
@@ -84,8 +86,6 @@ from gen_dsp.graph.models import (
     Wave,
     Wrap,
 )
-from gen_dsp.graph.bitops import _eval_bitnot, _eval_bitop
-from gen_dsp.graph.compile.nodes import _NAMED_CONSTANT_VALUES
 from gen_dsp.graph.subgraph import expand_subgraphs
 from gen_dsp.graph.toposort import toposort
 from gen_dsp.graph.validate import validate_graph
@@ -148,9 +148,7 @@ class SimState:
             elif isinstance(node, RateDiv):
                 self._state[f"{nid}.count"] = 0
                 self._state[f"{nid}.held"] = 0.0
-            elif isinstance(node, SmoothParam):
-                self._state[f"{nid}.prev"] = 0.0
-            elif isinstance(node, Slide):
+            elif isinstance(node, (SmoothParam, Slide)):
                 self._state[f"{nid}.prev"] = 0.0
             elif isinstance(node, ADSR):
                 self._state[f"{nid}.phase"] = 0
@@ -207,9 +205,7 @@ class SimState:
             elif isinstance(node, RateDiv):
                 self._state[f"{nid}.count"] = 0
                 self._state[f"{nid}.held"] = 0.0
-            elif isinstance(node, SmoothParam):
-                self._state[f"{nid}.prev"] = 0.0
-            elif isinstance(node, Slide):
+            elif isinstance(node, (SmoothParam, Slide)):
                 self._state[f"{nid}.prev"] = 0.0
             elif isinstance(node, ADSR):
                 self._state[f"{nid}.phase"] = 0
@@ -625,7 +621,7 @@ def _compute_node(
             pos = (wr - int(tap)) % length
             vals[nid] = float(buf[pos])
         elif node.interp == "nearest":
-            pos = (wr - int(math.floor(tap + 0.5))) % length
+            pos = (wr - math.floor(tap + 0.5)) % length
             vals[nid] = float(buf[pos])
         elif node.interp == "linear":
             vals[nid] = _interp_linear_delay(tap, buf, length, wr)
@@ -906,7 +902,7 @@ def _compute_node(
             ii = max(0, min(ii, buf_len - 1))
             vals[nid] = float(buf[ii])
         elif node.interp == "nearest":
-            ii = int(math.floor(idx + 0.5))
+            ii = math.floor(idx + 0.5)
             ii = max(0, min(ii, buf_len - 1))
             vals[nid] = float(buf[ii])
         elif node.interp == "linear":
@@ -1015,7 +1011,7 @@ def _compute_node(
         down = ref(node.down)
         prev = state._state[f"{nid}.prev"]
         s = up if a > prev else down
-        s = s if s > 1.0 else 1.0
+        s = max(1.0, s)
         y = prev + (a - prev) / s
         state._state[f"{nid}.prev"] = y
         vals[nid] = y

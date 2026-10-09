@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from gen_dsp.core.parser import GenExportParser
-from gen_dsp.core.project import ProjectGenerator, ProjectConfig
+from gen_dsp.core.project import ProjectConfig, ProjectGenerator
 from gen_dsp.platforms import (
     PLATFORM_REGISTRY,
     CsoundPlatform,
@@ -262,6 +262,7 @@ class TestCsoundBuildIntegration:
             capture_output=True,
             text=True,
             timeout=120,
+            check=False,
         )
         assert result.returncode == 0, (
             f"make all failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -289,6 +290,7 @@ class TestCsoundBuildIntegration:
             capture_output=True,
             text=True,
             timeout=120,
+            check=False,
         )
         assert result.returncode == 0, (
             f"make all failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -315,6 +317,7 @@ class TestCsoundBuildIntegration:
             capture_output=True,
             text=True,
             timeout=120,
+            check=False,
         )
         assert build_result.returncode == 0
 
@@ -330,6 +333,7 @@ class TestCsoundBuildIntegration:
             text=True,
             timeout=10,
             env=env,
+            check=False,
         )
         # csound --list-opcodes lists all opcodes including loaded plugins
         all_output = result.stdout + result.stderr

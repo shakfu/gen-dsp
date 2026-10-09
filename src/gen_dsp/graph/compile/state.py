@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
-from gen_dsp.graph.compile.common import _Writer, _float_lit
+from gen_dsp.graph.compile.common import _float_lit, _Writer
 from gen_dsp.graph.models import (
-    SVF,
     ADSR,
+    SVF,
     Accum,
     Allpass,
     Biquad,
@@ -46,7 +46,6 @@ from gen_dsp.graph.models import (
     Wave,
 )
 from gen_dsp.graph.optimize import _STATEFUL_TYPES
-
 
 # ---------------------------------------------------------------------------
 # Struct field emission

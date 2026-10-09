@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from gen_dsp.core.parser import GenExportParser
-from gen_dsp.core.project import ProjectGenerator, ProjectConfig
+from gen_dsp.core.project import ProjectConfig, ProjectGenerator
 from gen_dsp.platforms import (
     PLATFORM_REGISTRY,
     CirclePlatform,
@@ -13,15 +13,15 @@ from gen_dsp.platforms import (
 )
 from gen_dsp.platforms.circle import (
     CIRCLE_BOARDS,
-    CircleBoardConfig,
     CIRCLE_VERSION,
-    _get_default_circle_dir,
-    _resolve_circle_dir,
-    _get_audio_include,
+    CircleBoardConfig,
     _get_audio_base_class,
+    _get_audio_include,
     _get_audio_label,
-    _get_extra_libs,
     _get_boot_config,
+    _get_default_circle_dir,
+    _get_extra_libs,
+    _resolve_circle_dir,
 )
 
 

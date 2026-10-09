@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Union
 
 from pydantic import ValidationError
 
@@ -17,8 +16,8 @@ from gen_dsp.graph.dsl.parser import (
     ASTArg,
     ASTAssign,
     ASTBinExpr,
-    ASTBufWriteStmt,
     ASTBufferDecl,
+    ASTBufWriteStmt,
     ASTCall,
     ASTCompose,
     ASTDelayDecl,
@@ -38,8 +37,8 @@ from gen_dsp.graph.dsl.parser import (
     ASTUnaryExpr,
 )
 from gen_dsp.graph.models import (
-    SVF,
     ADSR,
+    SVF,
     Accum,
     Allpass,
     AudioInput,
@@ -89,8 +88,8 @@ from gen_dsp.graph.models import (
     Selector,
     SinOsc,
     Slide,
-    Smoothstep,
     SmoothParam,
+    Smoothstep,
     Splat,
     Subgraph,
     Train,
@@ -99,7 +98,6 @@ from gen_dsp.graph.models import (
     Wave,
     Wrap,
 )
-
 
 # ---------------------------------------------------------------------------
 # Compiler (AST -> Graph)
@@ -414,7 +412,7 @@ class _GraphCtx:
     """Compilation context for a single graph."""
 
     name: str
-    options: dict[str, Union[str, float]]
+    options: dict[str, str | float]
     compiler: Compiler
     filename: str
 

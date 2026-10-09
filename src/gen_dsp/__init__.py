@@ -8,18 +8,18 @@ This package provides tools to:
 - Build externals using the appropriate build system
 """
 
-from gen_dsp.version import __version__
-from gen_dsp.core.parser import GenExportParser
-from gen_dsp.core.project import ProjectGenerator
-from gen_dsp.core.patcher import Patcher
 from gen_dsp.core.builder import Builder
+from gen_dsp.core.parser import GenExportParser
+from gen_dsp.core.patcher import Patcher
+from gen_dsp.core.project import ProjectGenerator
 from gen_dsp.errors import GenExtError
+from gen_dsp.version import __version__
 
 __all__ = [
-    "__version__",
-    "GenExportParser",
-    "ProjectGenerator",
-    "Patcher",
     "Builder",
+    "GenExportParser",
     "GenExtError",
+    "Patcher",
+    "ProjectGenerator",
+    "__version__",
 ]

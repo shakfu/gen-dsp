@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from gen_dsp.core.parser import GenExportParser
-from gen_dsp.core.project import ProjectGenerator, ProjectConfig
+from gen_dsp.core.project import ProjectConfig, ProjectGenerator
 from gen_dsp.platforms import (
     PLATFORM_REGISTRY,
     WebAudioPlatform,
@@ -179,6 +179,7 @@ def _validate_wasm(
         capture_output=True,
         text=True,
         timeout=30,
+        check=False,
     )
     assert result.returncode == 0, (
         f"node validate.js failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -262,6 +263,7 @@ def _validate_buffers(
         capture_output=True,
         text=True,
         timeout=30,
+        check=False,
     )
     assert result.returncode == 0, (
         f"node validate_buffers.js failed:\n"
@@ -525,6 +527,7 @@ class TestWebAudioBuildIntegration:
             capture_output=True,
             text=True,
             timeout=120,
+            check=False,
         )
         assert result.returncode == 0, (
             f"make all failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -557,6 +560,7 @@ class TestWebAudioBuildIntegration:
             capture_output=True,
             text=True,
             timeout=120,
+            check=False,
         )
         assert result.returncode == 0, (
             f"make all failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -583,6 +587,7 @@ class TestWebAudioBuildIntegration:
             capture_output=True,
             text=True,
             timeout=120,
+            check=False,
         )
         assert result.returncode == 0, (
             f"make all failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -607,6 +612,7 @@ class TestWebAudioBuildIntegration:
             capture_output=True,
             text=True,
             timeout=120,
+            check=False,
         )
         assert result.returncode == 0, (
             f"make all failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -633,6 +639,7 @@ class TestWebAudioBuildIntegration:
             capture_output=True,
             text=True,
             timeout=120,
+            check=False,
         )
         assert result.returncode == 0, (
             f"make all failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"

@@ -21,7 +21,6 @@ import json
 from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 from gen_dsp.core.manifest import Manifest, ParamInfo, manifest_from_export_info
 from gen_dsp.core.parser import ExportInfo, GenExportParser
@@ -42,7 +41,7 @@ class Connection:
 
     src_node: str
     dst_node: str
-    dst_input_index: Optional[int] = None
+    dst_input_index: int | None = None
 
 
 @dataclass
@@ -50,10 +49,10 @@ class ChainNodeConfig:
     """Configuration for a single node in the chain graph."""
 
     id: str
-    export: Optional[str] = None
+    export: str | None = None
     node_type: str = "gen"  # "gen" or "mixer"
     mixer_inputs: int = 0  # only for mixer nodes
-    midi_channel: Optional[int] = None
+    midi_channel: int | None = None
     cc_map: dict[int, str] = field(default_factory=dict)
 
 
@@ -81,7 +80,7 @@ class EdgeBuffer:
     buffer_id: int
     src_node: str
     dst_node: str
-    dst_input_index: Optional[int]
+    dst_input_index: int | None
     num_channels: int
 
 
@@ -91,7 +90,7 @@ class ResolvedChainNode:
 
     config: ChainNodeConfig
     index: int
-    export_info: Optional[ExportInfo]
+    export_info: ExportInfo | None
     manifest: Manifest
 
 
@@ -200,7 +199,7 @@ def parse_graph(json_path: Path) -> GraphConfig:
         dst_raw = str(conn[1])
 
         # Parse "dst:index" syntax
-        dst_input_index: Optional[int] = None
+        dst_input_index: int | None = None
         if ":" in dst_raw:
             parts = dst_raw.rsplit(":", 1)
             try:
@@ -287,11 +286,10 @@ def validate_linear_chain(graph: GraphConfig) -> list[str]:
 
     # Validate MIDI channels (1-16)
     for node_id, node in graph.nodes.items():
-        if node.midi_channel is not None:
-            if not (1 <= node.midi_channel <= 16):
-                errors.append(
-                    f"Node '{node_id}': midi_channel must be 1-16, got {node.midi_channel}"
-                )
+        if node.midi_channel is not None and not (1 <= node.midi_channel <= 16):
+            errors.append(
+                f"Node '{node_id}': midi_channel must be 1-16, got {node.midi_channel}"
+            )
 
     # Validate CC numbers (0-127)
     for node_id, node in graph.nodes.items():
@@ -526,11 +524,10 @@ def validate_dag(graph: GraphConfig) -> list[str]:
 
     # 8. MIDI channel/CC validation (shared with linear)
     for nid, ncfg in graph.nodes.items():
-        if ncfg.midi_channel is not None:
-            if not (1 <= ncfg.midi_channel <= 16):
-                errors.append(
-                    f"Node '{nid}': midi_channel must be 1-16, got {ncfg.midi_channel}"
-                )
+        if ncfg.midi_channel is not None and not (1 <= ncfg.midi_channel <= 16):
+            errors.append(
+                f"Node '{nid}': midi_channel must be 1-16, got {ncfg.midi_channel}"
+            )
         for cc_num in ncfg.cc_map:
             if not (0 <= cc_num <= 127):
                 errors.append(f"Node '{nid}': CC number must be 0-127, got {cc_num}")

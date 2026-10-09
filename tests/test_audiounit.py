@@ -8,14 +8,14 @@ from pathlib import Path
 
 import pytest
 
-from gen_dsp.version import __version__
 from gen_dsp.core.parser import GenExportParser
-from gen_dsp.core.project import ProjectGenerator, ProjectConfig
+from gen_dsp.core.project import ProjectConfig, ProjectGenerator
 from gen_dsp.platforms import (
     PLATFORM_REGISTRY,
     AudioUnitPlatform,
     get_platform,
 )
+from gen_dsp.version import __version__
 
 # Skip conditions
 _is_macos = sys_platform.system() == "Darwin"
@@ -56,6 +56,7 @@ def _validate_au(component_path: Path, lib_name: str) -> None:
             capture_output=True,
             text=True,
             timeout=10,
+            check=False,
         )
         assert sign_result.returncode == 0, (
             f"codesign failed:\nstdout: {sign_result.stdout}\nstderr: {sign_result.stderr}"
@@ -72,6 +73,7 @@ def _validate_au(component_path: Path, lib_name: str) -> None:
                 capture_output=True,
                 text=True,
                 timeout=120,
+                check=False,
             )
             if result.returncode == 0:
                 break
@@ -119,6 +121,7 @@ def _validate_au_with_minihost(
             capture_output=True,
             text=True,
             timeout=10,
+            check=False,
         )
 
         # Give CoreAudio time to discover the component
@@ -424,6 +427,7 @@ class TestAudioUnitBuildIntegration:
             capture_output=True,
             text=True,
             timeout=60,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake configure failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -436,6 +440,7 @@ class TestAudioUnitBuildIntegration:
             capture_output=True,
             text=True,
             timeout=120,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake build failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -486,6 +491,7 @@ class TestAudioUnitBuildIntegration:
             capture_output=True,
             text=True,
             timeout=60,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake configure failed:\nstderr: {result.stderr}"
@@ -497,6 +503,7 @@ class TestAudioUnitBuildIntegration:
             capture_output=True,
             text=True,
             timeout=120,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake build failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -541,6 +548,7 @@ class TestAudioUnitBuildIntegration:
             capture_output=True,
             text=True,
             timeout=60,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake configure failed:\nstderr: {result.stderr}"
@@ -552,6 +560,7 @@ class TestAudioUnitBuildIntegration:
             capture_output=True,
             text=True,
             timeout=120,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake build failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -581,6 +590,7 @@ class TestAudioUnitBuildIntegration:
     ):
         """Generate and compile a polyphonic AudioUnit plugin (NUM_VOICES=4)."""
         from dataclasses import replace
+
         from gen_dsp.core.manifest import manifest_from_export_info
         from gen_dsp.core.midi import detect_midi_mapping
 
@@ -623,6 +633,7 @@ class TestAudioUnitBuildIntegration:
             capture_output=True,
             text=True,
             timeout=60,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake configure failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -635,6 +646,7 @@ class TestAudioUnitBuildIntegration:
             capture_output=True,
             text=True,
             timeout=120,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake build failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"

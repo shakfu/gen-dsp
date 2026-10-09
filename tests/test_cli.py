@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 
@@ -598,8 +599,8 @@ class TestListCommand:
         Guards against the help/listing drifting from the validated set.
         """
         from gen_dsp.platforms import get_platform
-        from gen_dsp.platforms.daisy import DAISY_BOARDS
         from gen_dsp.platforms.circle.boards import CIRCLE_BOARDS
+        from gen_dsp.platforms.daisy import DAISY_BOARDS
 
         assert get_platform("daisy").list_boards() == sorted(DAISY_BOARDS)
         assert get_platform("circle").list_boards() == sorted(CIRCLE_BOARDS)
@@ -1112,7 +1113,7 @@ class TestDetectGraph:
 
     import json as _json
 
-    _GAIN = {
+    _GAIN: ClassVar[dict] = {
         "name": "t",
         "inputs": [{"id": "in1"}],
         "outputs": [{"id": "out1", "source": "sc"}],

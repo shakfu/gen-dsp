@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from gen_dsp.core.parser import GenExportParser
-from gen_dsp.core.project import ProjectGenerator, ProjectConfig
+from gen_dsp.core.project import ProjectConfig, ProjectGenerator
 from gen_dsp.platforms import (
     PLATFORM_REGISTRY,
     StandalonePlatform,
@@ -193,6 +193,7 @@ class TestStandaloneBuildIntegration:
             capture_output=True,
             text=True,
             timeout=120,
+            check=False,
         )
         assert result.returncode == 0, (
             f"make all failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -220,6 +221,7 @@ class TestStandaloneBuildIntegration:
             capture_output=True,
             text=True,
             timeout=120,
+            check=False,
         )
         assert result.returncode == 0, (
             f"make all failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -246,6 +248,7 @@ class TestStandaloneBuildIntegration:
             capture_output=True,
             text=True,
             timeout=120,
+            check=False,
         )
         assert build_result.returncode == 0, (
             f"make all failed:\nstdout: {build_result.stdout}\n"
@@ -259,6 +262,7 @@ class TestStandaloneBuildIntegration:
             capture_output=True,
             text=True,
             timeout=10,
+            check=False,
         )
         assert result.returncode == 0, (
             f"-l failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"

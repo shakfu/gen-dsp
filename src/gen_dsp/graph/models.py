@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
 # Type alias for node input references: either a node/input/param ID or a literal float.
-Ref = Union[str, float]
+Ref = str | float
 
 
 # ---------------------------------------------------------------------------
@@ -568,64 +568,62 @@ class Selector(BaseModel):
 
 # Discriminated union of all node types
 Node = Annotated[
-    Union[
-        BinOp,
-        UnaryOp,
-        Clamp,
-        Constant,
-        History,
-        DelayLine,
-        DelayRead,
-        DelayWrite,
-        Phasor,
-        Noise,
-        Compare,
-        Select,
-        Wrap,
-        Fold,
-        Mix,
-        Interp,
-        Delta,
-        Change,
-        Biquad,
-        SVF,
-        OnePole,
-        DCBlock,
-        Allpass,
-        SinOsc,
-        TriOsc,
-        SawOsc,
-        PulseOsc,
-        Train,
-        SampleHold,
-        Latch,
-        Accum,
-        Counter,
-        Elapsed,
-        MulAccum,
-        RateDiv,
-        SmoothParam,
-        Slide,
-        ADSR,
-        Peek,
-        Scale,
-        Pass,
-        NamedConstant,
-        SampleRate,
-        Smoothstep,
-        Subgraph,
-        Buffer,
-        BufRead,
-        BufWrite,
-        Splat,
-        BufSize,
-        Cycle,
-        Wave,
-        Lookup,
-        GateRoute,
-        GateOut,
-        Selector,
-    ],
+    BinOp
+    | UnaryOp
+    | Clamp
+    | Constant
+    | History
+    | DelayLine
+    | DelayRead
+    | DelayWrite
+    | Phasor
+    | Noise
+    | Compare
+    | Select
+    | Wrap
+    | Fold
+    | Mix
+    | Interp
+    | Delta
+    | Change
+    | Biquad
+    | SVF
+    | OnePole
+    | DCBlock
+    | Allpass
+    | SinOsc
+    | TriOsc
+    | SawOsc
+    | PulseOsc
+    | Train
+    | SampleHold
+    | Latch
+    | Accum
+    | Counter
+    | Elapsed
+    | MulAccum
+    | RateDiv
+    | SmoothParam
+    | Slide
+    | ADSR
+    | Peek
+    | Scale
+    | Pass
+    | NamedConstant
+    | SampleRate
+    | Smoothstep
+    | Subgraph
+    | Buffer
+    | BufRead
+    | BufWrite
+    | Splat
+    | BufSize
+    | Cycle
+    | Wave
+    | Lookup
+    | GateRoute
+    | GateOut
+    | Selector,
     Field(discriminator="op"),
 ]
 

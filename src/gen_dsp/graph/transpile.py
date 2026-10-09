@@ -41,8 +41,8 @@ from gen_dsp.errors import GenExtError
 from gen_dsp.graph.compile.common import _C_ID_RE
 from gen_dsp.graph.compile.nodes import _NAMED_CONSTANT_VALUES
 from gen_dsp.graph.models import (
-    SVF,
     ADSR,
+    SVF,
     Accum,
     Allpass,
     BinOp,
@@ -90,8 +90,8 @@ from gen_dsp.graph.models import (
     Selector,
     SinOsc,
     Slide,
-    Smoothstep,
     SmoothParam,
+    Smoothstep,
     Splat,
     Train,
     TriOsc,
@@ -1193,8 +1193,8 @@ def transpile_to_genexpr(graph: Graph) -> str:
 
 
 __all__ = [
-    "transpile_to_genexpr",
-    "genexpr_rename_map",
-    "GenExprUnsupportedError",
     "NON_DETERMINISTIC_OPS",
+    "GenExprUnsupportedError",
+    "genexpr_rename_map",
+    "transpile_to_genexpr",
 ]

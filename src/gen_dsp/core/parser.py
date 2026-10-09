@@ -11,7 +11,6 @@ Analyzes gen~ exports to detect:
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 from gen_dsp.errors import ParseError
 
@@ -42,13 +41,13 @@ class ExportInfo:
     has_exp2f_issue: bool = False
 
     # Path to the main .cpp file
-    cpp_path: Optional[Path] = None
+    cpp_path: Path | None = None
 
     # Path to the main .h file
-    h_path: Optional[Path] = None
+    h_path: Path | None = None
 
     # Path to genlib_ops.h (where exp2f issue occurs)
-    genlib_ops_path: Optional[Path] = None
+    genlib_ops_path: Path | None = None
 
     # Signal input names (from gen_kernel_innames[], e.g. ["carrier", "c/m ratio"])
     input_names: list[str] = field(default_factory=list)
@@ -260,9 +259,10 @@ class GenExportParser:
         for match in self.DATA_RESET_PATTERN.finditer(content):
             member_name = match.group(1)
             user_name = match.group(2)
-            if member_name in data_members:
-                if not member_name.startswith(self.INTERNAL_MEMBER_PREFIXES):
-                    data_buffers.add(user_name)
+            if member_name in data_members and not member_name.startswith(
+                self.INTERNAL_MEMBER_PREFIXES
+            ):
+                data_buffers.add(user_name)
 
         if data_buffers:
             return sorted(data_buffers)
@@ -278,13 +278,14 @@ class GenExportParser:
         ]:
             for match in pattern.finditer(content):
                 name = match.group(1)
-                if name not in self.EXCLUDED_IDENTIFIERS:
-                    if not name.startswith(("m_", "__", "gen_")):
-                        candidates.add(name)
+                if name not in self.EXCLUDED_IDENTIFIERS and not name.startswith(
+                    ("m_", "__", "gen_")
+                ):
+                    candidates.add(name)
 
         return sorted(candidates)
 
-    def _check_exp2f_issue(self) -> tuple[Optional[Path], bool]:
+    def _check_exp2f_issue(self) -> tuple[Path | None, bool]:
         """
         Check for exp2f issue in genlib_ops.h.
 

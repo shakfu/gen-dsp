@@ -11,9 +11,8 @@ Requires: macOS, Xcode (for the Xcode CMake generator), CMake >= 3.19.
 import platform as sys_platform
 import shutil
 from pathlib import Path
-from typing import Optional
+from typing import ClassVar
 
-from gen_dsp.version import __version__
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines
 from gen_dsp.core.midi import build_midi_defines
@@ -21,6 +20,7 @@ from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform, PluginCategory
 from gen_dsp.templates import get_auv3_templates_dir
+from gen_dsp.version import __version__
 
 
 class Auv3Platform(Platform):
@@ -32,13 +32,13 @@ class Auv3Platform(Platform):
 
     AU_MANUFACTURER = "Gdsp"
 
-    _AU_TYPE_MAP = {
+    _AU_TYPE_MAP: ClassVar[dict[PluginCategory, str]] = {
         PluginCategory.EFFECT: "aufx",
         PluginCategory.GENERATOR: "augn",
     }
     AU_TYPE_MUSIC_DEVICE = "aumu"
 
-    _AU_TAG_MAP = {
+    _AU_TAG_MAP: ClassVar[dict[PluginCategory, str]] = {
         PluginCategory.EFFECT: "Effects",
         PluginCategory.GENERATOR: "Synthesizer",
     }
@@ -58,7 +58,7 @@ class Auv3Platform(Platform):
         manifest: Manifest,
         output_dir: Path,
         lib_name: str,
-        config: Optional[ProjectConfig] = None,
+        config: ProjectConfig | None = None,
     ) -> None:
         templates_dir = get_auv3_templates_dir()
         if not templates_dir.is_dir():
@@ -108,15 +108,15 @@ class Auv3Platform(Platform):
         )
 
         # Generate Info plists
-        plist_vars = dict(
-            lib_name=lib_name,
-            gendsp_version=__version__,
-            au_type=au_type,
-            au_subtype=au_subtype,
-            au_manufacturer=self.AU_MANUFACTURER,
-            au_version=str(self._version_to_int(__version__)),
-            au_tag=au_tag,
-        )
+        plist_vars = {
+            "lib_name": lib_name,
+            "gendsp_version": __version__,
+            "au_type": au_type,
+            "au_subtype": au_subtype,
+            "au_manufacturer": self.AU_MANUFACTURER,
+            "au_version": str(self._version_to_int(__version__)),
+            "au_tag": au_tag,
+        }
         self.render_template(
             templates_dir / "Info-AUv3.plist.template",
             output_dir / "Info-AUv3.plist",
@@ -201,6 +201,6 @@ class Auv3Platform(Platform):
         if build_dir.exists():
             shutil.rmtree(build_dir)
 
-    def find_output(self, project_dir: Path) -> Optional[Path]:
+    def find_output(self, project_dir: Path) -> Path | None:
         # The host .app contains the .appex
         return self.find_output_by_pattern(project_dir / "build", "**/*-Host.app")

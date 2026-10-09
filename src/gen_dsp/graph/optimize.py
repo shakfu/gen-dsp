@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import math
-from typing import NamedTuple, Union
+from typing import NamedTuple
 
 from gen_dsp.graph.bitops import _eval_bitnot, _eval_bitop
 from gen_dsp.graph.models import (
-    SVF,
     ADSR,
+    SVF,
     Accum,
     Allpass,
     BinOp,
@@ -56,8 +56,8 @@ from gen_dsp.graph.models import (
     Selector,
     SinOsc,
     Slide,
-    Smoothstep,
     SmoothParam,
+    Smoothstep,
     Splat,
     Train,
     TriOsc,
@@ -107,7 +107,7 @@ _STATEFUL_TYPES = (
 )
 
 
-def _resolve_ref(ref: Union[str, float], constants: dict[str, float]) -> float | None:
+def _resolve_ref(ref: str | float, constants: dict[str, float]) -> float | None:
     """Resolve a Ref to a float if it is a literal or a known constant node."""
     if isinstance(ref, float):
         return ref
@@ -455,12 +455,10 @@ def eliminate_dead_nodes(graph: Graph) -> Graph:
                 worklist.append(value)
         # If this is a DelayRead, also mark the corresponding writers
         if isinstance(node, DelayRead):
-            for writer_id in delay_writers.get(node.delay, []):
-                worklist.append(writer_id)
+            worklist.extend(delay_writers.get(node.delay, []))
         # If this is a BufRead or BufSize, also mark the corresponding writers
         if isinstance(node, (BufRead, BufSize)):
-            for writer_id in buffer_writers.get(node.buffer, []):
-                worklist.append(writer_id)
+            worklist.extend(buffer_writers.get(node.buffer, []))
 
     new_nodes = [node for node in graph.nodes if node.id in reachable]
     return graph.model_copy(update={"nodes": new_nodes})
@@ -575,16 +573,14 @@ _COMMUTATIVE_OPS = frozenset({"add", "mul", "min", "max"})
 _NON_REF_FIELDS = frozenset({"id", "op", "interp", "mode", "count", "channel"})
 
 
-def _operand_key(ref: Union[str, float]) -> tuple[int, Union[str, float]]:
+def _operand_key(ref: str | float) -> tuple[int, str | float]:
     """Sort key for commutative operand canonicalization."""
     if isinstance(ref, float):
         return (0, ref)
     return (1, ref)
 
 
-def _cse_key(
-    node: Node, rewrite: dict[str, str]
-) -> tuple[Union[str, float], ...] | None:
+def _cse_key(node: Node, rewrite: dict[str, str]) -> tuple[str | float, ...] | None:
     """Compute a hashable expression key for a pure node, or None if not eligible.
 
     Ref fields are resolved through *rewrite* first so that transitive CSE works.
@@ -592,7 +588,7 @@ def _cse_key(
     if isinstance(node, _STATEFUL_TYPES):
         return None
 
-    def r(v: Union[str, float]) -> Union[str, float]:
+    def r(v: str | float) -> str | float:
         if isinstance(v, str):
             return rewrite.get(v, v)
         return v
@@ -674,7 +670,7 @@ def eliminate_cse(graph: Graph) -> Graph:
 
     sorted_nodes = toposort(graph)
     rewrite: dict[str, str] = {}
-    seen: dict[tuple[Union[str, float], ...], str] = {}
+    seen: dict[tuple[str | float, ...], str] = {}
 
     for node in sorted_nodes:
         key = _cse_key(node, rewrite)

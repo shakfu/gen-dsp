@@ -3,16 +3,13 @@
 import shutil
 from pathlib import Path
 from string import Template
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
-from gen_dsp.version import __version__
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines_make
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform, substitute_strict
-from gen_dsp.templates import get_circle_templates_dir
-
 from gen_dsp.platforms.circle.boards import (
     CIRCLE_BOARDS,
     CircleBoardConfig,
@@ -21,15 +18,6 @@ from gen_dsp.platforms.circle.boards import (
     _get_audio_label,
     _get_boot_config,
     _get_extra_libs,
-)
-from gen_dsp.platforms.circle.sdk import (
-    CIRCLE_VERSION,
-    _CIRCLE_CACHE_SUBDIR,
-    _CIRCLE_CLONE_URL,
-    _CIRCLE_DIR_NAME,
-    _get_default_circle_dir,
-    _resolve_circle_dir,
-    ensure_circle,
 )
 from gen_dsp.platforms.circle.chain import (
     _build_chain_create,
@@ -54,6 +42,17 @@ from gen_dsp.platforms.circle.dag import (
     _build_dag_perform,
     _build_dag_set_param,
 )
+from gen_dsp.platforms.circle.sdk import (
+    _CIRCLE_CACHE_SUBDIR,
+    _CIRCLE_CLONE_URL,
+    _CIRCLE_DIR_NAME,
+    CIRCLE_VERSION,
+    _get_default_circle_dir,
+    _resolve_circle_dir,
+    ensure_circle,
+)
+from gen_dsp.templates import get_circle_templates_dir
+from gen_dsp.version import __version__
 
 if TYPE_CHECKING:
     from gen_dsp.core.graph import EdgeBuffer, GraphConfig, ResolvedChainNode
@@ -85,7 +84,7 @@ class CirclePlatform(Platform):
         manifest: Manifest,
         output_dir: Path,
         lib_name: str,
-        config: Optional[ProjectConfig] = None,
+        config: ProjectConfig | None = None,
     ) -> None:
         """Generate Circle bare metal project files."""
         templates_dir = get_circle_templates_dir()
@@ -511,7 +510,7 @@ int main(void)
         if (circle_dir / "Rules.mk").is_file():
             self.run_command(["make", "clean", f"CIRCLEHOME={circle_dir}"], project_dir)
 
-    def find_output(self, project_dir: Path) -> Optional[Path]:
+    def find_output(self, project_dir: Path) -> Path | None:
         """Find the built Circle kernel image."""
         return self.find_output_by_pattern(project_dir, "kernel*.img")
 
@@ -525,7 +524,7 @@ int main(void)
         graph: "GraphConfig",
         output_dir: Path,
         lib_name: str,
-        config: Optional[ProjectConfig] = None,
+        config: ProjectConfig | None = None,
     ) -> None:
         """Generate Circle chain project with multiple gen~ plugins.
 
@@ -757,7 +756,7 @@ int main(void)
         num_buffers: int,
         output_dir: Path,
         lib_name: str,
-        config: Optional[ProjectConfig] = None,
+        config: ProjectConfig | None = None,
     ) -> None:
         """Generate Circle DAG project with arbitrary topology.
 
@@ -969,13 +968,13 @@ int main(void)
 
 
 __all__ = [
-    "CirclePlatform",
     "CIRCLE_BOARDS",
     "CIRCLE_VERSION",
-    "CircleBoardConfig",
     "_CIRCLE_CACHE_SUBDIR",
     "_CIRCLE_CLONE_URL",
     "_CIRCLE_DIR_NAME",
+    "CircleBoardConfig",
+    "CirclePlatform",
     "_build_chain_create",
     "_build_chain_destroy",
     "_build_chain_includes",

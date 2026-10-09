@@ -15,16 +15,15 @@ handling, fallback prefix), so the divergences are documented explicitly.
 
 import re
 
-from gen_dsp.platforms.base import Platform
-from gen_dsp.platforms.lv2 import Lv2Platform
-from gen_dsp.platforms.supercollider import SuperColliderPlatform
 from gen_dsp.core.manifest import (
     Manifest,
     ParamInfo,
     _sanitize_input_name,
     apply_inputs_as_params,
 )
-
+from gen_dsp.platforms.base import Platform
+from gen_dsp.platforms.lv2 import Lv2Platform
+from gen_dsp.platforms.supercollider import SuperColliderPlatform
 
 sanitize_c = Platform.sanitize_c_identifier
 sanitize_sc = SuperColliderPlatform._sanitize_sc_arg

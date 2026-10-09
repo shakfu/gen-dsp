@@ -16,12 +16,13 @@ from gen_dsp.graph.dsl.lexer import (
     Token,
     tokenize,
 )
+from gen_dsp.graph.dsl.lower import Compiler
 from gen_dsp.graph.dsl.parser import (
     ASTArg,
     ASTAssign,
     ASTBinExpr,
-    ASTBufWriteStmt,
     ASTBufferDecl,
+    ASTBufWriteStmt,
     ASTCall,
     ASTCompose,
     ASTDelayDecl,
@@ -39,9 +40,7 @@ from gen_dsp.graph.dsl.parser import (
     ASTUnaryExpr,
     Parser,
 )
-from gen_dsp.graph.dsl.lower import Compiler
 from gen_dsp.graph.models import Graph
-
 
 # ---------------------------------------------------------------------------
 # Public API
@@ -98,10 +97,6 @@ __all__ = [
     "NUMBER",
     "OP",
     "STRING",
-    "GDSPCompileError",
-    "GDSPSyntaxError",
-    "Token",
-    "tokenize",
     "ASTArg",
     "ASTAssign",
     "ASTBinExpr",
@@ -122,8 +117,12 @@ __all__ = [
     "ASTOutDecl",
     "ASTParamDecl",
     "ASTUnaryExpr",
+    "GDSPCompileError",
+    "GDSPSyntaxError",
     "Parser",
+    "Token",
     "parse",
-    "parse_multi",
     "parse_file",
+    "parse_multi",
+    "tokenize",
 ]

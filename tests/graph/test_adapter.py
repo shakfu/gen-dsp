@@ -133,6 +133,7 @@ class TestReset:
             ["g++", "-std=c++11", "-c", "-o", str(tmp_path / "test.o"), str(src)],
             capture_output=True,
             text=True,
+            check=False,
         )
         assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
 
@@ -303,6 +304,7 @@ class TestIntegration:
             ],
             capture_output=True,
             text=True,
+            check=False,
         )
         assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
 
@@ -324,6 +326,7 @@ class TestIntegration:
             ],
             capture_output=True,
             text=True,
+            check=False,
         )
         assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
 
@@ -345,6 +348,7 @@ class TestIntegration:
             ],
             capture_output=True,
             text=True,
+            check=False,
         )
         assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
 
@@ -381,6 +385,7 @@ class TestIntegration:
             ],
             capture_output=True,
             text=True,
+            check=False,
         )
         assert result.returncode == 0, f"adapter compile failed:\n{result.stderr}"
 

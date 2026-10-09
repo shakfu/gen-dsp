@@ -4,20 +4,18 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Optional
 
 import pytest
 
-from tests.helpers import fetchcontent_cmake_args, validate_lv2
-
-from gen_dsp.version import __version__
 from gen_dsp.core.parser import GenExportParser
-from gen_dsp.core.project import ProjectGenerator, ProjectConfig
+from gen_dsp.core.project import ProjectConfig, ProjectGenerator
 from gen_dsp.platforms import (
     PLATFORM_REGISTRY,
     Lv2Platform,
     get_platform,
 )
+from gen_dsp.version import __version__
+from tests.helpers import fetchcontent_cmake_args, validate_lv2
 
 
 def _build_env():
@@ -324,7 +322,7 @@ class TestLv2BuildIntegration:
         gigaverb_export: Path,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        lv2_validator: Optional[Path],
+        lv2_validator: Path | None,
         validate_minihost,
     ):
         """Generate and compile an LV2 plugin from gigaverb (no buffers)."""
@@ -347,6 +345,7 @@ class TestLv2BuildIntegration:
             text=True,
             timeout=120,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake configure failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -360,6 +359,7 @@ class TestLv2BuildIntegration:
             text=True,
             timeout=120,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake build failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -388,7 +388,7 @@ class TestLv2BuildIntegration:
         rampleplayer_export: Path,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        lv2_validator: Optional[Path],
+        lv2_validator: Path | None,
         validate_minihost,
     ):
         """Generate and compile an LV2 plugin from RamplePlayer (has buffers)."""
@@ -414,6 +414,7 @@ class TestLv2BuildIntegration:
             text=True,
             timeout=120,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake configure failed:\nstderr: {result.stderr}"
@@ -426,6 +427,7 @@ class TestLv2BuildIntegration:
             text=True,
             timeout=120,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake build failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -446,7 +448,7 @@ class TestLv2BuildIntegration:
         spectraldelayfb_export: Path,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        lv2_validator: Optional[Path],
+        lv2_validator: Path | None,
         validate_minihost,
     ):
         """Generate and compile an LV2 plugin from spectraldelayfb (3in/2out)."""
@@ -468,6 +470,7 @@ class TestLv2BuildIntegration:
             text=True,
             timeout=120,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake configure failed:\nstderr: {result.stderr}"
@@ -480,6 +483,7 @@ class TestLv2BuildIntegration:
             text=True,
             timeout=120,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake build failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -501,12 +505,13 @@ class TestLv2BuildIntegration:
         gigaverb_export: Path,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        lv2_validator: Optional[Path],
+        lv2_validator: Path | None,
         validate_minihost,
     ):
         """Generate and compile a polyphonic LV2 plugin (NUM_VOICES=4)."""
         import shutil
         from dataclasses import replace
+
         from gen_dsp.core.manifest import manifest_from_export_info
         from gen_dsp.core.midi import detect_midi_mapping
 
@@ -550,6 +555,7 @@ class TestLv2BuildIntegration:
             text=True,
             timeout=120,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake configure failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -563,6 +569,7 @@ class TestLv2BuildIntegration:
             text=True,
             timeout=120,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake build failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"

@@ -18,16 +18,15 @@ from gen_dsp.core.parser import ExportInfo
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.platforms.circle import (
     CirclePlatform,
-    _build_chain_includes,
-    _build_chain_io_defines,
     _build_chain_create,
     _build_chain_destroy,
-    _build_chain_perform,
+    _build_chain_includes,
+    _build_chain_io_defines,
     _build_chain_midi_dispatch,
     _build_chain_per_node_flags,
+    _build_chain_perform,
     _build_chain_set_param,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

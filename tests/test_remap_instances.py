@@ -103,6 +103,7 @@ def test_remap_per_instance(gigaverb_export, tmp_path, platform, sanitizer):
         ],
         capture_output=True,
         text=True,
+        check=False,
     )
     assert r.returncode == 0, r.stderr[-4000:]
     # genlib never frees the data objects reset() obtains (gigaverb's delay lines)
@@ -111,6 +112,8 @@ def test_remap_per_instance(gigaverb_export, tmp_path, platform, sanitizer):
     env = dict(
         os.environ, TSAN_OPTIONS="exitcode=66", LSAN_OPTIONS=f"suppressions={supp}"
     )
-    r = subprocess.run([str(exe)], capture_output=True, text=True, env=env, timeout=300)
+    r = subprocess.run(
+        [str(exe)], capture_output=True, text=True, env=env, timeout=300, check=False
+    )
     assert r.returncode == 0, r.stderr[-4000:]
     assert r.stdout.strip() == "ok"

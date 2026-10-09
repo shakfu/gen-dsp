@@ -1,19 +1,19 @@
 """Tests for --inputs-as-params (input-to-parameter remapping)."""
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from gen_dsp.core.manifest import (
     Manifest,
     ParamInfo,
+    _build_remap_defs,
     apply_inputs_as_params,
     build_remap_defines,
     build_remap_defines_make,
-    _build_remap_defs,
 )
 from gen_dsp.core.parser import GenExportParser
 from gen_dsp.core.project import ProjectConfig, ProjectGenerator
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

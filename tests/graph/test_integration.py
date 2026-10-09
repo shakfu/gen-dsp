@@ -10,8 +10,6 @@ import pytest
 
 pydantic = pytest.importorskip("pydantic")
 
-from tests.helpers import fetchcontent_cmake_args
-
 from gen_dsp.core.project import ProjectConfig, ProjectGenerator
 from gen_dsp.graph import (
     AudioInput,
@@ -20,6 +18,7 @@ from gen_dsp.graph import (
     Graph,
     Param,
 )
+from tests.helpers import fetchcontent_cmake_args
 
 
 @pytest.fixture
@@ -123,6 +122,7 @@ class TestFromGraphCLI:
             ],
             capture_output=True,
             text=True,
+            check=False,
         )
         assert result.returncode == 0, f"CLI failed: {result.stderr}"
         assert (out_dir / "cli_test.cpp").is_file()
@@ -151,6 +151,7 @@ class TestFromGraphBuild:
             cwd=str(clap_project),
             capture_output=True,
             text=True,
+            check=False,
         )
         assert result.returncode == 0, f"cmake configure failed:\n{result.stderr}"
 
@@ -160,6 +161,7 @@ class TestFromGraphBuild:
             cwd=str(clap_project),
             capture_output=True,
             text=True,
+            check=False,
         )
         assert result.returncode == 0, f"cmake build failed:\n{result.stderr}"
 

@@ -7,16 +7,16 @@ import pytest
 pytest.importorskip("pydantic")
 np = pytest.importorskip("numpy")
 
-from gen_dsp.graph.compile import compile_graph  # noqa: E402
-from gen_dsp.graph.models import (  # noqa: E402
+from gen_dsp.graph.compile import compile_graph
+from gen_dsp.graph.models import (
     AudioInput,
     AudioOutput,
-    BufRead,
     Buffer,
+    BufRead,
     Graph,
 )
-from gen_dsp.graph.serialize import graph_to_gdsp  # noqa: E402
-from gen_dsp.graph.simulate import SimState, simulate  # noqa: E402
+from gen_dsp.graph.serialize import graph_to_gdsp
+from gen_dsp.graph.simulate import SimState, simulate
 
 
 @pytest.mark.parametrize("field", ["interp"])

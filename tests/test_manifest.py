@@ -3,8 +3,6 @@
 import json
 from pathlib import Path
 
-
-from gen_dsp.version import __version__
 from gen_dsp.core.manifest import (
     Manifest,
     ParamInfo,
@@ -12,7 +10,8 @@ from gen_dsp.core.manifest import (
     parse_params_from_export,
 )
 from gen_dsp.core.parser import GenExportParser
-from gen_dsp.core.project import ProjectGenerator, ProjectConfig
+from gen_dsp.core.project import ProjectConfig, ProjectGenerator
+from gen_dsp.version import __version__
 
 
 class TestParamInfoSerialization:

@@ -172,9 +172,7 @@ def _rewrite_node(
                 updates[field_name] = new_list
         elif isinstance(value, str) and value in rewrite_map:
             updates[field_name] = rewrite_map[value]
-        elif isinstance(value, float):
-            continue
-        elif isinstance(value, int):
+        elif isinstance(value, (float, int)):
             continue
     return node.model_copy(update=updates)
 

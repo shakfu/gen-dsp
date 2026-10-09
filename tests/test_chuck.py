@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from gen_dsp.core.parser import GenExportParser
-from gen_dsp.core.project import ProjectGenerator, ProjectConfig
+from gen_dsp.core.project import ProjectConfig, ProjectGenerator
 from gen_dsp.platforms import (
     PLATFORM_REGISTRY,
     ChuckPlatform,
@@ -106,6 +106,7 @@ def _validate_chugin(
         capture_output=True,
         text=True,
         timeout=30,
+        check=False,
     )
     assert result.returncode == 0, (
         f"chuck failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -284,6 +285,7 @@ class TestChuckBuildIntegration:
             capture_output=True,
             text=True,
             timeout=120,
+            check=False,
         )
         assert result.returncode == 0, (
             f"make {target} failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -320,6 +322,7 @@ class TestChuckBuildIntegration:
             capture_output=True,
             text=True,
             timeout=120,
+            check=False,
         )
         assert result.returncode == 0, (
             f"make {target} failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -363,6 +366,7 @@ class TestChuckBuildIntegration:
             capture_output=True,
             text=True,
             timeout=120,
+            check=False,
         )
         assert result.returncode == 0, (
             f"make {target} failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -394,6 +398,7 @@ class TestChuckBuildIntegration:
             capture_output=True,
             text=True,
             timeout=120,
+            check=False,
         )
         assert build.returncode == 0, f"make {target} failed:\nstderr: {build.stderr}"
 
@@ -417,6 +422,7 @@ class TestChuckBuildIntegration:
             capture_output=True,
             text=True,
             timeout=30,
+            check=False,
         )
         assert result.returncode == 0, (
             f"chuck failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"

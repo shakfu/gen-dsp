@@ -8,19 +8,17 @@ import sys
 import tempfile
 import wave
 from pathlib import Path
-from typing import Optional
 
 import pytest
 
-from tests.helpers import fetchcontent_cmake_args
-
 from gen_dsp.core.parser import GenExportParser
-from gen_dsp.core.project import ProjectGenerator, ProjectConfig
+from gen_dsp.core.project import ProjectConfig, ProjectGenerator
 from gen_dsp.platforms import (
     PLATFORM_REGISTRY,
     SuperColliderPlatform,
     get_platform,
 )
+from tests.helpers import fetchcontent_cmake_args
 
 
 def _build_env():
@@ -43,7 +41,7 @@ _skip_no_toolchain = pytest.mark.skipif(
 # -- SuperCollider runtime tool discovery --------------------------------------
 
 
-def _find_sc_tool(name: str, bundle_subpath: str) -> Optional[str]:
+def _find_sc_tool(name: str, bundle_subpath: str) -> str | None:
     """Find a SuperCollider tool (sclang or scsynth).
 
     Resolution order: PATH > environment variable > macOS app bundle.
@@ -70,7 +68,7 @@ _sclang = _find_sc_tool("sclang", "Contents/MacOS/sclang")
 _scsynth = _find_sc_tool("scsynth", "Contents/Resources/scsynth")
 
 
-def _find_sc_resource(subdir: str) -> Optional[Path]:
+def _find_sc_resource(subdir: str) -> Path | None:
     """Derive an SC Resources subdirectory from the scsynth location."""
     if not _scsynth:
         return None
@@ -143,8 +141,7 @@ def _write_nrt_score(path: Path, synthdef_path: Path, num_outputs: int) -> None:
         _osc_bundle(1.0, [n_free, c_set]),
     ]
     with open(path, "wb") as f:
-        for b in bundles:
-            f.write(struct.pack(">i", len(b)) + b)
+        f.writelines(struct.pack(">i", len(b)) + b for b in bundles)
 
 
 # -- SC validation function ---------------------------------------------------
@@ -228,6 +225,7 @@ def _validate_sc(
             capture_output=True,
             text=True,
             timeout=60,
+            check=False,
         )
         output = result.stdout + result.stderr
         assert "SYNTHDEF_OK" in output, f"sclang SynthDef build failed:\n{output}"
@@ -259,6 +257,7 @@ def _validate_sc(
             capture_output=True,
             text=True,
             timeout=30,
+            check=False,
         )
         assert result.returncode == 0, (
             f"scsynth NRT failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -579,6 +578,7 @@ class TestScBuildIntegration:
             text=True,
             timeout=120,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake configure failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -592,6 +592,7 @@ class TestScBuildIntegration:
             text=True,
             timeout=120,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake build failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -634,6 +635,7 @@ class TestScBuildIntegration:
             text=True,
             timeout=120,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake configure failed:\nstderr: {result.stderr}"
@@ -646,6 +648,7 @@ class TestScBuildIntegration:
             text=True,
             timeout=120,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake build failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -680,6 +683,7 @@ class TestScBuildIntegration:
             text=True,
             timeout=120,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake configure failed:\nstderr: {result.stderr}"
@@ -692,6 +696,7 @@ class TestScBuildIntegration:
             text=True,
             timeout=120,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake build failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"

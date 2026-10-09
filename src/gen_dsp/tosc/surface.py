@@ -12,8 +12,9 @@ Requires py2tosc -- install with ``pip install gen-dsp[tosc]``.
 
 from __future__ import annotations
 
+from collections.abc import Iterator, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Iterator, Optional, Sequence
+from typing import TYPE_CHECKING
 
 import py2tosc
 from py2tosc import Control, Document, Value, layout, ui
@@ -47,9 +48,9 @@ GRADIENT = ("#264653", "#e76f51")
 
 
 def build_surface(
-    manifest: "Manifest",
+    manifest: Manifest,
     *,
-    prefix: Optional[str] = None,
+    prefix: str | None = None,
     osc: bool = True,
     midi: bool = True,
     columns: int = COLUMNS,
@@ -112,7 +113,7 @@ def build_surface(
 
 
 def write_surface(
-    manifest: "Manifest",
+    manifest: Manifest,
     path: Path,
     **kwargs: object,
 ) -> Path:

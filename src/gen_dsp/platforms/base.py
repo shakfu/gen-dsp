@@ -5,22 +5,21 @@ Provides common functionality shared across all platforms.
 """
 
 import re
+import shutil
 import subprocess
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Sequence
 from enum import Enum
 from pathlib import Path
 from string import Template
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
-import shutil
-
-from gen_dsp.version import __version__
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest
 from gen_dsp.core.naming import uniquify_identifiers
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
+from gen_dsp.version import __version__
 
 if TYPE_CHECKING:
     from gen_dsp.graph.models import Graph
@@ -89,7 +88,7 @@ class Platform(ABC):
         manifest: Manifest,
         output_dir: Path,
         lib_name: str,
-        config: Optional[ProjectConfig] = None,
+        config: ProjectConfig | None = None,
     ) -> None:
         """
         Generate project files for this platform.
@@ -130,7 +129,7 @@ class Platform(ABC):
         """
 
     @abstractmethod
-    def find_output(self, project_dir: Path) -> Optional[Path]:
+    def find_output(self, project_dir: Path) -> Path | None:
         """
         Find the built external file.
 
@@ -217,7 +216,7 @@ class Platform(ABC):
             shutil.rmtree(build_dir)
 
     def copy_voice_alloc_header(
-        self, output_dir: Path, config: Optional[ProjectConfig] = None
+        self, output_dir: Path, config: ProjectConfig | None = None
     ) -> None:
         """Copy voice_alloc.h to output_dir when polyphony is enabled (NUM_VOICES > 1).
 
@@ -320,7 +319,7 @@ class Platform(ABC):
         self.copy_voice_alloc_header(output_dir, config)
 
         # 7. Copy platform-specific buffer header if one exists
-        import gen_dsp.templates as templates
+        from gen_dsp import templates
 
         getter = getattr(templates, f"get_{platform}_templates_dir", None)
         if getter is not None:
@@ -358,7 +357,7 @@ class Platform(ABC):
         Default implementation writes nothing. Platforms that need extra files
         (e.g. Info.plist, TTL metadata, a board-specific wrapper) override this.
         """
-        return None
+        return
 
     # -------------------------------------------------------------------------
     # Shared generation helpers
@@ -394,7 +393,7 @@ class Platform(ABC):
         *patterns: str,
         require_dir: bool = False,
         require_file: bool = False,
-    ) -> Optional[Path]:
+    ) -> Path | None:
         """Return the first entry under ``base_dir`` matching any glob pattern.
 
         Patterns are tried in order. ``require_dir``/``require_file`` filter the

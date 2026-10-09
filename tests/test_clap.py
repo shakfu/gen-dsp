@@ -4,20 +4,18 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Optional
 
 import pytest
 
-from tests.helpers import fetchcontent_cmake_args, validate_clap
-
-from gen_dsp.version import __version__
 from gen_dsp.core.parser import GenExportParser
-from gen_dsp.core.project import ProjectGenerator, ProjectConfig
+from gen_dsp.core.project import ProjectConfig, ProjectGenerator
 from gen_dsp.platforms import (
     PLATFORM_REGISTRY,
     ClapPlatform,
     get_platform,
 )
+from gen_dsp.version import __version__
+from tests.helpers import fetchcontent_cmake_args, validate_clap
 
 
 def _build_env():
@@ -581,7 +579,7 @@ class TestClapBuildIntegration:
         gigaverb_export: Path,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        clap_validator: Optional[Path],
+        clap_validator: Path | None,
     ):
         """Generate and compile a CLAP plugin from gigaverb (no buffers)."""
         project_dir = tmp_path / "gigaverb_clap"
@@ -603,6 +601,7 @@ class TestClapBuildIntegration:
             text=True,
             timeout=120,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake configure failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -616,6 +615,7 @@ class TestClapBuildIntegration:
             text=True,
             timeout=120,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake build failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -635,7 +635,7 @@ class TestClapBuildIntegration:
         rampleplayer_export: Path,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        clap_validator: Optional[Path],
+        clap_validator: Path | None,
     ):
         """Generate and compile a CLAP plugin from RamplePlayer (has buffers)."""
         project_dir = tmp_path / "rampleplayer_clap"
@@ -660,6 +660,7 @@ class TestClapBuildIntegration:
             text=True,
             timeout=120,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake configure failed:\nstderr: {result.stderr}"
@@ -672,6 +673,7 @@ class TestClapBuildIntegration:
             text=True,
             timeout=120,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake build failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -689,7 +691,7 @@ class TestClapBuildIntegration:
         spectraldelayfb_export: Path,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        clap_validator: Optional[Path],
+        clap_validator: Path | None,
     ):
         """Generate and compile a CLAP plugin from spectraldelayfb (3in/2out)."""
         project_dir = tmp_path / "spectraldelayfb_clap"
@@ -710,6 +712,7 @@ class TestClapBuildIntegration:
             text=True,
             timeout=120,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake configure failed:\nstderr: {result.stderr}"
@@ -722,6 +725,7 @@ class TestClapBuildIntegration:
             text=True,
             timeout=120,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake build failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -740,11 +744,12 @@ class TestClapBuildIntegration:
         gigaverb_export: Path,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        clap_validator: Optional[Path],
+        clap_validator: Path | None,
     ):
         """Generate and compile a polyphonic CLAP plugin (NUM_VOICES=4)."""
         import shutil
         from dataclasses import replace
+
         from gen_dsp.core.manifest import manifest_from_export_info
         from gen_dsp.core.midi import detect_midi_mapping
         from gen_dsp.platforms.clap import ClapPlatform
@@ -789,6 +794,7 @@ class TestClapBuildIntegration:
             text=True,
             timeout=120,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake configure failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -802,6 +808,7 @@ class TestClapBuildIntegration:
             text=True,
             timeout=120,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, (
             f"cmake build failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"

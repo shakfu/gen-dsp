@@ -9,9 +9,8 @@ required -- only system frameworks (AudioToolbox, CoreFoundation, CoreAudio).
 import platform as sys_platform
 import shutil
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, ClassVar
 
-from gen_dsp.version import __version__
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines
 from gen_dsp.core.midi import build_midi_defines
@@ -20,6 +19,7 @@ from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import PluginCategory
 from gen_dsp.platforms.cmake_platform import CMakePlatform
 from gen_dsp.templates import get_au_templates_dir
+from gen_dsp.version import __version__
 
 if TYPE_CHECKING:
     from gen_dsp.graph.models import Graph
@@ -36,7 +36,7 @@ class AudioUnitPlatform(CMakePlatform):
     # Apple requires at least one non-lowercase character in manufacturer OSType
     AU_MANUFACTURER = "Gdsp"
 
-    _AU_TYPE_MAP = {
+    _AU_TYPE_MAP: ClassVar[dict[PluginCategory, str]] = {
         PluginCategory.EFFECT: "aufx",
         PluginCategory.GENERATOR: "augn",
     }
@@ -54,7 +54,7 @@ class AudioUnitPlatform(CMakePlatform):
         manifest: Manifest,
         output_dir: Path,
         lib_name: str,
-        config: Optional[ProjectConfig] = None,
+        config: ProjectConfig | None = None,
     ) -> None:
         """Generate AudioUnit project files."""
         templates_dir = get_au_templates_dir()
@@ -220,6 +220,6 @@ class AudioUnitPlatform(CMakePlatform):
             raise BuildError("AudioUnit plugins can only be built on macOS")
         return self._build_with_cmake(project_dir, clean, verbose)
 
-    def find_output(self, project_dir: Path) -> Optional[Path]:
+    def find_output(self, project_dir: Path) -> Path | None:
         """Find the built AudioUnit .component bundle."""
         return self.find_output_by_pattern(project_dir / "build", "**/*.component")

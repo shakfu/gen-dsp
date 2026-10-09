@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from gen_dsp.core.naming import uniquify_identifiers
 
@@ -78,7 +78,7 @@ class OscParam:
     min: float
     max: float
     default: float
-    cc: Optional[int]
+    cc: int | None
 
     @property
     def normalized_default(self) -> float:
@@ -95,12 +95,12 @@ class OscParam:
         return max(0.0, min(1.0, (self.default - self.min) / span))
 
 
-def default_prefix(manifest: "Manifest") -> str:
+def default_prefix(manifest: Manifest) -> str:
     """Return the OSC namespace a surface uses when none is given."""
     return osc_namespace(manifest.gen_name)
 
 
-def resolve_prefix(manifest: "Manifest", prefix: Optional[str] = None) -> str:
+def resolve_prefix(manifest: Manifest, prefix: str | None = None) -> str:
     """Return the OSC namespace to use, normalized.
 
     Every consumer of a caller-supplied prefix goes through here. A prefix is
@@ -112,7 +112,7 @@ def resolve_prefix(manifest: "Manifest", prefix: Optional[str] = None) -> str:
     return default_prefix(manifest) if prefix is None else osc_namespace(prefix, "")
 
 
-def osc_params(manifest: "Manifest", prefix: Optional[str] = None) -> list[OscParam]:
+def osc_params(manifest: Manifest, prefix: str | None = None) -> list[OscParam]:
     """Map a manifest's parameters onto OSC addresses and MIDI CC numbers.
 
     Slugs are disambiguated as a group: two parameters named ``"cutoff hz"``

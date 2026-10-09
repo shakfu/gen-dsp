@@ -7,12 +7,11 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
 
 import pytest
 
 from gen_dsp.core.parser import GenExportParser
-from gen_dsp.core.project import ProjectGenerator, ProjectConfig
+from gen_dsp.core.project import ProjectConfig, ProjectGenerator
 from gen_dsp.platforms import (
     PLATFORM_REGISTRY,
     VcvRackPlatform,
@@ -26,7 +25,6 @@ from gen_dsp.platforms.vcvrack import (
     ensure_rack_sdk,
 )
 
-
 # Skip conditions
 _has_make = shutil.which("make") is not None
 _has_cxx = shutil.which("clang++") is not None or shutil.which("g++") is not None
@@ -37,7 +35,7 @@ _skip_no_toolchain = pytest.mark.skipif(
 )
 
 
-def _find_rack_binary() -> Optional[str]:
+def _find_rack_binary() -> str | None:
     """Find VCV Rack binary. PATH > RACK_APP env > macOS app bundle."""
     found = shutil.which("Rack")
     if found:
@@ -135,6 +133,7 @@ def _validate_vcvrack(project_dir: Path, slug: str) -> None:
             capture_output=True,
             text=True,
             timeout=30,
+            check=False,
         )
 
         # Read log

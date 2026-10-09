@@ -12,20 +12,10 @@ import platform as sys_platform
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Optional
 
 import pytest
 
 pydantic = pytest.importorskip("pydantic")
-
-from tests.helpers import (
-    fetchcontent_cmake_args,
-    validate_chugin,
-    validate_clap,
-    validate_lv2,
-    validate_pd_external,
-    validate_vst3,
-)
 
 from gen_dsp.core.project import ProjectConfig, ProjectGenerator
 from gen_dsp.graph import (
@@ -40,6 +30,14 @@ from gen_dsp.graph import (
     Param,
     Phasor,
     SinOsc,
+)
+from tests.helpers import (
+    fetchcontent_cmake_args,
+    validate_chugin,
+    validate_clap,
+    validate_lv2,
+    validate_pd_external,
+    validate_vst3,
 )
 
 # ---------------------------------------------------------------------------
@@ -229,8 +227,8 @@ def midi_synth_graph() -> Graph:
 
 def _cmake_build(
     project_dir: Path,
-    fetchcontent_cache: Optional[Path] = None,
-    extra_args: Optional[list[str]] = None,
+    fetchcontent_cache: Path | None = None,
+    extra_args: list[str] | None = None,
 ) -> None:
     """Configure and build a CMake project, asserting success at each step."""
     build_dir = project_dir / "build"
@@ -250,6 +248,7 @@ def _cmake_build(
         text=True,
         timeout=300,
         env=env,
+        check=False,
     )
     assert result.returncode == 0, (
         f"cmake configure failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -262,6 +261,7 @@ def _cmake_build(
         text=True,
         timeout=180,
         env=env,
+        check=False,
     )
     assert result.returncode == 0, (
         f"cmake build failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -270,8 +270,8 @@ def _cmake_build(
 
 def _make_build(
     project_dir: Path,
-    target: Optional[str] = None,
-    extra_args: Optional[list[str]] = None,
+    target: str | None = None,
+    extra_args: list[str] | None = None,
 ) -> None:
     """Run make in a project directory, asserting success."""
     cmd = ["make"]
@@ -286,6 +286,7 @@ def _make_build(
         capture_output=True,
         text=True,
         timeout=120,
+        check=False,
     )
     assert result.returncode == 0, (
         f"make failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -420,7 +421,7 @@ class TestBuildClapFromGraph:
         gain_graph: Graph,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        clap_validator: Optional[Path],
+        clap_validator: Path | None,
     ) -> None:
         """Build a CLAP plugin from a graph."""
         project_dir = tmp_path / "gain_clap"
@@ -442,7 +443,7 @@ class TestBuildClapFromGraph:
         generator_graph: Graph,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        clap_validator: Optional[Path],
+        clap_validator: Path | None,
     ) -> None:
         """Build a CLAP instrument (0 inputs) from a graph."""
         project_dir = tmp_path / "sinegen_clap"
@@ -463,7 +464,7 @@ class TestBuildClapFromGraph:
         stereo_graph: Graph,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        clap_validator: Optional[Path],
+        clap_validator: Path | None,
     ) -> None:
         """Build a stereo CLAP plugin from a graph."""
         project_dir = tmp_path / "stereo_clap"
@@ -491,7 +492,7 @@ class TestBuildVst3FromGraph:
         gain_graph: Graph,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        vst3_validator: Optional[Path],
+        vst3_validator: Path | None,
     ) -> None:
         """Build a VST3 plugin from a graph."""
         project_dir = tmp_path / "gain_vst3"
@@ -512,7 +513,7 @@ class TestBuildVst3FromGraph:
         generator_graph: Graph,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        vst3_validator: Optional[Path],
+        vst3_validator: Path | None,
     ) -> None:
         """Build a VST3 instrument (0 inputs) from a graph."""
         project_dir = tmp_path / "sinegen_vst3"
@@ -540,7 +541,7 @@ class TestBuildLv2FromGraph:
         gain_graph: Graph,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        lv2_validator: Optional[Path],
+        lv2_validator: Path | None,
     ) -> None:
         """Build an LV2 plugin from a graph."""
         project_dir = tmp_path / "gain_lv2"
@@ -561,7 +562,7 @@ class TestBuildLv2FromGraph:
         filter_graph: Graph,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        lv2_validator: Optional[Path],
+        lv2_validator: Path | None,
     ) -> None:
         """Build an LV2 plugin with stateful OnePole node."""
         project_dir = tmp_path / "lowpass_lv2"
@@ -713,7 +714,7 @@ class TestBuildGdspExamples:
         gdsp_file: Path,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        clap_validator: Optional[Path],
+        clap_validator: Path | None,
     ) -> None:
         """Build a CLAP plugin from each example .gdsp file."""
         from gen_dsp.cli import main
@@ -899,7 +900,7 @@ class TestBuildBufferGraph:
         buffer_graph: Graph,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        clap_validator: Optional[Path],
+        clap_validator: Path | None,
     ) -> None:
         """Build CLAP plugin from a wavetable graph with buffers."""
         project_dir = tmp_path / "wavetable_clap"
@@ -961,7 +962,7 @@ class TestBuildMultiChannelGraph:
         multichannel_graph: Graph,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        clap_validator: Optional[Path],
+        clap_validator: Path | None,
     ) -> None:
         """Build CLAP plugin from a 3in/2out graph."""
         project_dir = tmp_path / "mixer3to2_clap"
@@ -982,7 +983,7 @@ class TestBuildMultiChannelGraph:
         multichannel_graph: Graph,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        vst3_validator: Optional[Path],
+        vst3_validator: Path | None,
     ) -> None:
         """Build VST3 plugin from a 3in/2out graph."""
         project_dir = tmp_path / "mixer3to2_vst3"
@@ -1003,7 +1004,7 @@ class TestBuildMultiChannelGraph:
         multichannel_graph: Graph,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        lv2_validator: Optional[Path],
+        lv2_validator: Path | None,
     ) -> None:
         """Build LV2 plugin from a 3in/2out graph."""
         project_dir = tmp_path / "mixer3to2_lv2"
@@ -1059,7 +1060,7 @@ class TestBuildMidiGraph:
         midi_synth_graph: Graph,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        clap_validator: Optional[Path],
+        clap_validator: Path | None,
     ) -> None:
         """Build CLAP instrument with MIDI mapping from a graph."""
         project_dir = tmp_path / "synth_clap"
@@ -1113,7 +1114,7 @@ class TestBuildMidiGraph:
         midi_synth_graph: Graph,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        vst3_validator: Optional[Path],
+        vst3_validator: Path | None,
     ) -> None:
         """Build VST3 instrument with MIDI mapping from a graph."""
         project_dir = tmp_path / "synth_vst3"
@@ -1147,7 +1148,7 @@ class TestBuildPolyphonyGraph:
         midi_synth_graph: Graph,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        clap_validator: Optional[Path],
+        clap_validator: Path | None,
     ) -> None:
         """Build polyphonic CLAP instrument (4 voices) from a graph."""
         project_dir = tmp_path / "polysynth_clap"
@@ -1179,7 +1180,7 @@ class TestBuildPolyphonyGraph:
         midi_synth_graph: Graph,
         tmp_path: Path,
         fetchcontent_cache: Path,
-        vst3_validator: Optional[Path],
+        vst3_validator: Path | None,
     ) -> None:
         """Build polyphonic VST3 instrument (4 voices) from a graph."""
         project_dir = tmp_path / "polysynth_vst3"

@@ -11,8 +11,8 @@ from pathlib import Path
 import pytest
 
 from gen_dsp.graph import (
-    SVF,
     ADSR,
+    SVF,
     Accum,
     Allpass,
     AudioInput,
@@ -61,8 +61,8 @@ from gen_dsp.graph import (
     Selector,
     SinOsc,
     Slide,
-    Smoothstep,
     SmoothParam,
+    Smoothstep,
     Splat,
     TriOsc,
     UnaryOp,
@@ -1270,6 +1270,7 @@ class TestGccCompilation:
                 ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
                 capture_output=True,
                 text=True,
+                check=False,
             )
             Path(f.name).unlink()
         assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
@@ -1585,6 +1586,7 @@ class TestSIMDHints:
                 ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
                 capture_output=True,
                 text=True,
+                check=False,
             )
             Path(f.name).unlink()
         assert result.returncode == 0, f"g++ compile failed:\n{result.stderr}"
@@ -1802,6 +1804,7 @@ class TestNewOpsCodegen:
                 ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
                 capture_output=True,
                 text=True,
+                check=False,
             )
             Path(f.name).unlink()
         assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
@@ -1875,6 +1878,7 @@ class TestGateSelectorCodegen:
                 ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
                 capture_output=True,
                 text=True,
+                check=False,
             )
             Path(f.name).unlink()
         assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
@@ -1915,6 +1919,7 @@ class TestSlideCompile:
                 ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
                 capture_output=True,
                 text=True,
+                check=False,
             )
             Path(f.name).unlink()
         assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
@@ -1945,6 +1950,7 @@ class TestSampleRateCompile:
                 ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
                 capture_output=True,
                 text=True,
+                check=False,
             )
             Path(f.name).unlink()
         assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
@@ -1987,6 +1993,7 @@ class TestConvertOpsCompile:
                 ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
                 capture_output=True,
                 text=True,
+                check=False,
             )
             Path(f.name).unlink()
         assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
@@ -2018,6 +2025,7 @@ class TestElapsedCompile:
                 ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
                 capture_output=True,
                 text=True,
+                check=False,
             )
             Path(f.name).unlink()
         assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
@@ -2051,6 +2059,7 @@ class TestMulAccumCompile:
                 ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
                 capture_output=True,
                 text=True,
+                check=False,
             )
             Path(f.name).unlink()
         assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
@@ -2083,6 +2092,7 @@ class TestPhasewrapCompile:
                 ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
                 capture_output=True,
                 text=True,
+                check=False,
             )
             Path(f.name).unlink()
         assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
@@ -2157,6 +2167,7 @@ class TestCycleWaveLookupCompile:
                 ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
                 capture_output=True,
                 text=True,
+                check=False,
             )
             Path(f.name).unlink()
         assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
@@ -2341,6 +2352,7 @@ class TestBatch3Compile:
                 ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
                 capture_output=True,
                 text=True,
+                check=False,
             )
             Path(f.name).unlink()
         assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
@@ -2409,6 +2421,7 @@ class TestADSRCompilation:
                 ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
                 capture_output=True,
                 text=True,
+                check=False,
             )
             Path(f.name).unlink()
         assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
@@ -2447,6 +2460,7 @@ class TestADSRCompilation:
                 ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
                 capture_output=True,
                 text=True,
+                check=False,
             )
             Path(f.name).unlink()
         assert result.returncode == 0, f"g++ failed:\n{result.stderr}"

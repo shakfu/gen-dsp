@@ -3,7 +3,6 @@
 import json
 from pathlib import Path
 
-
 from gen_dsp.core.graph import (
     ChainNodeConfig,
     Connection,
@@ -33,7 +32,6 @@ from gen_dsp.platforms.circle import (
     _build_dag_perform,
     _build_dag_set_param,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

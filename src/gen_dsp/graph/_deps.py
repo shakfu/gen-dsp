@@ -10,12 +10,10 @@ from gen_dsp.graph.models import Graph, History
 def is_feedback_edge(node: object, field_name: str) -> bool:
     """Return True if a field on this node is a feedback edge (not a data dependency)."""
     # History.input is written at end of sample -- reads previous value
-    if isinstance(node, History) and field_name == "input":
-        return True
     # DelayRead reads from the delay line written by DelayWrite -- implicit feedback
     # DelayWrite.value IS a data dependency (need the value this sample)
     # But DelayRead.delay and DelayWrite.delay reference a DelayLine, not a data flow
-    return False
+    return isinstance(node, History) and field_name == "input"
 
 
 def build_forward_deps(graph: Graph) -> dict[str, set[str]]:
@@ -35,7 +33,10 @@ def build_forward_deps(graph: Graph) -> dict[str, set[str]]:
                 for item in value:
                     if isinstance(item, str) and item in node_ids:
                         deps[nid].add(item)
-            elif isinstance(value, str) and value in node_ids:
-                if not is_feedback_edge(node, field_name):
-                    deps[nid].add(value)
+            elif (
+                isinstance(value, str)
+                and value in node_ids
+                and not is_feedback_edge(node, field_name)
+            ):
+                deps[nid].add(value)
     return deps

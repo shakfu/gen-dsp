@@ -57,7 +57,6 @@ from gen_dsp.graph.models import (
     UnaryOp,
 )
 
-
 # =========================================================================
 # Tokenizer tests
 # =========================================================================
@@ -140,7 +139,7 @@ class TestTokenizer:
 
     def test_line_col_tracking(self):
         tokens = tokenize("a\n  b")
-        b_tok = [t for t in tokens if t.type == IDENT and t.value == "b"][0]
+        b_tok = next(t for t in tokens if t.type == IDENT and t.value == "b")
         assert b_tok.line == 2
         assert b_tok.col == 3
 
@@ -448,7 +447,7 @@ class TestCompiler:
             tap = delay_read dl (1000, interp=linear)
         }
         """)
-        dr = [n for n in graph.nodes if isinstance(n, DelayRead)][0]
+        dr = next(n for n in graph.nodes if isinstance(n, DelayRead))
         assert dr.interp == "linear"
 
     def test_buffer_cycle(self):

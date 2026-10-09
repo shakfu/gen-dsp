@@ -8,15 +8,14 @@ import platform as sys_platform
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Optional
 
-from gen_dsp.version import __version__
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.cmake_platform import CMakePlatform
 from gen_dsp.templates import get_max_templates_dir
+from gen_dsp.version import __version__
 
 
 class MaxPlatform(CMakePlatform):
@@ -51,7 +50,7 @@ class MaxPlatform(CMakePlatform):
         manifest: Manifest,
         output_dir: Path,
         lib_name: str,
-        config: Optional[ProjectConfig] = None,
+        config: ProjectConfig | None = None,
     ) -> None:
         """Generate Max/MSP project files."""
         templates_dir = get_max_templates_dir()
@@ -159,7 +158,7 @@ class MaxPlatform(CMakePlatform):
             )
         return self._build_with_cmake(project_dir, clean, verbose)
 
-    def find_output(self, project_dir: Path) -> Optional[Path]:
+    def find_output(self, project_dir: Path) -> Path | None:
         """Find the built Max external file."""
         # Check externals/ (where max-posttarget.cmake puts output), then build/.
         return self.find_output_by_pattern(

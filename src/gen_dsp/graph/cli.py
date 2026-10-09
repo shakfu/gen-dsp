@@ -313,7 +313,7 @@ def cmd_simulate(args: argparse.Namespace) -> int:
                             file=sys.stderr,
                         )
                         return 1
-                    name = sorted(unmapped)[0]
+                    name = min(unmapped)
 
                 if name not in input_ids:
                     print(f"error: unknown input '{name}'", file=sys.stderr)

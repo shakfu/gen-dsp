@@ -14,9 +14,8 @@ LV2 bundles contain:
 import shutil
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, ClassVar
 
-from gen_dsp.version import __version__
 from gen_dsp.core.manifest import Manifest, ParamInfo, build_remap_defines
 from gen_dsp.core.midi import build_midi_defines
 from gen_dsp.core.project import ProjectConfig
@@ -24,6 +23,7 @@ from gen_dsp.errors import ProjectError
 from gen_dsp.platforms.base import PluginCategory
 from gen_dsp.platforms.cmake_platform import CMakePlatform
 from gen_dsp.templates import get_lv2_templates_dir
+from gen_dsp.version import __version__
 
 if TYPE_CHECKING:
     from gen_dsp.graph.models import Graph
@@ -37,7 +37,7 @@ class Lv2Platform(CMakePlatform):
     build_system = "CMake"
     LV2_URI_BASE = "http://gen-dsp.com/plugins"
 
-    _LV2_TYPE_MAP = {
+    _LV2_TYPE_MAP: ClassVar[dict[PluginCategory, str]] = {
         PluginCategory.EFFECT: "lv2:Plugin ,\n      lv2:EffectPlugin",
         PluginCategory.GENERATOR: "lv2:Plugin ,\n      lv2:GeneratorPlugin",
     }
@@ -54,7 +54,7 @@ class Lv2Platform(CMakePlatform):
         manifest: Manifest,
         output_dir: Path,
         lib_name: str,
-        config: Optional[ProjectConfig] = None,
+        config: ProjectConfig | None = None,
     ) -> None:
         """Generate LV2 project files."""
         templates_dir = get_lv2_templates_dir()
@@ -350,7 +350,7 @@ class Lv2Platform(CMakePlatform):
             remap_defines=remap_defines,
         )
 
-    def find_output(self, project_dir: Path) -> Optional[Path]:
+    def find_output(self, project_dir: Path) -> Path | None:
         """Find the built LV2 bundle directory."""
         return self.find_output_by_pattern(
             project_dir / "build", "**/*.lv2", require_dir=True

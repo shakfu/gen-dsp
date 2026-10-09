@@ -12,10 +12,10 @@ import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from gen_dsp.version import __version__
 from gen_dsp.graph.compile import compile_graph
 from gen_dsp.graph.compile.common import _to_pascal
 from gen_dsp.graph.models import Buffer, Graph
+from gen_dsp.version import __version__
 
 if TYPE_CHECKING:
     from gen_dsp.core.manifest import Manifest
@@ -193,7 +193,7 @@ def generate_adapter_cpp(graph: Graph, platform: str) -> str:
     return "\n".join(lines)
 
 
-def generate_manifest_obj(graph: Graph) -> "Manifest":
+def generate_manifest_obj(graph: Graph) -> Manifest:
     """Generate a ``Manifest`` dataclass from a DSP graph.
 
     Args:
@@ -1481,7 +1481,7 @@ clean:
 
 def _copy_platform_templates(output_dir: Path, platform: str) -> None:
     """Copy gen-dsp platform template files to the output directory."""
-    import gen_dsp.templates as templates
+    from gen_dsp import templates
 
     getter = getattr(templates, f"get_{platform}_templates_dir", None)
     if getter is None:

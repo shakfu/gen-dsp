@@ -6,15 +6,14 @@ import platform as sys_platform
 import shutil
 from pathlib import Path
 from string import Template
-from typing import Optional
 
-from gen_dsp.version import __version__
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines_make
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform, substitute_strict
 from gen_dsp.templates import get_pd_templates_dir
+from gen_dsp.version import __version__
 
 
 class PureDataPlatform(Platform):
@@ -45,7 +44,7 @@ class PureDataPlatform(Platform):
         manifest: Manifest,
         output_dir: Path,
         lib_name: str,
-        config: Optional[ProjectConfig] = None,
+        config: ProjectConfig | None = None,
     ) -> None:
         """Generate PureData project files."""
         templates_dir = get_pd_templates_dir()
@@ -188,7 +187,7 @@ include ./pd-lib-builder/Makefile.pdlibbuilder
         """Clean build artifacts."""
         self.run_command(["make", "clean"], project_dir)
 
-    def find_output(self, project_dir: Path) -> Optional[Path]:
+    def find_output(self, project_dir: Path) -> Path | None:
         """Find the built PureData external file."""
         out = self.find_output_by_pattern(project_dir, f"*{self.extension}")
         if out is not None:

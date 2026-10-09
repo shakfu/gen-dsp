@@ -14,15 +14,13 @@ import re
 import shutil
 import sys
 from pathlib import Path
-from typing import Optional
 
-from gen_dsp.version import __version__
 from gen_dsp.core.manifest import Manifest, ParamInfo, build_remap_defines
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import ProjectError
 from gen_dsp.platforms.cmake_platform import CMakePlatform
 from gen_dsp.templates import get_sc_templates_dir
-
+from gen_dsp.version import __version__
 
 # sclang reserved words that cannot be used as a method-argument name.
 # fmt: off
@@ -57,7 +55,7 @@ class SuperColliderPlatform(CMakePlatform):
         manifest: Manifest,
         output_dir: Path,
         lib_name: str,
-        config: Optional[ProjectConfig] = None,
+        config: ProjectConfig | None = None,
     ) -> None:
         """Generate SuperCollider UGen project files."""
         templates_dir = get_sc_templates_dir()
@@ -271,7 +269,7 @@ class SuperColliderPlatform(CMakePlatform):
             remap_defines=remap_defines,
         )
 
-    def find_output(self, project_dir: Path) -> Optional[Path]:
+    def find_output(self, project_dir: Path) -> Path | None:
         """Find the built SC UGen binary."""
         return self.find_output_by_pattern(
             project_dir / "build", "**/*.scx", "**/*.so", "**/*.dll", require_file=True

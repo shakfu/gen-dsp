@@ -8,34 +8,31 @@ The PLATFORM_REGISTRY provides dynamic lookup of platforms by name,
 making it easy to add new backends without modifying multiple files.
 """
 
-from typing import Type
-
-from gen_dsp.platforms.base import Platform, PluginCategory
-from gen_dsp.platforms.cmake_platform import CMakePlatform
-from gen_dsp.platforms.puredata import PureDataPlatform
-from gen_dsp.platforms.max import MaxPlatform
-from gen_dsp.platforms.chuck import ChuckPlatform
 from gen_dsp.platforms.audiounit import AudioUnitPlatform
+from gen_dsp.platforms.auv3 import Auv3Platform
+from gen_dsp.platforms.base import Platform, PluginCategory
+from gen_dsp.platforms.chuck import ChuckPlatform
+from gen_dsp.platforms.circle import CirclePlatform
 from gen_dsp.platforms.clap import ClapPlatform
-from gen_dsp.platforms.vst3 import Vst3Platform
+from gen_dsp.platforms.cmake_platform import CMakePlatform
+from gen_dsp.platforms.csound import CsoundPlatform
+from gen_dsp.platforms.daisy import DaisyPlatform
 from gen_dsp.platforms.lv2 import Lv2Platform
+from gen_dsp.platforms.max import MaxPlatform
+from gen_dsp.platforms.puredata import PureDataPlatform
+from gen_dsp.platforms.ssp import SspPlatform
+from gen_dsp.platforms.standalone import StandalonePlatform
 from gen_dsp.platforms.supercollider import SuperColliderPlatform
 from gen_dsp.platforms.vcvrack import VcvRackPlatform
-from gen_dsp.platforms.daisy import DaisyPlatform
-from gen_dsp.platforms.circle import CirclePlatform
+from gen_dsp.platforms.vst3 import Vst3Platform
 from gen_dsp.platforms.webaudio import WebAudioPlatform
-from gen_dsp.platforms.standalone import StandalonePlatform
-from gen_dsp.platforms.csound import CsoundPlatform
-from gen_dsp.platforms.auv3 import Auv3Platform
-from gen_dsp.platforms.ssp import SspPlatform
-
 
 # Registry mapping platform names to their implementation classes.
 # To add a new platform:
 #   1. Create platforms/newplatform.py with a class extending Platform
 #   2. Import it here
 #   3. Add an entry to PLATFORM_REGISTRY
-PLATFORM_REGISTRY: dict[str, Type[Platform]] = {
+PLATFORM_REGISTRY: dict[str, type[Platform]] = {
     "pd": PureDataPlatform,
     "max": MaxPlatform,
     "chuck": ChuckPlatform,
@@ -74,7 +71,7 @@ def get_platform(name: str) -> Platform:
     return PLATFORM_REGISTRY[name]()
 
 
-def get_platform_class(name: str) -> Type[Platform]:
+def get_platform_class(name: str) -> type[Platform]:
     """
     Get a platform class by name.
 
@@ -131,29 +128,29 @@ def is_valid_platform(name: str) -> bool:
 
 
 __all__ = [
+    "PLATFORM_REGISTRY",
+    "AudioUnitPlatform",
+    "Auv3Platform",
+    "CMakePlatform",
+    "ChuckPlatform",
+    "CirclePlatform",
+    "ClapPlatform",
+    "CsoundPlatform",
+    "DaisyPlatform",
+    "Lv2Platform",
+    "MaxPlatform",
     "Platform",
     "PluginCategory",
-    "CMakePlatform",
     "PureDataPlatform",
-    "MaxPlatform",
-    "ChuckPlatform",
-    "AudioUnitPlatform",
-    "ClapPlatform",
-    "Vst3Platform",
-    "Lv2Platform",
+    "SspPlatform",
+    "StandalonePlatform",
     "SuperColliderPlatform",
     "VcvRackPlatform",
-    "DaisyPlatform",
-    "CirclePlatform",
+    "Vst3Platform",
     "WebAudioPlatform",
-    "StandalonePlatform",
-    "CsoundPlatform",
-    "Auv3Platform",
-    "SspPlatform",
-    "PLATFORM_REGISTRY",
     "get_platform",
     "get_platform_class",
-    "list_platforms",
-    "list_cmake_platforms",
     "is_valid_platform",
+    "list_cmake_platforms",
+    "list_platforms",
 ]

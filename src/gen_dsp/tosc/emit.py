@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from gen_dsp.errors import ValidationError
 from gen_dsp.tosc.addresses import osc_namespace
@@ -36,13 +36,13 @@ class ToscOptions:
             any.
     """
 
-    prefix: Optional[str] = None
+    prefix: str | None = None
     port: int = DEFAULT_PORT
     osc: bool = True
     midi: bool = True
-    columns: Optional[int] = None
-    rows: Optional[int] = None
-    size: Optional[tuple[int, int]] = None
+    columns: int | None = None
+    rows: int | None = None
+    size: tuple[int, int] | None = None
     xml: bool = False
     receivers: bool = True
 
@@ -60,13 +60,13 @@ class ToscResult:
 
 
 def emit(
-    manifest: "Manifest",
+    manifest: Manifest,
     output_dir: Path,
     lib_name: str,
     *,
-    platform: Optional[str] = None,
-    options: Optional[ToscOptions] = None,
-    filename: Optional[str] = None,
+    platform: str | None = None,
+    options: ToscOptions | None = None,
+    filename: str | None = None,
 ) -> ToscResult:
     """Write ``<lib_name>.tosc`` into ``output_dir``, plus any receiver glue.
 

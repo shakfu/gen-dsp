@@ -8,7 +8,6 @@ Only activates for 0-input (generator) plugins. Effects are never MIDI-mapped.
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 from gen_dsp.core.manifest import Manifest
 
@@ -31,9 +30,9 @@ class MidiMapping:
     """
 
     enabled: bool
-    gate_idx: Optional[int] = None
-    freq_idx: Optional[int] = None
-    vel_idx: Optional[int] = None
+    gate_idx: int | None = None
+    freq_idx: int | None = None
+    vel_idx: int | None = None
     freq_unit: str = "hz"
     num_voices: int = 1
 
@@ -41,9 +40,9 @@ class MidiMapping:
 def detect_midi_mapping(
     manifest: Manifest,
     no_midi: bool = False,
-    midi_gate: Optional[str] = None,
-    midi_freq: Optional[str] = None,
-    midi_vel: Optional[str] = None,
+    midi_gate: str | None = None,
+    midi_freq: str | None = None,
+    midi_vel: str | None = None,
     midi_freq_unit: str = "hz",
 ) -> MidiMapping:
     """Detect MIDI parameter mapping from a manifest.
@@ -117,7 +116,7 @@ def detect_midi_mapping(
     )
 
 
-def build_midi_defines(midi_mapping: Optional[MidiMapping]) -> str:
+def build_midi_defines(midi_mapping: MidiMapping | None) -> str:
     """Build CMake compile definition lines for a MIDI mapping.
 
     Returns an empty string if MIDI is disabled, or newline+indent-separated
@@ -142,7 +141,7 @@ def build_midi_defines(midi_mapping: Optional[MidiMapping]) -> str:
     return "\n    ".join(defs)
 
 
-def _find_param_index(param_by_name: dict[str, int], names: set[str]) -> Optional[int]:
+def _find_param_index(param_by_name: dict[str, int], names: set[str]) -> int | None:
     """Find the first matching param index from a set of candidate names."""
     for name in names:
         if name in param_by_name:

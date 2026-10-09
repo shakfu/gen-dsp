@@ -6,7 +6,6 @@ resolution that are identical across AU, CLAP, VST3, LV2, SC, and Max.
 """
 
 from pathlib import Path
-from typing import Optional
 
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.project import ProjectConfig
@@ -34,7 +33,7 @@ class CMakePlatform(Platform):
         return ["cmake -B build && cmake --build build"]
 
     def resolve_shared_cache(
-        self, config: Optional[ProjectConfig] = None
+        self, config: ProjectConfig | None = None
     ) -> tuple[str, str]:
         """Resolve shared FetchContent cache settings from config.
 

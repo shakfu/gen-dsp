@@ -25,16 +25,23 @@ except ImportError:
     # so the actual API imports happen in the else branch below.
     pass
 else:
-    from gen_dsp.graph.algebra import merge, parallel, series, split
-    from gen_dsp.graph.compile import compile_graph, compile_graph_to_file
     from gen_dsp.graph.adapter import (
         compile_for_gen_dsp,
         generate_adapter_cpp,
         generate_manifest,
     )
+    from gen_dsp.graph.algebra import merge, parallel, series, split
+    from gen_dsp.graph.compile import compile_graph, compile_graph_to_file
+    from gen_dsp.graph.dsl import (
+        GDSPCompileError,
+        GDSPSyntaxError,
+        parse,
+        parse_file,
+        parse_multi,
+    )
     from gen_dsp.graph.models import (
-        SVF,
         ADSR,
+        SVF,
         Accum,
         Allpass,
         AudioInput,
@@ -86,8 +93,8 @@ else:
         Selector,
         SinOsc,
         Slide,
-        Smoothstep,
         SmoothParam,
+        Smoothstep,
         Splat,
         Subgraph,
         Train,
@@ -105,18 +112,11 @@ else:
         optimize_graph,
         promote_control_rate,
     )
+    from gen_dsp.graph.serialize import graph_to_gdsp
     from gen_dsp.graph.subgraph import expand_subgraphs
     from gen_dsp.graph.toposort import toposort
     from gen_dsp.graph.validate import GraphValidationError, validate_graph
     from gen_dsp.graph.visualize import graph_to_dot, graph_to_dot_file
-    from gen_dsp.graph.serialize import graph_to_gdsp
-    from gen_dsp.graph.dsl import (
-        parse,
-        parse_file,
-        parse_multi,
-        GDSPSyntaxError,
-        GDSPCompileError,
-    )
 
     _AVAILABLE = True
 
@@ -131,9 +131,9 @@ def _require_graph() -> None:
 
 
 __all__ = [
-    "_AVAILABLE",
-    "_require_graph",
     "ADSR",
+    "SVF",
+    "_AVAILABLE",
     "Accum",
     "Allpass",
     "AudioInput",
@@ -157,6 +157,8 @@ __all__ = [
     "Delta",
     "Elapsed",
     "Fold",
+    "GDSPCompileError",
+    "GDSPSyntaxError",
     "GateOut",
     "GateRoute",
     "Graph",
@@ -171,6 +173,8 @@ __all__ = [
     "Node",
     "Noise",
     "OnePole",
+    "OptimizeResult",
+    "OptimizeStats",
     "Param",
     "Pass",
     "Peek",
@@ -178,7 +182,6 @@ __all__ = [
     "PulseOsc",
     "RateDiv",
     "Ref",
-    "SVF",
     "SampleHold",
     "SampleRate",
     "SawOsc",
@@ -187,8 +190,8 @@ __all__ = [
     "Selector",
     "SinOsc",
     "Slide",
-    "Smoothstep",
     "SmoothParam",
+    "Smoothstep",
     "Splat",
     "Subgraph",
     "Train",
@@ -196,31 +199,28 @@ __all__ = [
     "UnaryOp",
     "Wave",
     "Wrap",
-    "GDSPCompileError",
-    "GDSPSyntaxError",
-    "merge",
-    "parallel",
-    "parse",
-    "parse_file",
-    "parse_multi",
-    "series",
-    "split",
+    "_require_graph",
     "compile_for_gen_dsp",
     "compile_graph",
     "compile_graph_to_file",
     "constant_fold",
-    "expand_subgraphs",
     "eliminate_cse",
     "eliminate_dead_nodes",
+    "expand_subgraphs",
     "generate_adapter_cpp",
     "generate_manifest",
     "graph_to_dot",
     "graph_to_dot_file",
     "graph_to_gdsp",
-    "OptimizeResult",
-    "OptimizeStats",
+    "merge",
     "optimize_graph",
+    "parallel",
+    "parse",
+    "parse_file",
+    "parse_multi",
     "promote_control_rate",
+    "series",
+    "split",
     "toposort",
     "validate_graph",
 ]

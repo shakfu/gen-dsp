@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Union
 
 from gen_dsp.graph.dsl.lexer import (
     EOF,
@@ -16,7 +15,6 @@ from gen_dsp.graph.dsl.lexer import (
     Token,
 )
 
-
 # ---------------------------------------------------------------------------
 # AST nodes
 # ---------------------------------------------------------------------------
@@ -25,7 +23,7 @@ from gen_dsp.graph.dsl.lexer import (
 @dataclass
 class ASTGraph:
     name: str
-    options: dict[str, Union[str, float]]
+    options: dict[str, str | float]
     body: list[ASTStmt]
     line: int
 
@@ -179,30 +177,30 @@ class ASTArg:
 
 
 # Type aliases for AST
-ASTExpr = Union[
-    ASTNumber,
-    ASTIdent,
-    ASTBinExpr,
-    ASTUnaryExpr,
-    ASTCall,
-    ASTDotAccess,
-    ASTCompose,
-]
+ASTExpr = (
+    ASTNumber
+    | ASTIdent
+    | ASTBinExpr
+    | ASTUnaryExpr
+    | ASTCall
+    | ASTDotAccess
+    | ASTCompose
+)
 
 
-ASTStmt = Union[
-    ASTInDecl,
-    ASTOutDecl,
-    ASTParamDecl,
-    ASTBufferDecl,
-    ASTDelayDecl,
-    ASTHistoryDecl,
-    ASTFeedbackWrite,
-    ASTDelayWriteStmt,
-    ASTBufWriteStmt,
-    ASTAssign,
-    ASTImportAssign,
-]
+ASTStmt = (
+    ASTInDecl
+    | ASTOutDecl
+    | ASTParamDecl
+    | ASTBufferDecl
+    | ASTDelayDecl
+    | ASTHistoryDecl
+    | ASTFeedbackWrite
+    | ASTDelayWriteStmt
+    | ASTBufWriteStmt
+    | ASTAssign
+    | ASTImportAssign
+)
 
 
 # ---------------------------------------------------------------------------
@@ -239,9 +237,7 @@ class Parser:
         tok = self._peek()
         if tok.type != type_:
             return False
-        if value is not None and tok.value != value:
-            return False
-        return True
+        return value is None or tok.value == value
 
     def _expect(self, type_: str, value: str | None = None) -> Token:
         tok = self._advance()
@@ -273,14 +269,14 @@ class Parser:
         name_tok = self._expect(IDENT)
 
         # Optional options in parens
-        options: dict[str, Union[str, float]] = {}
+        options: dict[str, str | float] = {}
         if self._at(OP, "("):
             self._advance()
             while not self._at(OP, ")"):
                 opt_name = self._expect(IDENT).value
                 self._expect(OP, "=")
                 if self._at(NUMBER):
-                    opt_val: Union[str, float] = float(self._advance().value)
+                    opt_val: str | float = float(self._advance().value)
                 else:
                     opt_val = self._expect(IDENT).value
                 options[opt_name] = opt_val

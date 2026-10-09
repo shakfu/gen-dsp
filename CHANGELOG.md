@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.4.0]
+
 ### Added
 
 - **Percussa SSP backend (`-p ssp`)** -- Generates native SSP modules (`.so`) against the Percussa SDK's `PluginInterface`, from gen~ exports and graph files. The four encoders edit pages of four parameters, and a built-in bitmap font draws their names and values on the screen. The module talks to the SDK directly rather than through JUCE, so it builds against a 200-line header and stays out of the JUCE licence. The cost: TheTechnobear's rack-style hosts, which need the JUCE-based `SSPExtendedApi`, cannot load it. The project carries its own clang/lld toolchain file, which downloads the Percussa buildroot once unless `SSP_BUILDROOT` is set. `-DSSP_HOST_BUILD=ON` builds for the host, where `tests/data/ssp_host.cpp` drives the module as Synthor does. Synthor lists a module only if its name is 4 characters and its uid spells the same 4, so both come from one value: `--ssp-name gvb2`, or a default derived from `-n` (`gigaverb` -> `gvrb`) and printed at generation. gen-dsp cannot see the card, so avoiding a collision with an installed module is the user's call. Confirmed on an SSP with gigaverb. See [docs/backends/ssp.md](docs/backends/ssp.md).
@@ -25,6 +27,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **`.gen-dsp.json` now records the plugin name** -- The project marker carried only the target platform, so a command run against an existing project could not recover the name it was generated under (the user's `-n`, which is usually not the gen~ export's internal `gen_name`). `gen-dsp tosc <project-dir>` uses it to name its output and its OSC namespace consistently with the rest of the project. Markers written by earlier versions lack the key and fall back to the manifest's `gen_name`.
 
 - **The CLAP validator used by the test suite is pinned** -- `tests/conftest.py` cloned clap-validator from `main`, so its checks and its output format could change under CI and break a build with no change on this side -- which is exactly what happened. The fixture now fetches a pinned commit by SHA and records it next to the binary, rebuilding only when the pin is bumped.
+
+- **Ruff rule set pinned in `pyproject.toml`** -- `[tool.ruff.lint] select` lists the 413 rules that ruff 0.16.10 enables by default. With no `select`, the upgrade to 0.16 enabled them silently and `make lint` failed on 170 existing violations, now fixed. Exact codes over linter prefixes: 30 of the 38 linters are only partly enabled, and a prefix also admits rules added in later releases.
+
+- **`eval_genexpr` raises `TypeError` for a non-Data buffer argument** -- A buffer operator whose first argument is not a Data name previously raised `ValueError`.
 
 ### Fixed
 

@@ -7,12 +7,11 @@ from pathlib import Path
 
 import pytest
 
-from tests.helpers import fetchcontent_cmake_args
-
 from gen_dsp.core.parser import GenExportParser
 from gen_dsp.core.project import ProjectConfig, ProjectGenerator
 from gen_dsp.platforms import PLATFORM_REGISTRY, SspPlatform, get_platform
 from gen_dsp.platforms.ssp import resolve_ssp_name, ssp_module_name
+from tests.helpers import fetchcontent_cmake_args
 
 _HOST_CXX = shutil.which("c++") or shutil.which("clang++") or shutil.which("g++")
 _skip_no_host_build = pytest.mark.skipif(
@@ -263,7 +262,9 @@ def _host_build(project: Path, cache: Path) -> Path:
         *fetchcontent_cmake_args(cache),
     ]
     for step in (cmd, ["cmake", "--build", str(build)]):
-        r = subprocess.run(step, capture_output=True, text=True, env=_build_env())
+        r = subprocess.run(
+            step, capture_output=True, text=True, env=_build_env(), check=False
+        )
         assert r.returncode == 0, f"{step}\n{r.stdout}\n{r.stderr}"
     so = SspPlatform().find_output(project)
     assert so is not None and so.name == f"{project.name}.so"
@@ -272,7 +273,10 @@ def _host_build(project: Path, cache: Path) -> Path:
 
 def _drive(host: Path, so: Path, *cmds: object) -> list[list[str]]:
     r = subprocess.run(
-        [str(host), str(so), *map(str, cmds)], capture_output=True, text=True
+        [str(host), str(so), *map(str, cmds)],
+        capture_output=True,
+        text=True,
+        check=False,
     )
     assert r.returncode == 0, r.stderr
     return [
@@ -424,7 +428,7 @@ class TestSspHostBuild:
         ]
         if os.uname().sysname != "Darwin":
             cmd.append("-ldl")
-        r = subprocess.run(cmd, capture_output=True, text=True)
+        r = subprocess.run(cmd, capture_output=True, text=True, check=False)
         assert r.returncode == 0, r.stderr
         return exe
 
@@ -461,7 +465,9 @@ def test_cross_build_ssp_gigaverb(gigaverb_export, tmp_path, fetchcontent_cache)
         *fetchcontent_cmake_args(fetchcontent_cache),
     ]
     for step in (configure, ["cmake", "--build", str(build)]):
-        r = subprocess.run(step, capture_output=True, text=True, env=_build_env())
+        r = subprocess.run(
+            step, capture_output=True, text=True, env=_build_env(), check=False
+        )
         assert r.returncode == 0, f"{step}\n{r.stdout}\n{r.stderr}"
     so = SspPlatform().find_output(project)
     assert so is not None
@@ -606,7 +612,9 @@ def test_host_build_ssp_juce_matches_native(
         ["cmake", "-S", str(project), "-B", str(build), "-DSSP_HOST_BUILD=ON"],
         ["cmake", "--build", str(build), "--parallel", str(os.cpu_count() or 1)],
     ):
-        r = subprocess.run(step, capture_output=True, text=True, env=_build_env())
+        r = subprocess.run(
+            step, capture_output=True, text=True, env=_build_env(), check=False
+        )
         assert r.returncode == 0, f"{step}\n{r.stdout[-4000:]}\n{r.stderr[-4000:]}"
     juce = SspPlatform().find_output(project)
     assert juce is not None and juce.name == "gvrb.so"
@@ -614,7 +622,9 @@ def test_host_build_ssp_juce_matches_native(
 
     exe = tmp_path / "ssp_host"
     cmd = [_HOST_CXX, "-std=c++17", "-O1", f"-I{dev / 'ssp-sdk'}", str(_HARNESS)]
-    r = subprocess.run([*cmd, "-o", str(exe), "-ldl"], capture_output=True, text=True)
+    r = subprocess.run(
+        [*cmd, "-o", str(exe), "-ldl"], capture_output=True, text=True, check=False
+    )
     assert r.returncode == 0, r.stderr
 
     def levels(so: Path, *cmds: object) -> list[list[str]]:
@@ -700,7 +710,9 @@ def test_cross_build_ssp_juce(gigaverb_export, tmp_path):
         ],
         ["cmake", "--build", str(build), "--parallel", str(os.cpu_count() or 1)],
     ):
-        r = subprocess.run(step, capture_output=True, text=True, env=_build_env())
+        r = subprocess.run(
+            step, capture_output=True, text=True, env=_build_env(), check=False
+        )
         assert r.returncode == 0, f"{step}\n{r.stdout[-4000:]}\n{r.stderr[-4000:]}"
     so = build / "gvrb.so"
     elf = so.read_bytes()[:20]
@@ -798,13 +810,19 @@ def test_buffers_per_instance_and_thread_safe(rampleplayer_export, tmp_path, san
         ],
         capture_output=True,
         text=True,
+        check=False,
     )
     assert r.returncode == 0, r.stderr
     a = _write_wav(tmp_path / "a.wav", 16384)  # 0.5
     b = _write_wav(tmp_path / "b.wav", 8192)  # 0.25
     env = dict(os.environ, TSAN_OPTIONS="exitcode=66")
     r = subprocess.run(
-        [str(exe), str(a), str(b)], capture_output=True, text=True, env=env, timeout=300
+        [str(exe), str(a), str(b)],
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=300,
+        check=False,
     )
     assert r.returncode == 0, r.stderr[-4000:]
     assert r.stdout.strip() == "ok"
@@ -866,13 +884,18 @@ def test_host_build_ssp_juce_buffers(rampleplayer_export, tmp_path):
         ["cmake", "-S", str(project), "-B", str(build), "-DSSP_HOST_BUILD=ON"],
         ["cmake", "--build", str(build), "--parallel", str(os.cpu_count() or 1)],
     ):
-        r = subprocess.run(step, capture_output=True, text=True, env=_build_env())
+        r = subprocess.run(
+            step, capture_output=True, text=True, env=_build_env(), check=False
+        )
         assert r.returncode == 0, f"{step}\n{r.stdout[-4000:]}\n{r.stderr[-4000:]}"
     so = build / "rmpl.so"
     exe = tmp_path / "ssp_host"
     cmd = [_HOST_CXX, "-std=c++17", "-O1", f"-I{dev / 'ssp-sdk'}", str(_HARNESS)]
     r = subprocess.run(
-        [*cmd, "-o", str(exe), "-ldl", "-pthread"], capture_output=True, text=True
+        [*cmd, "-o", str(exe), "-ldl", "-pthread"],
+        capture_output=True,
+        text=True,
+        check=False,
     )
     assert r.returncode == 0, r.stderr
 

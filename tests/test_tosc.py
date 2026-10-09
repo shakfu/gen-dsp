@@ -105,7 +105,7 @@ def test_osc_params_disambiguates_colliding_slugs():
     )
     slugs = [p.slug for p in osc_params(manifest)]
     assert slugs == ["cutoffHz", "cutoffHz_2"]
-    assert len(set(p.address for p in osc_params(manifest))) == 2
+    assert len({p.address for p in osc_params(manifest)}) == 2
 
 
 def test_osc_params_beyond_cc_limit_have_no_cc():
@@ -155,7 +155,9 @@ def test_pd_receiver_structure():
 def test_pd_receiver_connection_indices_are_in_range():
     patch = generate_pd_receiver(make_manifest())
     elements = len(re.findall(r"^#X (?:obj|msg|text) ", patch, re.MULTILINE))
-    connections = re.findall(r"^#X connect (\d+) (\d+) (\d+) (\d+);$", patch, re.M)
+    connections = re.findall(
+        r"^#X connect (\d+) (\d+) (\d+) (\d+);$", patch, re.MULTILINE
+    )
     assert connections
     for src, _, dst, _ in connections:
         assert int(src) < elements
@@ -271,7 +273,7 @@ def test_receiver_for_platform_covers_pd_and_sc_only():
 
 
 def test_require_tosc_points_at_the_extra(monkeypatch):
-    import gen_dsp.tosc as tosc
+    from gen_dsp import tosc
 
     monkeypatch.setattr(tosc, "_AVAILABLE", False)
     with pytest.raises(ImportError, match=r"gen-dsp\[tosc\]"):
@@ -281,7 +283,7 @@ def test_require_tosc_points_at_the_extra(monkeypatch):
 def test_project_generation_reports_a_missing_py2tosc(
     monkeypatch, tmp_path, gigaverb_export
 ):
-    import gen_dsp.tosc as tosc
+    from gen_dsp import tosc
     from gen_dsp.core.parser import GenExportParser
     from gen_dsp.core.project import ProjectConfig, ProjectGenerator
     from gen_dsp.errors import ProjectError
@@ -319,9 +321,9 @@ def test_receivers_do_not_import_py2tosc():
 
 py2tosc = pytest.importorskip("py2tosc")
 
-from gen_dsp.errors import ValidationError  # noqa: E402
-from gen_dsp.tosc.emit import ToscOptions, emit  # noqa: E402
-from gen_dsp.tosc.surface import build_surface, write_surface  # noqa: E402
+from gen_dsp.errors import ValidationError
+from gen_dsp.tosc.emit import ToscOptions, emit
+from gen_dsp.tosc.surface import build_surface, write_surface
 
 
 def find_faders(doc):
@@ -349,7 +351,7 @@ def test_build_surface_addresses_carry_the_parameter_range():
 def test_build_surface_faders_start_at_the_parameter_default():
     doc = build_surface(make_manifest())
     by_name = {f.get("name"): f for f in find_faders(doc)}
-    x = [v for v in by_name["roomsize"].values if v.key == "x"][0]
+    x = next(v for v in by_name["roomsize"].values if v.key == "x")
     # 75 in [0.1, 300] -> just under a quarter of the way up.
     assert x.default == pytest.approx((75.0 - 0.1) / (300.0 - 0.1))
 

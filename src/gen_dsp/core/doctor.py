@@ -13,9 +13,9 @@ from __future__ import annotations
 import os
 import shutil
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Optional
 
 
 @dataclass(frozen=True)
@@ -25,17 +25,17 @@ class Tool:
     key: str
     label: str
     hint: str
-    probe: Callable[[], Optional[str]]
+    probe: Callable[[], str | None]
 
-    def locate(self) -> Optional[str]:
+    def locate(self) -> str | None:
         """Return a path/identifier if the tool is present, else None."""
         return self.probe()
 
 
-def _which(*names: str) -> Callable[[], Optional[str]]:
+def _which(*names: str) -> Callable[[], str | None]:
     """Probe that returns the path of the first available executable."""
 
-    def probe() -> Optional[str]:
+    def probe() -> str | None:
         for name in names:
             found = shutil.which(name)
             if found:
@@ -45,7 +45,7 @@ def _which(*names: str) -> Callable[[], Optional[str]]:
     return probe
 
 
-def _macos_probe() -> Optional[str]:
+def _macos_probe() -> str | None:
     return "macOS" if sys.platform == "darwin" else None
 
 
@@ -103,7 +103,7 @@ CIRCLE_XCC = Tool(
 )
 
 
-def _ssp_clang_probe() -> Optional[str]:
+def _ssp_clang_probe() -> str | None:
     """Find clang++ where ssp_toolchain.cmake looks: $TOOLSROOT, Homebrew LLVM, PATH."""
     dirs = [
         os.environ.get("TOOLSROOT", ""),
@@ -197,7 +197,7 @@ class PlatformReport:
     notes: list[str]
 
 
-def diagnose(platforms: Optional[list[str]] = None) -> list[PlatformReport]:
+def diagnose(platforms: list[str] | None = None) -> list[PlatformReport]:
     """Diagnose build readiness for the given platforms (default: all)."""
     if platforms is None:
         platforms = sorted(PLATFORM_REQUIREMENTS)

@@ -13,10 +13,8 @@ import shutil
 import socket
 import subprocess
 import tempfile
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
-from typing import Optional
-
 
 # ---------------------------------------------------------------------------
 # Network-reachability gating for SDK-download build tests
@@ -34,7 +32,7 @@ from typing import Optional
 # Path that exists once a given platform's SDK is cached locally, plus the host
 # that must be reachable to download it.  Platforms absent from this map need no
 # network access and are never gated.
-def _sdk_sentinel(platform: str, cache: Path) -> Optional[tuple[Path, str]]:
+def _sdk_sentinel(platform: str, cache: Path) -> tuple[Path, str] | None:
     if platform == "vcvrack":
         return cache / "rack-sdk-src" / "Rack-SDK" / "plugin.mk", "vcvrack.com"
     if platform == "daisy":
@@ -53,7 +51,7 @@ def _sdk_sentinel(platform: str, cache: Path) -> Optional[tuple[Path, str]]:
     return None
 
 
-@lru_cache(maxsize=None)
+@cache
 def _host_reachable(host: str, port: int = 443, timeout: float = 3.0) -> bool:
     """Return True if a TCP connection to host:port succeeds (cached per host)."""
     try:
@@ -137,7 +135,7 @@ _CLAP_VALIDATOR_BUG_RE = re.compile(
 )
 
 
-def validate_clap(validator: Optional[Path], clap_bundle: Path) -> None:
+def validate_clap(validator: Path | None, clap_bundle: Path) -> None:
     """Run the CLAP validator against a plugin, if available."""
     if validator is None:
         return
@@ -146,6 +144,7 @@ def validate_clap(validator: Optional[Path], clap_bundle: Path) -> None:
         capture_output=True,
         text=True,
         timeout=60,
+        check=False,
     )
     # clap-validator colours its summary line unconditionally (it honours
     # neither NO_COLOR nor a non-tty stdout), so the counts are only visible
@@ -170,7 +169,7 @@ def validate_clap(validator: Optional[Path], clap_bundle: Path) -> None:
 
 
 def validate_vst3(
-    validator: Optional[Path],
+    validator: Path | None,
     vst3_bundle: Path,
     allow_crash_on_cleanup: bool = False,
 ) -> None:
@@ -182,6 +181,7 @@ def validate_vst3(
         capture_output=True,
         text=True,
         timeout=60,
+        check=False,
     )
     if allow_crash_on_cleanup:
         assert "[Failed]" not in result.stdout, (
@@ -202,7 +202,7 @@ def validate_vst3(
 
 
 def validate_lv2(
-    validator: Optional[Path],
+    validator: Path | None,
     bundle_dir: Path,
     lib_name: str,
     expected_audio_in: int,
@@ -231,6 +231,7 @@ def validate_lv2(
             capture_output=True,
             text=True,
             timeout=30,
+            check=False,
         )
         assert result.returncode == 0, (
             f"LV2 validation failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -277,6 +278,7 @@ def validate_pd_external(project_dir: Path, lib_name: str) -> None:
         capture_output=True,
         text=True,
         timeout=15,
+        check=False,
     )
     output = result.stdout + result.stderr
     assert result.returncode == 0, f"pd failed (exit {result.returncode}):\n{output}"
@@ -345,6 +347,7 @@ def validate_chugin(
         capture_output=True,
         text=True,
         timeout=30,
+        check=False,
     )
     assert result.returncode == 0, (
         f"chuck failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"

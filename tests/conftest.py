@@ -5,7 +5,6 @@ import shutil
 import subprocess
 import textwrap
 from pathlib import Path
-from typing import Optional
 
 import pytest
 
@@ -217,7 +216,7 @@ _has_cargo = shutil.which("cargo") is not None
 
 
 @pytest.fixture(scope="session")
-def clap_validator() -> Optional[Path]:
+def clap_validator() -> Path | None:
     """Build the pinned clap-validator once per session.
 
     The validator binary persists in build/.clap_validator/ so it is only
@@ -232,9 +231,12 @@ def clap_validator() -> Optional[Path]:
     stamp = _CLAP_VALIDATOR_DIR / "revision.txt"
 
     built_rev = stamp.read_text().strip() if stamp.is_file() else ""
-    if binary.is_file() and os.access(binary, os.X_OK):
-        if built_rev == _CLAP_VALIDATOR_REV:
-            return binary
+    if (
+        binary.is_file()
+        and os.access(binary, os.X_OK)
+        and built_rev == _CLAP_VALIDATOR_REV
+    ):
+        return binary
 
     src_dir.mkdir(parents=True, exist_ok=True)
 
@@ -253,6 +255,7 @@ def clap_validator() -> Optional[Path]:
             capture_output=True,
             text=True,
             timeout=timeout,
+            check=False,
         )
         if result.returncode != 0:
             print(f"clap-validator checkout failed ({cmd[1]}):\n{result.stderr}")
@@ -264,6 +267,7 @@ def clap_validator() -> Optional[Path]:
         capture_output=True,
         text=True,
         timeout=600,
+        check=False,
     )
     if result.returncode != 0:
         print(f"clap-validator build failed:\n{result.stderr}")
@@ -303,7 +307,7 @@ _VST3_VALIDATOR_CMAKE = textwrap.dedent("""\
 
 
 @pytest.fixture(scope="session")
-def vst3_validator(fetchcontent_cache: Path) -> Optional[Path]:
+def vst3_validator(fetchcontent_cache: Path) -> Path | None:
     """Build the VST3 SDK validator once per session.
 
     Returns None if cmake is unavailable or the build fails.
@@ -336,6 +340,7 @@ def vst3_validator(fetchcontent_cache: Path) -> Optional[Path]:
         text=True,
         timeout=300,
         env=env,
+        check=False,
     )
     if result.returncode != 0:
         print(f"VST3 validator cmake configure failed:\n{result.stderr}")
@@ -348,6 +353,7 @@ def vst3_validator(fetchcontent_cache: Path) -> Optional[Path]:
         text=True,
         timeout=300,
         env=env,
+        check=False,
     )
     if result.returncode != 0:
         print(f"VST3 validator build failed:\n{result.stderr}")
@@ -542,6 +548,7 @@ def _check_pkg_config_lilv() -> bool:
             ["pkg-config", "--exists", "lilv-0"],
             capture_output=True,
             timeout=10,
+            check=False,
         )
         return result.returncode == 0
     except (FileNotFoundError, subprocess.TimeoutExpired):
@@ -552,7 +559,7 @@ _has_pkg_config_lilv = _check_pkg_config_lilv()
 
 
 @pytest.fixture(scope="session")
-def lv2_validator() -> Optional[Path]:
+def lv2_validator() -> Path | None:
     """Compile a minimal LV2 validator from C once per session.
 
     Uses pkg-config for lilv-0 flags.  Returns None if lilv-0 is not
@@ -576,17 +583,19 @@ def lv2_validator() -> Optional[Path]:
             capture_output=True,
             text=True,
             timeout=10,
+            check=False,
         ).stdout.strip()
         libs = subprocess.run(
             ["pkg-config", "--libs", "lilv-0"],
             capture_output=True,
             text=True,
             timeout=10,
+            check=False,
         ).stdout.strip()
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return None
 
-    cmd = f"cc {cflags} {str(src)} {libs} -lm -o {str(binary)}"
+    cmd = f"cc {cflags} {src!s} {libs} -lm -o {binary!s}"
     result = subprocess.run(
         cmd,
         shell=True,
@@ -594,6 +603,7 @@ def lv2_validator() -> Optional[Path]:
         text=True,
         timeout=30,
         cwd=_LV2_VALIDATOR_DIR,
+        check=False,
     )
     if result.returncode != 0:
         print(f"LV2 validator compile failed:\n{result.stderr}")

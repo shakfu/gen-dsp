@@ -312,7 +312,7 @@ class _EvalCtx:
 
 def _data_name(e: Expr) -> str:
     if not isinstance(e, Var):
-        raise ValueError("buffer operator expects a Data name as first argument")
+        raise TypeError("buffer operator expects a Data name as first argument")
     return e.name
 
 
@@ -591,4 +591,4 @@ def eval_genexpr(
     return run_genexpr(parse_genexpr(code), inputs, sr, n_samples, data_init)
 
 
-__all__ = ["parse_genexpr", "run_genexpr", "eval_genexpr", "Program"]
+__all__ = ["Program", "eval_genexpr", "parse_genexpr", "run_genexpr"]

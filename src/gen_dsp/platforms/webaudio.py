@@ -8,15 +8,15 @@ with an AudioWorkletProcessor wrapper for real-time browser audio.
 import json
 import shutil
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
-from gen_dsp.version import __version__
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines_make
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform
 from gen_dsp.templates import get_webaudio_templates_dir
+from gen_dsp.version import __version__
 
 if TYPE_CHECKING:
     from gen_dsp.graph.models import Graph
@@ -43,7 +43,7 @@ class WebAudioPlatform(Platform):
         manifest: Manifest,
         output_dir: Path,
         lib_name: str,
-        config: Optional[ProjectConfig] = None,
+        config: ProjectConfig | None = None,
     ) -> None:
         """Generate Web Audio project files."""
         templates_dir = get_webaudio_templates_dir()
@@ -270,6 +270,6 @@ class WebAudioPlatform(Platform):
         """Clean build artifacts."""
         self.run_command(["make", "clean"], project_dir)
 
-    def find_output(self, project_dir: Path) -> Optional[Path]:
+    def find_output(self, project_dir: Path) -> Path | None:
         """Find the built WASM file."""
         return self.find_output_by_pattern(project_dir / "build", "*.wasm")

@@ -11,16 +11,15 @@ from gen_dsp.core.graph import (
     GraphConfig,
     ResolvedChainNode,
     allocate_edge_buffers,
+    extract_chain_order,
     parse_graph,
+    resolve_chain,
     resolve_dag,
     topological_sort,
     validate_dag,
     validate_linear_chain,
-    extract_chain_order,
-    resolve_chain,
 )
 from gen_dsp.errors import ValidationError
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -935,7 +934,7 @@ class TestAllocateEdgeBuffers:
         )
         resolved = self._make_resolved_map({"src": (2, 2), "a": (2, 2), "b": (2, 2)})
         topo = ["src", "a", "b"]
-        edges, total = allocate_edge_buffers(graph, resolved, topo)
+        edges, _total = allocate_edge_buffers(graph, resolved, topo)
 
         # Edges from src should share the same buffer_id
         src_edges = [e for e in edges if e.src_node == "src"]
@@ -952,7 +951,7 @@ class TestAllocateEdgeBuffers:
             ],
         )
         resolved = self._make_resolved_map({"a": (2, 2)})
-        edges, total = allocate_edge_buffers(graph, resolved, ["a"])
+        edges, _total = allocate_edge_buffers(graph, resolved, ["a"])
 
         audio_in_edges = [e for e in edges if e.src_node == "audio_in"]
         assert len(audio_in_edges) == 1
@@ -969,7 +968,7 @@ class TestAllocateEdgeBuffers:
             }
         )
         topo = ["reverb", "delay", "mix"]
-        edges, total = allocate_edge_buffers(graph, resolved, topo)
+        _edges, total = allocate_edge_buffers(graph, resolved, topo)
 
         # Sources needing buffers: reverb, delay, mix = 3 allocated buffers
         assert total == 3
@@ -1013,7 +1012,7 @@ class TestResolveDAG:
         assert node_ids.index("mix") > node_ids.index("delay")
 
         # Mixer node has synthetic manifest
-        mix_node = [n for n in resolved if n.config.id == "mix"][0]
+        mix_node = next(n for n in resolved if n.config.id == "mix")
         assert mix_node.export_info is None
         assert mix_node.manifest.num_params == 2
         assert mix_node.manifest.params[0].name == "gain_0"
@@ -1042,7 +1041,7 @@ class TestResolveDAG:
             "spectraldelayfb": spectraldelayfb_export,
         }
         resolved = resolve_dag(graph, export_dirs, "0.2.0")
-        mix_node = [n for n in resolved if n.config.id == "mix"][0]
+        mix_node = next(n for n in resolved if n.config.id == "mix")
         # gigaverb outputs 2, spectraldelayfb outputs 2
         assert mix_node.manifest.num_outputs == 2
 

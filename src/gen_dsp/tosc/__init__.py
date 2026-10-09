@@ -64,14 +64,14 @@ def _require_tosc() -> None:
 
 
 __all__ = [
-    "_AVAILABLE",
-    "_require_tosc",
     "COLUMNS",
     "DEFAULT_PORT",
-    "OscParam",
     "ROWS",
     "SC_LANG_PORT",
     "SIZE",
+    "_AVAILABLE",
+    "OscParam",
+    "_require_tosc",
     "build_surface",
     "default_prefix",
     "generate_pd_receiver",

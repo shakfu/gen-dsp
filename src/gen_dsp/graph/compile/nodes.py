@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import math as _math
 
-from gen_dsp.graph.compile.common import _Writer, _emit_ref, _float_lit
+from gen_dsp.graph.compile.common import _emit_ref, _float_lit, _Writer
 from gen_dsp.graph.models import (
-    SVF,
     ADSR,
+    SVF,
     Accum,
     Allpass,
     BinOp,
@@ -54,8 +54,8 @@ from gen_dsp.graph.models import (
     Selector,
     SinOsc,
     Slide,
-    Smoothstep,
     SmoothParam,
+    Smoothstep,
     Splat,
     Train,
     TriOsc,
@@ -63,7 +63,6 @@ from gen_dsp.graph.models import (
     Wave,
     Wrap,
 )
-
 
 _BINOP_SYMBOLS: dict[str, str] = {
     "add": "+",

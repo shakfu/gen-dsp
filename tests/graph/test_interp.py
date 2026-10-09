@@ -8,16 +8,16 @@ import pytest
 
 pytest.importorskip("pydantic")
 
-from gen_dsp.graph.compile import compile_graph  # noqa: E402
-from gen_dsp.graph.dsl import parse  # noqa: E402
-from gen_dsp.graph.models import (  # noqa: E402
+from gen_dsp.graph.compile import compile_graph
+from gen_dsp.graph.dsl import parse
+from gen_dsp.graph.models import (
     AudioInput,
     AudioOutput,
     Graph,
     Interp,
 )
-from gen_dsp.graph.optimize import constant_fold  # noqa: E402
-from gen_dsp.graph.serialize import graph_to_gdsp  # noqa: E402
+from gen_dsp.graph.optimize import constant_fold
+from gen_dsp.graph.serialize import graph_to_gdsp
 
 
 def _graph(node: Interp) -> Graph:

@@ -8,7 +8,6 @@ build system for each platform.
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 from gen_dsp.errors import BuildError
 
@@ -19,7 +18,7 @@ class BuildResult:
 
     success: bool
     platform: str
-    output_file: Optional[Path]
+    output_file: Path | None
     stdout: str
     stderr: str
     return_code: int
@@ -45,7 +44,7 @@ class Builder:
         if not self.project_dir.is_dir():
             raise BuildError(f"Project directory not found: {self.project_dir}")
 
-    def detect_platform(self) -> Optional[str]:
+    def detect_platform(self) -> str | None:
         """Return the platform recorded in this project's ``.gen-dsp.json``.
 
         The marker is written at project generation time, so a project knows
@@ -69,7 +68,7 @@ class Builder:
             return platform
         return None
 
-    def _resolve_platform(self, target_platform: Optional[str]) -> str:
+    def _resolve_platform(self, target_platform: str | None) -> str:
         """Resolve an explicit platform, else auto-detect, else fall back to pd."""
         if target_platform is not None:
             return target_platform
@@ -77,7 +76,7 @@ class Builder:
 
     def build(
         self,
-        target_platform: Optional[str] = None,
+        target_platform: str | None = None,
         clean: bool = False,
         verbose: bool = False,
     ) -> BuildResult:
@@ -107,7 +106,7 @@ class Builder:
 
         return platform_impl.build(self.project_dir, clean=clean, verbose=verbose)
 
-    def clean(self, target_platform: Optional[str] = None) -> None:
+    def clean(self, target_platform: str | None = None) -> None:
         """
         Clean build artifacts.
 
@@ -125,7 +124,7 @@ class Builder:
 
         platform_impl.clean(self.project_dir)
 
-    def get_lib_name(self) -> Optional[str]:
+    def get_lib_name(self) -> str | None:
         """
         Get the lib.name from the project Makefile.
 

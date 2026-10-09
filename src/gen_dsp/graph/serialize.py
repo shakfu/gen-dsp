@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Union
-
 from gen_dsp.graph.models import (
     SVF,
     BinOp,
@@ -33,7 +31,7 @@ from gen_dsp.graph.models import (
 )
 from gen_dsp.graph.toposort import toposort
 
-Ref = Union[str, float]
+Ref = str | float
 
 # BinOp ops that use infix syntax
 _INFIX_OPS: dict[str, str] = {
@@ -155,7 +153,7 @@ def graph_to_gdsp(graph: Graph) -> str:
 
     try:
         topo_order = toposort(graph)
-    except Exception:
+    except ValueError:
         topo_order = list(graph.nodes)
 
     # --- Header ---

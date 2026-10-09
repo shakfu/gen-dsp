@@ -6,8 +6,8 @@ pydantic = __import__("pytest").importorskip("pydantic")
 import pytest
 
 from gen_dsp.graph import (
-    SVF,
     ADSR,
+    SVF,
     Accum,
     Allpass,
     AudioInput,

@@ -18,15 +18,15 @@ import os
 import re
 import shutil
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
-from gen_dsp.version import __version__
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines
 from gen_dsp.core.project import ProjectConfig
 from gen_dsp.errors import ProjectError
 from gen_dsp.platforms.cmake_platform import CMakePlatform
 from gen_dsp.templates import get_ssp_templates_dir
+from gen_dsp.version import __version__
 
 if TYPE_CHECKING:
     from gen_dsp.graph.models import Graph
@@ -82,7 +82,7 @@ def ssp_module_name(lib_name: str) -> str:
     return "".join(s[i] for i in keep).ljust(4, "x")
 
 
-def resolve_ssp_name(config: Optional[ProjectConfig], lib_name: str) -> str:
+def resolve_ssp_name(config: ProjectConfig | None, lib_name: str) -> str:
     """Return the module name: ``config.ssp_name`` if given, else derived from ``lib_name``.
 
     Synthor lists a module only if its uid spells its 4-character name.
@@ -131,7 +131,7 @@ def write_juce_cmakelists(
     sources: list[str],
     include_dirs: list[str],
     module_name: str,
-    dev_dir: Optional[Path] = None,
+    dev_dir: Path | None = None,
     use_shared_cache: str = "OFF",
     cache_dir: str = "",
     remap_defines: str = "",
@@ -181,7 +181,7 @@ def write_buffer_names(output_dir: Path, buffers: list[str]) -> Path:
     return path
 
 
-def _is_juce(config: Optional[ProjectConfig]) -> bool:
+def _is_juce(config: ProjectConfig | None) -> bool:
     return config is not None and config.ssp_format == "juce"
 
 
@@ -202,7 +202,7 @@ class SspPlatform(CMakePlatform):
         manifest: Manifest,
         output_dir: Path,
         lib_name: str,
-        config: Optional[ProjectConfig] = None,
+        config: ProjectConfig | None = None,
     ) -> None:
         """Generate SSP project files."""
         templates_dir = get_ssp_templates_dir()
@@ -270,7 +270,7 @@ class SspPlatform(CMakePlatform):
         output_dir: Path,
         lib_name: str,
         gen_name: str,
-        config: Optional[ProjectConfig],
+        config: ProjectConfig | None,
         sources: list[str],
         include_dirs: list[str],
         remap_defines: str = "",
@@ -316,7 +316,7 @@ class SspPlatform(CMakePlatform):
         self._copy_static_files(output_dir, config)
 
     @staticmethod
-    def _copy_static_files(output_dir: Path, config: Optional[ProjectConfig]) -> None:
+    def _copy_static_files(output_dir: Path, config: ProjectConfig | None) -> None:
         templates_dir = get_ssp_templates_dir()
         if _is_juce(config):
             for filename in (
@@ -345,7 +345,7 @@ class SspPlatform(CMakePlatform):
             build_args=["--parallel", str(os.cpu_count() or 1)],
         )
 
-    def find_output(self, project_dir: Path) -> Optional[Path]:
+    def find_output(self, project_dir: Path) -> Path | None:
         """Find the built SSP module."""
         return self.find_output_by_pattern(
             project_dir / "build", "*.so", require_file=True

@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from gen_dsp.core.parser import GenExportParser
-from gen_dsp.core.project import ProjectGenerator, ProjectConfig
+from gen_dsp.core.project import ProjectConfig, ProjectGenerator
 from gen_dsp.platforms import (
     PLATFORM_REGISTRY,
     PureDataPlatform,
@@ -65,6 +65,7 @@ def _validate_pd_external(project_dir: Path, lib_name: str) -> None:
         capture_output=True,
         text=True,
         timeout=15,
+        check=False,
     )
     output = result.stdout + result.stderr
     assert result.returncode == 0, f"pd failed (exit {result.returncode}):\n{output}"
@@ -210,6 +211,7 @@ class TestPdBuildIntegration:
             capture_output=True,
             text=True,
             timeout=120,
+            check=False,
         )
         assert result.returncode == 0, (
             f"make failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -245,6 +247,7 @@ class TestPdBuildIntegration:
             capture_output=True,
             text=True,
             timeout=120,
+            check=False,
         )
         assert result.returncode == 0, (
             f"make failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -276,6 +279,7 @@ class TestPdBuildIntegration:
             capture_output=True,
             text=True,
             timeout=120,
+            check=False,
         )
         assert result.returncode == 0, (
             f"make failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"

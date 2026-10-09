@@ -9,14 +9,13 @@ import re
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
-
-from gen_dsp.version import __version__
-from gen_dsp.core.parser import ExportInfo
-from gen_dsp.errors import ValidationError
 
 # TYPE_CHECKING avoids circular import at runtime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
+
+from gen_dsp.core.parser import ExportInfo
+from gen_dsp.errors import ValidationError
+from gen_dsp.version import __version__
 
 if TYPE_CHECKING:
     from gen_dsp.core.manifest import Manifest
@@ -42,22 +41,22 @@ class ProjectConfig:
     apply_patches: bool = True
 
     # Output directory (if None, use current directory)
-    output_dir: Optional[Path] = None
+    output_dir: Path | None = None
 
     # Use shared FetchContent cache for CMake-based platforms
     shared_cache: bool = True
 
     # Explicit cache directory override (baked into CMakeLists.txt)
-    cache_dir: Optional[Path] = None
+    cache_dir: Path | None = None
 
     # Board variant for embedded platforms:
     #   Daisy: seed, pod, patch, patch_sm, field, petal, legio, versio
     #   Circle: pi3-i2s, pi4-i2s
-    board: Optional[str] = None
+    board: str | None = None
 
     # Percussa SSP module name: exactly 4 letters or digits, also spelled by the
     # uid. None derives one from `name` (see platforms/ssp.py).
-    ssp_name: Optional[str] = None
+    ssp_name: str | None = None
 
     # Percussa SSP module format: "native" (Percussa API only) or "juce" (the
     # SSP plugin framework and JUCE; also loads in rack-style hosts).
@@ -65,19 +64,19 @@ class ProjectConfig:
 
     # JUCE format: an existing SSP dev tree (a shakfu/ssp checkout). None
     # downloads pinned archives at configure time.
-    ssp_dev_dir: Optional[Path] = None
+    ssp_dev_dir: Path | None = None
 
     # MIDI-to-CV configuration
     no_midi: bool = False
-    midi_gate: Optional[str] = None
-    midi_freq: Optional[str] = None
-    midi_vel: Optional[str] = None
+    midi_gate: str | None = None
+    midi_freq: str | None = None
+    midi_vel: str | None = None
     midi_freq_unit: str = "hz"
     num_voices: int = 1
 
     # Signal inputs to remap as parameters.
     # None = don't remap, [] = remap all, ["name", ...] = remap named subset
-    inputs_as_params: Optional[list[str]] = None
+    inputs_as_params: list[str] | None = None
 
     # Generate a TouchOSC control surface (requires py2tosc). When the target
     # platform has an OSC path of its own (pd, sc), matching receiver glue is
@@ -179,15 +178,15 @@ class ProjectGenerator:
             export_info: Parsed information from gen~ export.
             config: Configuration for the new project.
         """
-        self.export_info: Optional[ExportInfo] = export_info
+        self.export_info: ExportInfo | None = export_info
         self.config = config
-        self._graph: Optional[Graph] = None
-        self._manifest: Optional[Manifest] = None
+        self._graph: Graph | None = None
+        self._manifest: Manifest | None = None
         # Populated by generate() when config.tosc is set, so callers can
         # report exactly which files were written -- or, in tosc_skipped, why
         # no surface was.
-        self.tosc_result: Optional["ToscResult"] = None
-        self.tosc_skipped: Optional[str] = None
+        self.tosc_result: ToscResult | None = None
+        self.tosc_skipped: str | None = None
 
     @classmethod
     def from_graph(cls, graph: "Graph", config: ProjectConfig) -> "ProjectGenerator":
@@ -212,7 +211,7 @@ class ProjectGenerator:
         instance.tosc_skipped = None
         return instance
 
-    def generate(self, output_dir: Optional[Path] = None) -> Path:
+    def generate(self, output_dir: Path | None = None) -> Path:
         """
         Generate the project.
 
