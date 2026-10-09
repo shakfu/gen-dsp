@@ -657,12 +657,13 @@ class TestAudioUnitBuildIntegration:
         assert len(component_files) >= 1
         assert component_files[0].name == "polyverb.component"
 
-        # Runtime validation via minihost (check_energy=False: generator with no audio input)
+        # The AU wrapper takes its input count from gen's num_inputs() (2),
+        # not the overridden manifest, so minihost must feed 2 channels.
         _validate_au_with_minihost(
             validate_minihost,
             component_files[0],
             "polyverb",
-            0,
+            2,
             2,
             num_params=8,
             check_energy=False,
