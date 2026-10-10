@@ -66,8 +66,8 @@ clean:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true
 
-# Graph source (override with: make graph-example-clap GRAPH=examples/dsl/fm_synth.gdsp)
-GRAPH ?= examples/dsl/stereo_gain.gdsp
+# Graph source (override with: make graph-example-clap GRAPH=src/gen_dsp/library/examples/fm_synth.gdsp)
+GRAPH ?= src/gen_dsp/library/examples/stereo_gain.gdsp
 GRAPH_NAME = $(basename $(notdir $(GRAPH)))
 
 # ---------------------------------------------------------------------------
@@ -146,7 +146,7 @@ $(addprefix graph-example-,$(GRAPH_PLATFORMS)): graph-example-%:
 	$(GEN_DSP) $(GRAPH) -p $* -o $(EXAMPLES_DIR)/$(GRAPH_NAME)_$*
 
 # Web Audio example (standalone generator, uses fm_synth by default)
-WEBAUDIO_GRAPH ?= examples/dsl/fm_synth.gdsp
+WEBAUDIO_GRAPH ?= src/gen_dsp/library/examples/fm_synth.gdsp
 WEBAUDIO_GRAPH_NAME = $(basename $(notdir $(WEBAUDIO_GRAPH)))
 graph-example-webaudio:
 	rm -rf $(EXAMPLES_DIR)/$(WEBAUDIO_GRAPH_NAME)_webaudio
@@ -221,7 +221,7 @@ help:
 	@echo "  gen-export-examples     - Build both for all platforms"
 	@echo "  gen-export-<name>-<plat>- Single combo (e.g. gen-export-slicer-clap)"
 	@echo ""
-	@echo "Graph examples (GRAPH=examples/dsl/stereo_gain.gdsp):"
+	@echo "Graph examples (GRAPH=src/gen_dsp/library/examples/stereo_gain.gdsp):"
 	@echo "  graph-example-pd    - PureData from .gdsp/.json"
 	@echo "  graph-example-chuck - ChucK from .gdsp/.json"
 	@echo "  graph-example-au    - AudioUnit from .gdsp/.json (macOS)"
@@ -247,9 +247,9 @@ help:
 	@echo "Override variables:"
 	@echo "  FIXTURE=<name>   - gen~ export fixture (default: gigaverb)"
 	@echo "  BUFFERS='--buffers buf1'  - buffer names for export examples"
-	@echo "  GRAPH=<path>     - .gdsp or .json file (default: examples/dsl/stereo_gain.gdsp)"
+	@echo "  GRAPH=<path>     - .gdsp or .json file (default: src/gen_dsp/library/examples/stereo_gain.gdsp)"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make example-chuck FIXTURE=RamplePlayer BUFFERS='--buffers sample'"
 	@echo "  make graph-example-clap GRAPH=examples/json/fm_synth.json"
-	@echo "  make graph-example-vst3 GRAPH=examples/dsl/wavetable.gdsp"
+	@echo "  make graph-example-vst3 GRAPH=src/gen_dsp/library/examples/wavetable.gdsp"

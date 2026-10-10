@@ -55,6 +55,7 @@ SUBCOMMANDS = {
     "chain",
     "doctor",
     "platforms",
+    "library",
     "tosc",
 }
 
@@ -113,6 +114,7 @@ Subcommands:
   cache                     Show cached SDKs
   doctor                    Check build prerequisites per platform
   platforms [--json]        Build-host support and runtime targets
+  library [--json]          List .gdsp examples and components
   manifest <dir>            Emit JSON manifest for a gen~ export
   tosc <src>                Generate a TouchOSC control surface
 
@@ -400,6 +402,14 @@ def _make_subcommand_parser() -> argparse.ArgumentParser:
     )
     platforms_parser.add_argument(
         "--json", action="store_true", help="Emit versioned support metadata as JSON"
+    )
+
+    # library command
+    library_parser = subparsers.add_parser(
+        "library", help="List .gdsp examples and components (std and user)"
+    )
+    library_parser.add_argument(
+        "--json", action="store_true", help="Emit the versioned library index as JSON"
     )
 
     # manifest command
@@ -1801,6 +1811,25 @@ def cmd_platforms(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_library(args: argparse.Namespace) -> int:
+    """Handle the library command (std and user .gdsp index)."""
+    from gen_dsp.library import default_import_roots, library_index
+
+    index = library_index()
+    if args.json:
+        print(json.dumps(index, indent=2))
+        return 0
+
+    for root, path in default_import_roots().items():
+        print(f"{root}: {path}")
+    entries = index["entries"]
+    width = max((len(e["id"]) for e in entries), default=2)
+    for e in entries:
+        detail = f"ERROR: {e['error']}" if "error" in e else e["description"]
+        print(f"{e['id']:<{width}}  {e['kind']:<9}  {detail}")
+    return 0
+
+
 def cmd_chain(args: argparse.Namespace) -> int:
     """Handle the chain command (multi-plugin chain mode, Circle only)."""
     from gen_dsp.core.graph import (
@@ -1893,6 +1922,7 @@ def _dispatch_subcommand(argv: list[str]) -> int:
         "chain": cmd_chain,
         "doctor": cmd_doctor,
         "platforms": cmd_platforms,
+        "library": cmd_library,
         "tosc": cmd_tosc,
     }
 

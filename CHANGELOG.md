@@ -16,7 +16,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 gen-dsp platforms --json
 ```
 
+- **`.gdsp` library with `std` and `user` import roots** -- The 16 examples (moved from `examples/dsl/`) and six components from the DSL guide now ship in the package under `gen_dsp/library/`. `import "std:components/filters/lpf.gdsp":lpf(...)` imports from it, and `user:` from the user library (`GEN_DSP_LIBRARY_DIR` overrides the OS default). `gen-dsp library --json` emits a versioned index of both roots: inputs, outputs, params, description and a ready-made import expression per file. `gen_dsp.library.save_user_component()` validates a name and source before writing atomically, so frontends do not write into the user root themselves.
+
 ### Fixed
+
+- **`.gdsp` imports could read any file** -- `parse` and `parse_multi` opened any path an `import` named. Errors echoed the file's first token and revealed whether a path existed, which leaked data when the source came from a browser (dsp-graph). Given `import_roots`, they now accept only `"<root>:<path>"` imports that resolve inside the root, nested imports included, and errors name the import, not the resolved path. Without roots the old behaviour stays, so existing files keep working.
 
 - **README overstated CI coverage** -- It said every platform was tested in CI. Circle, Csound, Web Audio and the SSP device build are not, and Windows CI covers only CLAP, VST3 and SuperCollider. The OS table now shows the declared status.
 

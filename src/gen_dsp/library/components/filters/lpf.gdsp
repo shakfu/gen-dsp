@@ -1,0 +1,8 @@
+# One-pole lowpass filter. Higher coeff gives a lower cutoff.
+
+graph lpf {
+    in input
+    out output = filtered
+    param coeff 0..1 = 0.3
+    filtered = onepole(input, coeff)
+}

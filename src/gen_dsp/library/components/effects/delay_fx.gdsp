@@ -1,0 +1,10 @@
+# Delay line with the delay time in milliseconds and linear interpolation.
+
+graph delay_fx {
+    in input
+    out output = delayed
+    param time 1..2000 = 500
+    delay dly 96000
+    delay_write dly (input)
+    delayed = delay_read dly (mstosamps(time), interp=linear)
+}

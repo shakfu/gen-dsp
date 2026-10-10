@@ -1,0 +1,8 @@
+# Soft-clipping distortion: tanh of the input times drive.
+
+graph distortion {
+    in input
+    out output = dist
+    param drive 0..10 = 3.0
+    dist = tanh(input * drive)
+}

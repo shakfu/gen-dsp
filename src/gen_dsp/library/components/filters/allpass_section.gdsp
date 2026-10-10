@@ -1,0 +1,15 @@
+# Schroeder allpass section with a 4410-sample delay, for reverb diffusion.
+
+graph allpass_section {
+    in input
+    out output = y
+
+    param coeff 0..1 = 0.7
+    delay dly 4410
+
+    history state = 0.0
+    delay_write dly (input + state * coeff)
+    tap = delay_read dly (4410)
+    y = tap - input * coeff
+    state <- y
+}

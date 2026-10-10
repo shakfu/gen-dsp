@@ -1,0 +1,8 @@
+# One-pole highpass filter: the input minus its one-pole lowpass.
+
+graph hpf {
+    in input
+    out output = filtered
+    param coeff 0..1 = 0.7
+    filtered = input - onepole(input, coeff)
+}

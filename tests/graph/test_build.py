@@ -664,12 +664,18 @@ class TestBuildVcvRackFromGraph:
 # ---------------------------------------------------------------------------
 
 
-_EXAMPLES_DIR = Path(__file__).resolve().parent.parent.parent / "examples" / "dsl"
+_EXAMPLES_DIR = (
+    Path(__file__).resolve().parent.parent.parent
+    / "src"
+    / "gen_dsp"
+    / "library"
+    / "examples"
+)
 _GDSP_EXAMPLES = sorted(_EXAMPLES_DIR.glob("*.gdsp")) if _EXAMPLES_DIR.is_dir() else []
 
 
 class TestBuildGdspExamples:
-    """Build every examples/dsl/*.gdsp file end-to-end.
+    """Build every library example .gdsp file end-to-end.
 
     PD (make-based) for fast compilation, CLAP (cmake) for validator coverage.
     This is the primary guard against codegen regressions in the DSL -> C++ ->

@@ -189,6 +189,15 @@ gen-dsp platforms            # status per build host (ci/verified/untested/unsup
 gen-dsp platforms --json     # versioned JSON with notes, artifacts, runtime devices
 ```
 
+## library -- .gdsp Examples and Components
+
+```bash
+gen-dsp library              # std (bundled) and user entries
+gen-dsp library --json       # versioned index for frontends
+```
+
+Import from a graph: `lp = import "std:components/filters/lpf.gdsp":lpf(input=x)`.
+
 ## doctor -- Check Build Prerequisites
 
 ```bash

@@ -294,6 +294,15 @@ gen-dsp platforms              # table
 gen-dsp platforms --json       # versioned JSON
 ```
 
+### library
+
+List the bundled `.gdsp` examples and components (`std`) and your own (`user`). Import them from any graph as `import "std:components/filters/lpf.gdsp":lpf(...)`. The user library is `~/.local/share/gen-dsp/library` on Linux, `~/Library/Application Support/gen-dsp/library` on macOS and `%APPDATA%/gen-dsp/library` on Windows; `GEN_DSP_LIBRARY_DIR` overrides it.
+
+```bash
+gen-dsp library                # table, with both root directories
+gen-dsp library --json         # versioned index: inputs, outputs, params, import expression
+```
+
 ### tosc (requires `gen-dsp[tosc]`)
 
 Generate a TouchOSC control surface from a plugin's parameter list. The source
@@ -369,7 +378,7 @@ gen-dsp validate fbdelay.gdsp             # check graph connectivity
 gen-dsp viz fbdelay.gdsp -o ./output/     # Graphviz DOT visualization
 ```
 
-More examples in [`examples/dsl/`](examples/dsl/).
+More examples in [`src/gen_dsp/library/examples/`](src/gen_dsp/library/examples/); `gen-dsp library` lists them.
 
 ### Quick Start (JSON)
 

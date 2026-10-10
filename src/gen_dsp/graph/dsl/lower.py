@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -264,6 +265,9 @@ class Compiler:
         *,
         import_stack: list[Path] | None = None,
         module_cache: dict[Path, dict[str, Graph]] | None = None,
+        import_roots: Mapping[str, str | Path] | None = None,
+        allow_paths: bool | None = None,
+        base_dir: Path | None = None,
     ):
         self.ast_graphs = ast_graphs
         self.filename = filename
@@ -273,9 +277,18 @@ class Compiler:
         # Track graphs currently being compiled to detect recursive calls
         self._compiling: set[str] = set()
         # Directory used to resolve relative import paths.
-        self.base_dir = (
-            Path(filename).resolve().parent if filename != "<string>" else Path.cwd()
-        )
+        if base_dir is not None:
+            self.base_dir = base_dir
+        elif filename != "<string>":
+            self.base_dir = Path(filename).resolve().parent
+        else:
+            self.base_dir = Path.cwd()
+        # Named roots for "<root>:<relpath>" imports. Unless allow_paths is
+        # set, a compiler with roots refuses plain paths (untrusted source).
+        self.import_roots = {
+            k: Path(v).resolve() for k, v in (import_roots or {}).items()
+        }
+        self.allow_paths = import_roots is None if allow_paths is None else allow_paths
         # Chain of files currently being compiled (innermost last), used to
         # detect circular imports across files. The root file (if it has a real
         # path) sits at the bottom so a file importing itself is also caught.
@@ -295,10 +308,7 @@ class Compiler:
         Resolves ``path_str`` relative to the importing file's directory,
         detects circular imports, and caches each file's compiled graphs.
         """
-        path = Path(path_str)
-        if not path.is_absolute():
-            path = self.base_dir / path
-        resolved = path.resolve()
+        resolved, display = self._resolve_path(path_str, line)
 
         if resolved in self._import_stack:
             chain = (
@@ -312,8 +322,9 @@ class Compiler:
 
         if resolved not in self._module_cache:
             if not resolved.is_file():
+                where = "" if display != str(resolved) else f" (resolved to {resolved})"
                 raise GDSPCompileError(
-                    f"import file not found: {path_str} (resolved to {resolved})",
+                    f"import file not found: {path_str}{where}",
                     line=line,
                     filename=self.filename,
                 )
@@ -324,14 +335,16 @@ class Compiler:
             from gen_dsp.graph.dsl.parser import Parser
 
             source = resolved.read_text(encoding="utf-8")
-            sub_filename = str(resolved)
-            tokens = tokenize(source, sub_filename)
-            sub_asts = Parser(tokens, sub_filename).parse_file()
+            tokens = tokenize(source, display)
+            sub_asts = Parser(tokens, display).parse_file()
             sub_compiler = Compiler(
                 sub_asts,
-                sub_filename,
+                display,
                 import_stack=self._import_stack + [resolved],
                 module_cache=self._module_cache,
+                import_roots=self.import_roots or None,
+                allow_paths=self.allow_paths,
+                base_dir=resolved.parent,
             )
             self._module_cache[resolved] = sub_compiler.compile_all()
 
@@ -357,6 +370,32 @@ class Compiler:
                 filename=self.filename,
             )
         return module[graph_name]
+
+    def _resolve_path(self, path_str: str, line: int) -> tuple[Path, str]:
+        """Return (resolved path, name used in messages) for an import string."""
+        root, sep, rel = path_str.partition(":")
+        if sep and root in self.import_roots:
+            base = self.import_roots[root]
+            resolved = (base / rel).resolve()
+            if Path(rel).is_absolute() or not resolved.is_relative_to(base):
+                raise GDSPCompileError(
+                    f"import escapes the '{root}' root: {path_str}",
+                    line=line,
+                    filename=self.filename,
+                )
+            return resolved, path_str
+        if not self.allow_paths:
+            roots = ", ".join(sorted(self.import_roots)) or "(none)"
+            raise GDSPCompileError(
+                f"import must be '<root>:<path>' with a root from: {roots}",
+                line=line,
+                filename=self.filename,
+            )
+        path = Path(path_str)
+        if not path.is_absolute():
+            path = self.base_dir / path
+        resolved = path.resolve()
+        return resolved, str(resolved)
 
     def compile_all(self) -> dict[str, Graph]:
         for ast_g in self.ast_graphs:

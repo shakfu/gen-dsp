@@ -446,6 +446,14 @@ graph main {
 
 **Resolution.** A relative path is resolved against the directory of the *importing* file. When compiling a string (via `parse`, where there is no source file), relative paths resolve against the current working directory. Absolute paths are used as-is.
 
+**Library roots.** `"<root>:<path>"` imports from a named root: `std` is the bundled library, `user` the user library (see `gen-dsp library`).
+
+```gdsp
+lp = import "std:components/filters/lpf.gdsp":lpf(input=input, coeff=0.2)
+```
+
+The path must stay inside the root after symlinks are resolved. `parse_file` and the CLI register both roots and still accept plain paths. `parse` and `parse_multi` accept `import_roots={"std": ..., "user": ...}`; given roots, they refuse plain relative and absolute paths, in nested imports too. Pass roots whenever the source is untrusted.
+
 **Caching.** Each resolved file is read, parsed, and compiled at most once per top-level compilation; repeated imports of the same file (including diamond import graphs) reuse the cached result.
 
 **Cycle detection.** Imports that form a cycle -- directly (`a.gdsp` -> `a.gdsp`) or transitively (`a.gdsp` -> `b.gdsp` -> `a.gdsp`) -- raise a `GDSPCompileError` reporting the import chain, rather than recursing without bound.

@@ -1,0 +1,14 @@
+# Sawtooth voice with an ADSR envelope triggered by a gate input.
+
+graph voice {
+    in gate_in
+    out output = out_signal
+
+    param freq 20..20000 = 440
+    param attack 1..5000 = 10
+    param release 1..5000 = 200
+
+    env = adsr(gate_in, attack, 50, 0.8, release)
+    osc = sawosc(freq)
+    out_signal = osc * env
+}

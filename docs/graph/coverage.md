@@ -25,7 +25,7 @@ Tier 1 of the roadmap below was implemented and fully tested (full suite green).
 - `train` impulse-generator node (one-sample `1.0` each cycle, distinct from the bipolar `PulseOsc`).
 - Deferred: `rate` (ambiguous gen~ ramp-resync semantics; `RateDiv` already covers rate-division).
 
-Five demo patches in `examples/dsl/` exercise these: `bitcrush`, `bitglitch`, `sh_sequencer`, `wavemorph`, `lofi_wavetable`.
+Five demo patches in `src/gen_dsp/library/examples/` exercise these: `bitcrush`, `bitglitch`, `sh_sequencer`, `wavemorph`, `lofi_wavetable`.
 
 ## Summary
 
