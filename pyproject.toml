@@ -39,15 +39,15 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
     "Operating System :: Microsoft :: Windows",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: Multimedia :: Sound/Audio",
     "Topic :: Software Development :: Code Generators",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = []
 
 [project.optional-dependencies]
@@ -57,16 +57,15 @@ tosc = ["py2tosc>=0.6.0"]
 
 [dependency-groups]
 dev = [
-    "minihost>=0.11.0",
-    "minihost>=0.1.2",
-    "mypy>=1.19.1",
-    "numpy>=1.24",
+    "minihost>=0.11.0; python_version < '3.15'",
+    "mypy>=2.4.0",
+    "numpy>=2.4.6",
     "py2tosc>=0.6.0",
-    "pydantic>=2.0",
-    "pytest>=8.4.2",
-    "pytest-cov>=7.0.0",
-    "ruff>=0.15.0",
-    "twine>=6.2.0",
+    "pydantic>=2.14.0",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.0",
+    "twine>=7.0.0",
 ]
 
 [project.scripts]
@@ -79,7 +78,7 @@ Changelog = "https://github.com/shakfu/gen-dsp/blob/master/CHANGELOG.md"
 Issues = "https://github.com/shakfu/gen-dsp/issues"
 
 [tool.ruff.lint]
-# Pinned to the ruff 0.16.10 default set so upgrades don't change it.
+# Frozen at the ruff 0.16.10 default set. 0.17.0 dropped DTZ001, 005-007, 011, 012, 901 from defaults.
 select = [
     "ASYNC100", "ASYNC105", "ASYNC115", "ASYNC116", "ASYNC210", "ASYNC220", "ASYNC221",
     "ASYNC222", "ASYNC230", "ASYNC251",
@@ -158,7 +157,7 @@ select = [
 "tests/graph/*.py" = ["E402"]
 
 [build-system]
-requires = ["uv_build>=0.12.0,<0.13.0"]
+requires = ["uv_build>=0.13.0,<0.14.0"]
 build-backend = "uv_build"
 
 [tool.pytest.ini_options]

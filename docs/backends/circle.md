@@ -6,7 +6,7 @@ Generates bare-metal kernel images (`.img`) for Raspberry Pi using the [Circle](
 
 ## Prerequisites
 
-- Python >= 3.10
+- Python >= 3.11
 
 - `aarch64-none-elf-gcc` (AArch64 bare-metal toolchain, for Pi 3/4/5/Zero 2 W) or `arm-none-eabi-gcc` (for Pi Zero original)
 

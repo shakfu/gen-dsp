@@ -6,7 +6,7 @@ Generates PureData externals (`.pd_darwin`, `.pd_linux`) from gen~ exports using
 
 ## Prerequisites
 
-- Python >= 3.10
+- Python >= 3.11
 
 - C/C++ compiler (gcc, clang)
 

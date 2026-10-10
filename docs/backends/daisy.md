@@ -6,7 +6,7 @@ Generates firmware binaries (`.bin`) for the Daisy Seed and related boards from 
 
 ## Prerequisites
 
-- Python >= 3.10
+- Python >= 3.11
 
 - `arm-none-eabi-gcc` (ARM GCC cross-compilation toolchain)
 

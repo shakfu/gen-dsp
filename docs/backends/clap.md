@@ -6,7 +6,7 @@ Generates cross-platform CLAP plugins (`.clap` bundles on macOS, shared librarie
 
 ## Prerequisites
 
-- Python >= 3.10
+- Python >= 3.11
 
 - CMake >= 3.19
 

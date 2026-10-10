@@ -6,7 +6,7 @@ Generates ChucK chugins (`.chug` files) from gen~ exports using make and a bundl
 
 ## Prerequisites
 
-- Python >= 3.10
+- Python >= 3.11
 
 - C/C++ compiler (clang on macOS, gcc on Linux)
 

@@ -6,7 +6,7 @@ Generates macOS AUv3 plugins as App Extensions (`.appex`) inside a host applicat
 
 ## Prerequisites
 
-- Python >= 3.10
+- Python >= 3.11
 
 - macOS
 

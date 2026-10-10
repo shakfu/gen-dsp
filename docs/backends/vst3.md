@@ -6,7 +6,7 @@ Generates cross-platform VST3 plugins (`.vst3` bundles) from gen~ exports using 
 
 ## Prerequisites
 
-- Python >= 3.10
+- Python >= 3.11
 
 - CMake >= 3.19
 

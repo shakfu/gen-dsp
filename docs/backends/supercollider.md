@@ -6,7 +6,7 @@ Generates cross-platform SuperCollider UGens (`.scx` on macOS/Windows, `.so` on 
 
 ## Prerequisites
 
-- Python >= 3.10
+- Python >= 3.11
 
 - CMake >= 3.19
 

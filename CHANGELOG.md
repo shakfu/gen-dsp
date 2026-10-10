@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **Python 3.11 is now the minimum** -- Python 3.10 reached end of life on 2026-10-01. Reading `gen-dsp.toml` no longer falls back to `tomli`. Dev-group floors were raised to the locked versions, including ruff 0.17.0. The explicit ruff `select` list keeps the DTZ rules that 0.17.0 removed from its defaults. Python 3.15 is supported and tested in CI alongside 3.11 and 3.14. minihost has no 3.15 wheel, so the dev group skips it there and the runtime plugin checks it drives are skipped on 3.15.
+
 ## [0.4.0]
 
 ### Added

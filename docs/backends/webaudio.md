@@ -6,7 +6,7 @@ Generates browser-ready AudioWorklet + WebAssembly modules from gen~ exports or 
 
 ## Prerequisites
 
-- Python >= 3.10
+- Python >= 3.11
 
 - make
 

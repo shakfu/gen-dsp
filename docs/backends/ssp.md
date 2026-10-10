@@ -13,7 +13,7 @@ Generates modules (`.so`) for the [Percussa SSP](https://www.percussa.com/) from
 
 ## Prerequisites
 
-- Python >= 3.10
+- Python >= 3.11
 
 - CMake >= 3.19
 

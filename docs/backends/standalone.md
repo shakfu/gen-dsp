@@ -6,7 +6,7 @@ Generates self-contained CLI audio applications using [miniaudio](https://miniau
 
 ## Prerequisites
 
-- Python >= 3.10
+- Python >= 3.11
 
 - C++ compiler (`c++` or `g++`)
 

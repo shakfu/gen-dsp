@@ -678,16 +678,7 @@ def _load_config(path: Path) -> tuple[dict[str, object], str | None]:
     Keys mirror the CLI options (hyphens or underscores accepted). Returns
     ``(defaults, error)``; ``error`` is set on a parse or validation failure.
     """
-    try:
-        import tomllib
-    except ModuleNotFoundError:  # Python 3.10
-        try:
-            import tomli as tomllib  # type: ignore[import-not-found, no-redef]
-        except ModuleNotFoundError:
-            return {}, (
-                "reading gen-dsp.toml requires Python 3.11+ or the 'tomli' "
-                "package (pip install tomli)"
-            )
+    import tomllib
 
     try:
         with open(path, "rb") as f:

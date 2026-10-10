@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING
+from typing import Self
 
 from gen_dsp.graph._deps import build_forward_deps
 from gen_dsp.graph.models import (
@@ -23,9 +23,6 @@ from gen_dsp.graph.models import (
     Wave,
 )
 from gen_dsp.graph.optimize import _STATEFUL_TYPES
-
-if TYPE_CHECKING:
-    from typing_extensions import Self
 
 
 class GraphValidationError(str):

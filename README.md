@@ -267,9 +267,7 @@ gen-dsp --config ci.toml # explicit file
 gen-dsp -p clap          # config provides source/name; CLI overrides platform
 ```
 
-On Python 3.10, reading TOML needs the `tomli` package (`pip install tomli`);
-Python 3.11+ uses the standard-library `tomllib`. See
-[examples/gen-dsp.toml](examples/gen-dsp.toml).
+See [examples/gen-dsp.toml](examples/gen-dsp.toml).
 
 ### doctor
 
@@ -814,7 +812,7 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 
 ### Runtime
 
-- Python >= 3.10
+- Python >= 3.11
 - C/C++ compiler (gcc, clang)
 
 ### Graph frontend (optional)

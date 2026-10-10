@@ -6,7 +6,7 @@ Generates Max/MSP externals (`.mxo` on macOS, `.mxe64` on Windows) from gen~ exp
 
 ## Prerequisites
 
-- Python >= 3.10
+- Python >= 3.11
 
 - CMake >= 3.19
 

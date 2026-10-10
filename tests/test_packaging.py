@@ -1,11 +1,7 @@
 """Tests for packaging consistency and template inclusion."""
 
+import tomllib
 from pathlib import Path
-
-try:
-    import tomllib
-except ImportError:
-    import tomli as tomllib  # type: ignore[no-redef]
 
 import gen_dsp
 

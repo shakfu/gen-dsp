@@ -8,7 +8,7 @@ Generates macOS AudioUnit v2 plugins (`.component` bundles) from gen~ exports us
 
 - macOS
 
-- Python >= 3.10
+- Python >= 3.11
 
 - CMake >= 3.19
 

@@ -6,7 +6,7 @@ Generates Csound opcode plugins via the `csdl.h` C API. The opcode is discovered
 
 ## Prerequisites
 
-- Python >= 3.10
+- Python >= 3.11
 
 - C++ compiler
 

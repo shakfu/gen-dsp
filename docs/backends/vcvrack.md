@@ -6,7 +6,7 @@ Generates VCV Rack modules with per-sample processing, auto-generated panel SVG,
 
 ## Prerequisites
 
-- Python >= 3.10
+- Python >= 3.11
 
 - C/C++ compiler (clang, gcc)
 

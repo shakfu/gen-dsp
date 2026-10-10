@@ -6,7 +6,7 @@ Generates cross-platform LV2 plugins (`.lv2` bundle directories) from gen~ expor
 
 ## Prerequisites
 
-- Python >= 3.10
+- Python >= 3.11
 
 - CMake >= 3.19
 
