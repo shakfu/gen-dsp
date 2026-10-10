@@ -1,5 +1,6 @@
 """Tests for --inputs-as-params (input-to-parameter remapping)."""
 
+import shlex
 from pathlib import Path
 
 import pytest
@@ -242,6 +243,15 @@ class TestBuildRemapDefinesMake:
         assert len(cppflags_lines) > 0
         # Same number of defines for each variable
         assert len(cflags_lines) == len(cppflags_lines)
+
+    def test_name_survives_shell(self, base_manifest):
+        """The shell must see the name as a C string literal, quotes intact."""
+        input_names = ["carrier", "c/m ratio"]
+        remapped = apply_inputs_as_params(base_manifest, input_names, remap_names=None)
+
+        result = build_remap_defines_make(remapped, "FLAGS")
+        args = [shlex.split(ln.split("+= ", 1)[1]) for ln in result.split("\n")]
+        assert ['-DREMAP_INPUT_1_NAME="c/m ratio"'] in args
 
     def test_make_format_no_trailing_newline(self, base_manifest):
         """Make format should not have trailing newline."""

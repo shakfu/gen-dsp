@@ -18,7 +18,7 @@ override PREFIX = $prefix
 
 # Circle SDK resolution
 ifdef GEN_DSP_CACHE_DIR
-  CIRCLEHOME ?= $$(GEN_DSP_CACHE_DIR)/circle-src/circle
+  CIRCLEHOME ?= $$(GEN_DSP_CACHE_DIR)/circle-src/$circle_dir_name
 else ifdef CIRCLEHOME
   # Use explicit override as-is
 else

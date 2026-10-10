@@ -8,7 +8,7 @@ import re
 import shutil
 import subprocess
 from abc import ABC, abstractmethod
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from enum import Enum
 from pathlib import Path
 from string import Template
@@ -18,6 +18,14 @@ from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest
 from gen_dsp.core.naming import uniquify_identifiers
 from gen_dsp.core.project import ProjectConfig
+from gen_dsp.core.support import (
+    UNTESTED,
+    HostSupport,
+    Runtime,
+    host_os,
+    hosts,
+    per_host,
+)
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.version import __version__
 
@@ -77,10 +85,19 @@ class Platform(ABC):
     # ``gen-dsp list -v``).
     build_system: str = ""
 
+    # Support metadata; see gen_dsp.core.support. Subclasses declare all four.
+    kind: str = "native"
+    build_hosts: Mapping[str, HostSupport] = hosts(
+        linux=UNTESTED, macos=UNTESTED, windows=UNTESTED
+    )
+    # Output extension per build-host OS, or under "any" if the same everywhere.
+    artifacts: Mapping[str, str] = per_host()
+    runtime: Runtime = Runtime("")
+
     @property
-    @abstractmethod
     def extension(self) -> str:
         """File extension for built externals (e.g. '.pd_darwin', '.clap')."""
+        return self.artifacts.get(host_os(), self.artifacts.get("any", ""))
 
     @abstractmethod
     def generate_project(

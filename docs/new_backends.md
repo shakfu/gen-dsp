@@ -25,8 +25,12 @@ class Platform(ABC):
     # Platform identifier (e.g., 'pd', 'max', 'supercollider')
     name: str = "base"
 
-    # File extension for built externals (can be a @property for OS-dependent)
-    extension: str = ""
+    # Support metadata (see gen_dsp.core.support and `gen-dsp platforms`).
+    # `extension` is derived from `artifacts` for the current host.
+    kind: str = "native"            # "native", "cross" or "web"
+    build_hosts: Mapping[str, HostSupport]
+    artifacts: Mapping[str, str]
+    runtime: Runtime
 
     # Version string (inherited, typically don't override)
     GENEXT_VERSION = "0.8.0"
@@ -79,6 +83,7 @@ from typing import Optional
 
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.parser import ExportInfo
+from gen_dsp.core.support import UNTESTED, Runtime, hosts, per_host
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform
 from gen_dsp.templates import get_templates_dir
@@ -88,18 +93,10 @@ class YourPlatform(Platform):
     """YourPlatform implementation."""
 
     name = "yourplatform"  # Used in CLI: gen-dsp <source> -p yourplatform
-
-    @property
-    def extension(self) -> str:
-        """Get the file extension for the current OS."""
-        system = sys_platform.system().lower()
-        if system == "darwin":
-            return ".yourext"
-        elif system == "linux":
-            return ".so"
-        elif system == "windows":
-            return ".dll"
-        return ".so"
+    kind = "native"
+    build_hosts = hosts(linux=UNTESTED, macos=UNTESTED, windows=UNTESTED)
+    artifacts = per_host(linux=".so", macos=".yourext", windows=".dll")
+    runtime = Runtime("YourHost")
 
     def get_build_instructions(self) -> list[str]:
         """Return build commands shown to user."""

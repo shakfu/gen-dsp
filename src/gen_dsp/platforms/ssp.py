@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines
 from gen_dsp.core.project import ProjectConfig
+from gen_dsp.core.support import UNTESTED, Runtime, hosts, per_host, verified
 from gen_dsp.errors import ProjectError
 from gen_dsp.platforms.cmake_platform import CMakePlatform
 from gen_dsp.templates import get_ssp_templates_dir
@@ -191,11 +192,18 @@ class SspPlatform(CMakePlatform):
     name = "ssp"
     description = "Percussa SSP module"
     build_system = "CMake (clang cross)"
-
-    @property
-    def extension(self) -> str:
-        """Get the file extension for SSP modules."""
-        return ".so"
+    kind = "cross"
+    build_hosts = hosts(
+        linux=verified("CI builds only the -DSSP_HOST_BUILD test module"),
+        macos=verified("CI builds only the -DSSP_HOST_BUILD test module"),
+        windows=UNTESTED,
+    )
+    artifacts = per_host(any=".so")
+    runtime = Runtime(
+        "Synthor",
+        devices=("Percussa SSP",),
+        note="the juce format also loads in rack-style hosts",
+    )
 
     def generate_project(
         self,

@@ -13,6 +13,7 @@ Typical data flow:
 
 import json
 import re
+import shlex
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -454,8 +455,11 @@ def build_remap_defines_make(
         return ""
     if isinstance(flag_vars, str):
         flag_vars = [flag_vars]
+    # Recipes pass flags through the shell, which would strip the name's
+    # quotes; quote each define for the shell, then escape $ for make.
+    quoted = [shlex.quote(d).replace("$", "$$") for d in defs]
     lines = []
     for var in flag_vars:
-        for d in defs:
+        for d in quoted:
             lines.append(f"{var} += -D{d}")
     return "\n".join(lines)

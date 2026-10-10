@@ -177,6 +177,28 @@ class TestStandaloneBuildIntegration:
     """
 
     @_skip_no_build
+    def test_build_inputs_as_params(self, gigaverb_export: Path, tmp_path: Path):
+        """Remapped input names reach the compiler as string literals."""
+        project_dir = tmp_path / "gigaverb_remap"
+        export_info = GenExportParser(gigaverb_export).parse()
+        config = ProjectConfig(
+            name="gigaverb", platform="standalone", inputs_as_params=[]
+        )
+        ProjectGenerator(export_info, config).generate(project_dir)
+
+        result = subprocess.run(
+            ["make", "all"],
+            cwd=project_dir,
+            capture_output=True,
+            text=True,
+            timeout=120,
+            check=False,
+        )
+        assert result.returncode == 0, (
+            f"make all failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
+        )
+
+    @_skip_no_build
     def test_build_gigaverb(self, gigaverb_export: Path, tmp_path: Path):
         """Generate and compile gigaverb standalone executable."""
         project_dir = tmp_path / "gigaverb_standalone"

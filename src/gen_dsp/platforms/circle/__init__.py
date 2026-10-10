@@ -8,6 +8,14 @@ from typing import TYPE_CHECKING
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines_make
 from gen_dsp.core.project import ProjectConfig
+from gen_dsp.core.support import (
+    UNTESTED,
+    Runtime,
+    hosts,
+    per_host,
+    untested,
+    verified,
+)
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform, substitute_strict
 from gen_dsp.platforms.circle.boards import (
@@ -45,11 +53,12 @@ from gen_dsp.platforms.circle.dag import (
 from gen_dsp.platforms.circle.sdk import (
     _CIRCLE_CACHE_SUBDIR,
     _CIRCLE_CLONE_URL,
-    _CIRCLE_DIR_NAME,
     CIRCLE_VERSION,
     _get_default_circle_dir,
     _resolve_circle_dir,
+    circle_dir_name,
     ensure_circle,
+    read_makefile_target,
 )
 from gen_dsp.templates import get_circle_templates_dir
 from gen_dsp.version import __version__
@@ -65,11 +74,14 @@ class CirclePlatform(Platform):
     name = "circle"
     description = "Circle bare-metal (Raspberry Pi) firmware"
     build_system = "Make"
-
-    @property
-    def extension(self) -> str:
-        """Get the extension for Circle kernel images."""
-        return ".img"
+    kind = "cross"
+    build_hosts = hosts(
+        linux=verified("pi0, pi3 and pi4 builds; CI lacks aarch64-none-elf-gcc"),
+        macos=UNTESTED,
+        windows=untested("needs bash, e.g. from Git for Windows"),
+    )
+    artifacts = per_host(any=".img")
+    runtime = Runtime("Raspberry Pi, bare metal (Circle)")
 
     def get_build_instructions(self) -> list[str]:
         """Get build instructions for Circle."""
@@ -110,6 +122,7 @@ class CirclePlatform(Platform):
             "genlib_circle.h",
             "genlib_circle.cpp",
             "cmath",  # shim: Circle's -nostdinc++ strips C++ headers
+            "atomic",  # shim: for gen_remap_inputs.h
         ]
         for filename in static_files:
             src = templates_dir / filename
@@ -135,7 +148,7 @@ class CirclePlatform(Platform):
         )
 
         # Resolve default CIRCLE_DIR for baking into Makefile
-        default_circle_dir = str(_get_default_circle_dir())
+        default_circle_dir = str(_get_default_circle_dir(board.rasppi, board.aarch))
 
         # Build input remap compile definitions (both CFLAGS and CPPFLAGS)
         remap_defines = build_remap_defines_make(manifest, ["CFLAGS", "CPPFLAGS"])
@@ -194,6 +207,7 @@ class CirclePlatform(Platform):
             num_outputs=num_outputs,
             num_params=num_params,
             default_circle_dir=default_circle_dir,
+            circle_dir_name=circle_dir_name(board.rasppi, board.aarch),
             rasppi=board.rasppi,
             aarch=board.aarch,
             prefix=board.prefix,
@@ -479,9 +493,9 @@ int main(void)
         if not makefile.exists():
             raise BuildError(f"Makefile not found in {project_dir}")
 
-        # Ensure Circle is available (clones and builds if needed)
-        circle_dir = _resolve_circle_dir()
-        circle_dir = ensure_circle(circle_dir, verbose=verbose)
+        # Ensure Circle is available for this board (clones and builds if needed)
+        rasppi, aarch = read_makefile_target(makefile)
+        circle_dir = ensure_circle(verbose=verbose, rasppi=rasppi, aarch=aarch)
 
         # Clean if requested
         if clean:
@@ -506,7 +520,10 @@ int main(void)
 
     def clean(self, project_dir: Path) -> None:
         """Clean build artifacts."""
-        circle_dir = _resolve_circle_dir()
+        makefile = project_dir / "Makefile"
+        if not makefile.is_file():
+            return
+        circle_dir = _resolve_circle_dir(*read_makefile_target(makefile))
         if (circle_dir / "Rules.mk").is_file():
             self.run_command(["make", "clean", f"CIRCLEHOME={circle_dir}"], project_dir)
 
@@ -588,7 +605,7 @@ int main(void)
         )
 
         # Generate chain Makefile
-        default_circle_dir = str(_get_default_circle_dir())
+        default_circle_dir = str(_get_default_circle_dir(board.rasppi, board.aarch))
         self._generate_chain_makefile(
             templates_dir, output_dir, chain, lib_name, default_circle_dir, board
         )
@@ -735,6 +752,7 @@ int main(void)
             gendsp_version=__version__,
             num_nodes=len(chain),
             default_circle_dir=default_circle_dir,
+            circle_dir_name=circle_dir_name(board.rasppi, board.aarch),
             rasppi=board.rasppi,
             aarch=board.aarch,
             prefix=board.prefix,
@@ -830,7 +848,7 @@ int main(void)
         )
 
         # Generate DAG Makefile (reuses chain Makefile template)
-        default_circle_dir = str(_get_default_circle_dir())
+        default_circle_dir = str(_get_default_circle_dir(board.rasppi, board.aarch))
         self._generate_dag_makefile(
             templates_dir,
             output_dir,
@@ -957,6 +975,7 @@ int main(void)
             gendsp_version=__version__,
             num_nodes=len(dag_nodes),
             default_circle_dir=default_circle_dir,
+            circle_dir_name=circle_dir_name(board.rasppi, board.aarch),
             rasppi=board.rasppi,
             aarch=board.aarch,
             prefix=board.prefix,
@@ -972,7 +991,6 @@ __all__ = [
     "CIRCLE_VERSION",
     "_CIRCLE_CACHE_SUBDIR",
     "_CIRCLE_CLONE_URL",
-    "_CIRCLE_DIR_NAME",
     "CircleBoardConfig",
     "CirclePlatform",
     "_build_chain_create",
@@ -1001,5 +1019,7 @@ __all__ = [
     "_get_default_circle_dir",
     "_get_extra_libs",
     "_resolve_circle_dir",
+    "circle_dir_name",
     "ensure_circle",
+    "read_makefile_target",
 ]

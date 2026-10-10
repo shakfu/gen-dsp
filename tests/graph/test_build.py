@@ -814,7 +814,7 @@ class TestBuildCircleFromGraph:
         gen = ProjectGenerator.from_graph(gain_graph, config)
         gen.generate(project_dir)
 
-        circle_dir = fetchcontent_cache / "circle-src" / "circle"
+        circle_dir = fetchcontent_cache / "circle-src" / "circle-r3-a64"
         circle_dir = ensure_circle(circle_dir)
 
         platform = CirclePlatform()
@@ -839,7 +839,7 @@ class TestBuildCircleFromGraph:
         gen = ProjectGenerator.from_graph(generator_graph, config)
         gen.generate(project_dir)
 
-        circle_dir = fetchcontent_cache / "circle-src" / "circle"
+        circle_dir = fetchcontent_cache / "circle-src" / "circle-r3-a64"
         circle_dir = ensure_circle(circle_dir)
 
         platform = CirclePlatform()

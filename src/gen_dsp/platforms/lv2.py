@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, ClassVar
 from gen_dsp.core.manifest import Manifest, ParamInfo, build_remap_defines
 from gen_dsp.core.midi import build_midi_defines
 from gen_dsp.core.project import ProjectConfig
+from gen_dsp.core.support import CI, UNTESTED, Runtime, hosts, per_host
 from gen_dsp.errors import ProjectError
 from gen_dsp.platforms.base import PluginCategory
 from gen_dsp.platforms.cmake_platform import CMakePlatform
@@ -35,6 +36,10 @@ class Lv2Platform(CMakePlatform):
     name = "lv2"
     description = "LV2 plugin"
     build_system = "CMake"
+    kind = "native"
+    build_hosts = hosts(linux=CI, macos=CI, windows=UNTESTED)
+    artifacts = per_host(any=".lv2")
+    runtime = Runtime("LV2 host")
     LV2_URI_BASE = "http://gen-dsp.com/plugins"
 
     _LV2_TYPE_MAP: ClassVar[dict[PluginCategory, str]] = {
@@ -43,11 +48,6 @@ class Lv2Platform(CMakePlatform):
     }
 
     LV2_TYPE_INSTRUMENT = "lv2:Plugin ,\n      lv2:InstrumentPlugin"
-
-    @property
-    def extension(self) -> str:
-        """Get the extension for LV2 bundles."""
-        return ".lv2"
 
     def generate_project(
         self,

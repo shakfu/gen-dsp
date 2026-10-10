@@ -38,7 +38,7 @@ def _sdk_sentinel(platform: str, cache: Path) -> tuple[Path, str] | None:
     if platform == "daisy":
         return cache / "libdaisy-src" / "libDaisy" / "core" / "Makefile", "github.com"
     if platform == "circle":
-        return cache / "circle-src" / "circle" / "Rules.mk", "github.com"
+        return cache / "circle-src" / "circle-r3-a64" / "Rules.mk", "github.com"
     cmake_src = {
         "clap": "clap-src",
         "vst3": "vst3sdk-src",

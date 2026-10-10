@@ -12,6 +12,7 @@ from pathlib import Path
 from gen_dsp.core.manifest import Manifest, build_remap_defines
 from gen_dsp.core.midi import build_midi_defines
 from gen_dsp.core.project import ProjectConfig
+from gen_dsp.core.support import CI, Runtime, hosts, per_host
 from gen_dsp.errors import ProjectError
 from gen_dsp.platforms.cmake_platform import CMakePlatform
 from gen_dsp.templates import get_clap_templates_dir
@@ -24,11 +25,10 @@ class ClapPlatform(CMakePlatform):
     name = "clap"
     description = "CLAP plugin"
     build_system = "CMake"
-
-    @property
-    def extension(self) -> str:
-        """Get the file extension for CLAP plugins."""
-        return ".clap"
+    kind = "native"
+    build_hosts = hosts(linux=CI, macos=CI, windows=CI)
+    artifacts = per_host(any=".clap")
+    runtime = Runtime("CLAP host")
 
     def generate_project(
         self,

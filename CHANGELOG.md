@@ -6,6 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.5.0]
+
+### Added
+
+- **`gen-dsp platforms` reports build-host support and runtime targets** -- Each platform now declares its kind (`native`, `cross`, `web`), a status per build host (`ci`, `verified`, `untested`, `unsupported`, with notes), artifact extensions per host, and what runs its output (e.g. `Pure Data`, or the Daisy and Circle boards). `gen-dsp platforms --json` emits this under `schema_version` 1, and `gen_dsp.core.support.platform_support()` returns the same dict. Frontends such as dsp-graph read it instead of keeping their own tables. Tests check the README OS table and the `build-examples.yml` matrix against it. A hand-declared table with tests was chosen over CI-generated JSON: it needs no CI run before a status changes.
+
+```bash
+gen-dsp platforms --json
+```
+
+### Fixed
+
+- **README overstated CI coverage** -- It said every platform was tested in CI. Circle, Csound, Web Audio and the SSP device build are not, and Windows CI covers only CLAP, VST3 and SuperCollider. The OS table now shows the declared status.
+
+- **`doctor` blocked Max on Windows** -- It required macOS, while the Max backend and its docs support Windows. `doctor` now derives host limits from each platform's declared build hosts.
+
+- **Circle builds failed to compile** -- 0.4.0 added `<atomic>` to the Circle wrapper, but Circle compiles with `-nostdinc++`. Every Circle build from a gen~ export failed with `atomic: No such file or directory`. Projects now ship an `atomic` shim, as they already did for `cmath`.
+
+- **Circle SDK built for the wrong Pi** -- The cached `libcircle.a` was always configured for Pi 3 / AArch64. The project Makefile's `RASPPI`/`AARCH` overrides affect only the project's own objects. Pi 0 builds could not link, and Pi 4/5 kernels were built with Pi 3 peripheral addresses. The cache now keeps one Circle tree per `RASPPI`/`AARCH` pair (`circle-src/circle-r<RASPPI>-a<AARCH>`). A `CIRCLE_DIR` tree configured for another target is rejected.
+
+- **Circle SDK setup on Windows** -- Circle's `configure` and `makeall` are bash scripts. They are now run through `bash`, since native Windows cannot run a script by its shebang. Untested on Windows.
+
+- **`doctor` reported Circle ready when it was not** -- It accepted `arm-none-eabi-gcc` alone, but the default board (pi3) needs `aarch64-none-elf-gcc`. It now requires `aarch64-none-elf-gcc` and `bash`, and notes that pi0 boards use `arm-none-eabi-gcc`.
+
+- **`--inputs-as-params` failed on make-based platforms** -- The shell stripped the quotes from `-DREMAP_INPUT_N_NAME="..."` in Makefile recipes, so the name reached the compiler as an identifier. This affected pd, chuck, csound, daisy, circle, vcvrack, webaudio and standalone. Defines are now shell-quoted.
+
 ### Changed
 
 - **Python 3.11 is now the minimum** -- Python 3.10 reached end of life on 2026-10-01. Reading `gen-dsp.toml` no longer falls back to `tomli`. Dev-group floors were raised to the locked versions, including ruff 0.17.0. The explicit ruff `select` list keeps the DTZ rules that 0.17.0 removed from its defaults. Python 3.15 is supported and tested in CI alongside 3.11 and 3.14. minihost has no 3.15 wheel, so the dev group skips it there and the runtime plugin checks it drives are skipped on 3.15.

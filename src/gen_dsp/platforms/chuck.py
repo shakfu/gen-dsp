@@ -11,6 +11,7 @@ from pathlib import Path
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines_make
 from gen_dsp.core.project import ProjectConfig
+from gen_dsp.core.support import CI, Runtime, hosts, per_host, unsupported
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform
 from gen_dsp.templates import get_chuck_templates_dir
@@ -23,11 +24,14 @@ class ChuckPlatform(Platform):
     name = "chuck"
     description = "ChucK chugin"
     build_system = "Make"
-
-    @property
-    def extension(self) -> str:
-        """Get the file extension for chugins."""
-        return ".chug"
+    kind = "native"
+    build_hosts = hosts(
+        linux=CI,
+        macos=CI,
+        windows=unsupported("the chugin makefile has no Windows target"),
+    )
+    artifacts = per_host(any=".chug")
+    runtime = Runtime("ChucK")
 
     def get_build_instructions(self) -> list[str]:
         """Get build instructions for ChucK chugin."""

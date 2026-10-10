@@ -12,6 +12,8 @@ Generates bare-metal kernel images (`.img`) for Raspberry Pi using the [Circle](
 
 - make
 
+- bash (Circle's `configure` and `makeall` are bash scripts; on Windows, Git for Windows provides it)
+
 - git (for cloning Circle SDK on first build)
 
 - Network access on first build (to clone Circle)
@@ -185,11 +187,11 @@ The Circle SDK directory is resolved in priority order:
 
 1. `CIRCLEHOME` environment variable (or passed to make: `make CIRCLEHOME=/path`)
 
-2. `GEN_DSP_CACHE_DIR` env var + `circle-src/circle`
+2. `GEN_DSP_CACHE_DIR` env var + `circle-src/circle-r<RASPPI>-a<AARCH>`
 
 3. OS-appropriate gen-dsp cache path (auto-clone destination)
 
-On first build, Circle is cloned and its libraries are compiled (`./configure -r 3 -p aarch64-none-elf-` followed by `./makeall`). This takes a few minutes but only happens once.
+`libcircle.a` is compiled for one Pi model and architecture, so the cache keeps one Circle tree per `RASPPI`/`AARCH` pair (e.g. `circle-r3-a64`, `circle-r1-a32`). The first build for a pair clones Circle and runs `./configure -r <RASPPI> -p <prefix>` and `./makeall`. This takes a few minutes per pair. A `CIRCLE_DIR` tree is used as-is; the build stops if its `Config.mk` targets a different Pi model or architecture.
 
 ### Generated config.txt
 
@@ -235,7 +237,7 @@ The firmware starts immediately -- there is no OS boot delay.
 
 - **Circle build fails:** Ensure `aarch64-none-elf-gcc` is the correct toolchain (bare-metal, not Linux-targeted). Verify with `aarch64-none-elf-gcc --version`. The SDK build runs `./configure` followed by `./makeall`.
 
-- **`cmath: No such file or directory`:** The `cmath` shim file is missing from the project directory. Re-generate the project with `gen-dsp`. Circle's `-nostdinc++` flag removes C++ standard library headers; the shim provides `<cmath>` via `<math.h>`.
+- **`cmath` or `atomic`: No such file or directory:** A shim file is missing from the project directory. Re-generate the project with `gen-dsp`. Circle's `-nostdinc++` flag removes C++ standard library headers; the shims provide `<cmath>` via `<math.h>` and the `std::atomic` subset the wrapper uses.
 
 - **No audio output (I2S):** Verify DAC wiring: BCK -> GPIO 18, LRCK -> GPIO 19, DIN -> GPIO 21. Ensure `dtparam=i2s=on` is in `config.txt`. Check that the DAC receives 3.3V power.
 

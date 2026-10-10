@@ -7,13 +7,13 @@ processes audio from the system's default input to the default output,
 with parameters configurable via command-line arguments.
 """
 
-import platform as sys_platform
 import shutil
 from pathlib import Path
 
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines_make
 from gen_dsp.core.project import ProjectConfig
+from gen_dsp.core.support import CI, UNTESTED, Runtime, hosts, per_host
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform
 from gen_dsp.templates import get_standalone_templates_dir
@@ -26,14 +26,12 @@ class StandalonePlatform(Platform):
     name = "standalone"
     description = "Standalone executable (miniaudio)"
     build_system = "Make"
-
-    @property
-    def extension(self) -> str:
-        """Get the file extension for the built executable."""
-        system = sys_platform.system().lower()
-        if system == "windows":
-            return ".exe"
-        return ""
+    kind = "native"
+    build_hosts = hosts(linux=CI, macos=CI, windows=UNTESTED)
+    artifacts = per_host(linux="", macos="", windows=".exe")
+    runtime = Runtime(
+        "none", note="a standalone executable using the default audio device"
+    )
 
     def get_build_instructions(self) -> list[str]:
         """Get build instructions for standalone application."""

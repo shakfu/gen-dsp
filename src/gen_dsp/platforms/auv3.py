@@ -17,6 +17,7 @@ from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines
 from gen_dsp.core.midi import build_midi_defines
 from gen_dsp.core.project import ProjectConfig
+from gen_dsp.core.support import CI, Runtime, hosts, per_host, unsupported
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform, PluginCategory
 from gen_dsp.templates import get_auv3_templates_dir
@@ -29,6 +30,16 @@ class Auv3Platform(Platform):
     name = "auv3"
     description = "Audio Unit v3 (AUv3) app extension"
     build_system = "CMake (Xcode)"
+    kind = "native"
+    build_hosts = hosts(
+        linux=unsupported("Audio Units are macOS-only"),
+        macos=CI,
+        windows=unsupported("Audio Units are macOS-only"),
+    )
+    artifacts = per_host(any=".app")
+    runtime = Runtime(
+        "Audio Unit v3 host", note="launch the .app once to register its .appex"
+    )
 
     AU_MANUFACTURER = "Gdsp"
 
@@ -42,10 +53,6 @@ class Auv3Platform(Platform):
         PluginCategory.EFFECT: "Effects",
         PluginCategory.GENERATOR: "Synthesizer",
     }
-
-    @property
-    def extension(self) -> str:
-        return ".app"
 
     def get_build_instructions(self) -> list[str]:
         return [

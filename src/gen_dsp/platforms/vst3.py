@@ -14,6 +14,7 @@ from pathlib import Path
 from gen_dsp.core.manifest import Manifest, build_remap_defines
 from gen_dsp.core.midi import build_midi_defines
 from gen_dsp.core.project import ProjectConfig
+from gen_dsp.core.support import CI, Runtime, hosts, per_host
 from gen_dsp.errors import ProjectError
 from gen_dsp.platforms.cmake_platform import CMakePlatform
 from gen_dsp.templates import get_vst3_templates_dir
@@ -26,11 +27,10 @@ class Vst3Platform(CMakePlatform):
     name = "vst3"
     description = "VST3 plugin"
     build_system = "CMake"
-
-    @property
-    def extension(self) -> str:
-        """Get the file extension for VST3 plugins."""
-        return ".vst3"
+    kind = "native"
+    build_hosts = hosts(linux=CI, macos=CI, windows=CI)
+    artifacts = per_host(any=".vst3")
+    runtime = Runtime("VST3 host")
 
     def generate_project(
         self,

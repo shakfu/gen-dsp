@@ -1,0 +1,38 @@
+// atomic shim for Circle bare-metal builds
+// Circle's Rules.mk adds -nostdinc++ which strips C++ stdlib include paths.
+// gen_remap_inputs.h needs only load/store on std::atomic<float>, so this
+// wraps the GCC __atomic builtins for that subset.
+#ifndef _CIRCLE_ATOMIC_SHIM
+#define _CIRCLE_ATOMIC_SHIM
+
+namespace std {
+
+enum memory_order {
+    memory_order_relaxed = __ATOMIC_RELAXED,
+    memory_order_acquire = __ATOMIC_ACQUIRE,
+    memory_order_release = __ATOMIC_RELEASE,
+    memory_order_seq_cst = __ATOMIC_SEQ_CST,
+};
+
+template <typename T>
+struct atomic {
+    T v;
+
+    T load(memory_order mo = memory_order_seq_cst) const {
+        T r;
+        __atomic_load(&v, &r, mo);
+        return r;
+    }
+    void store(T x, memory_order mo = memory_order_seq_cst) {
+        __atomic_store(&v, &x, mo);
+    }
+    operator T() const { return load(); }
+    T operator=(T x) {
+        store(x);
+        return x;
+    }
+};
+
+}  // namespace std
+
+#endif

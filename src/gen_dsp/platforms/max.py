@@ -4,7 +4,6 @@ Max/MSP platform implementation.
 Generates Max/MSP externals using CMake and the max-sdk-base submodule.
 """
 
-import platform as sys_platform
 import shutil
 import subprocess
 from pathlib import Path
@@ -12,6 +11,7 @@ from pathlib import Path
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines
 from gen_dsp.core.project import ProjectConfig
+from gen_dsp.core.support import CI, UNTESTED, Runtime, hosts, per_host, unsupported
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.cmake_platform import CMakePlatform
 from gen_dsp.templates import get_max_templates_dir
@@ -24,19 +24,15 @@ class MaxPlatform(CMakePlatform):
     name = "max"
     description = "Max/MSP external"
     build_system = "CMake"
+    kind = "native"
+    build_hosts = hosts(
+        linux=unsupported("Max has no Linux version"), macos=CI, windows=UNTESTED
+    )
+    artifacts = per_host(linux=".mxl", macos=".mxo", windows=".mxe64")
+    runtime = Runtime("Max")
 
     # max-sdk-base git repository
     MAX_SDK_REPO = "https://github.com/Cycling74/max-sdk-base.git"
-
-    @property
-    def extension(self) -> str:
-        """Get the file extension for the current OS."""
-        system = sys_platform.system().lower()
-        if system == "darwin":
-            return ".mxo"
-        elif system == "windows":
-            return ".mxe64"
-        return ".mxl"
 
     def get_build_instructions(self) -> list[str]:
         """Get build instructions for Max/MSP."""

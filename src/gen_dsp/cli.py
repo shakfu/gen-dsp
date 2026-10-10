@@ -54,6 +54,7 @@ SUBCOMMANDS = {
     "manifest",
     "chain",
     "doctor",
+    "platforms",
     "tosc",
 }
 
@@ -111,6 +112,7 @@ Subcommands:
   list [-v] [--json]        List available platforms (-v for details)
   cache                     Show cached SDKs
   doctor                    Check build prerequisites per platform
+  platforms [--json]        Build-host support and runtime targets
   manifest <dir>            Emit JSON manifest for a gen~ export
   tosc <src>                Generate a TouchOSC control surface
 
@@ -390,6 +392,14 @@ def _make_subcommand_parser() -> argparse.ArgumentParser:
     )
     doctor_parser.add_argument(
         "--json", action="store_true", help="Output in JSON format"
+    )
+
+    # platforms command
+    platforms_parser = subparsers.add_parser(
+        "platforms", help="Show build-host support and runtime targets per platform"
+    )
+    platforms_parser.add_argument(
+        "--json", action="store_true", help="Emit versioned support metadata as JSON"
     )
 
     # manifest command
@@ -1765,6 +1775,32 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     return 0 if all(r.ready for r in reports) else 1
 
 
+def cmd_platforms(args: argparse.Namespace) -> int:
+    """Handle the platforms command (build-host support, runtime targets)."""
+    from gen_dsp.core.support import HOSTS, platform_support
+
+    data = platform_support()
+    if args.json:
+        print(json.dumps(data, indent=2))
+        return 0
+
+    rows = [
+        (
+            name,
+            p["kind"],
+            *(p["build_hosts"][h]["status"] for h in HOSTS),
+            p["runtime"]["name"],
+        )
+        for name, p in data["platforms"].items()
+    ]
+    header = ("PLATFORM", "KIND", *(h.upper() for h in HOSTS), "RUNTIME")
+    widths = [max(len(r[i]) for r in [header, *rows]) for i in range(len(header) - 1)]
+    for row in [header, *rows]:
+        cells = [c.ljust(w) for c, w in zip(row, widths, strict=False)]
+        print("  ".join([*cells, row[-1]]))
+    return 0
+
+
 def cmd_chain(args: argparse.Namespace) -> int:
     """Handle the chain command (multi-plugin chain mode, Circle only)."""
     from gen_dsp.core.graph import (
@@ -1856,6 +1892,7 @@ def _dispatch_subcommand(argv: list[str]) -> int:
         "manifest": cmd_manifest,
         "chain": cmd_chain,
         "doctor": cmd_doctor,
+        "platforms": cmd_platforms,
         "tosc": cmd_tosc,
     }
 

@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines_make
 from gen_dsp.core.project import ProjectConfig
+from gen_dsp.core.support import Runtime, hosts, per_host, untested
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform
 from gen_dsp.templates import get_webaudio_templates_dir
@@ -28,11 +29,14 @@ class WebAudioPlatform(Platform):
     name = "webaudio"
     description = "Web Audio (WASM / AudioWorklet)"
     build_system = "Make (emcc)"
-
-    @property
-    def extension(self) -> str:
-        """Get the file extension for WASM output."""
-        return ".wasm"
+    kind = "web"
+    build_hosts = hosts(
+        linux=untested("CI lacks emcc"),
+        macos=untested("CI lacks emcc"),
+        windows=untested("CI lacks emcc"),
+    )
+    artifacts = per_host(any=".wasm")
+    runtime = Runtime("Web browser (AudioWorklet)")
 
     def get_build_instructions(self) -> list[str]:
         """Get build instructions for Web Audio WASM module."""

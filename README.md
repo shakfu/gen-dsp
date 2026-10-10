@@ -12,26 +12,26 @@ This project is a friendly fork of Michael Spears' [gen_ext](https://github.com/
 
 ## Cross-Platform Support
 
-gen-dsp builds on macOS, Linux, and Windows. All platforms are tested in CI via GitHub Actions.
+Build-host status per platform: `ci` (built in CI), `verified` (built by hand), `untested` (no known blocker), `--` (unsupported). `gen-dsp platforms --json` emits the same data, with notes and runtime targets.
 
 | Platform | macOS | Linux | Windows | Build System | Output |
 |----------|:-----:|:-----:|:-------:|--------------|--------|
-| PureData | yes | yes | -- | make (pd-lib-builder) | `.pd_darwin` / `.pd_linux` |
-| Max/MSP | yes | -- | -- | CMake (max-sdk-base) | `.mxo` / `.mxe64` |
-| ChucK | yes | yes | -- | make | `.chug` |
-| AudioUnit (AUv2) | yes | -- | -- | CMake | `.component` |
-| AUv3 | yes | -- | -- | CMake (Xcode) | `.app` + `.appex` |
-| CLAP | yes | yes | yes | CMake (FetchContent) | `.clap` |
-| VST3 | yes | yes | yes | CMake (FetchContent) | `.vst3` |
-| LV2 | yes | yes | -- | CMake (FetchContent) | `.lv2` |
-| SuperCollider | yes | yes | yes | CMake (FetchContent) | `.scx` / `.so` |
-| VCV Rack | yes | yes | -- | make (Rack SDK) | `plugin.dylib` / `.so` / `.dll` |
-| Daisy | -- | yes | -- | make (libDaisy) | `.bin` (firmware) |
-| Circle | -- | yes | -- | make (Circle SDK) | `.img` (kernel image) |
-| Percussa SSP | yes | yes | -- | CMake (clang cross) | `.so` module |
-| Web Audio | yes | yes | yes | make (Emscripten) | `.wasm` + `processor.js` |
-| Standalone | yes | yes | yes | make (miniaudio) | native executable |
-| Csound | yes | yes | -- | make | `.dylib` / `.so` opcode |
+| PureData | ci | ci | untested | make (pd-lib-builder) | `.pd_darwin` / `.pd_linux` |
+| Max/MSP | ci | -- | untested | CMake (max-sdk-base) | `.mxo` / `.mxe64` |
+| ChucK | ci | ci | -- | make | `.chug` |
+| AudioUnit (AUv2) | ci | -- | -- | CMake | `.component` |
+| AUv3 | ci | -- | -- | CMake (Xcode) | `.app` + `.appex` |
+| CLAP | ci | ci | ci | CMake (FetchContent) | `.clap` |
+| VST3 | ci | ci | ci | CMake (FetchContent) | `.vst3` |
+| LV2 | ci | ci | untested | CMake (FetchContent) | `.lv2` |
+| SuperCollider | ci | ci | ci | CMake (FetchContent) | `.scx` / `.so` |
+| VCV Rack | ci | ci | untested | make (Rack SDK) | `plugin.dylib` / `.so` / `.dll` |
+| Daisy | untested | ci | untested | make (libDaisy) | `.bin` (firmware) |
+| Circle | untested | verified | untested | make (Circle SDK) | `.img` (kernel image) |
+| Percussa SSP | verified | verified | untested | CMake (clang cross) | `.so` module |
+| Web Audio | untested | untested | untested | make (Emscripten) | `.wasm` + `processor.js` |
+| Standalone | ci | ci | untested | make (miniaudio) | native executable |
+| Csound | untested | untested | -- | make | `.dylib` / `.so` opcode |
 
 Each platform has a detailed guide covering prerequisites, build details, SDK configuration, install paths, and troubleshooting:
 
@@ -280,6 +280,18 @@ requested platform is not ready, so it can be used as a CI gate:
 gen-dsp doctor                 # all platforms
 gen-dsp doctor -p daisy        # one platform
 gen-dsp doctor --json          # machine-readable
+```
+
+### platforms
+
+Show where each platform can be built and what runs its output. Each build host
+(linux, macos, windows) has a status: `ci`, `verified`, `untested` or
+`unsupported`. `--json` adds notes, per-host artifact extensions and runtime
+devices, under a `schema_version` for programmatic consumers:
+
+```bash
+gen-dsp platforms              # table
+gen-dsp platforms --json       # versioned JSON
 ```
 
 ### tosc (requires `gen-dsp[tosc]`)

@@ -15,6 +15,7 @@ from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines
 from gen_dsp.core.midi import build_midi_defines
 from gen_dsp.core.project import ProjectConfig
+from gen_dsp.core.support import CI, Runtime, hosts, per_host, unsupported
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import PluginCategory
 from gen_dsp.platforms.cmake_platform import CMakePlatform
@@ -31,6 +32,14 @@ class AudioUnitPlatform(CMakePlatform):
     name = "au"
     description = "Audio Unit (AUv2) plugin"
     build_system = "CMake"
+    kind = "native"
+    build_hosts = hosts(
+        linux=unsupported("Audio Units are macOS-only"),
+        macos=CI,
+        windows=unsupported("Audio Units are macOS-only"),
+    )
+    artifacts = per_host(any=".component")
+    runtime = Runtime("Audio Unit v2 host")
 
     # Default manufacturer code for gen-dsp generated AUs
     # Apple requires at least one non-lowercase character in manufacturer OSType
@@ -43,11 +52,6 @@ class AudioUnitPlatform(CMakePlatform):
 
     # Music Device type for MIDI-enabled generators
     AU_TYPE_MUSIC_DEVICE = "aumu"
-
-    @property
-    def extension(self) -> str:
-        """Get the file extension for AudioUnit plugins."""
-        return ".component"
 
     def generate_project(
         self,

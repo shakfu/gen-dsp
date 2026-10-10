@@ -182,6 +182,13 @@ gen-dsp cache --prune -y         # delete without prompting
 gen-dsp cache --prune --dry-run  # preview what would be removed
 ```
 
+## platforms -- Build Hosts and Runtime Targets
+
+```bash
+gen-dsp platforms            # status per build host (ci/verified/untested/unsupported)
+gen-dsp platforms --json     # versioned JSON with notes, artifacts, runtime devices
+```
+
 ## doctor -- Check Build Prerequisites
 
 ```bash

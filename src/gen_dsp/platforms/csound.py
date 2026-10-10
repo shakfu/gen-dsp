@@ -6,13 +6,13 @@ via the csdl.h C API. Audio inputs map to a-rate args, parameters to k-rate
 args, and audio outputs to a-rate outputs.
 """
 
-import platform as sys_platform
 import shutil
 from pathlib import Path
 
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines_make
 from gen_dsp.core.project import ProjectConfig
+from gen_dsp.core.support import Runtime, hosts, per_host, unsupported, untested
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform
 from gen_dsp.templates import get_csound_templates_dir
@@ -40,14 +40,14 @@ class CsoundPlatform(Platform):
     name = "csound"
     description = "Csound opcode"
     build_system = "Make"
-
-    @property
-    def extension(self) -> str:
-        """Get the file extension for the built plugin."""
-        system = sys_platform.system().lower()
-        if system == "darwin":
-            return ".dylib"
-        return ".so"
+    kind = "native"
+    build_hosts = hosts(
+        linux=untested("CI lacks the Csound headers"),
+        macos=untested("CI lacks the Csound headers"),
+        windows=unsupported("no Windows build target"),
+    )
+    artifacts = per_host(linux=".so", macos=".dylib")
+    runtime = Runtime("Csound")
 
     def get_build_instructions(self) -> list[str]:
         """Get build instructions for Csound opcode."""

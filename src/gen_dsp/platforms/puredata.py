@@ -10,6 +10,7 @@ from string import Template
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines_make
 from gen_dsp.core.project import ProjectConfig
+from gen_dsp.core.support import CI, UNTESTED, Runtime, hosts, per_host
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform, substitute_strict
 from gen_dsp.templates import get_pd_templates_dir
@@ -22,18 +23,10 @@ class PureDataPlatform(Platform):
     name = "pd"
     description = "Pure Data external"
     build_system = "Make"
-
-    @property
-    def extension(self) -> str:
-        """Get the file extension for the current OS."""
-        system = sys_platform.system().lower()
-        if system == "darwin":
-            return ".pd_darwin"
-        elif system == "linux":
-            return ".pd_linux"
-        elif system == "windows":
-            return ".dll"
-        return ".pd_linux"
+    kind = "native"
+    build_hosts = hosts(linux=CI, macos=CI, windows=UNTESTED)
+    artifacts = per_host(linux=".pd_linux", macos=".pd_darwin", windows=".dll")
+    runtime = Runtime("Pure Data")
 
     def get_build_instructions(self) -> list[str]:
         """Get build instructions for PureData."""

@@ -12,10 +12,11 @@ from __future__ import annotations
 
 import os
 import shutil
-import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+
+from gen_dsp.core.support import host_os
 
 
 @dataclass(frozen=True)
@@ -43,10 +44,6 @@ def _which(*names: str) -> Callable[[], str | None]:
         return None
 
     return probe
-
-
-def _macos_probe() -> str | None:
-    return "macOS" if sys.platform == "darwin" else None
 
 
 # -- Shared tool definitions ---------------------------------------------------
@@ -94,12 +91,18 @@ ARM_GCC = Tool(
     "https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads",
     _which("arm-none-eabi-gcc"),
 )
-CIRCLE_XCC = Tool(
-    "circle-cross-gcc",
-    "ARM/AArch64 bare-metal GCC",
-    "Install arm-none-eabi-gcc (32-bit Pi boards) or aarch64-none-elf-gcc "
-    "(64-bit Pi boards) for your target board.",
-    _which("arm-none-eabi-gcc", "aarch64-none-elf-gcc"),
+AARCH64_GCC = Tool(
+    "aarch64-none-elf-gcc",
+    "AArch64 bare-metal GCC",
+    "Install the ARM GNU toolchain (aarch64-none-elf), e.g. from "
+    "https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads",
+    _which("aarch64-none-elf-gcc"),
+)
+BASH = Tool(
+    "bash",
+    "bash",
+    "Install bash (on Windows, Git for Windows provides it).",
+    _which("bash"),
 )
 
 
@@ -130,12 +133,6 @@ LLD = Tool(
 )
 
 
-MACOS = Tool(
-    "macos",
-    "macOS",
-    "This platform builds on macOS only.",
-    _macos_probe,
-)
 XCODE = Tool(
     "xcodebuild",
     "Xcode",
@@ -156,9 +153,9 @@ def _auto(name: str) -> str:
 # required tool is present; notes never affect readiness.
 PLATFORM_REQUIREMENTS: dict[str, tuple[list[Tool], list[str]]] = {
     "pd": ([MAKE, CC], []),
-    "max": ([MACOS, CMAKE, CXX], [_auto("max-sdk-base")]),
+    "max": ([CMAKE, CXX], [_auto("max-sdk-base")]),
     "chuck": ([MAKE, CXX], []),
-    "au": ([MACOS, CMAKE, CXX], []),
+    "au": ([CMAKE, CXX], []),
     "clap": ([CMAKE, CXX], [_auto("CLAP SDK")]),
     "vst3": ([CMAKE, CXX], [_auto("VST3 SDK (large)")]),
     "lv2": ([CMAKE, CXX], [_auto("LV2 headers")]),
@@ -166,8 +163,11 @@ PLATFORM_REQUIREMENTS: dict[str, tuple[list[Tool], list[str]]] = {
     "vcvrack": ([MAKE, CXX], [_auto("VCV Rack SDK")]),
     "daisy": ([MAKE, ARM_GCC, GIT], [_auto("libDaisy (cloned and built)")]),
     "circle": (
-        [MAKE, CIRCLE_XCC, GIT],
-        [_auto("Circle SDK (cloned)")],
+        [MAKE, AARCH64_GCC, GIT, BASH],
+        [
+            _auto("Circle SDK (cloned and built per Pi model)"),
+            "pi0-* boards need arm-none-eabi-gcc instead of aarch64-none-elf-gcc.",
+        ],
     ),
     "webaudio": ([MAKE, EMCC], []),
     "standalone": ([MAKE, CXX], [_auto("miniaudio")]),
@@ -175,7 +175,7 @@ PLATFORM_REQUIREMENTS: dict[str, tuple[list[Tool], list[str]]] = {
         [MAKE, CXX],
         ["Needs the Csound development headers (csdl.h); see docs/backends/csound.md"],
     ),
-    "auv3": ([MACOS, CMAKE, XCODE], []),
+    "auv3": ([CMAKE, XCODE], []),
     "ssp": (
         [CMAKE, SSP_CLANG, LLD],
         [
@@ -202,11 +202,19 @@ def diagnose(platforms: list[str] | None = None) -> list[PlatformReport]:
     if platforms is None:
         platforms = sorted(PLATFORM_REQUIREMENTS)
 
+    from gen_dsp.platforms import get_platform
+
+    host = host_os()
     reports: list[PlatformReport] = []
     for platform in platforms:
         required, notes = PLATFORM_REQUIREMENTS[platform]
         present: list[tuple[str, str]] = []
         missing: list[Tool] = []
+        support = get_platform(platform).build_hosts[host]
+        if support.status == "unsupported":
+            missing.append(
+                Tool("host", f"{host} build host", support.note, lambda: None)
+            )
         for tool in required:
             located = tool.locate()
             if located is None:

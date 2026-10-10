@@ -12,11 +12,11 @@ Output artifacts:
 
 import re
 import shutil
-import sys
 from pathlib import Path
 
 from gen_dsp.core.manifest import Manifest, ParamInfo, build_remap_defines
 from gen_dsp.core.project import ProjectConfig
+from gen_dsp.core.support import CI, Runtime, hosts, per_host
 from gen_dsp.errors import ProjectError
 from gen_dsp.platforms.cmake_platform import CMakePlatform
 from gen_dsp.templates import get_sc_templates_dir
@@ -42,13 +42,10 @@ class SuperColliderPlatform(CMakePlatform):
     name = "sc"
     description = "SuperCollider UGen"
     build_system = "CMake"
-
-    @property
-    def extension(self) -> str:
-        """Get the extension for SC UGens."""
-        if sys.platform == "darwin" or sys.platform == "win32":
-            return ".scx"
-        return ".so"
+    kind = "native"
+    build_hosts = hosts(linux=CI, macos=CI, windows=CI)
+    artifacts = per_host(linux=".so", macos=".scx", windows=".scx")
+    runtime = Runtime("SuperCollider server (scsynth)")
 
     def generate_project(
         self,

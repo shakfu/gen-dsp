@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines_make
 from gen_dsp.core.project import ProjectConfig
+from gen_dsp.core.support import CI, UNTESTED, Runtime, hosts, per_host
 from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform, substitute_strict
 from gen_dsp.templates import get_daisy_templates_dir
@@ -337,11 +338,10 @@ class DaisyPlatform(Platform):
     name = "daisy"
     description = "Daisy embedded firmware"
     build_system = "Make"
-
-    @property
-    def extension(self) -> str:
-        """Get the extension for Daisy firmware binaries."""
-        return ".bin"
+    kind = "cross"
+    build_hosts = hosts(linux=CI, macos=UNTESTED, windows=UNTESTED)
+    artifacts = per_host(any=".bin")
+    runtime = Runtime("Electro-Smith Daisy (STM32H750)")
 
     def get_build_instructions(self) -> list[str]:
         """Get build instructions for Daisy."""

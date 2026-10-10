@@ -1,11 +1,13 @@
 """Tests for Circle (Raspberry Pi bare metal) platform implementation."""
 
+import shutil
 from pathlib import Path
 
 import pytest
 
 from gen_dsp.core.parser import GenExportParser
 from gen_dsp.core.project import ProjectConfig, ProjectGenerator
+from gen_dsp.errors import BuildError
 from gen_dsp.platforms import (
     PLATFORM_REGISTRY,
     CirclePlatform,
@@ -22,7 +24,22 @@ from gen_dsp.platforms.circle import (
     _get_default_circle_dir,
     _get_extra_libs,
     _resolve_circle_dir,
+    circle_dir_name,
+    ensure_circle,
+    read_makefile_target,
 )
+from gen_dsp.platforms.circle import sdk as circle_sdk
+
+_has_make = shutil.which("make") is not None
+_has_git = shutil.which("git") is not None
+_has_bash = shutil.which("bash") is not None
+
+
+def _skip_no_toolchain(prefix: str) -> pytest.MarkDecorator:
+    return pytest.mark.skipif(
+        not (_has_make and _has_git and _has_bash and shutil.which(f"{prefix}gcc")),
+        reason=f"make, git, bash and {prefix}gcc required",
+    )
 
 
 class TestCirclePlatform:
@@ -73,7 +90,7 @@ class TestCircleSDKResolution:
         monkeypatch.delenv("CIRCLE_DIR", raising=False)
         monkeypatch.setenv("GEN_DSP_CACHE_DIR", "/tmp/mycache")
         result = _resolve_circle_dir()
-        assert str(result) == "/tmp/mycache/circle-src/circle"
+        assert str(result) == "/tmp/mycache/circle-src/circle-r3-a64"
 
     def test_resolve_circle_dir_default(self, monkeypatch):
         """Test that default falls back to OS cache path."""
@@ -879,3 +896,106 @@ class TestCircleBoardValidation:
         config = ProjectConfig(name="test", platform="daisy", board="pi3-i2s")
         errors = config.validate()
         assert any("Unknown Daisy board" in e for e in errors)
+
+
+class TestCircleSDKTarget:
+    """The Circle SDK is cached and configured per RASPPI/AARCH."""
+
+    def test_dir_name_per_target(self):
+        assert circle_dir_name() == "circle-r3-a64"
+        assert circle_dir_name(1, 32) == "circle-r1-a32"
+
+    def test_resolve_per_target(self, monkeypatch):
+        monkeypatch.delenv("CIRCLE_DIR", raising=False)
+        monkeypatch.setenv("GEN_DSP_CACHE_DIR", "/tmp/mycache")
+        assert _resolve_circle_dir(4, 64) != _resolve_circle_dir(3, 64)
+        assert _resolve_circle_dir(1, 32).name == "circle-r1-a32"
+
+    @pytest.mark.parametrize("board_key", list(CIRCLE_BOARDS.keys()))
+    def test_makefile_target_matches_board(
+        self, board_key, gigaverb_export: Path, tmp_path: Path
+    ):
+        export_info = GenExportParser(gigaverb_export).parse()
+        config = ProjectConfig(name="gv", platform="circle", board=board_key)
+        ProjectGenerator(export_info, config).generate(tmp_path / "p")
+        board = CIRCLE_BOARDS[board_key]
+        makefile = tmp_path / "p" / "Makefile"
+        assert read_makefile_target(makefile) == (board.rasppi, board.aarch)
+        assert circle_dir_name(board.rasppi, board.aarch) in makefile.read_text()
+
+    def test_configure_uses_board_target(self, monkeypatch, tmp_path: Path):
+        """A pi0 build configures Circle for RASPPI=1 with the 32-bit toolchain."""
+        circle_dir = tmp_path / "circle"
+        circle_dir.mkdir()
+        (circle_dir / "Rules.mk").write_text("")
+        calls = []
+
+        def run(cmd, **kwargs):
+            calls.append(cmd)
+            if cmd == ["bash", "./makeall"]:
+                (circle_dir / "lib").mkdir()
+                (circle_dir / "lib" / "libcircle.a").write_text("")
+
+        monkeypatch.setattr(circle_sdk.subprocess, "run", run)
+        monkeypatch.setattr(circle_sdk.shutil, "which", lambda name: name)
+        ensure_circle(circle_dir, rasppi=1, aarch=32)
+        assert calls[0] == [
+            "bash",
+            "./configure",
+            "-f",
+            "-r",
+            "1",
+            "-p",
+            "arm-none-eabi-",
+        ]
+
+    def test_mismatched_config_raises(self, tmp_path: Path):
+        """A tree built for Pi 3 is refused for a Pi 4 project."""
+        (tmp_path / "lib").mkdir()
+        (tmp_path / "lib" / "libcircle.a").write_text("")
+        (tmp_path / "Rules.mk").write_text("")
+        (tmp_path / "Config.mk").write_text("AARCH = 64\nRASPPI = 3\n")
+        assert ensure_circle(tmp_path, rasppi=3, aarch=64) == tmp_path
+        with pytest.raises(BuildError, match="RASPPI=3"):
+            ensure_circle(tmp_path, rasppi=4, aarch=64)
+
+
+class TestCircleBuildIntegration:
+    """Compile gen~ exports to kernel images; the SDK is cloned per target."""
+
+    @pytest.fixture(autouse=True)
+    def _cache(self, monkeypatch, fetchcontent_cache: Path):
+        monkeypatch.delenv("CIRCLE_DIR", raising=False)
+        monkeypatch.setenv("GEN_DSP_CACHE_DIR", str(fetchcontent_cache))
+
+    def _build(self, export: Path, project_dir: Path, **config_kw) -> Path:
+        export_info = GenExportParser(export).parse()
+        config = ProjectConfig(name="gv", platform="circle", **config_kw)
+        ProjectGenerator(export_info, config).generate(project_dir)
+        result = CirclePlatform().build(project_dir)
+        assert result.success, f"stdout: {result.stdout}\nstderr: {result.stderr}"
+        assert result.output_file is not None
+        return result.output_file
+
+    @_skip_no_toolchain("aarch64-none-elf-")
+    def test_build_circle_pi3(self, gigaverb_export: Path, tmp_path: Path):
+        assert self._build(gigaverb_export, tmp_path / "p").name == "kernel8.img"
+
+    @_skip_no_toolchain("aarch64-none-elf-")
+    def test_build_circle_inputs_as_params(self, gigaverb_export: Path, tmp_path: Path):
+        """Remapped inputs pull in <atomic>, which Circle's -nostdinc++ hides."""
+        self._build(gigaverb_export, tmp_path / "p", inputs_as_params=[])
+
+    @_skip_no_toolchain("arm-none-eabi-")
+    def test_build_circle_pi0_32bit(self, gigaverb_export: Path, tmp_path: Path):
+        assert self._build(gigaverb_export, tmp_path / "p", board="pi0-pwm").name == (
+            CIRCLE_BOARDS["pi0-pwm"].kernel_img
+        )
+
+    @_skip_no_toolchain("aarch64-none-elf-")
+    def test_build_circle_pi4(
+        self, gigaverb_export: Path, tmp_path: Path, fetchcontent_cache: Path
+    ):
+        self._build(gigaverb_export, tmp_path / "p", board="pi4-i2s")
+        config = fetchcontent_cache / "circle-src" / "circle-r4-a64" / "Config.mk"
+        assert "RASPPI = 4" in config.read_text()

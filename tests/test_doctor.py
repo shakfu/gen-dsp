@@ -1,6 +1,7 @@
 """Tests for the build-prerequisite doctor."""
 
 import shutil
+import sys
 
 from gen_dsp.cli import main
 from gen_dsp.core import doctor
@@ -55,37 +56,77 @@ def test_not_ready_lists_missing_with_hint(monkeypatch):
     assert "ARM GNU toolchain" in text  # the install hint is shown
 
 
-def test_circle_accepts_either_cross_compiler(monkeypatch):
-    # Only the 64-bit toolchain present: circle's combined cross-gcc is satisfied.
+def test_circle_ready_with_aarch64_gcc_and_bash(monkeypatch):
     monkeypatch.setattr(
-        doctor.shutil, "which", _fake_which({"make", "git", "aarch64-none-elf-gcc"})
+        doctor.shutil,
+        "which",
+        _fake_which({"make", "git", "bash", "aarch64-none-elf-gcc"}),
     )
     (report,) = doctor.diagnose(["circle"])
     assert report.ready is True
 
 
+def test_circle_not_ready_with_only_arm_gcc(monkeypatch):
+    # The default board (pi3) builds Circle with aarch64-none-elf-gcc.
+    monkeypatch.setattr(
+        doctor.shutil,
+        "which",
+        _fake_which({"make", "git", "bash", "arm-none-eabi-gcc"}),
+    )
+    (report,) = doctor.diagnose(["circle"])
+    assert report.ready is False
+    assert [t.key for t in report.missing] == ["aarch64-none-elf-gcc"]
+
+
+def test_circle_not_ready_without_bash(monkeypatch):
+    # Circle's configure/makeall are bash scripts.
+    monkeypatch.setattr(
+        doctor.shutil, "which", _fake_which({"make", "git", "aarch64-none-elf-gcc"})
+    )
+    (report,) = doctor.diagnose(["circle"])
+    assert report.ready is False
+    assert [t.key for t in report.missing] == ["bash"]
+
+
+def test_unsupported_host_is_not_ready(monkeypatch):
+    # AUs build only on macOS; the reason comes from the platform's build_hosts.
+    monkeypatch.setattr(doctor.shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(sys, "platform", "linux")
+    (report,) = doctor.diagnose(["au"])
+    assert report.ready is False
+    assert [t.key for t in report.missing] == ["host"]
+    assert "macOS-only" in report.missing[0].hint
+
+
+def test_max_ready_on_windows(monkeypatch):
+    monkeypatch.setattr(doctor.shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(sys, "platform", "win32")
+    (report,) = doctor.diagnose(["max"])
+    assert report.ready is True
+
+
 def test_format_report_all_ready(monkeypatch):
     monkeypatch.setattr(doctor.shutil, "which", lambda name: f"/usr/bin/{name}")
-    monkeypatch.setattr(doctor.sys, "platform", "darwin")
+    monkeypatch.setattr(sys, "platform", "darwin")
     text = doctor.format_report(doctor.diagnose())
     assert "All platforms are ready" in text
 
 
 def test_cmd_doctor_exit_code_ready(monkeypatch):
     monkeypatch.setattr(doctor.shutil, "which", lambda name: f"/usr/bin/{name}")
-    monkeypatch.setattr(doctor.sys, "platform", "darwin")
+    monkeypatch.setattr(sys, "platform", "darwin")
     assert main(["doctor", "-p", "pd"]) == 0
 
 
 def test_cmd_doctor_exit_code_not_ready(monkeypatch):
     monkeypatch.setattr(doctor.shutil, "which", lambda name: None)
-    monkeypatch.setattr(doctor.sys, "platform", "linux")
+    monkeypatch.setattr(sys, "platform", "linux")
     assert main(["doctor", "-p", "daisy"]) == 1
 
 
 def test_cmd_doctor_json(monkeypatch, capsys):
     monkeypatch.setattr(doctor.shutil, "which", lambda name: f"/usr/bin/{name}")
-    monkeypatch.setattr(doctor.sys, "platform", "darwin")
+    monkeypatch.setattr(sys, "platform", "darwin")
     rc = main(["doctor", "-p", "clap", "--json"])
     assert rc == 0
     out = capsys.readouterr().out
