@@ -64,8 +64,8 @@ class TestReset:
 
     def test_reset_history_to_init(self, onepole_graph):
         code = compile_graph(onepole_graph)
-        # History(id="prev", init=0.0) -> reset should set m_prev = 0.0f
-        assert "self->m_prev = 0.0f;" in code
+        # History(id="prev", init=0.0) -> reset should set h_prev = 0.0f
+        assert "self->h_prev = 0.0f;" in code
 
     def test_reset_history_nonzero_init(self):
         g = Graph(
@@ -76,7 +76,7 @@ class TestReset:
         )
         code = compile_graph(g)
         # Should appear in both create() and reset()
-        assert code.count("self->m_h1 = 0.5f;") >= 2
+        assert code.count("self->h_h1 = 0.5f;") >= 2
 
     def test_reset_delay_to_zero(self, fbdelay_graph):
         code = compile_graph(fbdelay_graph)

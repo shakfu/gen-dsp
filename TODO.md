@@ -10,8 +10,6 @@ Completed items are recorded in [CHANGELOG.md](CHANGELOG.md) rather than kept he
 
 ## High
 
-- [ ] Warnings in gen-dsp's C: it has unused locals, so tests compile `_dsp.c` without `-Werror`.
-
 - [ ] **Percussa SSP: JUCE format in rack** - `gvbj` (gigaverb) runs in Synthor. Load it in a rack slot and check the compact view and encoders; check preset save and reload.
 
 - [ ] **Percussa SSP: JUCE format UI** - The version string overlaps the DSP readout at the top right of the full screen. Both are drawn by the SSP framework, not gen-dsp: the version in `plugins/common/ssp/EditorHost.cpp:112`, the readout in `plugins/common/engine/EngineEditor.cpp:165`. The fix goes in shakfu/ssp, and gen-dsp's pinned framework commit (`_FRAMEWORK_COMMIT` in `platforms/ssp.py`) then has to move to it.

@@ -81,6 +81,14 @@ class _StateField:
     reset: str | Callable[[Node], str] | None
     save: bool = True
 
+    def member(self, node: Node) -> str:
+        """Struct member; History's own prefix keeps h_<id> apart from m_<id>_<suffix>."""
+        return f"m_{node.id}{self.suffix}" if self.suffix else f"h_{node.id}"
+
+    def local(self, node: Node) -> str:
+        """perform() local; the "_" prefix keeps it out of the node-id namespace."""
+        return f"_{node.id}{self.suffix}" if self.suffix else node.id
+
 
 def _state_value(v: str | Callable[[Node], str], node: Node) -> str:
     return v(node) if callable(v) else v
@@ -112,31 +120,31 @@ class _FieldState(_StateEmitter):
         self._fields = fields
 
     def fields(self, node: Node) -> list[str]:
-        return [f"    {f.ctype} m_{node.id}{f.suffix};" for f in self._fields]
+        return [f"    {f.ctype} {f.member(node)};" for f in self._fields]
 
     def init(self, node: Node) -> list[str]:
         return [
-            f"    self->m_{node.id}{f.suffix} = {_state_value(f.init, node)};"
+            f"    self->{f.member(node)} = {_state_value(f.init, node)};"
             for f in self._fields
             if f.init is not None
         ]
 
     def reset(self, node: Node) -> list[str]:
         return [
-            f"    self->m_{node.id}{f.suffix} = {_state_value(f.reset, node)};"
+            f"    self->{f.member(node)} = {_state_value(f.reset, node)};"
             for f in self._fields
             if f.reset is not None
         ]
 
     def load(self, node: Node) -> list[str]:
         return [
-            f"    {f.ctype} {node.id}{f.suffix} = self->m_{node.id}{f.suffix};"
+            f"    {f.ctype} {f.local(node)} = self->{f.member(node)};"
             for f in self._fields
         ]
 
     def save(self, node: Node) -> list[str]:
         return [
-            f"    self->m_{node.id}{f.suffix} = {node.id}{f.suffix};"
+            f"    self->{f.member(node)} = {f.local(node)};"
             for f in self._fields
             if f.save
         ]
@@ -168,13 +176,13 @@ class _DelayLineState(_StateEmitter):
 
     def load(self, node: Node) -> list[str]:
         return [
-            f"    float* {node.id}_buf = self->m_{node.id}_buf;",
-            f"    int {node.id}_len = self->m_{node.id}_len;",
-            f"    int {node.id}_wr = self->m_{node.id}_wr;",
+            f"    float* _{node.id}_buf = self->m_{node.id}_buf;",
+            f"    int _{node.id}_len = self->m_{node.id}_len;",
+            f"    int _{node.id}_wr = self->m_{node.id}_wr;",
         ]
 
     def save(self, node: Node) -> list[str]:
-        return [f"    self->m_{node.id}_wr = {node.id}_wr;"]
+        return [f"    self->m_{node.id}_wr = _{node.id}_wr;"]
 
 
 class _BufferState(_StateEmitter):
@@ -209,8 +217,8 @@ class _BufferState(_StateEmitter):
 
     def load(self, node: Node) -> list[str]:
         return [
-            f"    float* {node.id}_buf = self->m_{node.id}_buf;",
-            f"    int {node.id}_len = self->m_{node.id}_len;",
+            f"    float* _{node.id}_buf = self->m_{node.id}_buf;",
+            f"    int _{node.id}_len = self->m_{node.id}_len;",
         ]
 
 

@@ -114,18 +114,21 @@ class MaxPlatform(CMakePlatform):
             remap_defines=remap_defines,
         )
 
-    def setup_sdk(self, project_dir: Path) -> bool:
+    def setup_sdk(self, project_dir: Path) -> None:
         """
         Set up the max-sdk-base submodule.
 
-        Returns True if SDK is ready, False if setup failed.
+        Raises:
+            BuildError: If git is missing or the clone fails.
         """
         sdk_dir = project_dir / "max-sdk-base"
 
         if sdk_dir.exists() and (sdk_dir / "script" / "max-pretarget.cmake").exists():
-            return True
+            return
 
-        # Clone max-sdk-base
+        manual = (
+            f"Clone it manually:\n  cd {project_dir}\n  git clone {self.MAX_SDK_REPO}"
+        )
         try:
             result = subprocess.run(
                 ["git", "clone", "--depth", "1", self.MAX_SDK_REPO, str(sdk_dir)],
@@ -134,9 +137,15 @@ class MaxPlatform(CMakePlatform):
                 cwd=project_dir,
                 check=False,
             )
-            return result.returncode == 0
         except FileNotFoundError:
-            return False
+            raise BuildError(
+                f"Failed to set up max-sdk-base: git not found. {manual}"
+            ) from None
+        if result.returncode != 0:
+            raise BuildError(
+                f"Failed to set up max-sdk-base: git clone exited {result.returncode}:\n"
+                f"{result.stderr.strip()}\n{manual}"
+            )
 
     def build(
         self,
@@ -145,13 +154,7 @@ class MaxPlatform(CMakePlatform):
         verbose: bool = False,
     ) -> BuildResult:
         """Build Max/MSP external using CMake."""
-        # Ensure max-sdk-base is available before building
-        if not self.setup_sdk(project_dir):
-            raise BuildError(
-                "Failed to set up max-sdk-base. Please ensure git is installed and run:\n"
-                f"  cd {project_dir}\n"
-                f"  git clone {self.MAX_SDK_REPO}"
-            )
+        self.setup_sdk(project_dir)
         return self._build_with_cmake(project_dir, clean, verbose)
 
     def find_output(self, project_dir: Path) -> Path | None:

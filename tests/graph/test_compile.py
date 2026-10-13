@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 pydantic = __import__("pytest").importorskip("pydantic")
+import re
 import shutil
 import subprocess
 import tempfile
@@ -74,7 +75,7 @@ from gen_dsp.graph import (
 )
 
 # Hosts such as xtgen compile the output with -Werror; keep it warning-free.
-_WARN = ["-Wall", "-Wextra", "-Werror"]
+_WARN = ["-Wall", "-Wextra", "-Wshadow", "-Werror"]
 
 
 def _assert_compiles(graph: Graph) -> None:
@@ -237,11 +238,11 @@ class TestNodeEmission:
         g = Graph(
             name="test",
             inputs=[AudioInput(id="in1")],
-            outputs=[AudioOutput(id="out1", source="n")],
-            nodes=[UnaryOp(id="n", op="neg", a="in1")],
+            outputs=[AudioOutput(id="out1", source="ng")],
+            nodes=[UnaryOp(id="ng", op="neg", a="in1")],
         )
         code = compile_graph(g)
-        assert "float n = -in1[i];" in code
+        assert "float ng = -in1[i];" in code
 
     def test_unaryop_floor(self) -> None:
         g = Graph(
@@ -311,20 +312,20 @@ class TestNodeEmission:
             nodes=[Phasor(id="p", freq="freq")],
         )
         code = compile_graph(g)
-        assert "float p = p_phase;" in code
-        assert "p_phase += freq / sr;" in code
+        assert "float p = _p_phase;" in code
+        assert "_p_phase += freq / sr;" in code
         assert "m_p_phase" in code
 
     def test_noise(self) -> None:
         g = Graph(
             name="test",
-            outputs=[AudioOutput(id="out1", source="n")],
-            nodes=[Noise(id="n")],
+            outputs=[AudioOutput(id="out1", source="nz")],
+            nodes=[Noise(id="nz")],
         )
         code = compile_graph(g)
         assert "1664525u" in code
         assert "1013904223u" in code
-        assert "m_n_seed" in code
+        assert "m_nz_seed" in code
 
     def test_compare(self) -> None:
         g = Graph(
@@ -430,8 +431,8 @@ class TestDeltaChangeState:
             nodes=[Delta(id="d", a="in1")],
         )
         code = compile_graph(g)
-        assert "float d_prev = self->m_d_prev;" in code
-        assert "self->m_d_prev = d_prev;" in code
+        assert "float _d_prev = self->m_d_prev;" in code
+        assert "self->m_d_prev = _d_prev;" in code
 
     def test_delta_compute(self) -> None:
         g = Graph(
@@ -441,9 +442,9 @@ class TestDeltaChangeState:
             nodes=[Delta(id="d", a="in1")],
         )
         code = compile_graph(g)
-        assert "float d_cur = in1[i];" in code
-        assert "float d = d_cur - d_prev;" in code
-        assert "d_prev = d_cur;" in code
+        assert "float _d_cur = in1[i];" in code
+        assert "float d = _d_cur - _d_prev;" in code
+        assert "_d_prev = _d_cur;" in code
 
     def test_change_struct_field(self) -> None:
         g = Graph(
@@ -463,9 +464,9 @@ class TestDeltaChangeState:
             nodes=[Change(id="c", a="in1")],
         )
         code = compile_graph(g)
-        assert "float c_cur = in1[i];" in code
-        assert "(c_cur != c_prev) ? 1.0f : 0.0f" in code
-        assert "c_prev = c_cur;" in code
+        assert "float _c_cur = in1[i];" in code
+        assert "(_c_cur != _c_prev) ? 1.0f : 0.0f" in code
+        assert "_c_prev = _c_cur;" in code
 
 
 class TestInverseTrig:
@@ -524,10 +525,10 @@ class TestFilterNodes:
             nodes=[Biquad(id="bq", a="in1", b0=1.0, b1=0.0, b2=0.0, a1=0.0, a2=0.0)],
         )
         code = compile_graph(g)
-        assert "float bq_in = in1[i];" in code
-        assert "float bq = 1.0f * bq_in + bq_s1;" in code
-        assert "bq_s1 =" in code
-        assert "bq_s2 =" in code
+        assert "float _bq_in = in1[i];" in code
+        assert "float bq = 1.0f * _bq_in + _bq_s1;" in code
+        assert "_bq_s1 =" in code
+        assert "_bq_s2 =" in code
 
     def test_svf_lp(self) -> None:
         g = Graph(
@@ -539,7 +540,7 @@ class TestFilterNodes:
         )
         code = compile_graph(g)
         assert "tanf(" in code
-        assert "float f = f_v2;" in code
+        assert "float f = _f_v2;" in code
 
     def test_svf_hp(self) -> None:
         g = Graph(
@@ -549,7 +550,7 @@ class TestFilterNodes:
             nodes=[SVF(id="f", a="in1", freq=1000.0, q=0.707, mode="hp")],
         )
         code = compile_graph(g)
-        assert "float f = in1[i] - f_k * f_v1 - f_v2;" in code
+        assert "float f = in1[i] - _f_k * _f_v1 - _f_v2;" in code
 
     def test_svf_bp(self) -> None:
         g = Graph(
@@ -559,7 +560,7 @@ class TestFilterNodes:
             nodes=[SVF(id="f", a="in1", freq=1000.0, q=0.707, mode="bp")],
         )
         code = compile_graph(g)
-        assert "float f = f_v1;" in code
+        assert "float f = _f_v1;" in code
 
     def test_svf_notch(self) -> None:
         g = Graph(
@@ -569,7 +570,7 @@ class TestFilterNodes:
             nodes=[SVF(id="f", a="in1", freq=1000.0, q=0.707, mode="notch")],
         )
         code = compile_graph(g)
-        assert "float f = in1[i] - f_k * f_v1;" in code
+        assert "float f = in1[i] - _f_k * _f_v1;" in code
 
     def test_onepole_compute(self) -> None:
         g = Graph(
@@ -580,8 +581,8 @@ class TestFilterNodes:
         )
         code = compile_graph(g)
         assert "float m_op_prev;" in code
-        assert "0.5f * in1[i] + (1.0f - 0.5f) * op_prev" in code
-        assert "op_prev = op;" in code
+        assert "0.5f * in1[i] + (1.0f - 0.5f) * _op_prev" in code
+        assert "_op_prev = op;" in code
 
     def test_dcblock_compute(self) -> None:
         g = Graph(
@@ -594,8 +595,8 @@ class TestFilterNodes:
         assert "float m_dc_xprev;" in code
         assert "float m_dc_yprev;" in code
         assert "0.995f" in code
-        assert "dc_xprev = dc_x;" in code
-        assert "dc_yprev = dc;" in code
+        assert "_dc_xprev = _dc_x;" in code
+        assert "_dc_yprev = dc;" in code
 
     def test_allpass_compute(self) -> None:
         g = Graph(
@@ -607,8 +608,8 @@ class TestFilterNodes:
         code = compile_graph(g)
         assert "float m_ap_xprev;" in code
         assert "float m_ap_yprev;" in code
-        assert "ap_xprev = ap_x;" in code
-        assert "ap_yprev = ap;" in code
+        assert "_ap_xprev = _ap_x;" in code
+        assert "_ap_yprev = ap;" in code
 
 
 class TestOscillatorNodes:
@@ -621,8 +622,8 @@ class TestOscillatorNodes:
             nodes=[SinOsc(id="s", freq=440.0)],
         )
         code = compile_graph(g)
-        assert "sinf(6.28318530f * s_phase)" in code
-        assert "s_phase +=" in code
+        assert "sinf(6.28318530f * _s_phase)" in code
+        assert "_s_phase +=" in code
         assert "m_s_phase" in code
 
     def test_triosc_compute(self) -> None:
@@ -632,8 +633,8 @@ class TestOscillatorNodes:
             nodes=[TriOsc(id="t", freq=440.0)],
         )
         code = compile_graph(g)
-        assert "4.0f * fabsf(t_phase - 0.5f) - 1.0f" in code
-        assert "t_phase +=" in code
+        assert "4.0f * fabsf(_t_phase - 0.5f) - 1.0f" in code
+        assert "_t_phase +=" in code
 
     def test_sawosc_compute(self) -> None:
         g = Graph(
@@ -642,8 +643,8 @@ class TestOscillatorNodes:
             nodes=[SawOsc(id="s", freq=440.0)],
         )
         code = compile_graph(g)
-        assert "2.0f * s_phase - 1.0f" in code
-        assert "s_phase +=" in code
+        assert "2.0f * _s_phase - 1.0f" in code
+        assert "_s_phase +=" in code
 
     def test_pulseosc_compute(self) -> None:
         g = Graph(
@@ -663,8 +664,8 @@ class TestOscillatorNodes:
         )
         code = compile_graph(g)
         assert "float m_s_phase;" in code
-        assert "float s_phase = self->m_s_phase;" in code
-        assert "self->m_s_phase = s_phase;" in code
+        assert "float _s_phase = self->m_s_phase;" in code
+        assert "self->m_s_phase = _s_phase;" in code
 
 
 class TestStateTimingNodes:
@@ -689,8 +690,8 @@ class TestStateTimingNodes:
             nodes=[SampleHold(id="sh", a="in1", trig=0.0)],
         )
         code = compile_graph(g)
-        assert "sh_held = in1[i];" in code
-        assert "float sh = sh_held;" in code
+        assert "_sh_held = in1[i];" in code
+        assert "float sh = _sh_held;" in code
 
     def test_latch_compute(self) -> None:
         g = Graph(
@@ -700,9 +701,9 @@ class TestStateTimingNodes:
             nodes=[Latch(id="la", a="in1", trig=0.0)],
         )
         code = compile_graph(g)
-        assert "la_ptrig <= 0.0f && la_t > 0.0f" in code
-        assert "la_held = in1[i];" in code
-        assert "float la = la_held;" in code
+        assert "_la_ptrig <= 0.0f && _la_t > 0.0f" in code
+        assert "_la_held = in1[i];" in code
+        assert "float la = _la_held;" in code
 
     def test_accum_compute(self) -> None:
         g = Graph(
@@ -712,8 +713,8 @@ class TestStateTimingNodes:
         )
         code = compile_graph(g)
         assert "float m_ac_sum;" in code
-        assert "ac_sum += 1.0f;" in code
-        assert "float ac = ac_sum;" in code
+        assert "_ac_sum += 1.0f;" in code
+        assert "float ac = _ac_sum;" in code
 
     def test_counter_int_state(self) -> None:
         g = Graph(
@@ -723,9 +724,9 @@ class TestStateTimingNodes:
         )
         code = compile_graph(g)
         assert "int m_ct_count;" in code
-        assert "ct_count++;" in code
+        assert "_ct_count++;" in code
         assert "(int)16.0f" in code
-        assert "float ct = (float)ct_count;" in code
+        assert "float ct = (float)_ct_count;" in code
 
     def test_counter_ptrig(self) -> None:
         g = Graph(
@@ -735,7 +736,7 @@ class TestStateTimingNodes:
         )
         code = compile_graph(g)
         assert "float m_ct_ptrig;" in code
-        assert "ct_ptrig <= 0.0f && ct_t > 0.0f" in code
+        assert "_ct_ptrig <= 0.0f && _ct_t > 0.0f" in code
 
 
 class TestInterpolatedDelayRead:
@@ -756,21 +757,21 @@ class TestInterpolatedDelayRead:
 
     def test_none_interp(self) -> None:
         code = compile_graph(self._make_delay_graph("none"))
-        assert "rd_pos" in code
-        assert "dl_buf[rd_pos]" in code
+        assert "_rd_pos" in code
+        assert "_dl_buf[_rd_pos]" in code
         # Should NOT have fractional tap
         assert "rd_ftap" not in code
 
     def test_linear_interp(self) -> None:
         code = compile_graph(self._make_delay_graph("linear"))
-        assert "rd_ftap" in code
-        assert "rd_itap" in code
-        assert "rd_frac" in code
-        assert "rd_i0" in code
-        assert "rd_i1" in code
+        assert "_rd_ftap" in code
+        assert "_rd_itap" in code
+        assert "_rd_frac" in code
+        assert "_rd_i0" in code
+        assert "_rd_i1" in code
         # Linear interpolation formula
-        assert "dl_buf[rd_i0]" in code
-        assert "dl_buf[rd_i1]" in code
+        assert "_dl_buf[_rd_i0]" in code
+        assert "_dl_buf[_rd_i1]" in code
 
     def test_cubic_interp(self) -> None:
         code = compile_graph(self._make_delay_graph("cubic"))
@@ -790,15 +791,15 @@ class TestHistoryState:
 
     def test_history_struct_field(self, onepole_graph: Graph) -> None:
         code = compile_graph(onepole_graph)
-        assert "float m_prev;" in code
+        assert "float h_prev;" in code
 
     def test_history_preloop_load(self, onepole_graph: Graph) -> None:
         code = compile_graph(onepole_graph)
-        assert "float prev = self->m_prev;" in code
+        assert "float prev = self->h_prev;" in code
 
     def test_history_postloop_save(self, onepole_graph: Graph) -> None:
         code = compile_graph(onepole_graph)
-        assert "self->m_prev = prev;" in code
+        assert "self->h_prev = prev;" in code
 
     def test_history_writeback_in_loop(self, onepole_graph: Graph) -> None:
         code = compile_graph(onepole_graph)
@@ -825,13 +826,13 @@ class TestDelayLine:
 
     def test_delay_write_pointer(self, fbdelay_graph: Graph) -> None:
         code = compile_graph(fbdelay_graph)
-        assert "dline_buf[dline_wr]" in code
-        assert "dline_wr = (dline_wr + 1) % dline_len;" in code
+        assert "_dline_buf[_dline_wr]" in code
+        assert "_dline_wr = (_dline_wr + 1) % _dline_len;" in code
 
     def test_delay_read(self, fbdelay_graph: Graph) -> None:
         code = compile_graph(fbdelay_graph)
-        assert "dline_wr - (int)(tap)" in code
-        assert "dline_buf[delayed_pos]" in code
+        assert "_dline_wr - (int)(tap)" in code
+        assert "_dline_buf[_delayed_pos]" in code
 
 
 class TestParamAPI:
@@ -1041,25 +1042,25 @@ class TestBufferNodes:
             BufRead(id="br", buffer="buf", index=0.0),
         )
         code = compile_graph(g)
-        assert "int br_idx = (int)(0.0f);" in code
-        assert "if (br_idx < 0) br_idx = 0;" in code
-        assert "if (br_idx >= buf_len) br_idx = buf_len - 1;" in code
-        assert "float br = buf_buf[br_idx];" in code
+        assert "int _br_idx = (int)(0.0f);" in code
+        assert "if (_br_idx < 0) _br_idx = 0;" in code
+        assert "if (_br_idx >= _buf_len) _br_idx = _buf_len - 1;" in code
+        assert "float br = _buf_buf[_br_idx];" in code
 
     def test_bufread_linear_interp(self) -> None:
         g = self._make_buf_graph(
             BufRead(id="br", buffer="buf", index=0.0, interp="linear"),
         )
         code = compile_graph(g)
-        assert "br_fidx" in code
-        assert "br_frac" in code
-        assert "br_i0" in code
-        assert "br_i1" in code
-        assert "br_s0" in code
-        assert "br_s1" in code
+        assert "_br_fidx" in code
+        assert "_br_frac" in code
+        assert "_br_i0" in code
+        assert "_br_i1" in code
+        assert "_br_s0" in code
+        assert "_br_s1" in code
         # Clamped indices
-        assert "if (br_i0 < 0) br_i0 = 0;" in code
-        assert "if (br_i1 >= buf_len) br_i1 = buf_len - 1;" in code
+        assert "if (_br_i0 < 0) _br_i0 = 0;" in code
+        assert "if (_br_i1 >= _buf_len) _br_i1 = _buf_len - 1;" in code
 
     def test_bufread_cubic_interp(self) -> None:
         g = self._make_buf_graph(
@@ -1084,9 +1085,9 @@ class TestBufferNodes:
             BufWrite(id="bw", buffer="buf", index=0.0, value=1.0),
         )
         code = compile_graph(g)
-        assert "int bw_idx = (int)(0.0f);" in code
-        assert "if (bw_idx >= 0 && bw_idx < buf_len)" in code
-        assert "buf_buf[bw_idx] = 1.0f;" in code
+        assert "int _bw_idx = (int)(0.0f);" in code
+        assert "if (_bw_idx >= 0 && _bw_idx < _buf_len)" in code
+        assert "_buf_buf[_bw_idx] = 1.0f;" in code
         # BufWrite is side-effect only -- no output variable
         assert "float bw " not in code
         assert "float bw=" not in code
@@ -1210,10 +1211,10 @@ class TestRateDiv:
             nodes=[RateDiv(id="rd", a="in1", divisor=4.0)],
         )
         code = compile_graph(g)
-        assert "int rd_count = self->m_rd_count;" in code
-        assert "float rd_held = self->m_rd_held;" in code
-        assert "self->m_rd_count = rd_count;" in code
-        assert "self->m_rd_held = rd_held;" in code
+        assert "int _rd_count = self->m_rd_count;" in code
+        assert "float _rd_held = self->m_rd_held;" in code
+        assert "self->m_rd_count = _rd_count;" in code
+        assert "self->m_rd_held = _rd_held;" in code
 
     def test_compute(self) -> None:
         g = Graph(
@@ -1223,10 +1224,10 @@ class TestRateDiv:
             nodes=[RateDiv(id="rd", a="in1", divisor=4.0)],
         )
         code = compile_graph(g)
-        assert "if (rd_count == 0) rd_held = in1[i];" in code
-        assert "rd_count++;" in code
-        assert "if (rd_count >= (int)4.0f) rd_count = 0;" in code
-        assert "float rd = rd_held;" in code
+        assert "if (_rd_count == 0) _rd_held = in1[i];" in code
+        assert "_rd_count++;" in code
+        assert "if (_rd_count >= (int)4.0f) _rd_count = 0;" in code
+        assert "float rd = _rd_held;" in code
 
 
 class TestScale:
@@ -1242,8 +1243,8 @@ class TestScale:
             ],
         )
         code = compile_graph(g)
-        assert "sc_in_range" in code
-        assert "sc_out_range" in code
+        assert "_sc_inrange" in code
+        assert "_sc_outrange" in code
         assert "float sc =" in code
 
     def test_hoisted_when_param_only(self) -> None:
@@ -1284,8 +1285,8 @@ class TestSmoothParam:
             nodes=[SmoothParam(id="sp", a="in1", coeff=0.99)],
         )
         code = compile_graph(g)
-        assert "(1.0f - 0.99f) * in1[i] + 0.99f * sp_prev" in code
-        assert "sp_prev = sp;" in code
+        assert "(1.0f - 0.99f) * in1[i] + 0.99f * _sp_prev" in code
+        assert "_sp_prev = sp;" in code
 
     def test_never_hoisted(self) -> None:
         g = Graph(
@@ -1905,11 +1906,11 @@ class TestGateSelectorCodegen:
             ],
         )
         code = compile_graph(g)
-        assert "int gr_idx = (int)" in code
-        assert "gr_idx > 2" in code
-        assert "float gr_val" in code
-        assert "gr_idx == 1" in code
-        assert "gr_idx == 2" in code
+        assert "int _gr_idx = (int)" in code
+        assert "_gr_idx > 2" in code
+        assert "float _gr_val" in code
+        assert "_gr_idx == 1" in code
+        assert "_gr_idx == 2" in code
 
     def test_selector_codegen(self) -> None:
         g = Graph(
@@ -1921,10 +1922,10 @@ class TestGateSelectorCodegen:
             ],
         )
         code = compile_graph(g)
-        assert "int mux_idx = (int)" in code
-        assert "mux_idx > 2" in code
-        assert "mux_idx == 1" in code
-        assert "mux_idx == 2" in code
+        assert "int _mux_idx = (int)" in code
+        assert "_mux_idx > 2" in code
+        assert "_mux_idx == 1" in code
+        assert "_mux_idx == 2" in code
 
     @pytest.mark.skipif(not shutil.which("g++"), reason="g++ not found")
     def test_gate_selector_compiles(self) -> None:
@@ -2107,7 +2108,7 @@ class TestCycleWaveLookupCompile:
             ],
         )
         code = compile_graph(g)
-        assert "buf_buf" in code
+        assert "_buf_buf" in code
         assert "floorf" in code
 
     def test_wave_codegen(self) -> None:
@@ -2121,7 +2122,7 @@ class TestCycleWaveLookupCompile:
             ],
         )
         code = compile_graph(g)
-        assert "buf_buf" in code
+        assert "_buf_buf" in code
 
     def test_lookup_codegen(self) -> None:
         g = Graph(
@@ -2134,7 +2135,7 @@ class TestCycleWaveLookupCompile:
             ],
         )
         code = compile_graph(g)
-        assert "buf_buf" in code
+        assert "_buf_buf" in code
 
     @pytest.mark.skipif(not shutil.which("g++"), reason="g++ not found")
     @pytest.mark.parametrize(
@@ -2358,14 +2359,14 @@ class TestADSRCompilation:
         assert "float m_env_output;" in code
         assert "float m_env_ptrig;" in code
         # State load
-        assert "int env_phase = self->m_env_phase;" in code
-        assert "float env_output = self->m_env_output;" in code
+        assert "int _env_phase = self->m_env_phase;" in code
+        assert "float _env_output = self->m_env_output;" in code
         # State save
-        assert "self->m_env_phase = env_phase;" in code
-        assert "self->m_env_output = env_output;" in code
+        assert "self->m_env_phase = _env_phase;" in code
+        assert "self->m_env_output = _env_output;" in code
         # Compute -- edge detection and phase logic
-        assert "env_phase = 1;" in code  # attack phase entry
-        assert "env_phase = 4;" in code  # release phase entry
+        assert "_env_phase = 1;" in code  # attack phase entry
+        assert "_env_phase = 4;" in code  # release phase entry
         assert "ADSR env" in code  # block comment
 
     @pytest.mark.skipif(
@@ -2417,3 +2418,104 @@ class TestADSRCompilation:
             ],
         )
         _assert_compiles(g)
+
+
+class TestIdentifierNamespaces:
+    """Node IDs cannot shadow compiler-generated locals."""
+
+    def test_node_named_like_buffer_helper(self) -> None:
+        # `wt_len` once shadowed Buffer wt's length local, so the BufRead
+        # clamp compared against the node's value: here 100000 on a 16-sample table.
+        g = Graph(
+            name="test",
+            outputs=[AudioOutput(id="out1", source="br")],
+            nodes=[
+                Buffer(id="wt", size=16),
+                Constant(id="wt_len", value=100000.0),
+                BufRead(id="br", buffer="wt", index="wt_len"),
+            ],
+        )
+        code = compile_graph(g)
+        assert "if (_br_idx >= _wt_len) _br_idx = _wt_len - 1;" in code
+        _assert_compiles(g)
+
+    @pytest.mark.parametrize(
+        "ident", ["self", "ins", "outs", "n", "i", "sr", "_x", "_x_len"]
+    )
+    def test_reserved_ids_rejected(self, ident: str) -> None:
+        g = Graph(
+            name="test",
+            inputs=[AudioInput(id="in1")],
+            outputs=[AudioOutput(id="out1", source=ident)],
+            nodes=[BinOp(id=ident, op="mul", a="in1", b=2.0)],
+        )
+        with pytest.raises(ValueError, match=f"ID '{ident}'"):
+            compile_graph(g)
+
+    def test_reserved_param_rejected(self) -> None:
+        g = Graph(
+            name="test",
+            outputs=[AudioOutput(id="out1", source="c")],
+            params=[Param(name="n", min=0.0, max=1.0, default=0.5)],
+            nodes=[BinOp(id="c", op="mul", a="n", b=2.0)],
+        )
+        with pytest.raises(ValueError, match="ID 'n'"):
+            compile_graph(g)
+
+    def test_helper_suffixes_do_not_collide(self) -> None:
+        # With "_out_range" as a suffix, Scale sc and Wrap sc_out both declared _sc_out_range.
+        g = Graph(
+            name="test",
+            inputs=[AudioInput(id="in1")],
+            outputs=[AudioOutput(id="out1", source="sc_out")],
+            nodes=[
+                Scale(id="sc", a="in1"),
+                Wrap(id="sc_out", a="sc"),
+            ],
+        )
+        _assert_compiles(g)
+
+    def test_history_member_distinct_from_node_fields(self) -> None:
+        # History osc_phase once declared m_osc_phase, as SinOsc osc does.
+        g = Graph(
+            name="test",
+            outputs=[AudioOutput(id="out1", source="osc")],
+            nodes=[
+                SinOsc(id="osc", freq=440.0),
+                History(id="osc_phase", init=0.0, input="osc"),
+            ],
+        )
+        _assert_compiles(g)
+
+    def test_helper_and_field_suffixes_have_no_inner_underscore(self) -> None:
+        # "_<id>_<suffix>" and "m_<id>_<suffix>" decode uniquely only if no suffix contains "_".
+        src = (
+            Path(__file__).resolve().parents[2]
+            / "src"
+            / "gen_dsp"
+            / "graph"
+            / "compile"
+        )
+        text = "\n".join(p.read_text() for p in src.glob("*.py"))
+        helpers = re.findall(r"_\{[\w.]+\}_(\w+)", text)
+        fields = re.findall(r'_StateField\("_?(\w*)"', text)
+        assert helpers and fields
+        assert [s for s in helpers + fields if "_" in s] == []
+
+    def test_samplerate_named_sr_and_generated_ids_accepted(self) -> None:
+        g = Graph(
+            name="test",
+            outputs=[AudioOutput(id="out1", source="_mul_0")],
+            nodes=[SampleRate(id="sr"), BinOp(id="_mul_0", op="mul", a="sr", b=0.5)],
+        )
+        _assert_compiles(g)
+
+
+_LIBRARY = Path(__file__).resolve().parents[2] / "src" / "gen_dsp" / "library"
+
+
+@pytest.mark.parametrize("path", sorted(_LIBRARY.rglob("*.gdsp")), ids=lambda p: p.stem)
+def test_library_graph_compiles_warning_free(path: Path) -> None:
+    from gen_dsp.graph.dsl import parse_file
+
+    _assert_compiles(parse_file(path))

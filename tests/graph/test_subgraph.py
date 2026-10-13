@@ -340,7 +340,7 @@ class TestStatefulSubgraph:
         )
         code = compile_graph(graph)
         # History state field should be prefixed
-        assert "m_filt__prev" in code
+        assert "h_filt__prev" in code
         # Prefixed node IDs in compute
         assert "filt__result" in code
 

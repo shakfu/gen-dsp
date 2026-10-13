@@ -273,8 +273,8 @@ class TestCompileTwoTier:
         """State load/save should be before/after the outer loop."""
         code = compile_graph(two_tier_graph)
         # smoother state should be loaded before the loop and saved after
-        assert "float smoother_prev = self->m_smoother_prev;" in code
-        assert "self->m_smoother_prev = smoother_prev;" in code
+        assert "float _smoother_prev = self->m_smoother_prev;" in code
+        assert "self->m_smoother_prev = _smoother_prev;" in code
         # The perform function should end with }
         assert code.strip().endswith("}")
 

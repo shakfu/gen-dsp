@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.6.1]
+
+### Fixed
+
+- **Node IDs could shadow compiler-generated locals** -- A node named `wt_len` beside a Buffer `wt` redeclared the buffer's length local inside the loop. `buf_read(wt, ...)` then clamped its index against the node's value, not the table length: a silent out-of-bounds read when they differ. `wavetable.gdsp` and `lofi_wavetable.gdsp` failed `-Wall -Werror` for this reason. Nodes named `n`, `i`, `sr`, `self`, `ins` or `outs` shadowed `perform()` locals the same way. Helpers could also clash with each other: Scale `sc` and Wrap `sc_out` both declared `_sc_out_range`, and History `osc_phase` duplicated SinOsc `osc`'s member `m_osc_phase`.
+
+  Helper locals are now `_<id>_<suffix>` (e.g. `_wt_len`) with no `_` inside a suffix (`_outrange`), so each name has one decoding. History members are `h_<id>`; other members stay `m_<id>_<suffix>`. `compile_graph` rejects the six `perform()` names (a SampleRate node may be `sr`) and IDs starting with `_` unless they end in `_<digits>`, like the DSL's `_add_0`. A fixed namespace was chosen over a collision check, which would track 70 suffixes across the emitters. Compile tests add `-Wshadow` and build every shipped `.gdsp`; a test fails if a suffix gains an inner `_`.
+
+- **Max SDK clone failures hid their cause** -- When cloning `max-sdk-base` failed, the `BuildError` told the user to check that git was installed and dropped git's output. The error now includes git's exit code and stderr, and says "git not found" only when git is missing.
+
 ## [0.5.0]
 
 ### Added

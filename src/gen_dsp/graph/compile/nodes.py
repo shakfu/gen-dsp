@@ -210,12 +210,12 @@ def _emit_node_compute(
             )
         elif node.op == "bitshift":
             nid = node.id
-            w(f"        int32_t {nid}_v = (int32_t)({ref(node.a)});")
-            w(f"        int32_t {nid}_sh = (int32_t)({ref(node.b)});")
+            w(f"        int32_t _{nid}_v = (int32_t)({ref(node.a)});")
+            w(f"        int32_t _{nid}_sh = (int32_t)({ref(node.b)});")
             w(
-                f"        float {nid} = (float)({nid}_sh >= 0 "
-                f"? (int32_t)((uint32_t){nid}_v << ({nid}_sh & 31)) "
-                f": ({nid}_v >> ((-{nid}_sh) & 31)));"
+                f"        float {nid} = (float)(_{nid}_sh >= 0 "
+                f"? (int32_t)((uint32_t)_{nid}_v << (_{nid}_sh & 31)) "
+                f": (_{nid}_v >> ((-_{nid}_sh) & 31)));"
             )
         else:
             sym = _BINOP_SYMBOLS[node.op]
@@ -288,26 +288,26 @@ def _emit_node_compute(
             # Bhaskara I approximation: 16x(pi-x) / (5pi^2 - 4x(pi-x))
             # First wrap to [0, pi] via abs(phasewrap)
             w(
-                f"        float {node.id}_x = {a} - 6.28318530f * floorf({a} * 0.15915494f + 0.5f);"
+                f"        float _{node.id}_x = {a} - 6.28318530f * floorf({a} * 0.15915494f + 0.5f);"
             )
-            w(f"        float {node.id}_sign = ({node.id}_x < 0.0f) ? -1.0f : 1.0f;")
-            w(f"        float {node.id}_ax = fabsf({node.id}_x);")
-            w(f"        float {node.id}_pma = 3.14159265f - {node.id}_ax;")
+            w(f"        float _{node.id}_sign = (_{node.id}_x < 0.0f) ? -1.0f : 1.0f;")
+            w(f"        float _{node.id}_ax = fabsf(_{node.id}_x);")
+            w(f"        float _{node.id}_pma = 3.14159265f - _{node.id}_ax;")
             w(
-                f"        float {node.id} = {node.id}_sign * 16.0f * {node.id}_ax * {node.id}_pma / (49.3480220f - 4.0f * {node.id}_ax * {node.id}_pma);"
+                f"        float {node.id} = _{node.id}_sign * 16.0f * _{node.id}_ax * _{node.id}_pma / (49.3480220f - 4.0f * _{node.id}_ax * _{node.id}_pma);"
             )
         elif node.op == "fastcos":
             a = ref(node.a)
             # fastcos(x) = fastsin(x + pi/2)
-            w(f"        float {node.id}_sh = {a} + 1.57079633f;")
+            w(f"        float _{node.id}_sh = {a} + 1.57079633f;")
             w(
-                f"        float {node.id}_x = {node.id}_sh - 6.28318530f * floorf({node.id}_sh * 0.15915494f + 0.5f);"
+                f"        float _{node.id}_x = _{node.id}_sh - 6.28318530f * floorf(_{node.id}_sh * 0.15915494f + 0.5f);"
             )
-            w(f"        float {node.id}_sign = ({node.id}_x < 0.0f) ? -1.0f : 1.0f;")
-            w(f"        float {node.id}_ax = fabsf({node.id}_x);")
-            w(f"        float {node.id}_pma = 3.14159265f - {node.id}_ax;")
+            w(f"        float _{node.id}_sign = (_{node.id}_x < 0.0f) ? -1.0f : 1.0f;")
+            w(f"        float _{node.id}_ax = fabsf(_{node.id}_x);")
+            w(f"        float _{node.id}_pma = 3.14159265f - _{node.id}_ax;")
             w(
-                f"        float {node.id} = {node.id}_sign * 16.0f * {node.id}_ax * {node.id}_pma / (49.3480220f - 4.0f * {node.id}_ax * {node.id}_pma);"
+                f"        float {node.id} = _{node.id}_sign * 16.0f * _{node.id}_ax * _{node.id}_pma / (49.3480220f - 4.0f * _{node.id}_ax * _{node.id}_pma);"
             )
         elif node.op == "fasttan":
             a = ref(node.a)
@@ -315,9 +315,9 @@ def _emit_node_compute(
         elif node.op == "fastexp":
             a = ref(node.a)
             # Schraudolph's method
-            w(f"        union {{ float f; int32_t i; }} {node.id}_u;")
-            w(f"        {node.id}_u.i = (int32_t)(12102203.0f * {a} + 1065353216.0f);")
-            w(f"        float {node.id} = {node.id}_u.f;")
+            w(f"        union {{ float f; int32_t i; }} _{node.id}_u;")
+            w(f"        _{node.id}_u.i = (int32_t)(12102203.0f * {a} + 1065353216.0f);")
+            w(f"        float {node.id} = _{node.id}_u.f;")
         elif node.op == "bitnot":
             w(f"        float {node.id} = (float)(~(int32_t)({ref(node.a)}));")
         else:
@@ -344,16 +344,16 @@ def _emit_node_compute(
         tap = ref(node.tap)
         if node.interp == "none":
             w(
-                f"        int {node.id}_pos = "
-                f"(({dl}_wr - (int)({tap})) % {dl}_len + {dl}_len) % {dl}_len;"
+                f"        int _{node.id}_pos = "
+                f"((_{dl}_wr - (int)({tap})) % _{dl}_len + _{dl}_len) % _{dl}_len;"
             )
-            w(f"        float {node.id} = {dl}_buf[{node.id}_pos];")
+            w(f"        float {node.id} = _{dl}_buf[_{node.id}_pos];")
         elif node.interp == "nearest":
             w(
-                f"        int {node.id}_pos = "
-                f"(({dl}_wr - (int)floorf({tap} + 0.5f)) % {dl}_len + {dl}_len) % {dl}_len;"
+                f"        int _{node.id}_pos = "
+                f"((_{dl}_wr - (int)floorf({tap} + 0.5f)) % _{dl}_len + _{dl}_len) % _{dl}_len;"
             )
-            w(f"        float {node.id} = {dl}_buf[{node.id}_pos];")
+            w(f"        float {node.id} = _{dl}_buf[_{node.id}_pos];")
         elif node.interp == "linear":
             nid = node.id
             _emit_interp_linear(nid, dl, tap, w)
@@ -364,25 +364,25 @@ def _emit_node_compute(
     elif isinstance(node, DelayWrite):
         delay_write_nodes.append(node)
         val = ref(node.value)
-        w(f"        {node.delay}_buf[{node.delay}_wr] = {val};")
-        w(f"        {node.delay}_wr = ({node.delay}_wr + 1) % {node.delay}_len;")
+        w(f"        _{node.delay}_buf[_{node.delay}_wr] = {val};")
+        w(f"        _{node.delay}_wr = (_{node.delay}_wr + 1) % _{node.delay}_len;")
 
     elif isinstance(node, Phasor):
         freq = ref(node.freq)
-        w(f"        float {node.id} = {node.id}_phase;")
-        w(f"        {node.id}_phase += {freq} / sr;")
-        w(f"        if ({node.id}_phase >= 1.0f) {node.id}_phase -= 1.0f;")
+        w(f"        float {node.id} = _{node.id}_phase;")
+        w(f"        _{node.id}_phase += {freq} / sr;")
+        w(f"        if (_{node.id}_phase >= 1.0f) _{node.id}_phase -= 1.0f;")
 
     elif isinstance(node, Train):
         nid = node.id
         freq = ref(node.freq)
-        w(f"        {nid}_phase += {freq} / sr;")
-        w(f"        float {nid} = {nid}_phase >= 1.0f ? 1.0f : 0.0f;")
-        w(f"        if ({nid}_phase >= 1.0f) {nid}_phase -= 1.0f;")
+        w(f"        _{nid}_phase += {freq} / sr;")
+        w(f"        float {nid} = _{nid}_phase >= 1.0f ? 1.0f : 0.0f;")
+        w(f"        if (_{nid}_phase >= 1.0f) _{nid}_phase -= 1.0f;")
 
     elif isinstance(node, Noise):
-        w(f"        {node.id}_seed = {node.id}_seed * 1664525u + 1013904223u;")
-        w(f"        float {node.id} = (float)(int32_t){node.id}_seed / 2147483648.0f;")
+        w(f"        _{node.id}_seed = _{node.id}_seed * 1664525u + 1013904223u;")
+        w(f"        float {node.id} = (float)(int32_t)_{node.id}_seed / 2147483648.0f;")
 
     elif isinstance(node, Compare):
         sym = _COMPARE_SYMBOLS[node.op]
@@ -396,20 +396,22 @@ def _emit_node_compute(
     elif isinstance(node, Wrap):
         nid = node.id
         a, lo, hi = ref(node.a), ref(node.lo), ref(node.hi)
-        w(f"        float {nid}_range = {hi} - {lo};")
-        w(f"        float {nid}_raw = fmodf({a} - {lo}, {nid}_range);")
-        raw_expr = f"{nid}_raw < 0.0f ? {nid}_raw + {nid}_range : {nid}_raw"
+        w(f"        float _{nid}_range = {hi} - {lo};")
+        w(f"        float _{nid}_raw = fmodf({a} - {lo}, _{nid}_range);")
+        raw_expr = f"_{nid}_raw < 0.0f ? _{nid}_raw + _{nid}_range : _{nid}_raw"
         w(f"        float {nid} = {lo} + ({raw_expr});")
 
     elif isinstance(node, Fold):
         nid = node.id
         a, lo, hi = ref(node.a), ref(node.lo), ref(node.hi)
-        w(f"        float {nid}_range = {hi} - {lo};")
-        w(f"        float {nid}_t = fmodf({a} - {lo}, 2.0f * {nid}_range);")
-        w(f"        if ({nid}_t < 0.0f) {nid}_t += 2.0f * {nid}_range;")
-        lo_branch = f"{lo} + {nid}_t"
-        hi_branch = f"{hi} - ({nid}_t - {nid}_range)"
-        w(f"        float {nid} = {nid}_t <= {nid}_range ? {lo_branch} : {hi_branch};")
+        w(f"        float _{nid}_range = {hi} - {lo};")
+        w(f"        float _{nid}_t = fmodf({a} - {lo}, 2.0f * _{nid}_range);")
+        w(f"        if (_{nid}_t < 0.0f) _{nid}_t += 2.0f * _{nid}_range;")
+        lo_branch = f"{lo} + _{nid}_t"
+        hi_branch = f"{hi} - (_{nid}_t - _{nid}_range)"
+        w(
+            f"        float {nid} = _{nid}_t <= _{nid}_range ? {lo_branch} : {hi_branch};"
+        )
 
     elif isinstance(node, Mix):
         a_r, b_r, t_r = ref(node.a), ref(node.b), ref(node.t)
@@ -421,22 +423,22 @@ def _emit_node_compute(
         if node.mode == "linear":
             w(f"        float {nid} = {a_r} + ({b_r} - {a_r}) * {t_r};")
         else:  # cosine
-            w(f"        float {nid}_f = (1.0f - cosf(3.14159265f * {t_r})) * 0.5f;")
-            w(f"        float {nid} = {a_r} + ({b_r} - {a_r}) * {nid}_f;")
+            w(f"        float _{nid}_f = (1.0f - cosf(3.14159265f * {t_r})) * 0.5f;")
+            w(f"        float {nid} = {a_r} + ({b_r} - {a_r}) * _{nid}_f;")
 
     elif isinstance(node, Delta):
         nid = node.id
         a = ref(node.a)
-        w(f"        float {nid}_cur = {a};")
-        w(f"        float {nid} = {nid}_cur - {nid}_prev;")
-        w(f"        {nid}_prev = {nid}_cur;")
+        w(f"        float _{nid}_cur = {a};")
+        w(f"        float {nid} = _{nid}_cur - _{nid}_prev;")
+        w(f"        _{nid}_prev = _{nid}_cur;")
 
     elif isinstance(node, Change):
         nid = node.id
         a = ref(node.a)
-        w(f"        float {nid}_cur = {a};")
-        w(f"        float {nid} = ({nid}_cur != {nid}_prev) ? 1.0f : 0.0f;")
-        w(f"        {nid}_prev = {nid}_cur;")
+        w(f"        float _{nid}_cur = {a};")
+        w(f"        float {nid} = (_{nid}_cur != _{nid}_prev) ? 1.0f : 0.0f;")
+        w(f"        _{nid}_prev = _{nid}_cur;")
 
     elif isinstance(node, Biquad):
         nid = node.id
@@ -446,10 +448,10 @@ def _emit_node_compute(
         b2 = ref(node.b2)
         a1 = ref(node.a1)
         a2 = ref(node.a2)
-        w(f"        float {nid}_in = {a};")
-        w(f"        float {nid} = {b0} * {nid}_in + {nid}_s1;")
-        w(f"        {nid}_s1 = {b1} * {nid}_in - {a1} * {nid} + {nid}_s2;")
-        w(f"        {nid}_s2 = {b2} * {nid}_in - {a2} * {nid};")
+        w(f"        float _{nid}_in = {a};")
+        w(f"        float {nid} = {b0} * _{nid}_in + _{nid}_s1;")
+        w(f"        _{nid}_s1 = {b1} * _{nid}_in - {a1} * {nid} + _{nid}_s2;")
+        w(f"        _{nid}_s2 = {b2} * _{nid}_in - {a2} * {nid};")
 
     elif isinstance(node, SVF):
         nid = node.id
@@ -458,136 +460,138 @@ def _emit_node_compute(
         q = ref(node.q)
         # The prewarp tangent diverges at Nyquist, so a cutoff at or above
         # sr/2 (easy to hit at low sample rates) would blow the filter up.
-        w(f"        float {nid}_fc = fminf(fmaxf({freq}, 0.0f), 0.49f * sr);")
-        w(f"        float {nid}_g = tanf(3.14159265f * {nid}_fc / sr);")
-        w(f"        float {nid}_k = 1.0f / {q};")
-        w(f"        float {nid}_a1 = 1.0f / (1.0f + {nid}_g * ({nid}_g + {nid}_k));")
-        w(f"        float {nid}_a2 = {nid}_g * {nid}_a1;")
-        w(f"        float {nid}_a3 = {nid}_g * {nid}_a2;")
-        w(f"        float {nid}_v3 = {a} - {nid}_s2;")
-        w(f"        float {nid}_v1 = {nid}_a1 * {nid}_s1 + {nid}_a2 * {nid}_v3;")
+        w(f"        float _{nid}_fc = fminf(fmaxf({freq}, 0.0f), 0.49f * sr);")
+        w(f"        float _{nid}_g = tanf(3.14159265f * _{nid}_fc / sr);")
+        w(f"        float _{nid}_k = 1.0f / {q};")
         w(
-            f"        float {nid}_v2 = {nid}_s2 + {nid}_a2 * {nid}_s1 + {nid}_a3 * {nid}_v3;"
+            f"        float _{nid}_a1 = 1.0f / (1.0f + _{nid}_g * (_{nid}_g + _{nid}_k));"
         )
-        w(f"        {nid}_s1 = 2.0f * {nid}_v1 - {nid}_s1;")
-        w(f"        {nid}_s2 = 2.0f * {nid}_v2 - {nid}_s2;")
+        w(f"        float _{nid}_a2 = _{nid}_g * _{nid}_a1;")
+        w(f"        float _{nid}_a3 = _{nid}_g * _{nid}_a2;")
+        w(f"        float _{nid}_v3 = {a} - _{nid}_s2;")
+        w(f"        float _{nid}_v1 = _{nid}_a1 * _{nid}_s1 + _{nid}_a2 * _{nid}_v3;")
+        w(
+            f"        float _{nid}_v2 = _{nid}_s2 + _{nid}_a2 * _{nid}_s1 + _{nid}_a3 * _{nid}_v3;"
+        )
+        w(f"        _{nid}_s1 = 2.0f * _{nid}_v1 - _{nid}_s1;")
+        w(f"        _{nid}_s2 = 2.0f * _{nid}_v2 - _{nid}_s2;")
         if node.mode == "lp":
-            w(f"        float {nid} = {nid}_v2;")
+            w(f"        float {nid} = _{nid}_v2;")
         elif node.mode == "hp":
-            w(f"        float {nid} = {a} - {nid}_k * {nid}_v1 - {nid}_v2;")
+            w(f"        float {nid} = {a} - _{nid}_k * _{nid}_v1 - _{nid}_v2;")
         elif node.mode == "bp":
-            w(f"        float {nid} = {nid}_v1;")
+            w(f"        float {nid} = _{nid}_v1;")
         elif node.mode == "notch":
-            w(f"        float {nid} = {a} - {nid}_k * {nid}_v1;")
+            w(f"        float {nid} = {a} - _{nid}_k * _{nid}_v1;")
 
     elif isinstance(node, OnePole):
         nid = node.id
         a = ref(node.a)
         c = ref(node.coeff)
-        w(f"        float {nid} = {c} * {a} + (1.0f - {c}) * {nid}_prev;")
-        w(f"        {nid}_prev = {nid};")
+        w(f"        float {nid} = {c} * {a} + (1.0f - {c}) * _{nid}_prev;")
+        w(f"        _{nid}_prev = {nid};")
 
     elif isinstance(node, DCBlock):
         nid = node.id
         a = ref(node.a)
-        w(f"        float {nid}_x = {a};")
-        w(f"        float {nid} = {nid}_x - {nid}_xprev + 0.995f * {nid}_yprev;")
-        w(f"        {nid}_xprev = {nid}_x;")
-        w(f"        {nid}_yprev = {nid};")
+        w(f"        float _{nid}_x = {a};")
+        w(f"        float {nid} = _{nid}_x - _{nid}_xprev + 0.995f * _{nid}_yprev;")
+        w(f"        _{nid}_xprev = _{nid}_x;")
+        w(f"        _{nid}_yprev = {nid};")
 
     elif isinstance(node, Allpass):
         nid = node.id
         a = ref(node.a)
         c = ref(node.coeff)
-        w(f"        float {nid}_x = {a};")
-        w(f"        float {nid} = {c} * ({nid}_x - {nid}_yprev) + {nid}_xprev;")
-        w(f"        {nid}_xprev = {nid}_x;")
-        w(f"        {nid}_yprev = {nid};")
+        w(f"        float _{nid}_x = {a};")
+        w(f"        float {nid} = {c} * (_{nid}_x - _{nid}_yprev) + _{nid}_xprev;")
+        w(f"        _{nid}_xprev = _{nid}_x;")
+        w(f"        _{nid}_yprev = {nid};")
 
     elif isinstance(node, SinOsc):
         nid = node.id
         freq = ref(node.freq)
-        w(f"        float {nid} = sinf(6.28318530f * {nid}_phase);")
-        w(f"        {nid}_phase += {freq} / sr;")
-        w(f"        if ({nid}_phase >= 1.0f) {nid}_phase -= 1.0f;")
+        w(f"        float {nid} = sinf(6.28318530f * _{nid}_phase);")
+        w(f"        _{nid}_phase += {freq} / sr;")
+        w(f"        if (_{nid}_phase >= 1.0f) _{nid}_phase -= 1.0f;")
 
     elif isinstance(node, TriOsc):
         nid = node.id
         freq = ref(node.freq)
-        w(f"        float {nid} = 4.0f * fabsf({nid}_phase - 0.5f) - 1.0f;")
-        w(f"        {nid}_phase += {freq} / sr;")
-        w(f"        if ({nid}_phase >= 1.0f) {nid}_phase -= 1.0f;")
+        w(f"        float {nid} = 4.0f * fabsf(_{nid}_phase - 0.5f) - 1.0f;")
+        w(f"        _{nid}_phase += {freq} / sr;")
+        w(f"        if (_{nid}_phase >= 1.0f) _{nid}_phase -= 1.0f;")
 
     elif isinstance(node, SawOsc):
         nid = node.id
         freq = ref(node.freq)
-        w(f"        float {nid} = 2.0f * {nid}_phase - 1.0f;")
-        w(f"        {nid}_phase += {freq} / sr;")
-        w(f"        if ({nid}_phase >= 1.0f) {nid}_phase -= 1.0f;")
+        w(f"        float {nid} = 2.0f * _{nid}_phase - 1.0f;")
+        w(f"        _{nid}_phase += {freq} / sr;")
+        w(f"        if (_{nid}_phase >= 1.0f) _{nid}_phase -= 1.0f;")
 
     elif isinstance(node, PulseOsc):
         nid = node.id
         freq = ref(node.freq)
         width = ref(node.width)
-        w(f"        float {nid} = {nid}_phase < {width} ? 1.0f : -1.0f;")
-        w(f"        {nid}_phase += {freq} / sr;")
-        w(f"        if ({nid}_phase >= 1.0f) {nid}_phase -= 1.0f;")
+        w(f"        float {nid} = _{nid}_phase < {width} ? 1.0f : -1.0f;")
+        w(f"        _{nid}_phase += {freq} / sr;")
+        w(f"        if (_{nid}_phase >= 1.0f) _{nid}_phase -= 1.0f;")
 
     elif isinstance(node, SampleHold):
         nid = node.id
         a = ref(node.a)
         t = ref(node.trig)
-        w(f"        float {nid}_t = {t};")
+        w(f"        float _{nid}_t = {t};")
         w(
-            f"        if (({nid}_ptrig <= 0.0f && {nid}_t > 0.0f) ||"
-            f" ({nid}_ptrig > 0.0f && {nid}_t <= 0.0f))"
+            f"        if ((_{nid}_ptrig <= 0.0f && _{nid}_t > 0.0f) ||"
+            f" (_{nid}_ptrig > 0.0f && _{nid}_t <= 0.0f))"
         )
-        w(f"            {nid}_held = {a};")
-        w(f"        {nid}_ptrig = {nid}_t;")
-        w(f"        float {nid} = {nid}_held;")
+        w(f"            _{nid}_held = {a};")
+        w(f"        _{nid}_ptrig = _{nid}_t;")
+        w(f"        float {nid} = _{nid}_held;")
 
     elif isinstance(node, Latch):
         nid = node.id
         a = ref(node.a)
         t = ref(node.trig)
-        w(f"        float {nid}_t = {t};")
-        w(f"        if ({nid}_ptrig <= 0.0f && {nid}_t > 0.0f)")
-        w(f"            {nid}_held = {a};")
-        w(f"        {nid}_ptrig = {nid}_t;")
-        w(f"        float {nid} = {nid}_held;")
+        w(f"        float _{nid}_t = {t};")
+        w(f"        if (_{nid}_ptrig <= 0.0f && _{nid}_t > 0.0f)")
+        w(f"            _{nid}_held = {a};")
+        w(f"        _{nid}_ptrig = _{nid}_t;")
+        w(f"        float {nid} = _{nid}_held;")
 
     elif isinstance(node, Accum):
         nid = node.id
         incr = ref(node.incr)
         reset = ref(node.reset)
-        w(f"        if ({reset} > 0.0f) {nid}_sum = 0.0f;")
-        w(f"        {nid}_sum += {incr};")
-        w(f"        float {nid} = {nid}_sum;")
+        w(f"        if ({reset} > 0.0f) _{nid}_sum = 0.0f;")
+        w(f"        _{nid}_sum += {incr};")
+        w(f"        float {nid} = _{nid}_sum;")
 
     elif isinstance(node, Counter):
         nid = node.id
         t = ref(node.trig)
         mx = ref(node.max)
-        w(f"        float {nid}_t = {t};")
-        w(f"        if ({nid}_ptrig <= 0.0f && {nid}_t > 0.0f) {{")
-        w(f"            {nid}_count++;")
-        w(f"            if ({nid}_count >= (int){mx}) {nid}_count = 0;")
+        w(f"        float _{nid}_t = {t};")
+        w(f"        if (_{nid}_ptrig <= 0.0f && _{nid}_t > 0.0f) {{")
+        w(f"            _{nid}_count++;")
+        w(f"            if (_{nid}_count >= (int){mx}) _{nid}_count = 0;")
         w("        }")
-        w(f"        {nid}_ptrig = {nid}_t;")
-        w(f"        float {nid} = (float){nid}_count;")
+        w(f"        _{nid}_ptrig = _{nid}_t;")
+        w(f"        float {nid} = (float)_{nid}_count;")
 
     elif isinstance(node, Elapsed):
         nid = node.id
-        w(f"        float {nid} = (float){nid}_count;")
-        w(f"        {nid}_count++;")
+        w(f"        float {nid} = (float)_{nid}_count;")
+        w(f"        _{nid}_count++;")
 
     elif isinstance(node, MulAccum):
         nid = node.id
         incr = ref(node.incr)
         reset = ref(node.reset)
-        w(f"        if ({reset} > 0.0f) {nid}_prod = 1.0f;")
-        w(f"        {nid}_prod *= {incr};")
-        w(f"        float {nid} = {nid}_prod;")
+        w(f"        if ({reset} > 0.0f) _{nid}_prod = 1.0f;")
+        w(f"        _{nid}_prod *= {incr};")
+        w(f"        float {nid} = _{nid}_prod;")
 
     elif isinstance(node, Buffer):
         # State-only node, no per-sample computation
@@ -598,15 +602,15 @@ def _emit_node_compute(
         buf = node.buffer
         idx = ref(node.index)
         if node.interp == "none":
-            w(f"        int {nid}_idx = (int)({idx});")
-            w(f"        if ({nid}_idx < 0) {nid}_idx = 0;")
-            w(f"        if ({nid}_idx >= {buf}_len) {nid}_idx = {buf}_len - 1;")
-            w(f"        float {nid} = {buf}_buf[{nid}_idx];")
+            w(f"        int _{nid}_idx = (int)({idx});")
+            w(f"        if (_{nid}_idx < 0) _{nid}_idx = 0;")
+            w(f"        if (_{nid}_idx >= _{buf}_len) _{nid}_idx = _{buf}_len - 1;")
+            w(f"        float {nid} = _{buf}_buf[_{nid}_idx];")
         elif node.interp == "nearest":
-            w(f"        int {nid}_idx = (int)floorf({idx} + 0.5f);")
-            w(f"        if ({nid}_idx < 0) {nid}_idx = 0;")
-            w(f"        if ({nid}_idx >= {buf}_len) {nid}_idx = {buf}_len - 1;")
-            w(f"        float {nid} = {buf}_buf[{nid}_idx];")
+            w(f"        int _{nid}_idx = (int)floorf({idx} + 0.5f);")
+            w(f"        if (_{nid}_idx < 0) _{nid}_idx = 0;")
+            w(f"        if (_{nid}_idx >= _{buf}_len) _{nid}_idx = _{buf}_len - 1;")
+            w(f"        float {nid} = _{buf}_buf[_{nid}_idx];")
         elif node.interp == "linear":
             _emit_buf_interp_linear(nid, buf, idx, w)
         elif node.interp == "cubic":
@@ -617,18 +621,18 @@ def _emit_node_compute(
         buf = node.buffer
         idx = ref(node.index)
         val = ref(node.value)
-        w(f"        int {nid}_idx = (int)({idx});")
-        w(f"        if ({nid}_idx >= 0 && {nid}_idx < {buf}_len)")
-        w(f"            {buf}_buf[{nid}_idx] = {val};")
+        w(f"        int _{nid}_idx = (int)({idx});")
+        w(f"        if (_{nid}_idx >= 0 && _{nid}_idx < _{buf}_len)")
+        w(f"            _{buf}_buf[_{nid}_idx] = {val};")
 
     elif isinstance(node, Splat):
         nid = node.id
         buf = node.buffer
         idx = ref(node.index)
         val = ref(node.value)
-        w(f"        int {nid}_idx = (int)({idx});")
-        w(f"        if ({nid}_idx >= 0 && {nid}_idx < {buf}_len)")
-        w(f"            {buf}_buf[{nid}_idx] += {val};")
+        w(f"        int _{nid}_idx = (int)({idx});")
+        w(f"        if (_{nid}_idx >= 0 && _{nid}_idx < _{buf}_len)")
+        w(f"            _{buf}_buf[_{nid}_idx] += {val};")
 
     elif isinstance(node, BufSize):
         w(f"        float {node.id} = (float)self->m_{node.buffer}_len;")
@@ -638,14 +642,14 @@ def _emit_node_compute(
         buf = node.buffer
         phase = ref(node.phase)
         # phase [0,1) wraps, linear interpolation
-        w(f"        float {nid}_p = {phase} - floorf({phase});")
-        w(f"        float {nid}_fidx = {nid}_p * (float){buf}_len;")
-        w(f"        int {nid}_i0 = (int){nid}_fidx;")
-        w(f"        float {nid}_frac = {nid}_fidx - (float){nid}_i0;")
-        w(f"        int {nid}_i1 = ({nid}_i0 + 1) % {buf}_len;")
-        w(f"        {nid}_i0 = {nid}_i0 % {buf}_len;")
+        w(f"        float _{nid}_p = {phase} - floorf({phase});")
+        w(f"        float _{nid}_fidx = _{nid}_p * (float)_{buf}_len;")
+        w(f"        int _{nid}_i0 = (int)_{nid}_fidx;")
+        w(f"        float _{nid}_frac = _{nid}_fidx - (float)_{nid}_i0;")
+        w(f"        int _{nid}_i1 = (_{nid}_i0 + 1) % _{buf}_len;")
+        w(f"        _{nid}_i0 = _{nid}_i0 % _{buf}_len;")
         w(
-            f"        float {nid} = {buf}_buf[{nid}_i0] + {nid}_frac * ({buf}_buf[{nid}_i1] - {buf}_buf[{nid}_i0]);"
+            f"        float {nid} = _{buf}_buf[_{nid}_i0] + _{nid}_frac * (_{buf}_buf[_{nid}_i1] - _{buf}_buf[_{nid}_i0]);"
         )
 
     elif isinstance(node, Wave):
@@ -653,18 +657,18 @@ def _emit_node_compute(
         buf = node.buffer
         phase = ref(node.phase)
         # phase [-1,1] maps to [0, len), clamped
-        w(f"        float {nid}_norm = ({phase} + 1.0f) * 0.5f;")
-        w(f"        float {nid}_fidx = {nid}_norm * (float)({buf}_len - 1);")
-        w(f"        if ({nid}_fidx < 0.0f) {nid}_fidx = 0.0f;")
+        w(f"        float _{nid}_norm = ({phase} + 1.0f) * 0.5f;")
+        w(f"        float _{nid}_fidx = _{nid}_norm * (float)(_{buf}_len - 1);")
+        w(f"        if (_{nid}_fidx < 0.0f) _{nid}_fidx = 0.0f;")
         w(
-            f"        if ({nid}_fidx > (float)({buf}_len - 1)) {nid}_fidx = (float)({buf}_len - 1);"
+            f"        if (_{nid}_fidx > (float)(_{buf}_len - 1)) _{nid}_fidx = (float)(_{buf}_len - 1);"
         )
-        w(f"        int {nid}_i0 = (int){nid}_fidx;")
-        w(f"        float {nid}_frac = {nid}_fidx - (float){nid}_i0;")
-        w(f"        int {nid}_i1 = {nid}_i0 + 1;")
-        w(f"        if ({nid}_i1 >= {buf}_len) {nid}_i1 = {buf}_len - 1;")
+        w(f"        int _{nid}_i0 = (int)_{nid}_fidx;")
+        w(f"        float _{nid}_frac = _{nid}_fidx - (float)_{nid}_i0;")
+        w(f"        int _{nid}_i1 = _{nid}_i0 + 1;")
+        w(f"        if (_{nid}_i1 >= _{buf}_len) _{nid}_i1 = _{buf}_len - 1;")
         w(
-            f"        float {nid} = {buf}_buf[{nid}_i0] + {nid}_frac * ({buf}_buf[{nid}_i1] - {buf}_buf[{nid}_i0]);"
+            f"        float {nid} = _{buf}_buf[_{nid}_i0] + _{nid}_frac * (_{buf}_buf[_{nid}_i1] - _{buf}_buf[_{nid}_i0]);"
         )
 
     elif isinstance(node, Lookup):
@@ -672,26 +676,26 @@ def _emit_node_compute(
         buf = node.buffer
         idx = ref(node.index)
         # index [0,1] clamped, linear interpolation
-        w(f"        float {nid}_ci = {idx};")
-        w(f"        if ({nid}_ci < 0.0f) {nid}_ci = 0.0f;")
-        w(f"        if ({nid}_ci > 1.0f) {nid}_ci = 1.0f;")
-        w(f"        float {nid}_fidx = {nid}_ci * (float)({buf}_len - 1);")
-        w(f"        int {nid}_i0 = (int){nid}_fidx;")
-        w(f"        float {nid}_frac = {nid}_fidx - (float){nid}_i0;")
-        w(f"        int {nid}_i1 = {nid}_i0 + 1;")
-        w(f"        if ({nid}_i1 >= {buf}_len) {nid}_i1 = {buf}_len - 1;")
+        w(f"        float _{nid}_ci = {idx};")
+        w(f"        if (_{nid}_ci < 0.0f) _{nid}_ci = 0.0f;")
+        w(f"        if (_{nid}_ci > 1.0f) _{nid}_ci = 1.0f;")
+        w(f"        float _{nid}_fidx = _{nid}_ci * (float)(_{buf}_len - 1);")
+        w(f"        int _{nid}_i0 = (int)_{nid}_fidx;")
+        w(f"        float _{nid}_frac = _{nid}_fidx - (float)_{nid}_i0;")
+        w(f"        int _{nid}_i1 = _{nid}_i0 + 1;")
+        w(f"        if (_{nid}_i1 >= _{buf}_len) _{nid}_i1 = _{buf}_len - 1;")
         w(
-            f"        float {nid} = {buf}_buf[{nid}_i0] + {nid}_frac * ({buf}_buf[{nid}_i1] - {buf}_buf[{nid}_i0]);"
+            f"        float {nid} = _{buf}_buf[_{nid}_i0] + _{nid}_frac * (_{buf}_buf[_{nid}_i1] - _{buf}_buf[_{nid}_i0]);"
         )
 
     elif isinstance(node, RateDiv):
         nid = node.id
         a = ref(node.a)
         divisor = ref(node.divisor)
-        w(f"        if ({nid}_count == 0) {nid}_held = {a};")
-        w(f"        {nid}_count++;")
-        w(f"        if ({nid}_count >= (int){divisor}) {nid}_count = 0;")
-        w(f"        float {nid} = {nid}_held;")
+        w(f"        if (_{nid}_count == 0) _{nid}_held = {a};")
+        w(f"        _{nid}_count++;")
+        w(f"        if (_{nid}_count >= (int){divisor}) _{nid}_count = 0;")
+        w(f"        float {nid} = _{nid}_held;")
 
     elif isinstance(node, Scale):
         nid = node.id
@@ -700,30 +704,30 @@ def _emit_node_compute(
         in_hi = ref(node.in_hi)
         out_lo = ref(node.out_lo)
         out_hi = ref(node.out_hi)
-        w(f"        float {nid}_in_range = {in_hi} - {in_lo};")
-        w(f"        float {nid}_out_range = {out_hi} - {out_lo};")
+        w(f"        float _{nid}_inrange = {in_hi} - {in_lo};")
+        w(f"        float _{nid}_outrange = {out_hi} - {out_lo};")
         w(
-            f"        float {nid} = {out_lo} + ({a} - {in_lo}) / {nid}_in_range * {nid}_out_range;"
+            f"        float {nid} = {out_lo} + ({a} - {in_lo}) / _{nid}_inrange * _{nid}_outrange;"
         )
 
     elif isinstance(node, SmoothParam):
         nid = node.id
         a = ref(node.a)
         c = ref(node.coeff)
-        w(f"        float {nid} = (1.0f - {c}) * {a} + {c} * {nid}_prev;")
-        w(f"        {nid}_prev = {nid};")
+        w(f"        float {nid} = (1.0f - {c}) * {a} + {c} * _{nid}_prev;")
+        w(f"        _{nid}_prev = {nid};")
 
     elif isinstance(node, Slide):
         nid = node.id
         a = ref(node.a)
         up = ref(node.up)
         down = ref(node.down)
-        w(f"        float {nid}_x = {a};")
-        w(f"        float {nid}_s = ({nid}_x > {nid}_prev) ? {up} : {down};")
+        w(f"        float _{nid}_x = {a};")
+        w(f"        float _{nid}_s = (_{nid}_x > _{nid}_prev) ? {up} : {down};")
         w(
-            f"        float {nid} = {nid}_prev + ({nid}_x - {nid}_prev) / (({nid}_s > 1.0f) ? {nid}_s : 1.0f);"
+            f"        float {nid} = _{nid}_prev + (_{nid}_x - _{nid}_prev) / ((_{nid}_s > 1.0f) ? _{nid}_s : 1.0f);"
         )
-        w(f"        {nid}_prev = {nid};")
+        w(f"        _{nid}_prev = {nid};")
 
     elif isinstance(node, ADSR):
         nid = node.id
@@ -733,56 +737,60 @@ def _emit_node_compute(
         sustain = ref(node.sustain)
         release = ref(node.release)
         w(f"        {{ // ADSR {nid}")
-        w(f"            float {nid}_gate = {gate};")
-        w(f"            float {nid}_sus = {sustain};")
+        w(f"            float _{nid}_gate = {gate};")
+        w(f"            float _{nid}_sus = {sustain};")
         # Edge detection: gate on
-        w(f"            if ({nid}_gate > 0.0f && {nid}_ptrig <= 0.0f) {nid}_phase = 1;")
-        # Edge detection: gate off
-        w(f"            if ({nid}_gate <= 0.0f && {nid}_ptrig > 0.0f) {nid}_phase = 4;")
-        w(f"            {nid}_ptrig = {nid}_gate;")
-        # Attack phase
-        w(f"            if ({nid}_phase == 1) {{")
-        w(f"                float {nid}_a_ms = {attack};")
         w(
-            f"                float {nid}_a_samps = fmaxf({nid}_a_ms * sr * 0.001f, 1.0f);"
+            f"            if (_{nid}_gate > 0.0f && _{nid}_ptrig <= 0.0f) _{nid}_phase = 1;"
         )
-        w(f"                {nid}_output += 1.0f / {nid}_a_samps;")
+        # Edge detection: gate off
         w(
-            f"                if ({nid}_output >= 1.0f) {{ {nid}_output = 1.0f; {nid}_phase = 2; }}"
+            f"            if (_{nid}_gate <= 0.0f && _{nid}_ptrig > 0.0f) _{nid}_phase = 4;"
+        )
+        w(f"            _{nid}_ptrig = _{nid}_gate;")
+        # Attack phase
+        w(f"            if (_{nid}_phase == 1) {{")
+        w(f"                float _{nid}_ams = {attack};")
+        w(
+            f"                float _{nid}_asamps = fmaxf(_{nid}_ams * sr * 0.001f, 1.0f);"
+        )
+        w(f"                _{nid}_output += 1.0f / _{nid}_asamps;")
+        w(
+            f"                if (_{nid}_output >= 1.0f) {{ _{nid}_output = 1.0f; _{nid}_phase = 2; }}"
         )
         w("            }")
         # Decay phase
-        w(f"            if ({nid}_phase == 2) {{")
-        w(f"                float {nid}_d_ms = {decay};")
+        w(f"            if (_{nid}_phase == 2) {{")
+        w(f"                float _{nid}_dms = {decay};")
         w(
-            f"                float {nid}_d_samps = fmaxf({nid}_d_ms * sr * 0.001f, 1.0f);"
+            f"                float _{nid}_dsamps = fmaxf(_{nid}_dms * sr * 0.001f, 1.0f);"
         )
-        w(f"                {nid}_output -= (1.0f - {nid}_sus) / {nid}_d_samps;")
+        w(f"                _{nid}_output -= (1.0f - _{nid}_sus) / _{nid}_dsamps;")
         w(
-            f"                if ({nid}_output <= {nid}_sus) {{ {nid}_output = {nid}_sus; {nid}_phase = 3; }}"
+            f"                if (_{nid}_output <= _{nid}_sus) {{ _{nid}_output = _{nid}_sus; _{nid}_phase = 3; }}"
         )
         w("            }")
         # Sustain phase
-        w(f"            if ({nid}_phase == 3) {nid}_output = {nid}_sus;")
+        w(f"            if (_{nid}_phase == 3) _{nid}_output = _{nid}_sus;")
         # Release phase
-        w(f"            if ({nid}_phase == 4) {{")
-        w(f"                float {nid}_r_ms = {release};")
+        w(f"            if (_{nid}_phase == 4) {{")
+        w(f"                float _{nid}_rms = {release};")
         w(
-            f"                float {nid}_r_samps = fmaxf({nid}_r_ms * sr * 0.001f, 1.0f);"
+            f"                float _{nid}_rsamps = fmaxf(_{nid}_rms * sr * 0.001f, 1.0f);"
         )
-        w(f"                {nid}_output -= 1.0f / {nid}_r_samps;")
+        w(f"                _{nid}_output -= 1.0f / _{nid}_rsamps;")
         w(
-            f"                if ({nid}_output <= 0.0f) {{ {nid}_output = 0.0f; {nid}_phase = 0; }}"
+            f"                if (_{nid}_output <= 0.0f) {{ _{nid}_output = 0.0f; _{nid}_phase = 0; }}"
         )
         w("            }")
         w("        }")
-        w(f"        float {nid} = {nid}_output;")
+        w(f"        float {nid} = _{nid}_output;")
 
     elif isinstance(node, Peek):
         nid = node.id
         a = ref(node.a)
         w(f"        float {nid} = {a};")
-        w(f"        {nid}_value = {nid};")
+        w(f"        _{nid}_value = {nid};")
 
     elif isinstance(node, Pass):
         w(f"        float {node.id} = {ref(node.a)};")
@@ -802,36 +810,38 @@ def _emit_node_compute(
         e0 = ref(node.edge0)
         e1 = ref(node.edge1)
         w(
-            f"        float {nid}_t = fminf(fmaxf(({a} - {e0}) / ({e1} - {e0}), 0.0f), 1.0f);"
+            f"        float _{nid}_t = fminf(fmaxf(({a} - {e0}) / ({e1} - {e0}), 0.0f), 1.0f);"
         )
-        w(f"        float {nid} = {nid}_t * {nid}_t * (3.0f - 2.0f * {nid}_t);")
+        w(f"        float {nid} = _{nid}_t * _{nid}_t * (3.0f - 2.0f * _{nid}_t);")
 
     elif isinstance(node, GateRoute):
         nid = node.id
         idx = ref(node.index)
         a = ref(node.a)
-        w(f"        int {nid}_idx = (int)({idx});")
-        w(f"        if ({nid}_idx < 0) {nid}_idx = 0;")
-        w(f"        if ({nid}_idx > {node.count}) {nid}_idx = {node.count};")
-        w(f"        float {nid}_val = {a};")
+        w(f"        int _{nid}_idx = (int)({idx});")
+        w(f"        if (_{nid}_idx < 0) _{nid}_idx = 0;")
+        w(f"        if (_{nid}_idx > {node.count}) _{nid}_idx = {node.count};")
+        w(f"        float _{nid}_val = {a};")
 
     elif isinstance(node, GateOut):
         nid = node.id
         gate = node.gate
-        w(f"        float {nid} = ({gate}_idx == {node.channel}) ? {gate}_val : 0.0f;")
+        w(
+            f"        float {nid} = (_{gate}_idx == {node.channel}) ? _{gate}_val : 0.0f;"
+        )
 
     elif isinstance(node, Selector):
         nid = node.id
         idx = ref(node.index)
         n = len(node.inputs)
-        w(f"        int {nid}_idx = (int)({idx});")
-        w(f"        if ({nid}_idx < 0) {nid}_idx = 0;")
-        w(f"        if ({nid}_idx > {n}) {nid}_idx = {n};")
+        w(f"        int _{nid}_idx = (int)({idx});")
+        w(f"        if (_{nid}_idx < 0) _{nid}_idx = 0;")
+        w(f"        if (_{nid}_idx > {n}) _{nid}_idx = {n};")
         # Build cascading ternary
         expr = "0.0f"
         for i in range(n, 0, -1):
             input_ref = ref(node.inputs[i - 1])
-            expr = f"{nid}_idx == {i} ? {input_ref} : {expr}"
+            expr = f"_{nid}_idx == {i} ? {input_ref} : {expr}"
         w(f"        float {nid} = {expr};")
 
 
@@ -842,46 +852,46 @@ def _emit_node_compute(
 
 def _wrap_idx(expr: str, dl: str) -> str:
     """Wrap a delay index expression with positive modulo."""
-    return f"(({expr}) % {dl}_len + {dl}_len) % {dl}_len"
+    return f"(({expr}) % _{dl}_len + _{dl}_len) % _{dl}_len"
 
 
 def _emit_interp_linear(nid: str, dl: str, tap: str, w: _Writer) -> None:
-    w(f"        float {nid}_ftap = {tap};")
-    w(f"        int {nid}_itap = (int){nid}_ftap;")
-    w(f"        float {nid}_frac = {nid}_ftap - (float){nid}_itap;")
-    i0 = _wrap_idx(f"{dl}_wr - {nid}_itap", dl)
-    i1 = _wrap_idx(f"{dl}_wr - {nid}_itap - 1", dl)
-    w(f"        int {nid}_i0 = {i0};")
-    w(f"        int {nid}_i1 = {i1};")
-    s0 = f"{dl}_buf[{nid}_i0]"
-    s1 = f"{dl}_buf[{nid}_i1]"
-    w(f"        float {nid} = {s0} + {nid}_frac * ({s1} - {s0});")
+    w(f"        float _{nid}_ftap = {tap};")
+    w(f"        int _{nid}_itap = (int)_{nid}_ftap;")
+    w(f"        float _{nid}_frac = _{nid}_ftap - (float)_{nid}_itap;")
+    i0 = _wrap_idx(f"_{dl}_wr - _{nid}_itap", dl)
+    i1 = _wrap_idx(f"_{dl}_wr - _{nid}_itap - 1", dl)
+    w(f"        int _{nid}_i0 = {i0};")
+    w(f"        int _{nid}_i1 = {i1};")
+    s0 = f"_{dl}_buf[_{nid}_i0]"
+    s1 = f"_{dl}_buf[_{nid}_i1]"
+    w(f"        float {nid} = {s0} + _{nid}_frac * ({s1} - {s0});")
 
 
 def _emit_interp_cubic(nid: str, dl: str, tap: str, w: _Writer) -> None:
-    w(f"        float {nid}_ftap = {tap};")
-    w(f"        int {nid}_itap = (int){nid}_ftap;")
-    w(f"        float {nid}_frac = {nid}_ftap - (float){nid}_itap;")
-    i0 = _wrap_idx(f"{dl}_wr - {nid}_itap", dl)
-    w(f"        int {nid}_i0 = {i0};")
-    w(f"        int {nid}_im1 = ({nid}_i0 + 1) % {dl}_len;")
-    i1 = _wrap_idx(f"{dl}_wr - {nid}_itap - 1", dl)
-    i2 = _wrap_idx(f"{dl}_wr - {nid}_itap - 2", dl)
-    w(f"        int {nid}_i1 = {i1};")
-    w(f"        int {nid}_i2 = {i2};")
-    w(f"        float {nid}_ym1 = {dl}_buf[{nid}_im1];")
-    w(f"        float {nid}_y0 = {dl}_buf[{nid}_i0];")
-    w(f"        float {nid}_y1 = {dl}_buf[{nid}_i1];")
-    w(f"        float {nid}_y2 = {dl}_buf[{nid}_i2];")
-    w(f"        float {nid}_c0 = {nid}_y0;")
-    w(f"        float {nid}_c1 = 0.5f * ({nid}_y1 - {nid}_ym1);")
-    c2a = f"{nid}_ym1 - 2.5f * {nid}_y0"
-    c2b = f"2.0f * {nid}_y1 - 0.5f * {nid}_y2"
-    w(f"        float {nid}_c2 = {c2a} + {c2b};")
-    c3a = f"0.5f * ({nid}_y2 - {nid}_ym1)"
-    c3b = f"1.5f * ({nid}_y0 - {nid}_y1)"
-    w(f"        float {nid}_c3 = {c3a} + {c3b};")
-    horner = f"(({nid}_c3 * {nid}_frac + {nid}_c2) * {nid}_frac + {nid}_c1) * {nid}_frac + {nid}_c0"
+    w(f"        float _{nid}_ftap = {tap};")
+    w(f"        int _{nid}_itap = (int)_{nid}_ftap;")
+    w(f"        float _{nid}_frac = _{nid}_ftap - (float)_{nid}_itap;")
+    i0 = _wrap_idx(f"_{dl}_wr - _{nid}_itap", dl)
+    w(f"        int _{nid}_i0 = {i0};")
+    w(f"        int _{nid}_im1 = (_{nid}_i0 + 1) % _{dl}_len;")
+    i1 = _wrap_idx(f"_{dl}_wr - _{nid}_itap - 1", dl)
+    i2 = _wrap_idx(f"_{dl}_wr - _{nid}_itap - 2", dl)
+    w(f"        int _{nid}_i1 = {i1};")
+    w(f"        int _{nid}_i2 = {i2};")
+    w(f"        float _{nid}_ym1 = _{dl}_buf[_{nid}_im1];")
+    w(f"        float _{nid}_y0 = _{dl}_buf[_{nid}_i0];")
+    w(f"        float _{nid}_y1 = _{dl}_buf[_{nid}_i1];")
+    w(f"        float _{nid}_y2 = _{dl}_buf[_{nid}_i2];")
+    w(f"        float _{nid}_c0 = _{nid}_y0;")
+    w(f"        float _{nid}_c1 = 0.5f * (_{nid}_y1 - _{nid}_ym1);")
+    c2a = f"_{nid}_ym1 - 2.5f * _{nid}_y0"
+    c2b = f"2.0f * _{nid}_y1 - 0.5f * _{nid}_y2"
+    w(f"        float _{nid}_c2 = {c2a} + {c2b};")
+    c3a = f"0.5f * (_{nid}_y2 - _{nid}_ym1)"
+    c3b = f"1.5f * (_{nid}_y0 - _{nid}_y1)"
+    w(f"        float _{nid}_c3 = {c3a} + {c3b};")
+    horner = f"((_{nid}_c3 * _{nid}_frac + _{nid}_c2) * _{nid}_frac + _{nid}_c1) * _{nid}_frac + _{nid}_c0"
     w(f"        float {nid} = {horner};")
 
 
@@ -892,45 +902,45 @@ def _emit_interp_cubic(nid: str, dl: str, tap: str, w: _Writer) -> None:
 
 def _clamp_buf_idx(nid: str, suffix: str, buf: str, w: _Writer) -> None:
     """Emit clamping for a buffer index variable to [0, buf_len-1]."""
-    var = f"{nid}_{suffix}"
+    var = f"_{nid}_{suffix}"
     w(f"        if ({var} < 0) {var} = 0;")
-    w(f"        if ({var} >= {buf}_len) {var} = {buf}_len - 1;")
+    w(f"        if ({var} >= _{buf}_len) {var} = _{buf}_len - 1;")
 
 
 def _emit_buf_interp_linear(nid: str, buf: str, idx: str, w: _Writer) -> None:
-    w(f"        float {nid}_fidx = {idx};")
-    w(f"        int {nid}_i0 = (int){nid}_fidx;")
-    w(f"        float {nid}_frac = {nid}_fidx - (float){nid}_i0;")
-    w(f"        int {nid}_i1 = {nid}_i0 + 1;")
+    w(f"        float _{nid}_fidx = {idx};")
+    w(f"        int _{nid}_i0 = (int)_{nid}_fidx;")
+    w(f"        float _{nid}_frac = _{nid}_fidx - (float)_{nid}_i0;")
+    w(f"        int _{nid}_i1 = _{nid}_i0 + 1;")
     _clamp_buf_idx(nid, "i0", buf, w)
     _clamp_buf_idx(nid, "i1", buf, w)
-    w(f"        float {nid}_s0 = {buf}_buf[{nid}_i0];")
-    w(f"        float {nid}_s1 = {buf}_buf[{nid}_i1];")
-    w(f"        float {nid} = {nid}_s0 + {nid}_frac * ({nid}_s1 - {nid}_s0);")
+    w(f"        float _{nid}_s0 = _{buf}_buf[_{nid}_i0];")
+    w(f"        float _{nid}_s1 = _{buf}_buf[_{nid}_i1];")
+    w(f"        float {nid} = _{nid}_s0 + _{nid}_frac * (_{nid}_s1 - _{nid}_s0);")
 
 
 def _emit_buf_interp_cubic(nid: str, buf: str, idx: str, w: _Writer) -> None:
-    w(f"        float {nid}_fidx = {idx};")
-    w(f"        int {nid}_i0 = (int){nid}_fidx;")
-    w(f"        float {nid}_frac = {nid}_fidx - (float){nid}_i0;")
-    w(f"        int {nid}_im1 = {nid}_i0 - 1;")
-    w(f"        int {nid}_i1 = {nid}_i0 + 1;")
-    w(f"        int {nid}_i2 = {nid}_i0 + 2;")
+    w(f"        float _{nid}_fidx = {idx};")
+    w(f"        int _{nid}_i0 = (int)_{nid}_fidx;")
+    w(f"        float _{nid}_frac = _{nid}_fidx - (float)_{nid}_i0;")
+    w(f"        int _{nid}_im1 = _{nid}_i0 - 1;")
+    w(f"        int _{nid}_i1 = _{nid}_i0 + 1;")
+    w(f"        int _{nid}_i2 = _{nid}_i0 + 2;")
     _clamp_buf_idx(nid, "im1", buf, w)
     _clamp_buf_idx(nid, "i0", buf, w)
     _clamp_buf_idx(nid, "i1", buf, w)
     _clamp_buf_idx(nid, "i2", buf, w)
-    w(f"        float {nid}_ym1 = {buf}_buf[{nid}_im1];")
-    w(f"        float {nid}_y0 = {buf}_buf[{nid}_i0];")
-    w(f"        float {nid}_y1 = {buf}_buf[{nid}_i1];")
-    w(f"        float {nid}_y2 = {buf}_buf[{nid}_i2];")
-    w(f"        float {nid}_c0 = {nid}_y0;")
-    w(f"        float {nid}_c1 = 0.5f * ({nid}_y1 - {nid}_ym1);")
-    c2a = f"{nid}_ym1 - 2.5f * {nid}_y0"
-    c2b = f"2.0f * {nid}_y1 - 0.5f * {nid}_y2"
-    w(f"        float {nid}_c2 = {c2a} + {c2b};")
-    c3a = f"0.5f * ({nid}_y2 - {nid}_ym1)"
-    c3b = f"1.5f * ({nid}_y0 - {nid}_y1)"
-    w(f"        float {nid}_c3 = {c3a} + {c3b};")
-    horner = f"(({nid}_c3 * {nid}_frac + {nid}_c2) * {nid}_frac + {nid}_c1) * {nid}_frac + {nid}_c0"
+    w(f"        float _{nid}_ym1 = _{buf}_buf[_{nid}_im1];")
+    w(f"        float _{nid}_y0 = _{buf}_buf[_{nid}_i0];")
+    w(f"        float _{nid}_y1 = _{buf}_buf[_{nid}_i1];")
+    w(f"        float _{nid}_y2 = _{buf}_buf[_{nid}_i2];")
+    w(f"        float _{nid}_c0 = _{nid}_y0;")
+    w(f"        float _{nid}_c1 = 0.5f * (_{nid}_y1 - _{nid}_ym1);")
+    c2a = f"_{nid}_ym1 - 2.5f * _{nid}_y0"
+    c2b = f"2.0f * _{nid}_y1 - 0.5f * _{nid}_y2"
+    w(f"        float _{nid}_c2 = {c2a} + {c2b};")
+    c3a = f"0.5f * (_{nid}_y2 - _{nid}_ym1)"
+    c3b = f"1.5f * (_{nid}_y0 - _{nid}_y1)"
+    w(f"        float _{nid}_c3 = {c3a} + {c3b};")
+    horner = f"((_{nid}_c3 * _{nid}_frac + _{nid}_c2) * _{nid}_frac + _{nid}_c1) * _{nid}_frac + _{nid}_c0"
     w(f"        float {nid} = {horner};")

@@ -1,9 +1,13 @@
 """Tests for platform registry and platform implementations."""
 
+import subprocess
+
 import pytest
 
+import gen_dsp.platforms.max as max_module
 from gen_dsp.core.parser import GenExportParser
 from gen_dsp.core.project import ProjectConfig, ProjectGenerator
+from gen_dsp.errors import BuildError
 from gen_dsp.platforms import (
     PLATFORM_REGISTRY,
     MaxPlatform,
@@ -141,6 +145,31 @@ class TestMaxPlatform:
         instructions = platform.get_build_instructions()
         assert any("cmake" in instr for instr in instructions)
         assert any("max-sdk-base" in instr for instr in instructions)
+
+    def test_setup_sdk_reports_git_stderr(self, monkeypatch, tmp_path):
+        """A failed clone surfaces git's own error, not a guess about git."""
+        stderr = (
+            "fatal: unable to access 'https://github.com/...': Could not resolve host"
+        )
+        monkeypatch.setattr(
+            max_module.subprocess,
+            "run",
+            lambda cmd, **kw: subprocess.CompletedProcess(cmd, 128, "", stderr),
+        )
+        with pytest.raises(BuildError, match="exited 128") as exc:
+            MaxPlatform().setup_sdk(tmp_path)
+        assert stderr in str(exc.value)
+        assert "git clone https://github.com/Cycling74/max-sdk-base.git" in str(
+            exc.value
+        )
+
+    def test_setup_sdk_reports_missing_git(self, monkeypatch, tmp_path):
+        def run(cmd, **kw):
+            raise FileNotFoundError("git")
+
+        monkeypatch.setattr(max_module.subprocess, "run", run)
+        with pytest.raises(BuildError, match="git not found"):
+            MaxPlatform().setup_sdk(tmp_path)
 
 
 # Map platform keys to the build system file they generate.

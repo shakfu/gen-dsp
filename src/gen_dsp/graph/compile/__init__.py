@@ -31,6 +31,7 @@ from gen_dsp.graph.models import (
     Node,
     Param,
     Peek,
+    SampleRate,
 )
 from gen_dsp.graph.optimize import _STATEFUL_TYPES
 from gen_dsp.graph.subgraph import expand_subgraphs
@@ -38,6 +39,14 @@ from gen_dsp.graph.toposort import toposort
 from gen_dsp.graph.validate import validate_graph
 
 Lang = Literal["cpp", "c"]
+
+# Locals of perform(); an ID with one of these names would shadow it.
+_PERFORM_LOCALS = frozenset({"self", "ins", "outs", "n", "sr", "i"})
+
+# Compiler helper locals are "_<id>_<suffix>" with a letter in the last segment.
+# Generated node IDs ("_add_0", "_sum_0_1") end in digits, so only those may
+# start with "_".
+_GENERATED_ID_RE = re.compile(r"^_\w*_\d+$")
 
 # Standard headers per output language; the generated bodies are common C/C++.
 _INCLUDES: dict[str, tuple[str, ...]] = {
@@ -50,7 +59,7 @@ def compile_graph(graph: Graph, lang: Lang = "cpp") -> str:
     """Compile a DSP graph to standalone C++ (``lang="cpp"``) or C99 (``lang="c"``) source.
 
     Raises ValueError if the graph is invalid, contains IDs that are
-    not valid C identifiers, or lang is unknown.
+    not valid C identifiers or are reserved, or lang is unknown.
     """
     if lang not in _INCLUDES:
         raise ValueError(f"Unknown lang {lang!r}; expected 'cpp' or 'c'")
@@ -65,12 +74,23 @@ def compile_graph(graph: Graph, lang: Lang = "cpp") -> str:
     all_ids.extend(inp.id for inp in graph.inputs)
     all_ids.extend(out.id for out in graph.outputs)
     all_ids.extend(p.name for p in graph.params)
-    all_ids.extend(node.id for node in graph.nodes)
+    # A SampleRate node named "sr" aliases perform()'s own `sr` local.
+    all_ids.extend(
+        node.id
+        for node in graph.nodes
+        if not (isinstance(node, SampleRate) and node.id == "sr")
+    )
     for ident in all_ids:
         if not _C_ID_RE.match(ident):
             raise ValueError(f"ID '{ident}' is not a valid C identifier")
         if is_reserved_word(ident):
             raise ValueError(f"ID '{ident}' is a C/C++ reserved word")
+        if ident in _PERFORM_LOCALS:
+            raise ValueError(f"ID '{ident}' is reserved by the generated perform()")
+        if ident.startswith("_") and not _GENERATED_ID_RE.match(ident):
+            raise ValueError(
+                f"ID '{ident}' starts with '_', which is reserved for generated names"
+            )
 
     sorted_nodes = toposort(graph)
     input_ids = {inp.id for inp in graph.inputs}
