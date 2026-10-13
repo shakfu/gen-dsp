@@ -9,6 +9,7 @@
 #ifndef VOICE_ALLOC_H
 #define VOICE_ALLOC_H
 
+#include <cstdint>
 #include <cstring>
 #include <cstdlib>
 #include <cmath>
