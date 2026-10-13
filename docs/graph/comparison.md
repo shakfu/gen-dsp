@@ -6,7 +6,7 @@ Short version: `.gdsp` is **inspired by** gen~ but is **not** gen~. It is gen-ds
 
 gen-dsp has two front-ends that both produce the same intermediate representation (`Manifest` / `Graph`) and feed the same 11 platform backends:
 
-```
+```text
 gen~ export dir --> parser.py --> ExportInfo --+
                                                +--> Manifest --> Platform backends
 .gdsp / Graph   --> compile.py --> Graph ------+

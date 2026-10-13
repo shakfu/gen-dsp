@@ -49,6 +49,7 @@ The module builds on `plugins/common` of [shakfu/ssp](https://github.com/shakfu/
 The dev tree is a shakfu/ssp checkout with its `juce` (TheTechnobear's fork) and `ssp-sdk` submodules:
 
 - **Downloaded** (default): pinned archives of all three, cached in the FetchContent cache (23 MB).
+
 - **Existing** (`--ssp-dev-dir`, `ssp_dev_dir` in `gen-dsp.toml`, or `SSP_DEV_DIR` at configure time): the checkout as it is. Its `buildroot/` is used too, unless `SSP_BUILDROOT` is set.
 
 The framework's source lists come from the dev tree's own `CMakeLists.txt` files, so a newer checkout builds without a gen-dsp change.
@@ -64,9 +65,13 @@ Controls follow the framework, not the table below: encoders move one step per c
 Each gen~ buffer (`--buffers`) loads `<buffer>.wav` from the module's folder at start: a folder named after the module, beside `plugins/`. On the card, `plugins/rmpl.so` reads `rmpl/sample.wav`.
 
 - **Formats:** WAV, PCM 16/24-bit or float 32-bit, any channel count.
+
 - **Size:** the buffer takes the file's length and channels. The file's sample rate is ignored: samples play as stored.
+
 - **Instances** keep their own buffers. A load takes effect at the start of a block, and the audio thread never reads, allocates or frees file data.
+
 - **Native:** the screen shows each buffer's frame count, or the missing file's name.
+
 - **JUCE:** Load opens the framework's file browser and fills a buffer; with several buffers, the `load into` choice on the `buffers` page picks which. Presets keep each buffer's path. The status panel shows what each buffer holds.
 
 ## Module name

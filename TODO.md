@@ -12,18 +12,11 @@ Completed items are recorded in [CHANGELOG.md](CHANGELOG.md) rather than kept he
 
 - [ ] Warnings in gen-dsp's C: it has unused locals, so tests compile `_dsp.c` without `-Werror`.
 
-- [ ] **Percussa SSP: JUCE format in rack** - `gvbj` (gigaverb) runs in Synthor. Load it in a
-  rack slot and check the compact view and encoders; check preset save and reload.
+- [ ] **Percussa SSP: JUCE format in rack** - `gvbj` (gigaverb) runs in Synthor. Load it in a rack slot and check the compact view and encoders; check preset save and reload.
 
-- [ ] **Percussa SSP: JUCE format UI** - The version string overlaps the DSP readout at the top
-  right of the full screen. Both are drawn by the SSP framework, not gen-dsp: the version in
-  `plugins/common/ssp/EditorHost.cpp:112`, the readout in `plugins/common/engine/EngineEditor.cpp:165`.
-  The fix goes in shakfu/ssp, and gen-dsp's pinned framework commit (`_FRAMEWORK_COMMIT` in
-  `platforms/ssp.py`) then has to move to it.
+- [ ] **Percussa SSP: JUCE format UI** - The version string overlaps the DSP readout at the top right of the full screen. Both are drawn by the SSP framework, not gen-dsp: the version in `plugins/common/ssp/EditorHost.cpp:112`, the readout in `plugins/common/engine/EngineEditor.cpp:165`. The fix goes in shakfu/ssp, and gen-dsp's pinned framework commit (`_FRAMEWORK_COMMIT` in `platforms/ssp.py`) then has to move to it.
 
-- [ ] **Percussa SSP: remaining device checks** - silence on unpatched inputs; whether Synthor
-  calls `prepare()` during playback; the JUCE format's `load into` choice (needs a patch with
-  several buffers).
+- [ ] **Percussa SSP: remaining device checks** - silence on unpatched inputs; whether Synthor calls `prepare()` during playback; the JUCE format's `load into` choice (needs a patch with several buffers).
 
 ## Medium
 
@@ -53,54 +46,27 @@ Completed items are recorded in [CHANGELOG.md](CHANGELOG.md) rather than kept he
 
 ### Web Audio backend follow-ups
 
-- [ ] **Web Audio build integration tests** -- Currently gated by `emcc`
-  availability (skipped in CI). Consider adding Emscripten to CI or a
-  lightweight WASM validation step.
+- [ ] **Web Audio build integration tests** -- Currently gated by `emcc` availability (skipped in CI). Consider adding Emscripten to CI or a lightweight WASM validation step.
 
 ## Low
 
 ### Experimental
 
-- [ ] **Drop the pydantic dependency from the graph frontend** -- Deprioritized:
-  feasible, but the benefit is a truer "zero-dependency" claim rather than any
-  functional gain, and dsp-graph (the primary consumer) already ships pydantic
-  via FastAPI so it costs that consumer nothing today.
+- [ ] **Drop the pydantic dependency from the graph frontend** -- Deprioritized: feasible, but the benefit is a truer "zero-dependency" claim rather than any functional gain, and dsp-graph (the primary consumer) already ships pydantic via FastAPI so it costs that consumer nothing today.
 
-  Audit verified against the current tree: pydantic is used *only* as a
-  tagged-union JSON codec. No validators, no `Field` constraints, no
-  `ConfigDict`, no JSON-schema generation inside gen-dsp. Exactly one pydantic
-  `Field` in `src/` -- `Field(discriminator="op")` (`graph/models.py:629`); the
-  other ~49 `Field(` hits are an unrelated local class in the codegen layer.
-  `graph/validate.py` and `core/graph.py` are already pydantic-free.
+  Audit verified against the current tree: pydantic is used *only* as a tagged-union JSON codec. No validators, no `Field` constraints, no `ConfigDict`, no JSON-schema generation inside gen-dsp. Exactly one pydantic `Field` in `src/` -- `Field(discriminator="op")` (`graph/models.py:629`); the other ~49 `Field(` hits are an unrelated local class in the codegen layer. `graph/validate.py` and `core/graph.py` are already pydantic-free.
 
   Corrections to the earlier estimate:
 
-  - **Test churn is smaller than assumed.** Only one test imports pydantic's
-    `ValidationError` (`tests/graph/test_models.py:692`). The other 28
-    references are `gen_dsp.errors.ValidationError`, which is unaffected.
-  - **`model_copy(update=...)` was missed** -- 15 callsites in `transpile.py`,
-    `optimize.py`, `subgraph.py`. `dataclasses.replace()` is close but not
-    equivalent: `model_copy(update=)` bypasses `__init__`, `replace()` re-runs
-    it. Needs a deliberate shim.
-  - **`model_fields` introspection was missed** -- `dsl/lower.py:995`
-    (`dataclasses.fields()` equivalent, minor).
-  - **dsp-graph coupling was missed, but is survivable.** dsp-graph calls
-    `TypeAdapter(Node).json_schema()` at two import-time sites
-    (`convert.py:107`, `api/graph.py:167`) and uses `TypeAdapter(Node)` as a
-    runtime parser (`convert.py:371`). Verified by probe: pydantic builds a
-    discriminated union over stdlib dataclasses it does not own, preserving
-    `$defs`, the `op` const, and int->float coercion. dsp-graph would need to
-    wrap the exported bare `Node = Union[...]` as
-    `Annotated[Node, Field(discriminator="op")]` itself, or it silently degrades
-    to smart-union matching.
+  - **Test churn is smaller than assumed.** Only one test imports pydantic's `ValidationError` (`tests/graph/test_models.py:692`). The other 28 references are `gen_dsp.errors.ValidationError`, which is unaffected.
 
-  Consequences for the plan: the 150-250 line estimate is low once `model_copy`
-  semantics and a `model_dump`/`model_validate` compatibility shim are in scope,
-  and this is a *coordinated* breaking change -- dsp-graph pins
-  `gen-dsp[graph]>=0.3.1`, so the `[graph]` extra must survive as a no-op alias
-  or that pin breaks on install. The one thing that cannot be recovered
-  afterwards is pydantic's error-message quality; that is what a spike should
-  actually measure.
+  - **`model_copy(update=...)` was missed** -- 15 callsites in `transpile.py`, `optimize.py`, `subgraph.py`. `dataclasses.replace()` is close but not equivalent: `model_copy(update=)` bypasses `__init__`, `replace()` re-runs it. Needs a deliberate shim.
+
+  - **`model_fields` introspection was missed** -- `dsl/lower.py:995` (`dataclasses.fields()` equivalent, minor).
+
+  - **dsp-graph coupling was missed, but is survivable.** dsp-graph calls `TypeAdapter(Node).json_schema()` at two import-time sites (`convert.py:107`, `api/graph.py:167`) and uses `TypeAdapter(Node)` as a runtime parser (`convert.py:371`). Verified by probe: pydantic builds a discriminated union over stdlib dataclasses it does not own, preserving `$defs`, the `op` const, and int->float coercion. dsp-graph would need to wrap the exported bare `Node = Union[...]` as `Annotated[Node, Field(discriminator="op")]` itself, or it silently degrades to smart-union matching.
+
+  Consequences for the plan: the 150-250 line estimate is low once `model_copy` semantics and a `model_dump`/`model_validate` compatibility shim are in scope, and this is a *coordinated* breaking change -- dsp-graph pins `gen-dsp[graph]>=0.3.1`, so the `[graph]` extra must survive as a no-op alias or that pin breaks on install. The one thing that cannot be recovered afterwards is pydantic's error-message quality; that is what a spike should actually measure.
 
 ### New Backends: Embedded / Hardware
 

@@ -89,14 +89,9 @@ gen-dsp tosc <source> [-o PATH] [-n NAME] [--prefix NS] [--port PORT]
                       [--no-osc] [--no-midi] [--xml] [--receiver pd|sc|none]
 ```
 
-The source can be a generated project, a gen~ export, a `manifest.json`, or a
-`.gdsp`/`.json` graph file. One captioned fader per parameter, each sending OSC
-scaled into the parameter's range and a MIDI CC numbered by parameter index.
-Pointing it at a generated project reuses that project's platform and name and
-writes back into it, including OSC receiver glue for the `pd` and `sc` targets.
+The source can be a generated project, a gen~ export, a `manifest.json`, or a `.gdsp`/`.json` graph file. One captioned fader per parameter, each sending OSC scaled into the parameter's range and a MIDI CC numbered by parameter index. Pointing it at a generated project reuses that project's platform and name and writes back into it, including OSC receiver glue for the `pd` and `sc` targets.
 
-`--tosc` on the default command does the same as part of project generation;
-see [TouchOSC Surfaces](tosc.md).
+`--tosc` on the default command does the same as part of project generation; see [TouchOSC Surfaces](tosc.md).
 
 ## patch -- Apply Platform-Specific Patches
 

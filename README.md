@@ -161,29 +161,49 @@ gen-dsp <source> -p <platform> [-n <name>] [-o <output>] [--no-build]
 The source type is auto-detected:
 
 - **Directory** -- treated as a gen~ export
+
 - **`.gdsp` file** -- parsed as GDSP DSL (requires `gen-dsp[graph]`)
+
 - **`.json` file** -- parsed as graph JSON (requires `gen-dsp[graph]`)
 
 Options:
 
 - `-p, --platform` - Target platform(s) (required): a single name, a comma-separated list, or `all`. Names: `pd`, `max`, `chuck`, `au`, `auv3`, `clap`, `vst3`, `lv2`, `sc`, `vcvrack`, `daisy`, `circle`, `webaudio`, `standalone`, `csound`, `ssp`, `nice`. With multiple targets the source is parsed once and each is generated/built in turn (a per-target summary is printed); `-o` then acts as a parent directory, with each target in `<output>/<name>_<platform>`. Example: `gen-dsp ./export -p clap,vst3,au`
+
 - `-n, --name` - Name for the plugin (default: inferred from source)
+
 - `-o, --output` - Output directory (default: `./build/<name>_<platform>`)
+
 - `--no-build` - Skip building after project creation
+
 - `--buffers` - Explicit buffer names (overrides auto-detection)
+
 - `--no-shared-cache` - Disable shared OS cache for FetchContent downloads (clap, vst3, lv2, sc; shared cache is enabled by default)
+
 - `--board` - Board variant for embedded platforms (Daisy: `seed`, `pod`, etc.; Circle: `pi3-i2s`, `pi4-usb`, etc.)
+
 - `--ssp-name` - Percussa SSP module name, also spelled by its uid: exactly 4 letters or digits (default: derived from `--name`, e.g. `gigaverb` -> `gvrb`)
+
 - `--ssp-format` - Percussa SSP module format: `native` (default) or `juce` (also loads in rack-style hosts)
+
 - `--ssp-dev-dir` - JUCE format: an existing SSP dev tree (a shakfu/ssp checkout) instead of a download
+
 - `--no-patch` - Skip automatic exp2f fix
+
 - `--no-midi` - Disable MIDI note handling
+
 - `--midi-gate NAME` - MIDI gate parameter name
+
 - `--midi-freq NAME` - MIDI frequency parameter name
+
 - `--midi-vel NAME` - MIDI velocity parameter name
+
 - `--midi-freq-unit {hz,midi}` - Unit for MIDI frequency parameter
+
 - `--voices N` - Polyphony voices (default: 1)
+
 - `--inputs-as-params [NAME ...]` - Remap signal inputs to parameters. No names = remap all; with names = remap only those inputs (see [docs/inputs_as_params.md](docs/inputs_as_params.md))
+
 - `--dry-run` - Preview without creating files
 
 ### build
@@ -214,8 +234,7 @@ gen-dsp detect my.gdsp              # graph file (.gdsp or .json)
 gen-dsp detect my.json --json       # machine-readable
 ```
 
-For a gen~ export: name, signal I/O counts, parameters, detected buffers, and needed patches.
-For a graph: name, I/O, parameters (with ranges), node-type breakdown, buffers, delay lines, and validity.
+For a gen~ export: name, signal I/O counts, parameters, detected buffers, and needed patches. For a graph: name, I/O, parameters (with ranges), node-type breakdown, buffers, delay lines, and validity.
 
 ### patch
 
@@ -251,10 +270,7 @@ gen-dsp cache --prune --dry-run  # show what would be removed
 
 ### Config file (gen-dsp.toml)
 
-Instead of long flag strings, put a `gen-dsp.toml` in your project directory and
-run `gen-dsp` with no arguments. Keys mirror the CLI options (hyphens or
-underscores both work); any CLI flag overrides the matching key. Use
-`--config PATH` to point at a specific file.
+Instead of long flag strings, put a `gen-dsp.toml` in your project directory and run `gen-dsp` with no arguments. Keys mirror the CLI options (hyphens or underscores both work); any CLI flag overrides the matching key. Use `--config PATH` to point at a specific file.
 
 ```toml
 # gen-dsp.toml
@@ -275,10 +291,7 @@ See [examples/gen-dsp.toml](examples/gen-dsp.toml).
 
 ### doctor
 
-Check, per platform, whether the host has the tools needed to build (compilers,
-CMake/Make, cross-toolchains, Emscripten, Xcode, git), with install hints for
-anything missing. Auto-downloaded SDKs are shown as notes. Exits non-zero when a
-requested platform is not ready, so it can be used as a CI gate:
+Check, per platform, whether the host has the tools needed to build (compilers, CMake/Make, cross-toolchains, Emscripten, Xcode, git), with install hints for anything missing. Auto-downloaded SDKs are shown as notes. Exits non-zero when a requested platform is not ready, so it can be used as a CI gate:
 
 ```bash
 gen-dsp doctor                 # all platforms
@@ -288,10 +301,7 @@ gen-dsp doctor --json          # machine-readable
 
 ### platforms
 
-Show where each platform can be built and what runs its output. Each build host
-(linux, macos, windows) has a status: `ci`, `verified`, `untested` or
-`unsupported`. `--json` adds notes, per-host artifact extensions and runtime
-devices, under a `schema_version` for programmatic consumers:
+Show where each platform can be built and what runs its output. Each build host (linux, macos, windows) has a status: `ci`, `verified`, `untested` or `unsupported`. `--json` adds notes, per-host artifact extensions and runtime devices, under a `schema_version` for programmatic consumers:
 
 ```bash
 gen-dsp platforms              # table
@@ -309,8 +319,7 @@ gen-dsp library --json         # versioned index: inputs, outputs, params, impor
 
 ### tosc (requires `gen-dsp[tosc]`)
 
-Generate a TouchOSC control surface from a plugin's parameter list. The source
-can be a generated project, a gen~ export, a `manifest.json`, or a graph file:
+Generate a TouchOSC control surface from a plugin's parameter list. The source can be a generated project, a gen~ export, a `manifest.json`, or a graph file:
 
 ```bash
 gen-dsp tosc build/gigaverb_pd            # regenerate in place
@@ -485,31 +494,18 @@ This turns a 2-input effect into a 0-input generator/instrument with 2 additiona
 
 ### TouchOSC Surfaces
 
-A plugin's manifest already describes every parameter it exposes, which is most
-of what a control surface needs. With `pip install gen-dsp[tosc]`, `--tosc`
-turns that into a [TouchOSC](https://hexler.net/touchosc) layout alongside the
-project:
+A plugin's manifest already describes every parameter it exposes, which is most of what a control surface needs. With `pip install gen-dsp[tosc]`, `--tosc` turns that into a [TouchOSC](https://hexler.net/touchosc) layout alongside the project:
 
 ```bash
 gen-dsp ./my_export -n myeffect -p pd --tosc
 # Output: myeffect.tosc + myeffect_osc.pd
 ```
 
-Each parameter becomes a captioned fader carrying two bindings: an OSC address
-`/myeffect/<param>` whose argument is scaled into the parameter's declared range
-(a room-size parameter over `[0.1, 300]` sends 150, not a bare 0.5), and a MIDI
-control change numbered by parameter index for hosts that MIDI-learn. Faders
-start at the parameter's default rather than at zero.
+Each parameter becomes a captioned fader carrying two bindings: an OSC address `/myeffect/<param>` whose argument is scaled into the parameter's declared range (a room-size parameter over `[0.1, 300]` sends 150, not a bare 0.5), and a MIDI control change numbered by parameter index for hosts that MIDI-learn. Faders start at the parameter's default rather than at zero.
 
-The generated plugins do not speak OSC themselves, so for the two backends that
-can receive it without new C++ the receiving half is generated too: a playable
-Pd patch wired from `netreceive`/`oscparse` into the external, or an sclang
-script that wraps the UGen in a SynthDef and installs an `OSCdef` per parameter.
-For the plugin formats, the MIDI bindings are the way into a host.
+The generated plugins do not speak OSC themselves, so for the two backends that can receive it without new C++ the receiving half is generated too: a playable Pd patch wired from `netreceive`/`oscparse` into the external, or an sclang script that wraps the UGen in a SynthDef and installs an `OSCdef` per parameter. For the plugin formats, the MIDI bindings are the way into a host.
 
-Layout generation uses [py2tosc](https://github.com/shakfu/py2tosc). See
-[docs/tosc.md](docs/tosc.md) for the full option set, the address scheme, and
-library use.
+Layout generation uses [py2tosc](https://github.com/shakfu/py2tosc). See [docs/tosc.md](docs/tosc.md) for the full option set, the address scheme, and library use.
 
 ### Automatic Buffer Detection
 
@@ -717,6 +713,7 @@ Mixer nodes combine inputs via weighted sum with per-input gain parameters (defa
 #### Graph reference
 
 - **`nodes`**: dict of `id -> config`. Gen~ nodes require `"export"` (references a gen~ export directory name under the base `export_path`). Mixer nodes require `"type": "mixer"` and `"inputs"` count. `midi_channel` defaults to position + 1. `cc` is optional (default: CC-by-param-index).
+
 - **`connections`**: list of `[from, to]` pairs. `audio_in` and `audio_out` are reserved endpoints. Use `"node:N"` to target a specific input index on mixer nodes.
 
 The positional `export_path` argument is the base directory; each node's `export` field is resolved as a subdirectory (e.g. `./exports/gigaverb/gen/`). Use `--export /path/to/export` to provide explicit paths for individual nodes.
@@ -830,22 +827,39 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 ## Limitations
 
 - Maximum of 8 buffers per external
+
 - Buffers are single-channel only. Use multiple buffers for multi-channel audio.
+
 - Max/MSP: Windows builds require Visual Studio or equivalent MSVC toolchain
+
 - AudioUnit: macOS only
+
 - CLAP: first CMake configure requires network access to fetch CLAP headers (cached afterward)
+
 - VST3: first CMake configure requires network access to fetch VST3 SDK (~50MB, cached afterward); GPL3/proprietary dual license
+
 - LV2: first CMake configure requires network access to fetch LV2 headers (cached afterward)
+
 - SuperCollider: first CMake configure requires network access to fetch SC headers (~80MB tarball, cached afterward)
+
 - VCV Rack: first build requires network access to fetch Rack SDK (cached afterward); `RACK_DIR` env var can override auto-download; per-sample `perform(n=1)` has higher CPU overhead than block-based processing
+
 - Daisy: requires `arm-none-eabi-gcc` cross-compiler; first clone of libDaisy requires network access and `git`; v1 targets Daisy Seed only (no board-specific knob/CV mapping)
+
 - Circle: requires `aarch64-none-elf-gcc` (or `arm-none-eabi-gcc` for Pi Zero) cross-compiler; first clone of Circle SDK requires network access and `git`; output-only (no audio input capture); single-plugin mode requires manual GPIO/ADC code for parameter control; multi-plugin mode (`--graph`) supports linear chains and arbitrary DAGs (fan-out, fan-in via mixer nodes) but no buffers
+
 - Web Audio: requires Emscripten SDK (`emcc` on PATH); buffer loading not yet supported (browser file I/O is async/platform-specific)
+
 - Standalone: requires curl (for miniaudio.h download on first build)
+
 - AUv3: macOS only; requires full Xcode (not just Command Line Tools) for the CMake Xcode generator; host app must be run once to register the extension with PluginKit
+
 - Percussa SSP: requires LLVM clang and lld; first build downloads the buildroot (608 MB) unless `SSP_BUILDROOT` is set; module name and uid are the same 4 characters (`--ssp-name`), and names must not collide on the card; does not load in JUCE-based rack hosts; not yet confirmed on hardware
+
 - Csound: requires Csound headers (`csdl.h`); MYFLT is double in Csound 6/7, so there is a float-to-double conversion cost per sample
+
 - nice-plug: requires a Rust toolchain and network access on first build (crates.io); `--features gui` needs rustc >= 1.95 (egui 0.36); gen~ inputs beyond the output count arrive on an auxiliary port; Linux and Windows untested
+
 - Graph frontend: requires pydantic >= 2.0; simulation additionally requires numpy >= 1.24; Daisy, Circle, and VCV Rack platforms not yet supported for graph sources
 
 ## Requirements
@@ -853,111 +867,145 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 ### Runtime
 
 - Python >= 3.11
+
 - C/C++ compiler (gcc, clang)
 
 ### Graph frontend (optional)
 
 - pydantic >= 2.0 (`pip install gen-dsp[graph]`)
+
 - numpy >= 1.24 for simulation (`pip install gen-dsp[sim]`)
 
 ### PureData builds
 
 - make
+
 - PureData headers (typically installed with PureData)
 
 ### Max/MSP builds
 
 - CMake >= 3.19
+
 - git (for cloning max-sdk-base)
 
 ### ChucK builds
 
 - make
+
 - C/C++ compiler (clang on macOS, gcc on Linux)
+
 - ChucK (for running the chugin)
 
 ### AudioUnit builds
 
 - macOS (AudioUnit is macOS-only)
+
 - CMake >= 3.19
+
 - C/C++ compiler (clang via Xcode or Command Line Tools)
 
 ### CLAP builds
 
 - CMake >= 3.19
+
 - C/C++ compiler (clang, gcc)
+
 - Network access on first configure (to fetch CLAP headers)
 
 ### VST3 builds
 
 - CMake >= 3.19
+
 - C/C++ compiler (clang, gcc, MSVC)
+
 - Network access on first configure (to fetch VST3 SDK, ~50MB)
 
 ### LV2 builds
 
 - CMake >= 3.19
+
 - C/C++ compiler (clang, gcc)
+
 - Network access on first configure (to fetch LV2 headers)
 
 ### SuperCollider builds
 
 - CMake >= 3.19
+
 - C/C++ compiler (clang, gcc)
+
 - Network access on first configure (to fetch SC plugin headers)
 
 ### VCV Rack builds
 
 - make
+
 - C/C++ compiler (clang, gcc)
+
 - Network access on first build (Rack SDK auto-downloaded and cached; override with `RACK_DIR` env var)
 
 ### Daisy builds
 
 - make
+
 - `arm-none-eabi-gcc` ([ARM GNU Toolchain Downloads](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads) -- select `arm-none-eabi`)
+
 - git (for cloning libDaisy on first build)
+
 - Network access on first build (to clone libDaisy + submodules)
 
 ### Circle builds
 
 - make
+
 - `aarch64-none-elf-gcc` ([ARM GNU Toolchain Downloads](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads) -- select `aarch64-none-elf`) or `arm-none-eabi-gcc` (for Pi Zero)
+
 - git (for cloning Circle SDK on first build)
+
 - Network access on first build (to clone Circle)
 
 ### Web Audio builds
 
 - make
+
 - Emscripten SDK ([emsdk](https://emscripten.org/docs/getting_started/downloads.html) -- `emcc` on PATH)
+
 - Python 3 (for `make serve` demo server)
 
 ### Standalone builds
 
 - make
+
 - C/C++ compiler
+
 - curl (for downloading miniaudio.h on first build)
 
 ### AUv3 builds
 
 - macOS
+
 - Xcode (full IDE, not just Command Line Tools)
+
 - CMake >= 3.19
 
 ### Percussa SSP builds
 
 - CMake >= 3.19
+
 - LLVM clang and lld
 
 ### nice-plug builds
 
 - Rust toolchain (`cargo`)
+
 - C/C++ compiler (used by the `cc` crate)
 
 ### Csound builds
 
 - make
+
 - C/C++ compiler
+
 - Csound headers (`csdl.h`) -- from CsoundLib64.framework (macOS) or `libcsound64-dev` (Linux)
 
 ### macOS
@@ -1039,6 +1087,7 @@ This project builds on the original idea and work of [gen_ext](https://github.co
 Test fixtures include code exported from examples bundled with Max:
 
 - gigaverb: ported from Juhana Sadeharju's implementation
+
 - spectraldelayfb: from gen~.spectraldelay_feedback
 
 The Daisy backend was informed by techniques from [oopsy](https://github.com/electro-smith/oopsy) by Electrosmith and contributors, including Graham Wakefield.
