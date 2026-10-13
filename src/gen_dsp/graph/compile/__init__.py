@@ -1,8 +1,9 @@
-"""C++ code generation from DSP graphs."""
+"""C++ and C99 code generation from DSP graphs."""
 
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 from gen_dsp.core.identifiers import is_reserved_word
 from gen_dsp.graph.compile.common import (
@@ -35,13 +36,24 @@ from gen_dsp.graph.subgraph import expand_subgraphs
 from gen_dsp.graph.toposort import toposort
 from gen_dsp.graph.validate import validate_graph
 
+Lang = Literal["cpp", "c"]
 
-def compile_graph(graph: Graph) -> str:
-    """Compile a DSP graph to standalone C++ source code.
+# Standard headers per output language; the generated bodies are common C/C++.
+_INCLUDES: dict[str, tuple[str, ...]] = {
+    "cpp": ("cmath", "cstdlib", "cstdint", "cstring"),
+    "c": ("math.h", "stdlib.h", "stdint.h", "string.h"),
+}
 
-    Raises ValueError if the graph is invalid or contains IDs that are
-    not valid C identifiers.
+
+def compile_graph(graph: Graph, lang: Lang = "cpp") -> str:
+    """Compile a DSP graph to standalone C++ (``lang="cpp"``) or C99 (``lang="c"``) source.
+
+    Raises ValueError if the graph is invalid, contains IDs that are
+    not valid C identifiers, or lang is unknown.
     """
+    if lang not in _INCLUDES:
+        raise ValueError(f"Unknown lang {lang!r}; expected 'cpp' or 'c'")
+    null = "nullptr" if lang == "cpp" else "NULL"
     graph = expand_subgraphs(graph)
     errors = validate_graph(graph)
     if errors:
@@ -71,13 +83,13 @@ def compile_graph(graph: Graph) -> str:
     w = lines.append
 
     # -- Includes
-    w("#include <cmath>")
-    w("#include <cstdlib>")
-    w("#include <cstdint>")
-    w("#include <cstring>")
+    for header in _INCLUDES[lang]:
+        w(f"#include <{header}>")
     w("")
 
-    # -- Struct
+    # -- Struct; C needs the typedef to use the bare struct name as a type.
+    if lang == "c":
+        w(f"typedef struct {struct_name} {struct_name};")
     w(f"struct {struct_name} {{")
     w("    float sr;")
     # Params
@@ -92,7 +104,7 @@ def compile_graph(graph: Graph) -> str:
     # -- create()
     w(f"{struct_name}* {name}_create(float sr) {{")
     w(f"    {struct_name}* self = ({struct_name}*)calloc(1, sizeof({struct_name}));")
-    w("    if (!self) return nullptr;")
+    w(f"    if (!self) return {null};")
     w("    self->sr = sr;")
     for p in graph.params:
         w(f"    self->p_{p.name} = {_float_lit(p.default)};")
@@ -143,7 +155,7 @@ def compile_graph(graph: Graph) -> str:
 
     # -- Buffer API
     buffer_nodes = [n for n in sorted_nodes if isinstance(n, Buffer)]
-    _emit_buffer_api(buffer_nodes, name, struct_name, w)
+    _emit_buffer_api(buffer_nodes, name, struct_name, w, null)
 
     # -- Peek API
     peek_nodes = [n for n in sorted_nodes if isinstance(n, Peek)]
@@ -152,16 +164,18 @@ def compile_graph(graph: Graph) -> str:
     return "\n".join(lines) + "\n"
 
 
-def compile_graph_to_file(graph: Graph, output_dir: str | Path) -> Path:
-    """Compile a DSP graph and write {name}.cpp to output_dir.
+def compile_graph_to_file(
+    graph: Graph, output_dir: str | Path, lang: Lang = "cpp"
+) -> Path:
+    """Compile a DSP graph and write {name}.cpp (or {name}.c) to output_dir.
 
     Creates the output directory if it doesn't exist.
     Returns the path to the written file.
     """
-    code = compile_graph(graph)
+    code = compile_graph(graph, lang)
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
-    path = out / f"{graph.name}.cpp"
+    path = out / f"{graph.name}.{lang}"
     path.write_text(code)
     return path
 
@@ -519,7 +533,7 @@ def _emit_param_get(
 
 
 def _emit_buffer_api(
-    buffer_nodes: list[Buffer], name: str, struct_name: str, w: _Writer
+    buffer_nodes: list[Buffer], name: str, struct_name: str, w: _Writer, null: str
 ) -> None:
     count = len(buffer_nodes)
 
@@ -552,7 +566,7 @@ def _emit_buffer_api(
     w("    switch (index) {")
     for idx, buf in enumerate(buffer_nodes):
         w(f"    case {idx}: return self->m_{buf.id}_buf;")
-    w("    default: return nullptr;")
+    w(f"    default: return {null};")
     w("    }")
     w("}")
     w("")
@@ -561,7 +575,7 @@ def _emit_buffer_api(
     w(
         f"void {name}_set_buffer({struct_name}* self, int index, const float* data, int len) {{"
     )
-    w("    float* dst = nullptr;")
+    w(f"    float* dst = {null};")
     w("    int cap = 0;")
     w("    switch (index) {")
     for idx, buf in enumerate(buffer_nodes):

@@ -163,15 +163,15 @@ def _write_wav(path: str, data: list[float], sample_rate: int) -> None:
 
 
 def cmd_compile(args: argparse.Namespace) -> int:
-    """Compile a graph to C++ (raw output, no platform adapter)."""
+    """Compile a graph to C++ or C (raw output, no platform adapter)."""
     try:
         graph = _load_graph(args.file)
         if args.optimize:
             graph, _stats = optimize_graph(graph)
         if args.output:
-            compile_graph_to_file(graph, args.output)
+            compile_graph_to_file(graph, args.output, args.lang)
         else:
-            sys.stdout.write(compile_graph(graph))
+            sys.stdout.write(compile_graph(graph, args.lang))
         return 0
     except FileNotFoundError as e:
         print(f"error: {e}", file=sys.stderr)
@@ -451,6 +451,16 @@ def add_compile_parser(
     p.add_argument("file", help=_FILE_HELP)
     p.add_argument("-o", "--output", help="Output directory")
     p.add_argument("--optimize", action="store_true", help="Apply optimization passes")
+    _add_lang_arg(p)
+
+
+def _add_lang_arg(p: argparse.ArgumentParser) -> None:
+    p.add_argument(
+        "--lang",
+        choices=["cpp", "c"],
+        default="cpp",
+        help="Output language: C++ or C99 (default: cpp)",
+    )
 
 
 def add_validate_parser(
@@ -554,6 +564,7 @@ def main(argv: list[str] | None = None) -> int:
     p_compile.add_argument(
         "--optimize", action="store_true", help="Apply optimization passes"
     )
+    _add_lang_arg(p_compile)
 
     # validate
     p_validate = sub.add_parser("validate", help="Validate graph")

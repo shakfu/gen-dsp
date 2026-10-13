@@ -19,7 +19,7 @@ Generates self-contained CLI audio applications using [miniaudio](https://miniau
 ```bash
 # From a gen~ export
 gen-dsp ./my_export -n myeffect -p standalone
-cd myeffect_standalone && make all
+cd build/myeffect_standalone && make all
 
 # Run
 ./myeffect -p revtime 0.8 -p roomsize 0.5

@@ -128,10 +128,10 @@ gen-dsp chain <export-path> --graph GRAPH -n NAME [-p PLATFORM] [-o OUTPUT] [opt
 ## compile -- Compile Graph to C++ (requires gen-dsp[graph])
 
 ```bash
-gen-dsp compile <file> [-o DIR] [--optimize]
+gen-dsp compile <file> [-o DIR] [--optimize] [--lang {cpp,c}]
 ```
 
-Compiles a `.gdsp` or `.json` graph file to C++. Outputs to stdout by default, or to a directory with `-o`.
+Compiles a `.gdsp` or `.json` graph file to C++, or C99 with `--lang c`. Outputs to stdout by default, or to a directory with `-o`.
 
 ## validate -- Validate a Graph File (requires gen-dsp[graph])
 

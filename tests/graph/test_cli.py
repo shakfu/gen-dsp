@@ -86,6 +86,26 @@ class TestCompile:
         assert cpp.exists()
         assert "TestGraphState" in cpp.read_text()
 
+    def test_compile_c_to_stdout(
+        self, graph_json: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        rc = main(["compile", str(graph_json), "--lang", "c"])
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "#include <math.h>" in out
+        assert "typedef struct TestGraphState TestGraphState;" in out
+
+    def test_compile_c_to_dir(self, graph_json: Path, tmp_path: Path) -> None:
+        rc = main(["compile", str(graph_json), "-o", str(tmp_path), "--lang", "c"])
+        assert rc == 0
+        assert (tmp_path / "test_graph.c").is_file()
+        assert not (tmp_path / "test_graph.cpp").exists()
+
+    def test_compile_unknown_lang_rejected(self, graph_json: Path) -> None:
+        with pytest.raises(SystemExit) as exc:
+            main(["compile", str(graph_json), "--lang", "rust"])
+        assert exc.value.code == 2
+
     def test_compile_with_optimize(
         self, graph_json: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:

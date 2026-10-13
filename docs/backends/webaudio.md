@@ -41,8 +41,8 @@ make serve
 From a graph source:
 
 ```bash
-gen-dsp graph compile fm_synth.gdsp -p webaudio
-cd fm_synth_webaudio && make all && make serve
+gen-dsp fm_synth.gdsp -p webaudio
+cd build/fm_synth_webaudio && make all && make serve
 ```
 
 ## Output Files

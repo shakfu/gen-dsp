@@ -164,7 +164,7 @@ Options:
 
 - `-p, --platform` - Target platform(s) (required): a single name, a comma-separated list, or `all`. Names: `pd`, `max`, `chuck`, `au`, `auv3`, `clap`, `vst3`, `lv2`, `sc`, `vcvrack`, `daisy`, `circle`, `webaudio`, `standalone`, `csound`, `ssp`. With multiple targets the source is parsed once and each is generated/built in turn (a per-target summary is printed); `-o` then acts as a parent directory, with each target in `<output>/<name>_<platform>`. Example: `gen-dsp ./export -p clap,vst3,au`
 - `-n, --name` - Name for the plugin (default: inferred from source)
-- `-o, --output` - Output directory (default: `./<name>_<platform>`)
+- `-o, --output` - Output directory (default: `./build/<name>_<platform>`)
 - `--no-build` - Skip building after project creation
 - `--buffers` - Explicit buffer names (overrides auto-detection)
 - `--no-shared-cache` - Disable shared OS cache for FetchContent downloads (clap, vst3, lv2, sc; shared cache is enabled by default)
@@ -321,7 +321,7 @@ See [TouchOSC Surfaces](#touchosc-surfaces) below.
 Work with DSP signal graphs defined as `.gdsp` or JSON. These are top-level subcommands:
 
 ```bash
-gen-dsp compile <file> [-o DIR] [--optimize]
+gen-dsp compile <file> [-o DIR] [--optimize] [--lang {cpp,c}]
 gen-dsp validate <file>
 gen-dsp viz <file> [-o DIR]
 gen-dsp sim <file> [-i INPUT] [-o DIR] [-n SAMPLES] [--param K=V]
@@ -535,8 +535,8 @@ gen-dsp patch ./my_project            # Apply
 See the [PureData guide](docs/backends/puredata.md) for full details.
 
 ```bash
-gen-dsp ./my_export -p pd --no-build
-cd myeffect_pd && make all
+gen-dsp ./my_export -n myeffect -p pd --no-build
+cd build/myeffect_pd && make all
 ```
 
 Parameters: send `<name> <value>` messages to the first inlet. Send `bang` to list all parameters. Buffers connect to PureData arrays by name; use `pdset` to remap.
@@ -557,8 +557,8 @@ Max is the only platform using 64-bit double signals. The SDK (max-sdk-base) is 
 See the [ChucK guide](docs/backends/chuck.md) for full details.
 
 ```bash
-gen-dsp ./my_export -p chuck --no-build
-cd my_export_chuck && make mac  # or make linux
+gen-dsp ./my_export -n myeffect -p chuck --no-build
+cd build/myeffect_chuck && make mac  # or make linux
 ```
 
 Class names are auto-capitalized (`myeffect` -> `Myeffect`). Parameters are controlled via `eff.param("name", value)`. Buffer-based chugins can load WAV files at runtime via `eff.loadBuffer("sample", "amen.wav")`.
@@ -723,9 +723,9 @@ At runtime, connect a USB MIDI controller. Each node listens on its assigned MID
 See the [Web Audio guide](docs/backends/webaudio.md) for full details.
 
 ```bash
-gen-dsp ./my_export -p webaudio
+gen-dsp ./my_export -n myeffect -p webaudio
 # Output: build/myeffect.wasm + processor.js + index.html
-cd myeffect_webaudio && make serve
+cd build/myeffect_webaudio && make serve
 # Open http://localhost:8080
 ```
 
@@ -734,7 +734,7 @@ Compiles gen~ exports or graph sources to WebAssembly via Emscripten. The genera
 ```bash
 # From a graph source (standalone generator)
 gen-dsp fm_synth.gdsp -p webaudio
-cd fm_synth_webaudio && make serve
+cd build/fm_synth_webaudio && make serve
 ```
 
 ## Standalone
@@ -742,8 +742,8 @@ cd fm_synth_webaudio && make serve
 See the [Standalone guide](docs/backends/standalone.md) for full details.
 
 ```bash
-gen-dsp ./my_export -p standalone
-cd myeffect_standalone && make all
+gen-dsp ./my_export -n myeffect -p standalone
+cd build/myeffect_standalone && make all
 ./myeffect -l              # list parameters
 ./myeffect -p revtime 0.8  # run with parameter
 ```
@@ -755,8 +755,8 @@ Cross-platform CLI audio application using [miniaudio](https://miniaud.io/). Pro
 See the [AUv3 guide](docs/backends/auv3.md) for full details.
 
 ```bash
-gen-dsp ./my_export -p auv3
-cd myeffect_auv3
+gen-dsp ./my_export -n myeffect -p auv3
+cd build/myeffect_auv3
 cmake -G Xcode -B build && cmake --build build --config Release
 ```
 
@@ -767,8 +767,8 @@ macOS only. Generates an App Extension (`.appex`) inside a host app (`.app`). Re
 See the [Csound guide](docs/backends/csound.md) for full details.
 
 ```bash
-gen-dsp ./my_export -p csound
-cd myeffect_csound && make all
+gen-dsp ./my_export -n myeffect -p csound
+cd build/myeffect_csound && make all
 # Usage in .csd: aout1, aout2 myeffect ain1, ain2, kparam1, kparam2, ...
 ```
 

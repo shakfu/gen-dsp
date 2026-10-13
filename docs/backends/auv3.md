@@ -19,7 +19,7 @@ Generates macOS AUv3 plugins as App Extensions (`.appex`) inside a host applicat
 ```bash
 # From a gen~ export
 gen-dsp ./my_export -n myeffect -p auv3
-cd myeffect_auv3
+cd build/myeffect_auv3
 
 # Build (uses Xcode generator)
 cmake -G Xcode -B build

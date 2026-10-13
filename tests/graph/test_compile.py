@@ -73,6 +73,28 @@ from gen_dsp.graph import (
 )
 
 
+def _assert_compiles(graph: Graph) -> None:
+    """Compile the graph as C++17 with g++, then as C99 with cc."""
+    for lang, cmd in (
+        ("cpp", ["g++", "-std=c++17", "-x", "c++"]),
+        ("c", ["cc", "-std=c99", "-pedantic-errors", "-x", "c"]),
+    ):
+        if not shutil.which(cmd[0]):
+            pytest.skip(f"{cmd[0]} not available")
+        with tempfile.NamedTemporaryFile(
+            suffix=f".{lang}", mode="w", delete=False
+        ) as f:
+            f.write(compile_graph(graph, lang=lang))
+        result = subprocess.run(
+            [*cmd, "-c", "-o", "/dev/null", f.name],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        Path(f.name).unlink()
+        assert result.returncode == 0, f"{cmd[0]} ({lang}) failed:\n{result.stderr}"
+
+
 class TestStructure:
     """Verify structural elements of generated C++."""
 
@@ -81,6 +103,21 @@ class TestStructure:
         assert "#include <cmath>" in code
         assert "#include <cstdlib>" in code
         assert "#include <cstdint>" in code
+
+    def test_c_includes_and_typedef(self, fbdelay_graph: Graph) -> None:
+        code = compile_graph(fbdelay_graph, lang="c")
+        for header in ("math.h", "stdlib.h", "stdint.h", "string.h"):
+            assert f"#include <{header}>" in code
+        assert "<cmath>" not in code
+        assert "typedef struct FbdelayState FbdelayState;" in code
+        assert "nullptr" not in code and "return NULL;" in code
+
+    def test_cpp_is_default(self, fbdelay_graph: Graph) -> None:
+        assert compile_graph(fbdelay_graph) == compile_graph(fbdelay_graph, lang="cpp")
+
+    def test_unknown_lang_rejected(self, fbdelay_graph: Graph) -> None:
+        with pytest.raises(ValueError, match="Unknown lang 'rust'"):
+            compile_graph(fbdelay_graph, lang="rust")  # type: ignore[arg-type]
 
     def test_struct_name_pascal_case(self, stereo_gain_graph: Graph) -> None:
         code = compile_graph(stereo_gain_graph)
@@ -850,6 +887,11 @@ class TestCompileToFile:
         assert out.name == "stereo_gain.cpp"
         assert "StereoGainState" in out.read_text()
 
+    def test_writes_c_file(self, stereo_gain_graph: Graph, tmp_path: Path) -> None:
+        out = compile_graph_to_file(stereo_gain_graph, tmp_path, lang="c")
+        assert out.name == "stereo_gain.c"
+        assert "#include <math.h>" in out.read_text()
+
     def test_creates_directory(self, onepole_graph: Graph, tmp_path: Path) -> None:
         build_dir = tmp_path / "nested" / "build"
         assert not build_dir.exists()
@@ -1262,18 +1304,7 @@ class TestGccCompilation:
     """Integration: verify generated C++ compiles with g++."""
 
     def _compile_check(self, graph: Graph) -> None:
-        code = compile_graph(graph)
-        with tempfile.NamedTemporaryFile(suffix=".cpp", mode="w", delete=False) as f:
-            f.write(code)
-            f.flush()
-            result = subprocess.run(
-                ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            Path(f.name).unlink()
-        assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
+        _assert_compiles(graph)
 
     def test_stereo_gain_compiles(self, stereo_gain_graph: Graph) -> None:
         self._compile_check(stereo_gain_graph)
@@ -1578,18 +1609,7 @@ class TestSIMDHints:
                 BinOp(id="r", op="mul", a="in1", b="inv"),
             ],
         )
-        code = compile_graph(g)
-        with tempfile.NamedTemporaryFile(suffix=".cpp", mode="w", delete=False) as f:
-            f.write(code)
-            f.flush()
-            result = subprocess.run(
-                ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            Path(f.name).unlink()
-        assert result.returncode == 0, f"g++ compile failed:\n{result.stderr}"
+        _assert_compiles(g)
 
 
 # ---------------------------------------------------------------------------
@@ -1796,18 +1816,7 @@ class TestNewOpsCodegen:
                 Smoothstep(id="ss", a="in1", edge0=0.0, edge1=1.0),
             ],
         )
-        code = compile_graph(g)
-        with tempfile.NamedTemporaryFile(suffix=".cpp", mode="w", delete=False) as f:
-            f.write(code)
-            f.flush()
-            result = subprocess.run(
-                ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            Path(f.name).unlink()
-        assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
+        _assert_compiles(g)
 
 
 # ---------------------------------------------------------------------------
@@ -1870,18 +1879,7 @@ class TestGateSelectorCodegen:
                 Selector(id="mux", index="idx", inputs=["go1", "go2", "go3"]),
             ],
         )
-        code = compile_graph(g)
-        with tempfile.NamedTemporaryFile(suffix=".cpp", mode="w", delete=False) as f:
-            f.write(code)
-            f.flush()
-            result = subprocess.run(
-                ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            Path(f.name).unlink()
-        assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
+        _assert_compiles(g)
 
 
 # ---------------------------------------------------------------------------
@@ -1911,18 +1909,7 @@ class TestSlideCompile:
             outputs=[AudioOutput(id="out1", source="sl")],
             nodes=[Slide(id="sl", a="in1", up=10.0, down=20.0)],
         )
-        code = compile_graph(g)
-        with tempfile.NamedTemporaryFile(suffix=".cpp", mode="w", delete=False) as f:
-            f.write(code)
-            f.flush()
-            result = subprocess.run(
-                ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            Path(f.name).unlink()
-        assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
+        _assert_compiles(g)
 
 
 class TestSampleRateCompile:
@@ -1942,18 +1929,7 @@ class TestSampleRateCompile:
             outputs=[AudioOutput(id="out1", source="sr_node")],
             nodes=[SampleRate(id="sr_node")],
         )
-        code = compile_graph(g)
-        with tempfile.NamedTemporaryFile(suffix=".cpp", mode="w", delete=False) as f:
-            f.write(code)
-            f.flush()
-            result = subprocess.run(
-                ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            Path(f.name).unlink()
-        assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
+        _assert_compiles(g)
 
 
 class TestConvertOpsCompile:
@@ -1985,18 +1961,7 @@ class TestConvertOpsCompile:
             outputs=[AudioOutput(id="out1", source="conv")],
             nodes=[UnaryOp(id="conv", op=op, a="in1")],
         )
-        code = compile_graph(g)
-        with tempfile.NamedTemporaryFile(suffix=".cpp", mode="w", delete=False) as f:
-            f.write(code)
-            f.flush()
-            result = subprocess.run(
-                ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            Path(f.name).unlink()
-        assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
+        _assert_compiles(g)
 
 
 class TestElapsedCompile:
@@ -2017,18 +1982,7 @@ class TestElapsedCompile:
             outputs=[AudioOutput(id="out1", source="el")],
             nodes=[Elapsed(id="el")],
         )
-        code = compile_graph(g)
-        with tempfile.NamedTemporaryFile(suffix=".cpp", mode="w", delete=False) as f:
-            f.write(code)
-            f.flush()
-            result = subprocess.run(
-                ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            Path(f.name).unlink()
-        assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
+        _assert_compiles(g)
 
 
 class TestMulAccumCompile:
@@ -2051,18 +2005,7 @@ class TestMulAccumCompile:
             outputs=[AudioOutput(id="out1", source="ma")],
             nodes=[MulAccum(id="ma", incr="in1", reset=0.0)],
         )
-        code = compile_graph(g)
-        with tempfile.NamedTemporaryFile(suffix=".cpp", mode="w", delete=False) as f:
-            f.write(code)
-            f.flush()
-            result = subprocess.run(
-                ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            Path(f.name).unlink()
-        assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
+        _assert_compiles(g)
 
 
 class TestPhasewrapCompile:
@@ -2084,18 +2027,7 @@ class TestPhasewrapCompile:
             outputs=[AudioOutput(id="out1", source="pw")],
             nodes=[UnaryOp(id="pw", op="phasewrap", a="in1")],
         )
-        code = compile_graph(g)
-        with tempfile.NamedTemporaryFile(suffix=".cpp", mode="w", delete=False) as f:
-            f.write(code)
-            f.flush()
-            result = subprocess.run(
-                ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            Path(f.name).unlink()
-        assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
+        _assert_compiles(g)
 
 
 class TestCycleWaveLookupCompile:
@@ -2159,18 +2091,7 @@ class TestCycleWaveLookupCompile:
                 node,
             ],
         )
-        code = compile_graph(g)
-        with tempfile.NamedTemporaryFile(suffix=".cpp", mode="w", delete=False) as f:
-            f.write(code)
-            f.flush()
-            result = subprocess.run(
-                ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            Path(f.name).unlink()
-        assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
+        _assert_compiles(g)
 
 
 class TestBatch3Compile:
@@ -2344,18 +2265,7 @@ class TestBatch3Compile:
                 BufRead(id="br", buffer="buf", index=0.0),
             ],
         )
-        code = compile_graph(g)
-        with tempfile.NamedTemporaryFile(suffix=".cpp", mode="w", delete=False) as f:
-            f.write(code)
-            f.flush()
-            result = subprocess.run(
-                ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            Path(f.name).unlink()
-        assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
+        _assert_compiles(g)
 
 
 class TestADSRCompilation:
@@ -2413,18 +2323,7 @@ class TestADSRCompilation:
                 ),
             ],
         )
-        code = compile_graph(g)
-        with tempfile.NamedTemporaryFile(suffix=".cpp", mode="w", delete=False) as f:
-            f.write(code)
-            f.flush()
-            result = subprocess.run(
-                ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            Path(f.name).unlink()
-        assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
+        _assert_compiles(g)
 
     @pytest.mark.skipif(
         not shutil.which("g++"),
@@ -2452,15 +2351,4 @@ class TestADSRCompilation:
                 ),
             ],
         )
-        code = compile_graph(g)
-        with tempfile.NamedTemporaryFile(suffix=".cpp", mode="w", delete=False) as f:
-            f.write(code)
-            f.flush()
-            result = subprocess.run(
-                ["g++", "-std=c++17", "-c", "-o", "/dev/null", "-x", "c++", f.name],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            Path(f.name).unlink()
-        assert result.returncode == 0, f"g++ failed:\n{result.stderr}"
+        _assert_compiles(g)

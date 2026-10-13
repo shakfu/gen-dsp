@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **`compile_graph(graph, lang="c")` emits C99** -- `compile_graph_to_file` takes the same `lang` and writes `<name>.c`. C hosts, such as C99 Pd or Max externals, can call the graph's functions without an `extern "C"` wrapper or a C++ toolchain. The C and C++ outputs differ only in headers, `nullptr`, and a `typedef` for the state struct, so one emitter serves both. The default `lang="cpp"` output is unchanged. Every compile test now builds each graph as C++17 and as C99. `gen-dsp compile --lang c` exposes it on the CLI.
+
+### Fixed
+
+- **Docs gave the wrong project directory** -- The README said `-o` defaults to `./<name>_<platform>`; the default is `build/<name>_<platform>`. Quick starts in the README, `docs/index.md` and the AUv3, Standalone, Csound and Web Audio guides `cd`'d into the old path. Examples that relied on name inference now pass `-n myeffect` so the path is predictable. The Web Audio guide also used `gen-dsp graph compile ... -p webaudio`, which does not exist; a project from a graph is `gen-dsp fm_synth.gdsp -p webaudio`.
+
 ## [0.5.0]
 
 ### Added

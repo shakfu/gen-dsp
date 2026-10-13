@@ -19,7 +19,7 @@ Generates Csound opcode plugins via the `csdl.h` C API. The opcode is discovered
 ```bash
 # From a gen~ export
 gen-dsp ./my_export -n myeffect -p csound
-cd myeffect_csound && make all
+cd build/myeffect_csound && make all
 
 # Verify Csound discovers the opcode
 OPCODE6DIR64=. csound --list-opcodes | grep myeffect

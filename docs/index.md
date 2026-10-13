@@ -34,7 +34,7 @@ pip install gen-dsp
 gen-dsp ./my_export -n myeffect -p clap
 
 # Build it
-cd myeffect_clap && cmake -B build && cmake --build build
+cd build/myeffect_clap && cmake -B build && cmake --build build
 ```
 
 ## Installation
