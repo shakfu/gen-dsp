@@ -45,6 +45,10 @@ def get_clap_templates_dir() -> Path:
     return get_templates_dir("clap")
 
 
+def get_nice_templates_dir() -> Path:
+    return get_templates_dir("nice")
+
+
 def get_vst3_templates_dir() -> Path:
     return get_templates_dir("vst3")
 

@@ -38,6 +38,7 @@ _PLATFORM_INFO: dict[str, tuple[str, str]] = {
     "csound": ("CSOUND_EXT_NAME", "_csound"),
     "auv3": ("AUV3_EXT_NAME", "_auv3"),
     "ssp": ("SSP_EXT_NAME", "_ssp"),
+    "nice": ("NICE_EXT_NAME", "_nice"),
 }
 
 SUPPORTED_PLATFORMS = set(_PLATFORM_INFO.keys())
@@ -344,6 +345,7 @@ def generate_graph_build_file(
         "standalone": _makefile_standalone,
         "csound": _makefile_csound,
         "ssp": _cmake_ssp,
+        "nice": _cargo_nice,
     }
 
     generator = _build_file_generators.get(platform)
@@ -501,6 +503,22 @@ def _cmake_ssp(**kwargs: object) -> Path:
         module_name=ssp_module_name(str(kwargs["lib_name"])),
         use_shared_cache="ON" if kwargs["shared_cache"] else "OFF",
     )
+
+
+def _cargo_nice(**kwargs: object) -> Path:
+    from gen_dsp.platforms.nice import write_build_rs
+
+    output_dir = kwargs["output_dir"]
+    assert isinstance(output_dir, Path)
+    write_build_rs(
+        output_dir,
+        str(kwargs["lib_name"]),
+        cpp_sources=["gen_ext_nice.cpp", "_ext_nice.cpp"],
+        c_sources=[],
+        includes=["."],
+        defines=str(kwargs["midi_defines"]).split(),
+    )
+    return output_dir / "build.rs"
 
 
 def _cmake_au(**kwargs: object) -> Path:

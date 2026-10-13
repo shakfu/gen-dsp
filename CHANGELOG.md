@@ -6,13 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.6.0]
+
 ### Added
 
 - **`compile_graph(graph, lang="c")` emits C99** -- `compile_graph_to_file` takes the same `lang` and writes `<name>.c`. C hosts, such as C99 Pd or Max externals, can call the graph's functions without an `extern "C"` wrapper or a C++ toolchain. The C and C++ outputs differ only in headers, `nullptr`, and a `typedef` for the state struct, so one emitter serves both. The default `lang="cpp"` output is unchanged. Every compile test now builds each graph as C++17 and as C99. `gen-dsp compile --lang c` exposes it on the CLI.
 
+- **`compile_graph_header()` emits the C header for `lang="c"` output** -- It declares the opaque state type and every function inside `extern "C"`, so C++ hosts link against the C object. `compile_graph_to_file(..., lang="c")` and `gen-dsp compile --lang c -o DIR` write `<name>.h` beside `<name>.c`. Hosts such as xtgen no longer have to read the state type out of the C with a regex. The prototypes come from the same emitter as the definitions. Tests compile every graph with its header force-included and `-Wmissing-prototypes -Werror`, so the two cannot drift. The state typedef is now wrapped in an `#ifndef` guard, because C99 rejects a repeated typedef when a `.c` includes its own header.
+
+- **`-p nice` generates a Rust crate for [nice-plug](https://codeberg.org/RustAudio/nice-plug)** -- The crate builds CLAP and VST3 bundles with `cargo xtask bundle`, and `--features gui` adds an egui editor with a slider per parameter. The gen~ code stays C++, compiled by `build.rs` with the `cc` crate. It sits behind a C ABI (`gen_ext_nice.cpp`) that `src/engine.rs` wraps as a safe `Engine`. So it works for gen~ exports and graphs alike, and Rust code can add MIDI handling or DSP around it. A native Rust emitter would have covered graphs only, since genlib is C++. Gen~ code with more inputs than outputs gets the extra inputs on an auxiliary port, because nice-plug's main buffer has the output's channel count. See [docs/backends/nice.md](docs/backends/nice.md).
+
+- **gen~ exports build for double-precision Pd** -- `make floatsize=64` compiles genlib as double and names the external `<name>~.<os>-<cpu>-64.so`, the only names pd64 loads. Graph projects still process floats, so their Pd glue now fails to compile for pd64 instead of misreading its buffers. Loading in a pd64 binary is not yet verified. See [docs/dev/double-builds.md](docs/dev/double-builds.md).
+
 ### Fixed
 
+- **Compiled graphs warned under `-Wall -Wextra`** -- The C and C++ output had unused locals and parameters: `sr` in every `perform`, `self` in the parameter, buffer and peek functions of graphs that have none, input pointers and parameter loads nothing read, and nodes whose value nothing consumes. Hosts that build with `-Werror` had to drop it. Unread inputs and parameters are no longer loaded. The rest are cast to `void`, since unconsumed nodes still run for Peek and state. Compile tests now pass `-Wall -Wextra -Werror` to both compilers.
+
+- **Graph sources ignored `--voices` and `--midi-*`** -- `gen-dsp synth.gdsp -p clap --voices 4` built a monophonic plugin, and `--no-midi`, `--midi-gate/freq/vel` and `--midi-freq-unit` had no effect. The graph path built its `ProjectConfig` without these flags, so MIDI auto-detection always ran with defaults. The `--voices` checks now apply to both sources.
+
 - **Docs gave the wrong project directory** -- The README said `-o` defaults to `./<name>_<platform>`; the default is `build/<name>_<platform>`. Quick starts in the README, `docs/index.md` and the AUv3, Standalone, Csound and Web Audio guides `cd`'d into the old path. Examples that relied on name inference now pass `-n myeffect` so the path is predictable. The Web Audio guide also used `gen-dsp graph compile ... -p webaudio`, which does not exist; a project from a graph is `gen-dsp fm_synth.gdsp -p webaudio`.
+
+- **Pd buffer access was wrong on 64-bit hosts** -- `pd_buffer.h` reads Pd arrays through `t_word`, which is 8 bytes on 64-bit hosts. Its 8-element fallback buffer was declared as `float`, so reads ran past its end. `blend` (used by `splat`) wrote with a `float` stride, so it hit element `offset/2`. A Windows build also compiled genlib as double against single-precision Pd, because `GENLIB_USE_FLOAT32` was set only for macOS and Linux.
 
 ## [0.5.0]
 

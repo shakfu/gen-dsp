@@ -161,6 +161,7 @@ _BUILD_SYSTEM_FILES = {
     "csound": "Makefile",
     "auv3": "CMakeLists.txt",
     "ssp": "CMakeLists.txt",
+    "nice": "Cargo.toml",
 }
 
 

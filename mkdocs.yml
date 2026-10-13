@@ -74,6 +74,7 @@ nav:
     - Web Audio: backends/webaudio.md
     - Standalone: backends/standalone.md
     - Csound: backends/csound.md
+    - nice-plug (Rust): backends/nice.md
   - Graph Frontend:
     - Overview: graph/README.md
     - Graph Representation: graph/dsp_graph.md

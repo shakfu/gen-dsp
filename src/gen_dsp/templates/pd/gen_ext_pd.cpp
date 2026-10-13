@@ -6,6 +6,10 @@
 #include "pd-include/m_pd.h"
 #include "_ext_pd.h"
 
+// perform() hands Pd's signal vectors to the graph code as float**.
+static_assert(sizeof(t_sample) == sizeof(float),
+              "graph projects process 32-bit floats; double-precision Pd is not supported");
+
 namespace WRAPPER_NAMESPACE {
 
 using namespace WRAPPER_NAMESPACE;

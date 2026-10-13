@@ -99,6 +99,7 @@ class TestCompile:
         rc = main(["compile", str(graph_json), "-o", str(tmp_path), "--lang", "c"])
         assert rc == 0
         assert (tmp_path / "test_graph.c").is_file()
+        assert (tmp_path / "test_graph.h").is_file()
         assert not (tmp_path / "test_graph.cpp").exists()
 
     def test_compile_unknown_lang_rejected(self, graph_json: Path) -> None:

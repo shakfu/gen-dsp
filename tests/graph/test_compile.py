@@ -69,30 +69,51 @@ from gen_dsp.graph import (
     Wave,
     Wrap,
     compile_graph,
+    compile_graph_header,
     compile_graph_to_file,
 )
 
+# Hosts such as xtgen compile the output with -Werror; keep it warning-free.
+_WARN = ["-Wall", "-Wextra", "-Werror"]
+
 
 def _assert_compiles(graph: Graph) -> None:
-    """Compile the graph as C++17 with g++, then as C99 with cc."""
-    for lang, cmd in (
-        ("cpp", ["g++", "-std=c++17", "-x", "c++"]),
-        ("c", ["cc", "-std=c99", "-pedantic-errors", "-x", "c"]),
-    ):
-        if not shutil.which(cmd[0]):
-            pytest.skip(f"{cmd[0]} not available")
-        with tempfile.NamedTemporaryFile(
-            suffix=f".{lang}", mode="w", delete=False
-        ) as f:
-            f.write(compile_graph(graph, lang=lang))
-        result = subprocess.run(
-            [*cmd, "-c", "-o", "/dev/null", f.name],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        Path(f.name).unlink()
-        assert result.returncode == 0, f"{cmd[0]} ({lang}) failed:\n{result.stderr}"
+    """Compile the graph as C++17 with g++, then as C99 with cc, warning-free.
+
+    The C pass force-includes compile_graph_header(), so -Wmissing-prototypes
+    fails if the header misses a function or declares one differently.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        header = Path(tmp) / "graph.h"
+        header.write_text(compile_graph_header(graph))
+        for lang, cmd in (
+            ("cpp", ["g++", "-std=c++17", *_WARN, "-x", "c++"]),
+            (
+                "c",
+                [
+                    "cc",
+                    "-std=c99",
+                    "-pedantic-errors",
+                    *_WARN,
+                    "-Wmissing-prototypes",
+                    "-include",
+                    str(header),
+                    "-x",
+                    "c",
+                ],
+            ),
+        ):
+            if not shutil.which(cmd[0]):
+                pytest.skip(f"{cmd[0]} not available")
+            src = Path(tmp) / f"graph.{lang}"
+            src.write_text(compile_graph(graph, lang=lang))
+            result = subprocess.run(
+                [*cmd, "-c", "-o", "/dev/null", str(src)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            assert result.returncode == 0, f"{cmd[0]} ({lang}) failed:\n{result.stderr}"
 
 
 class TestStructure:
@@ -891,6 +912,50 @@ class TestCompileToFile:
         out = compile_graph_to_file(stereo_gain_graph, tmp_path, lang="c")
         assert out.name == "stereo_gain.c"
         assert "#include <math.h>" in out.read_text()
+
+    def test_writes_c_header(self, stereo_gain_graph: Graph, tmp_path: Path) -> None:
+        compile_graph_to_file(stereo_gain_graph, tmp_path, lang="c")
+        header = (tmp_path / "stereo_gain.h").read_text()
+        assert "typedef struct StereoGainState StereoGainState;" in header
+        assert "void stereo_gain_perform(StereoGainState* self," in header
+        assert not (tmp_path / "stereo_gain.hpp").exists()
+
+    def test_cpp_writes_no_header(
+        self, stereo_gain_graph: Graph, tmp_path: Path
+    ) -> None:
+        compile_graph_to_file(stereo_gain_graph, tmp_path)
+        assert not (tmp_path / "stereo_gain.h").exists()
+
+    @pytest.mark.skipif(
+        not (shutil.which("cc") and shutil.which("c++")), reason="cc and c++ required"
+    )
+    def test_cpp_host_links_c_object(
+        self, fbdelay_graph: Graph, tmp_path: Path
+    ) -> None:
+        """A C++ host links the C object through the header's extern "C"."""
+        compile_graph_to_file(fbdelay_graph, tmp_path, lang="c")
+        (tmp_path / "host.cpp").write_text(
+            '#include "fbdelay.h"\n'
+            "int main() {\n"
+            "    FbdelayState* s = fbdelay_create(48000.0f);\n"
+            "    float in[4] = {1, 0, 0, 0}, out[4];\n"
+            "    float* ins[1] = {in};\n"
+            "    float* outs[1] = {out};\n"
+            "    fbdelay_perform(s, ins, outs, 4);\n"
+            "    fbdelay_destroy(s);\n"
+            "    return fbdelay_num_inputs() == 1 ? 0 : 1;\n"
+            "}\n"
+        )
+        steps = [
+            ["cc", "-std=c99", "-c", "fbdelay.c", "-o", "fbdelay.o"],
+            ["c++", "-std=c++17", "host.cpp", "fbdelay.o", "-o", "host"],
+            ["./host"],
+        ]
+        for cmd in steps:
+            result = subprocess.run(
+                cmd, cwd=tmp_path, capture_output=True, text=True, check=False
+            )
+            assert result.returncode == 0, f"{cmd}:\n{result.stderr}"
 
     def test_creates_directory(self, onepole_graph: Graph, tmp_path: Path) -> None:
         build_dir = tmp_path / "nested" / "build"

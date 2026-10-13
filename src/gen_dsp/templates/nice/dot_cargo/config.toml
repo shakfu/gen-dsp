@@ -1,0 +1,3 @@
+[alias]
+# `cargo xtask bundle <crate> --release` builds .clap and .vst3 bundles in target/bundled/.
+xtask = "run --package xtask --release --"

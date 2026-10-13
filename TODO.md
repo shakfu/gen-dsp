@@ -10,6 +10,8 @@ Completed items are recorded in [CHANGELOG.md](CHANGELOG.md) rather than kept he
 
 ## High
 
+- [ ] Warnings in gen-dsp's C: it has unused locals, so tests compile `_dsp.c` without `-Werror`.
+
 - [ ] **Percussa SSP: JUCE format in rack** - `gvbj` (gigaverb) runs in Synthor. Load it in a
   rack slot and check the compact view and encoders; check preset save and reload.
 

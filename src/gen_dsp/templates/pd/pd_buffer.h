@@ -11,8 +11,9 @@
 #ifndef PD_BUFFER_ZEROS
 // make a small empty buffer to use as a default. This may need
 // to be enlarged if the gen~ algorithm assumes a larger buffer
-// and one is not assigned in Pd.
-	static float pd_buffer_zeros[] = {0,0,0,0,0,0,0,0};
+// and one is not assigned in Pd. t_word, not float: the accessors
+// below index with t_word's stride, which is 8 bytes on 64-bit hosts.
+	static t_word pd_buffer_zeros[8];
 	
 #define PD_BUFFER_ZEROS
 #endif
@@ -44,7 +45,7 @@ typedef struct PdBuffer : public DataInterface<t_sample> {
 	inline void blend(t_sample value, long index, long channel, t_sample alpha) {
 		long offset = channel+index*channels;
 		const t_sample old = ((t_word*)mData)[offset].w_float;
-		mData[offset] = old + alpha * (value - old);
+		((t_word*)mData)[offset].w_float = old + alpha * (value - old);
 		modified = 1;
 	}
 
@@ -62,19 +63,19 @@ typedef struct PdBuffer : public DataInterface<t_sample> {
 		 {
 	 		channels = 1;
 	 		dim = 8;
-	 		mData = &pd_buffer_zeros[0];
+	 		mData = (t_sample*)pd_buffer_zeros;
 			 return 1;
 		 }
 		 if (!garray_getfloatwords(a, &size, &vec))
 		 {
 	 		channels = 1;
 	 		dim = 8;
-	 		mData = &pd_buffer_zeros[0];
+	 		mData = (t_sample*)pd_buffer_zeros;
 		 			return 2;
 		 }
 		 channels = 1;
 		 dim = size;
-		 mData = (t_float*)vec;
+		 mData = (t_sample*)vec;
  		garray_usedindsp(a);
  		return 0;
 

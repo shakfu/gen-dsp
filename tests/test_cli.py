@@ -1245,3 +1245,61 @@ class TestGenexprDispatch:
         rc = main(["genexpr", str(graph)])
         assert rc == 0
         assert "o = in1 * 0.5;" in capsys.readouterr().out
+
+
+class TestGraphMidiFlags:
+    """MIDI and polyphony flags reach graph projects, as they do exports."""
+
+    SYNTH = """
+        graph synth {
+            out output = osc * gate
+            param gate 0..1 = 0
+            param freq 20..20000 = 440
+            param tone 0..1 = 0.5
+            osc = sinosc(freq)
+        }
+        """
+
+    def _generate(self, tmp_path: Path, *flags: str) -> str:
+        pytest.importorskip("pydantic")
+        graph_file = tmp_path / "synth.gdsp"
+        graph_file.write_text(self.SYNTH)
+        out = tmp_path / "out"
+        assert (
+            main([str(graph_file), "-p", "clap", "-o", str(out), "--no-build", *flags])
+            == 0
+        )
+        return (out / "CMakeLists.txt").read_text()
+
+    def test_voices(self, tmp_path: Path):
+        cmake = self._generate(tmp_path, "--voices", "4")
+        assert "NUM_VOICES=4" in cmake
+        assert (tmp_path / "out" / "voice_alloc.h").is_file()
+
+    def test_no_midi(self, tmp_path: Path):
+        assert "MIDI_ENABLED" not in self._generate(tmp_path, "--no-midi")
+
+    def test_explicit_mapping_and_unit(self, tmp_path: Path):
+        cmake = self._generate(
+            tmp_path,
+            "--midi-gate",
+            "gate",
+            "--midi-vel",
+            "tone",
+            "--midi-freq",
+            "freq",
+            "--midi-freq-unit",
+            "midi",
+        )
+        assert "MIDI_VEL_IDX=2" in cmake
+        assert "MIDI_FREQ_UNIT_HZ=0" in cmake
+
+    def test_voices_without_midi_is_rejected(self, tmp_path: Path, capsys):
+        pytest.importorskip("pydantic")
+        graph_file = tmp_path / "synth.gdsp"
+        graph_file.write_text(self.SYNTH)
+        rc = main(
+            [str(graph_file), "-p", "clap", "--no-build", "--no-midi", "--voices", "2"]
+        )
+        assert rc == 1
+        assert "requires MIDI" in capsys.readouterr().err

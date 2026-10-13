@@ -1,5 +1,6 @@
 """Tests for PureData external platform implementation."""
 
+import os
 import platform as sys_platform
 import shutil
 import subprocess
@@ -292,3 +293,95 @@ class TestPdBuildIntegration:
         assert output.stat().st_size > 0
 
         _validate_pd_external(project_dir, "spectraldelayfb")
+
+
+def _make_pd(project_dir: Path, *args: str) -> None:
+    # A PDDIR from the shell would replace the bundled m_pd.h; keep the build hermetic.
+    env = {k: v for k, v in os.environ.items() if k != "PDDIR"}
+    result = subprocess.run(
+        ["make", *args],
+        cwd=project_dir,
+        capture_output=True,
+        text=True,
+        timeout=300,
+        env=env,
+        check=False,
+    )
+    assert result.returncode == 0, f"make failed:\n{result.stdout}\n{result.stderr}"
+
+
+class TestPdDoublePrecision:
+    """`make floatsize=64` builds gen~ exports for double-precision Pd (pd64)."""
+
+    def test_makefile_selects_genlib_precision(
+        self, gigaverb_export: Path, tmp_project: Path
+    ):
+        export_info = GenExportParser(gigaverb_export).parse()
+        config = ProjectConfig(name="testverb", platform="pd")
+        makefile = (
+            ProjectGenerator(export_info, config).generate(tmp_project) / "Makefile"
+        ).read_text()
+        assert "floatsize ?= 32" in makefile
+        assert "-DPD_FLOATSIZE=64" in makefile
+        assert "override extension = $(pd64.os)-$(pd64.cpu)-64.so" in makefile
+
+    @_skip_no_toolchain
+    @pytest.mark.parametrize(
+        ("fixture", "name", "buffers"),
+        [
+            ("gigaverb_export", "gigaverb", []),
+            ("rampleplayer_export", "ramp", ["sample"]),
+        ],
+    )
+    def test_build_pd64(self, fixture, name, buffers, request, tmp_path: Path):
+        """pd64 loads only <os>-<cpu>-64.so, and genlib must process doubles."""
+        export_info = GenExportParser(request.getfixturevalue(fixture)).parse()
+        config = ProjectConfig(name=name, platform="pd", buffers=buffers)
+        project_dir = ProjectGenerator(export_info, config).generate(tmp_path / "p")
+        _make_pd(project_dir, "floatsize=64")
+
+        built = list(project_dir.glob(f"{name}~.*-64.so"))
+        assert len(built) == 1, sorted(p.name for p in project_dir.iterdir())
+        assert not list(project_dir.glob("*.pd_darwin"))
+        if shutil.which("nm"):
+            symbols = subprocess.run(
+                ["nm", str(built[0])], capture_output=True, text=True, check=True
+            ).stdout
+            # Itanium mangling: PPd = double**, PPf = float**.
+            assert "7performEP11CommonStatePPd" in symbols
+            assert "7performEP11CommonStatePPf" not in symbols
+
+    @_skip_no_toolchain
+    def test_graph_project_rejects_pd64(self, tmp_path: Path):
+        """Graph code processes floats, so its Pd glue refuses PD_FLOATSIZE=64."""
+        pytest.importorskip("pydantic")
+        from gen_dsp.graph.dsl import parse
+
+        graph = parse(
+            "graph tone {\n out output = osc\n param freq 20..20000 = 440\n"
+            " osc = sinosc(freq)\n}\n"
+        )
+        config = ProjectConfig(name="tone", platform="pd")
+        project_dir = ProjectGenerator.from_graph(graph, config).generate(
+            tmp_path / "p"
+        )
+        cxx = shutil.which("clang++") or shutil.which("g++")
+        base = [cxx, "-std=c++17", "-fsyntax-only", "-I.", "-DGENLIB_USE_FLOAT32"]
+        base += ["-DPD_EXT_NAME=tone", "-DGEN_EXPORTED_NAME=tone", "gen_ext_pd.cpp"]
+        ok = subprocess.run(
+            [*base, "-DPD_FLOATSIZE=32"],
+            cwd=project_dir,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert ok.returncode == 0, ok.stderr
+        rejected = subprocess.run(
+            [*base, "-DPD_FLOATSIZE=64"],
+            cwd=project_dir,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert rejected.returncode != 0
+        assert "double-precision Pd is not supported" in rejected.stderr

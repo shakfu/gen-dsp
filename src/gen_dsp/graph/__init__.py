@@ -31,7 +31,11 @@ else:
         generate_manifest,
     )
     from gen_dsp.graph.algebra import merge, parallel, series, split
-    from gen_dsp.graph.compile import compile_graph, compile_graph_to_file
+    from gen_dsp.graph.compile import (
+        compile_graph,
+        compile_graph_header,
+        compile_graph_to_file,
+    )
     from gen_dsp.graph.dsl import (
         GDSPCompileError,
         GDSPSyntaxError,
@@ -202,6 +206,7 @@ __all__ = [
     "_require_graph",
     "compile_for_gen_dsp",
     "compile_graph",
+    "compile_graph_header",
     "compile_graph_to_file",
     "constant_fold",
     "eliminate_cse",

@@ -196,6 +196,30 @@ def validate_vst3(
         )
 
 
+def validate_pluginval(pluginval: Path | None, bundle: Path) -> None:
+    """Run pluginval at maximum strictness against a VST3 bundle, if available."""
+    if pluginval is None:
+        return
+    result = subprocess.run(
+        [
+            str(pluginval),
+            "--strictness-level",
+            "10",
+            "--skip-gui-tests",
+            "--validate-in-process",
+            "--validate",
+            str(bundle),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=300,
+        check=False,
+    )
+    assert result.returncode == 0, (
+        f"pluginval failed:\n{result.stdout}\n{result.stderr}"
+    )
+
+
 # ---------------------------------------------------------------------------
 # LV2 validation
 # ---------------------------------------------------------------------------

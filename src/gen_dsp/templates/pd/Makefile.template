@@ -13,12 +13,24 @@ cflags = -I ./gen -I./gen/gen_dsp -DGENDSP_VERSION=$$(gendsp.version) -DPD_EXT_N
 suppress-wunused = yes
 $remap_defines
 
+# genlib's sample type must match Pd's. `make floatsize=64` builds for
+# double-precision Pd (pd64), which loads only <os>-<cpu>-64.so externals.
+floatsize ?= 32
+ifeq ($$(floatsize),64)
+  cflags += -DPD_FLOATSIZE=64
+  pd64.os := $$(shell uname -s | tr A-Z a-z)
+  pd64.cpu := $$(subst aarch64,arm64,$$(subst x86_64,amd64,$$(shell uname -m)))
+  override extension = $$(pd64.os)-$$(pd64.cpu)-64.so
+else
+  cflags += -DGENLIB_USE_FLOAT32
+endif
+
 define forDarwin
-  cflags += -DMSP_ON_CLANG -DGENLIB_USE_FLOAT32 -mmacosx-version-min=10.9
+  cflags += -DMSP_ON_CLANG -mmacosx-version-min=10.9
 endef
 
 define forLinux
-  cflags += -DGENLIB_USE_FLOAT32 -DWIN32 -DGENLIB_NO_DENORM_TEST
+  cflags += -DWIN32 -DGENLIB_NO_DENORM_TEST
   $$(lib.name)~.class.sources += ./gen/gen_dsp/json.c ./gen/gen_dsp/json_builder.c
 endef
 

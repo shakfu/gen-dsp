@@ -133,6 +133,14 @@ LLD = Tool(
 )
 
 
+CARGO = Tool(
+    "cargo",
+    "Rust toolchain (cargo)",
+    "Install Rust: https://rustup.rs",
+    _which("cargo"),
+)
+
+
 XCODE = Tool(
     "xcodebuild",
     "Xcode",
@@ -176,6 +184,7 @@ PLATFORM_REQUIREMENTS: dict[str, tuple[list[Tool], list[str]]] = {
         ["Needs the Csound development headers (csdl.h); see docs/backends/csound.md"],
     ),
     "auv3": ([CMAKE, XCODE], []),
+    "nice": ([CARGO, CXX], [_auto("nice-plug crates (crates.io)")]),
     "ssp": (
         [CMAKE, SSP_CLANG, LLD],
         [

@@ -24,6 +24,7 @@ See the [Architecture](architecture.md) page for a visual overview of the pipeli
 | Standalone | `standalone` | make (miniaudio) | native executable |
 | Csound | `csound` | make | `.dylib` / `.so` opcode |
 | Percussa SSP | `ssp` | CMake (clang cross) | `.so` module |
+| nice-plug (Rust) | `nice` | Cargo (cc + xtask) | `.clap` + `.vst3` bundles |
 
 ## Quick Start
 

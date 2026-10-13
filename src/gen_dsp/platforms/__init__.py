@@ -19,6 +19,7 @@ from gen_dsp.platforms.csound import CsoundPlatform
 from gen_dsp.platforms.daisy import DaisyPlatform
 from gen_dsp.platforms.lv2 import Lv2Platform
 from gen_dsp.platforms.max import MaxPlatform
+from gen_dsp.platforms.nice import NicePlatform
 from gen_dsp.platforms.puredata import PureDataPlatform
 from gen_dsp.platforms.ssp import SspPlatform
 from gen_dsp.platforms.standalone import StandalonePlatform
@@ -49,6 +50,7 @@ PLATFORM_REGISTRY: dict[str, type[Platform]] = {
     "csound": CsoundPlatform,
     "auv3": Auv3Platform,
     "ssp": SspPlatform,
+    "nice": NicePlatform,
 }
 
 
@@ -139,6 +141,7 @@ __all__ = [
     "DaisyPlatform",
     "Lv2Platform",
     "MaxPlatform",
+    "NicePlatform",
     "Platform",
     "PluginCategory",
     "PureDataPlatform",

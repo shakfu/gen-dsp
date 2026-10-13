@@ -30,6 +30,7 @@ README_NAMES = {
     "Web Audio": "webaudio",
     "Standalone": "standalone",
     "Csound": "csound",
+    "nice-plug (Rust)": "nice",
 }
 
 # build-examples.yml runner -> host

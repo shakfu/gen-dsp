@@ -96,9 +96,11 @@ For subpatches with custom block sizes (e.g., spectral processing):
 
 - **Build system:** make via [pd-lib-builder](https://github.com/pure-data/pd-lib-builder) (bundled with the generated project)
 
-- **Compile flags (macOS):** `-DMSP_ON_CLANG -DGENLIB_USE_FLOAT32 -mmacosx-version-min=10.9`
+- **Compile flags (macOS):** `-DMSP_ON_CLANG -mmacosx-version-min=10.9`
 
-- **Compile flags (Linux):** `-DGENLIB_USE_FLOAT32 -DWIN32 -DGENLIB_NO_DENORM_TEST`
+- **Compile flags (Linux):** `-DWIN32 -DGENLIB_NO_DENORM_TEST`
+
+- **Float size:** `GENLIB_USE_FLOAT32` by default. `make floatsize=64` builds for double-precision Pd (pd64) instead: genlib compiled as double, output named `<name>~.<os>-<cpu>-64.so`. gen~ exports only; graph projects refuse it. See [double-precision builds](../dev/double-builds.md).
 
 - **Shared cache:** not applicable (no FetchContent)
 

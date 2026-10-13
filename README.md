@@ -2,11 +2,11 @@
 
 **[Documentation](https://shakfu.github.io/gen-dsp/)** | **[API Reference](https://shakfu.github.io/gen-dsp/api/)** | **[Changelog](https://github.com/shakfu/gen-dsp/blob/master/CHANGELOG.md)**
 
-gen-dsp turns Max/MSP gen~ code exports into complete, buildable audio plugin projects. A gen~ export is just a bundle of C++ and the genlib runtime; turning it into a plugin a host can load still means writing host glue, build files, parameter wiring, and platform-specific fixes by hand -- once for every target you care about. gen-dsp automates that end to end: from a single export it scaffolds a ready-to-build project for any of 15 targets, handling I/O and buffer detection, parameter metadata extraction, and platform-specific patching. It is a zero-dependency pure Python package -- `pip install gen-dsp`, then one command per target.
+gen-dsp turns Max/MSP gen~ code exports into complete, buildable audio plugin projects. A gen~ export is just a bundle of C++ and the genlib runtime; turning it into a plugin a host can load still means writing host glue, build files, parameter wiring, and platform-specific fixes by hand -- once for every target you care about. gen-dsp automates that end to end: from a single export it scaffolds a ready-to-build project for any of 17 targets, handling I/O and buffer detection, parameter metadata extraction, and platform-specific patching. It is a zero-dependency pure Python package -- `pip install gen-dsp`, then one command per target.
 
-The 16 targets are PureData, Max/MSP, ChucK, AudioUnit (AUv2), AUv3, CLAP, VST3, LV2, SuperCollider, VCV Rack, Daisy, Circle, Percussa SSP, Web Audio (WASM), Standalone (miniaudio), and Csound -- spanning desktop plugin formats, embedded firmware, and the browser.
+The 17 targets are PureData, Max/MSP, ChucK, AudioUnit (AUv2), AUv3, CLAP, VST3, LV2, SuperCollider, VCV Rack, Daisy, Circle, Percussa SSP, Web Audio (WASM), Standalone (miniaudio), Csound, and nice-plug (a Rust CLAP/VST3 crate) -- spanning desktop plugin formats, embedded firmware, and the browser.
 
-gen-dsp also optionally provides its own alternative DSP DSL called GDSP, short for GRAPH DSP (`pip install gen-dsp[graph]`), another way to author DSP directly in gen-dsp as an alternative to gen~. You define a signal graph in purpose-built `.gdsp` files, and compile it to any of the 15 targets through the same pipeline -- no Max or gen~ export required. A graph can even be transpiled back to gen~ `codebox` source (experimental), so work started in GDSP can return to Max. The separate, optional [dsp-graph](https://github.com/shakfu/dsp-graph) package adds a web-based visual editor and debugger (React + FastAPI) for viewing and driving gen-dsp operations from a browser.
+gen-dsp also optionally provides its own alternative DSP DSL called GDSP, short for GRAPH DSP (`pip install gen-dsp[graph]`), another way to author DSP directly in gen-dsp as an alternative to gen~. You define a signal graph in purpose-built `.gdsp` files, and compile it to any of the 17 targets through the same pipeline -- no Max or gen~ export required. A graph can even be transpiled back to gen~ `codebox` source (experimental), so work started in GDSP can return to Max. The separate, optional [dsp-graph](https://github.com/shakfu/dsp-graph) package adds a web-based visual editor and debugger (React + FastAPI) for viewing and driving gen-dsp operations from a browser.
 
 This project is a friendly fork of Michael Spears' [gen_ext](https://github.com/samesimilar/gen_ext) which was originally created to "compile code exported from a Max gen~ object into an "external" object that can be loaded into a PureData patch."
 
@@ -32,6 +32,7 @@ Build-host status per platform: `ci` (built in CI), `verified` (built by hand), 
 | Web Audio | untested | untested | untested | make (Emscripten) | `.wasm` + `processor.js` |
 | Standalone | ci | ci | untested | make (miniaudio) | native executable |
 | Csound | untested | untested | -- | make | `.dylib` / `.so` opcode |
+| nice-plug (Rust) | verified | untested | untested | Cargo (cc + xtask) | `.clap` + `.vst3` |
 
 Each platform has a detailed guide covering prerequisites, build details, SDK configuration, install paths, and troubleshooting:
 
@@ -53,6 +54,7 @@ Each platform has a detailed guide covering prerequisites, build details, SDK co
 | Web Audio | [docs/backends/webaudio.md](docs/backends/webaudio.md) |
 | Standalone | [docs/backends/standalone.md](docs/backends/standalone.md) |
 | Csound | [docs/backends/csound.md](docs/backends/csound.md) |
+| nice-plug (Rust) | [docs/backends/nice.md](docs/backends/nice.md) |
 
 ## Key Improvements and Features
 
@@ -89,6 +91,8 @@ Each platform has a detailed guide covering prerequisites, build details, SDK co
 - **AUv3 support**: Generates macOS AUv3 plugins as App Extensions (`.appex` inside `.app`) using `cmake -G Xcode`. Implements `AUAudioUnit` subclass with `AUParameterTree` and realtime-safe `internalRenderBlock`.
 
 - **Csound support**: Generates Csound opcode plugins via the `csdl.h` C API. Audio inputs map to a-rate args, parameters to k-rate args. Handles float-to-MYFLT conversion with sample-accurate timing.
+
+- **nice-plug (Rust) support**: Generates a Cargo crate that builds CLAP and VST3 bundles with [nice-plug](https://codeberg.org/RustAudio/nice-plug). The gen~ C++ is compiled by `build.rs` and wrapped as a safe Rust `Engine`, so Rust code can add an egui editor (`--features gui`), MIDI handling or extra DSP.
 
 - **Platform-specific patches**: Automatically fixes compatibility issues like the `exp2f -> exp2` problem in Max 9 exports on macOS.
 
@@ -162,7 +166,7 @@ The source type is auto-detected:
 
 Options:
 
-- `-p, --platform` - Target platform(s) (required): a single name, a comma-separated list, or `all`. Names: `pd`, `max`, `chuck`, `au`, `auv3`, `clap`, `vst3`, `lv2`, `sc`, `vcvrack`, `daisy`, `circle`, `webaudio`, `standalone`, `csound`, `ssp`. With multiple targets the source is parsed once and each is generated/built in turn (a per-target summary is printed); `-o` then acts as a parent directory, with each target in `<output>/<name>_<platform>`. Example: `gen-dsp ./export -p clap,vst3,au`
+- `-p, --platform` - Target platform(s) (required): a single name, a comma-separated list, or `all`. Names: `pd`, `max`, `chuck`, `au`, `auv3`, `clap`, `vst3`, `lv2`, `sc`, `vcvrack`, `daisy`, `circle`, `webaudio`, `standalone`, `csound`, `ssp`, `nice`. With multiple targets the source is parsed once and each is generated/built in turn (a per-target summary is printed); `-o` then acts as a parent directory, with each target in `<output>/<name>_<platform>`. Example: `gen-dsp ./export -p clap,vst3,au`
 - `-n, --name` - Name for the plugin (default: inferred from source)
 - `-o, --output` - Output directory (default: `./build/<name>_<platform>`)
 - `--no-build` - Skip building after project creation
@@ -374,6 +378,7 @@ Or compile, validate, and visualize:
 
 ```bash
 gen-dsp compile fbdelay.gdsp              # emit C++ to stdout
+gen-dsp compile fbdelay.gdsp --lang c -o out/   # write fbdelay.c and fbdelay.h
 gen-dsp validate fbdelay.gdsp             # check graph connectivity
 gen-dsp viz fbdelay.gdsp -o ./output/     # Graphviz DOT visualization
 ```
@@ -785,6 +790,19 @@ gen-dsp ./my_export -n myverb -p ssp
 
 Generates native SSP modules against the Percussa SDK's `PluginInterface`, without JUCE. The four encoders edit pages of four parameters, and the screen shows their names and values. Cross-compiles with host clang and lld; the Percussa buildroot (608 MB) is downloaded on first build unless `SSP_BUILDROOT` points to one.
 
+## nice-plug (Rust)
+
+See the [nice-plug guide](docs/backends/nice.md) for full details.
+
+```bash
+gen-dsp ./my_export -n myeffect -p nice --no-build
+cd build/myeffect_nice
+cargo xtask bundle myeffect --release                 # target/bundled/myeffect.{clap,vst3}
+cargo xtask bundle myeffect --release --features gui  # adds an egui editor
+```
+
+Generates a Cargo crate around the gen~ code for Rust users, or for a Rust GUI or Rust-side MIDI/DSP. Parameters become nice-plug `FloatParam`s with stable IDs, and MIDI mapping and `--voices` work as for CLAP. Bundles pass clap-validator and pluginval (strictness 10).
+
 ## Shared FetchContent Cache
 
 CLAP, VST3, LV2, and SC backends use CMake FetchContent to download their SDKs/headers at configure time. By default, gen-dsp bakes an OS-appropriate shared cache path into the generated CMakeLists.txt so that multiple projects share a single SDK download. Pass `--no-shared-cache` to disable this and use CMake's default project-local `build/_deps/` instead.
@@ -827,6 +845,7 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 - AUv3: macOS only; requires full Xcode (not just Command Line Tools) for the CMake Xcode generator; host app must be run once to register the extension with PluginKit
 - Percussa SSP: requires LLVM clang and lld; first build downloads the buildroot (608 MB) unless `SSP_BUILDROOT` is set; module name and uid are the same 4 characters (`--ssp-name`), and names must not collide on the card; does not load in JUCE-based rack hosts; not yet confirmed on hardware
 - Csound: requires Csound headers (`csdl.h`); MYFLT is double in Csound 6/7, so there is a float-to-double conversion cost per sample
+- nice-plug: requires a Rust toolchain and network access on first build (crates.io); `--features gui` needs rustc >= 1.95 (egui 0.36); gen~ inputs beyond the output count arrive on an auxiliary port; Linux and Windows untested
 - Graph frontend: requires pydantic >= 2.0; simulation additionally requires numpy >= 1.24; Daisy, Circle, and VCV Rack platforms not yet supported for graph sources
 
 ## Requirements
@@ -929,6 +948,11 @@ The development Makefile exports `GEN_DSP_CACHE_DIR=build/.fetchcontent_cache` a
 
 - CMake >= 3.19
 - LLVM clang and lld
+
+### nice-plug builds
+
+- Rust toolchain (`cargo`)
+- C/C++ compiler (used by the `cc` crate)
 
 ### Csound builds
 

@@ -630,6 +630,14 @@ def _print_target_summary(results: list[tuple[str, str]]) -> None:
         print(f"  {platform:<10}  {status}")
 
 
+def _voices_error(args: argparse.Namespace) -> str | None:
+    if args.voices < 1:
+        return "--voices must be >= 1"
+    if args.voices > 1 and args.no_midi:
+        return "--voices > 1 requires MIDI (incompatible with --no-midi)"
+    return None
+
+
 def _ssp_name_error(args: argparse.Namespace, platforms: list[str]) -> str | None:
     if "ssp" in platforms:
         if (
@@ -910,6 +918,11 @@ def _cmd_default_graph(args: argparse.Namespace, graph_path: Path) -> int:
         print(f"Error: {serr}", file=sys.stderr)
         return 1
 
+    verr = _voices_error(args)
+    if verr:
+        print(f"Error: {verr}", file=sys.stderr)
+        return 1
+
     results: list[tuple[str, str]] = []
     overall = 0
     for platform in platforms:
@@ -924,6 +937,12 @@ def _cmd_default_graph(args: argparse.Namespace, graph_path: Path) -> int:
             apply_patches=False,
             shared_cache=not getattr(args, "no_shared_cache", False),
             cache_dir=getattr(args, "cache_dir", None),
+            no_midi=args.no_midi,
+            midi_gate=args.midi_gate,
+            midi_freq=args.midi_freq,
+            midi_vel=args.midi_vel,
+            midi_freq_unit=args.midi_freq_unit,
+            num_voices=args.voices,
             tosc=args.tosc,
             tosc_options=_tosc_options_from_args(args),
         )
@@ -1026,15 +1045,9 @@ def _cmd_default_export(args: argparse.Namespace, export_path: Path) -> int:
         print(f"Error: {serr}", file=sys.stderr)
         return 1
 
-    # Validate --voices (platform-independent)
-    if args.voices < 1:
-        print("Error: --voices must be >= 1", file=sys.stderr)
-        return 1
-    if args.voices > 1 and args.no_midi:
-        print(
-            "Error: --voices > 1 requires MIDI (incompatible with --no-midi)",
-            file=sys.stderr,
-        )
+    verr = _voices_error(args)
+    if verr:
+        print(f"Error: {verr}", file=sys.stderr)
         return 1
 
     results: list[tuple[str, str]] = []

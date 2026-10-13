@@ -203,6 +203,21 @@ def _build_env() -> dict[str, str]:
     return env
 
 
+# -- pluginval fixture ---------------------------------------------------------
+
+# The Homebrew cask installs an app bundle without a PATH shim.
+_PLUGINVAL_APP = Path("/Applications/pluginval.app/Contents/MacOS/pluginval")
+
+
+@pytest.fixture(scope="session")
+def pluginval() -> Path | None:
+    """pluginval from PATH or the macOS app bundle; None if not installed."""
+    found = shutil.which("pluginval")
+    if found:
+        return Path(found)
+    return _PLUGINVAL_APP if _PLUGINVAL_APP.is_file() else None
+
+
 # -- CLAP validator fixture ----------------------------------------------------
 
 _CLAP_VALIDATOR_DIR = _FETCHCONTENT_CACHE.parent / ".clap_validator"
