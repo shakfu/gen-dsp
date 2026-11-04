@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- **`GENLIB_USE_FLOAT32` redefined on 32-bit ARM** -- On `__arm__`, the export's `genlib_platform.h` defines `GENLIB_USE_FLOAT32` with no guard. Every build file also passes `-DGENLIB_USE_FLOAT32`, so SSP, Daisy and Circle builds warned on each genlib include. A new patch, `float32_guard`, wraps the header's define in `#ifndef`. It runs with the other patches and is skipped under `--no-patch`. Guarding the header in one place was chosen over editing about 20 platform templates to pass a matching empty define.
+
 ## [0.6.1]
 
 ### Fixed

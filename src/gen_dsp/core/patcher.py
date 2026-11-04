@@ -3,6 +3,8 @@ Platform-specific patches for gen~ exports.
 
 Handles issues like:
 - exp2f -> exp2 for macOS compatibility
+- GENLIB_USE_FLOAT32 guard: genlib_platform.h defines it on 32-bit ARM, and
+  the build files also pass it with -D, so ARM builds warned on redefinition
 """
 
 import re
@@ -41,6 +43,12 @@ class Patcher:
     # Pattern to match exp2f calls
     EXP2F_PATTERN = re.compile(r"\bexp2f\s*\(")
 
+    # An unguarded define of GENLIB_USE_FLOAT32 on its own line
+    FLOAT32_DEFINE_PATTERN = re.compile(
+        r"^([ \t]*)#define[ \t]+GENLIB_USE_FLOAT32[ \t]*$", re.MULTILINE
+    )
+    FLOAT32_GUARD = "#ifndef GENLIB_USE_FLOAT32"
+
     def __init__(self, target_path: Path | str):
         """
         Initialize patcher with target directory.
@@ -63,11 +71,79 @@ class Patcher:
         results = []
 
         # Apply exp2f fix
-        exp2f_result = self.apply_exp2f_fix(dry_run=dry_run)
-        if exp2f_result:
-            results.append(exp2f_result)
+        for patch in (self.apply_exp2f_fix, self.apply_float32_guard):
+            result = patch(dry_run=dry_run)
+            if result:
+                results.append(result)
 
         return results
+
+    def _find_genlib_file(self, name: str) -> Path | None:
+        """Return the export's genlib header ``name``, or None if absent."""
+        for path in (
+            self.target_path / "gen_dsp" / name,
+            self.target_path / "gen" / "gen_dsp" / name,
+        ):
+            if path.exists():
+                return path
+        return None
+
+    def _float32_guard_needed(self, content: str) -> bool:
+        return (
+            self.FLOAT32_GUARD not in content
+            and self.FLOAT32_DEFINE_PATTERN.search(content) is not None
+        )
+
+    def apply_float32_guard(self, dry_run: bool = False) -> PatchResult | None:
+        """
+        Guard genlib_platform.h's GENLIB_USE_FLOAT32 define with #ifndef.
+
+        Args:
+            dry_run: If True, don't modify the file, just report.
+
+        Returns:
+            PatchResult or None if file not found.
+        """
+        path = self._find_genlib_file("genlib_platform.h")
+        if not path:
+            return None
+
+        content = path.read_text(encoding="utf-8")
+        if not self._float32_guard_needed(content):
+            return PatchResult(
+                file_path=path,
+                patch_name="float32_guard",
+                applied=False,
+                message="GENLIB_USE_FLOAT32 already guarded or not defined",
+            )
+
+        new_content = self.FLOAT32_DEFINE_PATTERN.sub(
+            rf"\1{self.FLOAT32_GUARD}\n\1#define GENLIB_USE_FLOAT32\n\1#endif",
+            content,
+        )
+
+        if dry_run:
+            return PatchResult(
+                file_path=path,
+                patch_name="float32_guard",
+                applied=False,
+                message="Would guard GENLIB_USE_FLOAT32 with #ifndef (dry run)",
+                original_content=content,
+                new_content=new_content,
+            )
+
+        try:
+            path.write_text(new_content, encoding="utf-8")
+        except OSError as e:
+            raise PatchError(f"Failed to write patched file: {e}") from e
+        return PatchResult(
+            file_path=path,
+            patch_name="float32_guard",
+            applied=True,
+            message="Guarded GENLIB_USE_FLOAT32 with #ifndef",
+            original_content=content,
+            new_content=new_content,
+        )
 
     def apply_exp2f_fix(self, dry_run: bool = False) -> PatchResult | None:
         """
@@ -82,18 +158,7 @@ class Patcher:
         Returns:
             PatchResult or None if file not found.
         """
-        # Look for genlib_ops.h in various locations
-        possible_paths = [
-            self.target_path / "gen_dsp" / "genlib_ops.h",
-            self.target_path / "gen" / "gen_dsp" / "genlib_ops.h",
-        ]
-
-        genlib_ops_path = None
-        for path in possible_paths:
-            if path.exists():
-                genlib_ops_path = path
-                break
-
+        genlib_ops_path = self._find_genlib_file("genlib_ops.h")
         if not genlib_ops_path:
             return None
 
@@ -144,18 +209,15 @@ class Patcher:
         """
         needed = {}
 
-        # Check exp2f
-        possible_paths = [
-            self.target_path / "gen_dsp" / "genlib_ops.h",
-            self.target_path / "gen" / "gen_dsp" / "genlib_ops.h",
-        ]
+        ops = self._find_genlib_file("genlib_ops.h")
+        needed["exp2f_fix"] = bool(
+            ops and self.EXP2F_PATTERN.search(ops.read_text(encoding="utf-8"))
+        )
 
-        for path in possible_paths:
-            if path.exists():
-                content = path.read_text(encoding="utf-8")
-                needed["exp2f_fix"] = bool(self.EXP2F_PATTERN.search(content))
-                break
-        else:
-            needed["exp2f_fix"] = False
+        platform = self._find_genlib_file("genlib_platform.h")
+        needed["float32_guard"] = bool(
+            platform
+            and self._float32_guard_needed(platform.read_text(encoding="utf-8"))
+        )
 
         return needed

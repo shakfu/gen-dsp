@@ -306,11 +306,10 @@ class ProjectGenerator:
         self._copy_export(output_dir)
 
         # Apply patches if requested
-        if self.config.apply_patches and self.export_info.has_exp2f_issue:
+        if self.config.apply_patches:
             from gen_dsp.core.patcher import Patcher
 
-            patcher = Patcher(output_dir)
-            patcher.apply_exp2f_fix()
+            Patcher(output_dir).apply_all()
 
         # Last, so that a TouchOSC failure cannot leave the project itself
         # half-written.

@@ -1,7 +1,10 @@
 """Tests for gen_dsp.core.patcher module."""
 
 import shutil
+import subprocess
 from pathlib import Path
+
+import pytest
 
 from gen_dsp.core.patcher import Patcher, PatchResult
 
@@ -93,6 +96,81 @@ class TestPatcher:
         needed = patcher.check_patches_needed()
 
         assert needed["exp2f_fix"] is True
+
+
+class TestFloat32Guard:
+    """Tests for the GENLIB_USE_FLOAT32 #ifndef guard."""
+
+    def _export(self, gigaverb_export: Path, tmp_path: Path) -> Path:
+        test_export = tmp_path / "test_export"
+        shutil.copytree(gigaverb_export, test_export)
+        return test_export
+
+    def test_fixture_needs_guard(self, gigaverb_export: Path):
+        assert Patcher(gigaverb_export).check_patches_needed()["float32_guard"] is True
+
+    def test_dry_run_leaves_file(self, gigaverb_export: Path, tmp_path: Path):
+        export = self._export(gigaverb_export, tmp_path)
+        header = export / "gen_dsp" / "genlib_platform.h"
+        before = header.read_text()
+
+        result = Patcher(export).apply_float32_guard(dry_run=True)
+
+        assert result is not None and not result.applied
+        assert header.read_text() == before
+        assert "#ifndef GENLIB_USE_FLOAT32" in result.new_content
+
+    def test_apply_guards_define_once(self, gigaverb_export: Path, tmp_path: Path):
+        export = self._export(gigaverb_export, tmp_path)
+        header = export / "gen_dsp" / "genlib_platform.h"
+
+        assert Patcher(export).apply_float32_guard().applied
+        content = header.read_text()
+        assert (
+            "#ifndef GENLIB_USE_FLOAT32\n#define GENLIB_USE_FLOAT32\n#endif" in content
+        )
+
+        second = Patcher(export).apply_float32_guard()
+        assert not second.applied
+        assert header.read_text() == content
+        assert Patcher(export).check_patches_needed()["float32_guard"] is False
+
+    def test_apply_all_includes_guard(self, gigaverb_export: Path, tmp_path: Path):
+        export = self._export(gigaverb_export, tmp_path)
+        names = {r.patch_name for r in Patcher(export).apply_all() if r.applied}
+        assert "float32_guard" in names
+
+    def test_no_platform_header(self, tmp_path: Path):
+        (tmp_path / "gen_dsp").mkdir()
+        assert Patcher(tmp_path).apply_float32_guard() is None
+        assert Patcher(tmp_path).check_patches_needed()["float32_guard"] is False
+
+    def test_guarded_header_compiles_without_warning(
+        self, gigaverb_export: Path, tmp_path: Path
+    ):
+        """The guarded define plus -DGENLIB_USE_FLOAT32 must not warn on ARM."""
+        cxx = shutil.which("clang++")
+        if cxx is None:
+            pytest.skip("clang++ not found")
+        export = self._export(gigaverb_export, tmp_path)
+        Patcher(export).apply_float32_guard()
+        src = tmp_path / "t.cpp"
+        src.write_text('#include "genlib_platform.h"\n')
+        proc = subprocess.run(
+            [
+                cxx,
+                "--target=armv7a-linux-gnueabihf",
+                "-fsyntax-only",
+                "-Werror",
+                "-DGENLIB_USE_FLOAT32",
+                f"-I{export / 'gen_dsp'}",
+                str(src),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        assert proc.returncode == 0, proc.stderr
 
 
 class TestPatchResult:
