@@ -126,18 +126,29 @@ def _validate_vcvrack(project_dir: Path, slug: str) -> None:
         }
         (user_dir / "settings.json").write_text(json.dumps(settings))
 
-        # Run Rack headless -- /dev/null stdin causes immediate exit after load
-        result = subprocess.run(
-            [_rack_binary, "--headless", "--user", str(user_dir)],
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            text=True,
-            timeout=30,
-            check=False,
-        )
-
-        # Read log
         log_path = user_dir / "log.txt"
+
+        # Run Rack headless -- /dev/null stdin causes immediate exit after load
+        try:
+            result = subprocess.run(
+                [_rack_binary, "--headless", "--user", str(user_dir)],
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            log_text = log_path.read_text() if log_path.is_file() else ""
+            # Rack shows a modal alert during audio init when macOS TCC denies
+            # Microphone access to the responsible process (the launching terminal).
+            if "Initializing audio" in log_text and "Initializing MIDI" not in log_text:
+                pytest.skip(
+                    "Rack blocked in audio init (modal dialog); grant Microphone "
+                    "permission to the launching terminal app"
+                )
+            pytest.fail(f"Rack headless timed out after 30s:\n{log_text}")
+
         log_text = log_path.read_text() if log_path.is_file() else ""
 
         assert result.returncode == 0, (
