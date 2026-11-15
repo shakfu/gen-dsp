@@ -14,6 +14,7 @@ import pytest
 from gen_dsp.core.manifest import Manifest, _build_remap_defs
 from gen_dsp.core.parser import GenExportParser
 from gen_dsp.core.project import ProjectConfig, ProjectGenerator
+from tests.helpers import sanitizer_rpath_flags
 
 _DRIVER = Path(__file__).parent / "data" / "remap_instances_test.cpp"
 
@@ -82,9 +83,6 @@ def test_remap_per_instance(gigaverb_export, tmp_path, platform, sanitizer):
         obj = tmp_path / f"{c}.o"
         subprocess.run([_CC, "-c", *flags, str(gen / c), "-o", str(obj)], check=True)
         objs.append(str(obj))
-    runtime = subprocess.run(
-        [_CXX, "--print-runtime-dir"], capture_output=True, text=True, check=True
-    ).stdout.strip()
     exe = tmp_path / "remap_instances_test"
     r = subprocess.run(
         [
@@ -97,7 +95,7 @@ def test_remap_per_instance(gigaverb_export, tmp_path, platform, sanitizer):
             str(gen / "genlib.cpp"),
             *objs,
             "-ldl",
-            f"-Wl,-rpath,{runtime}",
+            *sanitizer_rpath_flags(_CXX, sanitizer),
             "-o",
             str(exe),
         ],

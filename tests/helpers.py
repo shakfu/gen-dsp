@@ -382,3 +382,24 @@ def validate_chugin(
     if expect_audio:
         assert "AUDIO_OK" in output, f"No audio output detected:\n{output}"
     assert "DONE" in output
+
+
+def sanitizer_rpath_flags(cxx: str, sanitizer: str) -> list[str]:
+    """Return ``-Wl,-rpath`` flags for the shared sanitizer runtime ``cxx`` links.
+
+    The paths come from the driver's own link line (``-###``).
+    ``--print-runtime-dir`` can name a different directory than the linker uses.
+    """
+    out = subprocess.run(
+        [cxx, f"-fsanitize={sanitizer}", "-shared-libsan", "-###"]
+        + ["-x", "c++", "/dev/null", "-o", "/dev/null"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stderr
+    dirs = {
+        str(Path(m).parent)
+        for m in re.findall(r'"([^"]*libclang_rt\.[^"]*\.(?:so|dylib))"', out)
+    }
+    assert dirs, f"no shared sanitizer runtime on the {cxx} link line:\n{out}"
+    return [f"-Wl,-rpath,{d}" for d in sorted(dirs)]

@@ -11,7 +11,7 @@ from gen_dsp.core.parser import GenExportParser
 from gen_dsp.core.project import ProjectConfig, ProjectGenerator
 from gen_dsp.platforms import PLATFORM_REGISTRY, SspPlatform, get_platform
 from gen_dsp.platforms.ssp import resolve_ssp_name, ssp_module_name
-from tests.helpers import fetchcontent_cmake_args
+from tests.helpers import fetchcontent_cmake_args, sanitizer_rpath_flags
 
 _HOST_CXX = shutil.which("c++") or shutil.which("clang++") or shutil.which("g++")
 _skip_no_host_build = pytest.mark.skipif(
@@ -790,9 +790,6 @@ def test_buffers_per_instance_and_thread_safe(rampleplayer_export, tmp_path, san
         )
         objs.append(str(obj))
     exe = tmp_path / "ssp_buffers_test"
-    runtime = subprocess.run(
-        ["clang++", "--print-runtime-dir"], capture_output=True, text=True, check=True
-    ).stdout.strip()
     r = subprocess.run(
         [
             "clang++",
@@ -804,7 +801,7 @@ def test_buffers_per_instance_and_thread_safe(rampleplayer_export, tmp_path, san
             str(project / "gen" / "gen_dsp" / "genlib.cpp"),
             *objs,
             "-ldl",
-            f"-Wl,-rpath,{runtime}",
+            *sanitizer_rpath_flags("clang++", sanitizer),
             "-o",
             str(exe),
         ],
