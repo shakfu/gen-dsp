@@ -89,6 +89,8 @@ def test_remap_per_instance(gigaverb_export, tmp_path, platform, sanitizer):
             _CXX,
             "-std=c++17",
             "-pthread",
+            # genlib replaces only unsized delete; ASan's sized one rejects its malloc
+            "-fno-sized-deallocation",
             *flags,
             str(_DRIVER),
             str(project / f"_ext_{platform}.cpp"),

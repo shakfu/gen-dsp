@@ -795,6 +795,8 @@ def test_buffers_per_instance_and_thread_safe(rampleplayer_export, tmp_path, san
             "clang++",
             "-std=c++17",
             "-pthread",
+            # genlib replaces only unsized delete; ASan's sized one rejects its malloc
+            "-fno-sized-deallocation",
             *flags,
             str(_BUFFERS_TEST),
             str(project / "_ext_ssp.cpp"),
