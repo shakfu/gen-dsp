@@ -1,6 +1,8 @@
 """Tests for AudioUnit (AUv2) platform implementation."""
 
+import functools
 import platform as sys_platform
+import re
 import shutil
 import subprocess
 import time
@@ -30,6 +32,69 @@ _skip_no_toolchain = pytest.mark.skipif(
 
 _has_auval = shutil.which("auval") is not None
 _AU_COMPONENTS_DIR = Path.home() / "Library" / "Audio" / "Plug-Ins" / "Components"
+_AU_SYSTEM_COMPONENTS_DIR = Path("/Library/Audio/Plug-Ins/Components")
+# `auval -a` rows: type, subtype, manufacturer as space-padded four-character codes, then
+# "  -  " and the name: "aumu dls  appl  -  Apple: DLSMusicDevice".
+_AUVAL_ROW = re.compile(r"^([a-z]{4}) (.{4}) (.{4})  -  ", re.MULTILINE)
+
+
+def _lists_third_party(auval_output: str) -> bool:
+    """True if ``auval -a`` output lists a component not made by Apple."""
+    return any(m.group(3) != "appl" for m in _AUVAL_ROW.finditer(auval_output))
+
+
+def _launchd_session() -> str:
+    """The launchd session of this process: "Aqua" in a GUI login, "Background" otherwise."""
+    try:
+        result = subprocess.run(
+            ["launchctl", "managername"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except OSError:
+        return "unknown"
+    return result.stdout.strip() or "unknown"
+
+
+@functools.cache
+def _au_registry_unreachable() -> str | None:
+    """Why auval cannot see installed AudioUnits, or None if it can or there is no evidence.
+
+    The per-user AudioComponentRegistrar serves the GUI (Aqua) session. A process in another
+    launchd session, such as one under a detached terminal multiplexer, cannot reach it, so
+    auval lists only Apple's built-ins and reports every installed bundle as not found. The
+    decision rests on that symptom, not on the session name: with no third-party bundle on
+    disk there is no evidence, and validation runs.
+    """
+    installed = [
+        p
+        for d in (_AU_COMPONENTS_DIR, _AU_SYSTEM_COMPONENTS_DIR)
+        if d.is_dir()
+        for p in d.glob("*.component")
+    ]
+    if not _has_auval or not installed:
+        return None
+    result = subprocess.run(
+        ["auval", "-a"], capture_output=True, text=True, timeout=120, check=False
+    )
+    if _lists_third_party(result.stdout):
+        return None
+    reason = "auval lists no third-party AudioUnits although some are installed"
+    session = _launchd_session()
+    if session != "Aqua":
+        return (
+            f"{reason}: this process is in the {session!r} launchd session, which cannot "
+            "reach the GUI session's AudioComponentRegistrar; run from a GUI terminal"
+        )
+    return f"{reason}: the AudioComponentRegistrar is unreachable"
+
+
+def _skip_if_registry_unreachable() -> None:
+    reason = _au_registry_unreachable()
+    if reason is not None:
+        pytest.skip(reason)
 
 
 def _validate_au(component_path: Path, lib_name: str) -> None:
@@ -40,6 +105,7 @@ def _validate_au(component_path: Path, lib_name: str) -> None:
     """
     if not _has_auval:
         return
+    _skip_if_registry_unreachable()
 
     subtype = lib_name.lower()[:4].ljust(4, "x")
     dest = _AU_COMPONENTS_DIR / component_path.name
@@ -106,6 +172,7 @@ def _validate_au_with_minihost(
         import minihost  # noqa: F401
     except ImportError:
         return
+    _skip_if_registry_unreachable()
 
     dest = _AU_COMPONENTS_DIR / component_path.name
 
@@ -138,6 +205,26 @@ def _validate_au_with_minihost(
     finally:
         if dest.exists():
             shutil.rmtree(dest)
+
+
+class TestAuvalListing:
+    """``_lists_third_party`` decides whether the AU build tests skip validation."""
+
+    _APPLE = (
+        "aufx bpas appl  -  Apple: AUBandpass\n"
+        "aumu dls  appl  -  Apple: DLSMusicDevice\n"
+    )
+
+    def test_apple_only(self):
+        assert not _lists_third_party("    AU Validation Tool\n\n" + self._APPLE)
+
+    def test_third_party(self):
+        assert _lists_third_party(
+            self._APPLE + "aumu fm_s Gdsp  -  gen-dsp: fm_synth\n"
+        )
+
+    def test_empty(self):
+        assert not _lists_third_party("")
 
 
 class TestAudioUnitPlatform:

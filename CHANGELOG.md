@@ -6,7 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **cignal kernels as a source (CLAP and VST3)** -- `gen-dsp kernel.cignal.json -p clap,vst3` wraps a kernel compiled by [cignal](https://github.com/shakfu/cignal) (`cignal build --manifest`). gen-dsp reads the manifest, header and C source and does not import cignal. The adapter (`gen_dsp.cignal`) implements `wrapper_*` over cignal's C ABI. It allocates the kernel struct, which cignal never does, and keeps the last parameter value set, since cignal has no getter. The kernel's `.c` is compiled as C beside the C++ adapter: it uses compound literals and `restrict`, which C++ rejects, so it cannot be included the way graph code is. Run through a minimal CLAP host, and the VST3 through minihost, the cignal Gigaverb plugin matched cignal's own float driver bit for bit over 10 s, with a parameter change. The VST3 match needs the expected run to use the plain value the template delivers: it converts normalized values in float, so `revtime = 11` on [0.1, 60] arrives one ulp high. cignal events have no `wrapper_*` counterpart, so they are unreachable; gen-dsp warns when a kernel has any. The path needs the `graph` extra, because it reuses the graph frontend's build-file generators, which import pydantic.
+
 ### Fixed
+
+- **AU build tests failed outside a GUI login session** -- A process outside the GUI (Aqua) launchd session cannot reach the per-user AudioComponentRegistrar. Under a detached terminal multiplexer, for example, `launchctl managername` reports `Background`. `auval` then lists only Apple's components and reports every installed bundle as not found. The AU build tests now skip validation, after building, when third-party components are installed but `auval -a` lists none; the skip reason names the session. The symptom decides the skip, not the session name, so a runner that reports `Background` but can reach the registrar still validates. With no third-party bundle installed, as on a clean CI runner, validation runs.
 
 - **`GENLIB_USE_FLOAT32` redefined on 32-bit ARM** -- On `__arm__`, the export's `genlib_platform.h` defines `GENLIB_USE_FLOAT32` with no guard. Every build file also passes `-DGENLIB_USE_FLOAT32`, so SSP, Daisy and Circle builds warned on each genlib include. A new patch, `float32_guard`, wraps the header's define in `#ifndef`. It runs with the other patches and is skipped under `--no-patch`. Guarding the header in one place was chosen over editing about 20 platform templates to pass a matching empty define.
 

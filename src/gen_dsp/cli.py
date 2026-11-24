@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from gen_dsp.graph.models import Graph
     from gen_dsp.tosc.emit import ToscOptions
 
+from gen_dsp.cignal import is_cignal_manifest
 from gen_dsp.core.builder import Builder
 from gen_dsp.core.parser import GenExportParser
 from gen_dsp.core.patcher import Patcher
@@ -73,6 +74,7 @@ Default command (auto-detects source type):
   gen-dsp <dir>           gen~ export directory
   gen-dsp <file.gdsp>     graph DSL file
   gen-dsp <file.json>     graph JSON file
+  gen-dsp <k.cignal.json> cignal kernel (`cignal build --manifest`); CLAP, VST3
 
   -p, --platform PLATFORM   Target platform(s) (required): a name, a
                             comma-separated list (clap,vst3,au), or 'all'.
@@ -139,8 +141,8 @@ def _make_default_parser() -> argparse.ArgumentParser:
         type=Path,
         nargs="?",
         default=None,
-        help="Path to gen~ export directory, .gdsp file, or graph JSON file "
-        "(may be set in gen-dsp.toml instead)",
+        help="Path to gen~ export directory, .gdsp file, graph JSON file, or "
+        "<stem>.cignal.json (may be set in gen-dsp.toml instead)",
     )
     parser.add_argument(
         "-p",
@@ -807,7 +809,9 @@ def _cmd_default(argv: list[str]) -> int:
     source = Path(args.source).resolve()
 
     # Auto-detect source type
-    if source.is_file() and source.suffix in (".gdsp", ".json"):
+    if source.is_file() and is_cignal_manifest(source):
+        return _cmd_default_cignal(args, source)
+    elif source.is_file() and source.suffix in (".gdsp", ".json"):
         return _cmd_default_graph(args, source)
     elif source.is_dir():
         return _cmd_default_export(args, source)
@@ -981,6 +985,109 @@ def _cmd_default_graph(args: argparse.Namespace, graph_path: Path) -> int:
             if graph.params:
                 print(f"  Parameters: {', '.join(p.name for p in graph.params)}")
             _report_ssp_name(platform, config)
+            _report_tosc(generator)
+        except Exception as e:  # noqa: BLE001 -- report any failure, continue with next platform
+            print(f"Error creating project: {e}", file=sys.stderr)
+            results.append((platform, "generate error"))
+            overall = 1
+            continue
+
+        rc = _build_or_next_steps(args, platform, project_dir)
+        results.append((platform, "ok" if rc == 0 else "build failed"))
+        if rc != 0:
+            overall = 1
+
+    if multi:
+        _print_target_summary(results)
+    return overall
+
+
+def _cmd_default_cignal(args: argparse.Namespace, manifest_path: Path) -> int:
+    """Handle default command with a cignal manifest (``<stem>.cignal.json``)."""
+    from gen_dsp.cignal import SUPPORTED_PLATFORMS, load_cignal_manifest
+
+    try:
+        kernel = load_cignal_manifest(manifest_path)
+    except GenExtError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    if args.name is None:
+        args.name = kernel.stem
+
+    platforms, perr = _resolve_platforms(args.platform)
+    if perr:
+        print(f"Error: {perr}", file=sys.stderr)
+        return 1
+    unsupported = [p for p in platforms if p not in SUPPORTED_PLATFORMS]
+    if unsupported:
+        print(
+            f"Error: cignal kernels are not supported on {', '.join(unsupported)} yet; "
+            f"supported: {', '.join(sorted(SUPPORTED_PLATFORMS))}",
+            file=sys.stderr,
+        )
+        return 1
+    verr = _voices_error(args)
+    if verr:
+        print(f"Error: {verr}", file=sys.stderr)
+        return 1
+    if kernel.events:
+        print(
+            f"  Warning: events {', '.join(kernel.events)} have no gen-dsp host binding "
+            "and are unreachable",
+            file=sys.stderr,
+        )
+
+    multi = len(platforms) > 1
+    results: list[tuple[str, str]] = []
+    overall = 0
+    for platform in platforms:
+        if multi:
+            print(f"=== {platform} ===")
+        config = ProjectConfig(
+            name=args.name,
+            platform=platform,
+            buffers=[],
+            apply_patches=False,
+            shared_cache=not getattr(args, "no_shared_cache", False),
+            cache_dir=getattr(args, "cache_dir", None),
+            no_midi=args.no_midi,
+            midi_gate=args.midi_gate,
+            midi_freq=args.midi_freq,
+            midi_vel=args.midi_vel,
+            midi_freq_unit=args.midi_freq_unit,
+            num_voices=args.voices,
+            tosc=args.tosc,
+            tosc_options=_tosc_options_from_args(args),
+        )
+        config_errors = config.validate()
+        if config_errors:
+            print("Configuration errors:", file=sys.stderr)
+            for config_err in config_errors:
+                print(f"  - {config_err}", file=sys.stderr)
+            results.append((platform, "config error"))
+            overall = 1
+            continue
+
+        output_dir = _target_output_dir(args, args.name, platform, multi)
+        if args.dry_run:
+            print(f"Would create project at: {output_dir}")
+            print(f"  Source: cignal ({manifest_path.name})")
+            print(f"  Kernel: {kernel.name}")
+            print(f"  Platform: {platform}")
+            print(f"  Inputs: {kernel.n_inputs}")
+            print(f"  Outputs: {kernel.n_outputs}")
+            print(f"  Parameters: {len(kernel.params)}")
+            results.append((platform, "dry-run"))
+            continue
+
+        try:
+            generator = ProjectGenerator.from_cignal(kernel, config)
+            project_dir = generator.generate(output_dir)
+            print(f"Project created at: {project_dir}")
+            print("  Source: cignal")
+            print(f"  Platform: {platform}")
+            if kernel.params:
+                print(f"  Parameters: {', '.join(p.name for p in kernel.params)}")
             _report_tosc(generator)
         except Exception as e:  # noqa: BLE001 -- report any failure, continue with next platform
             print(f"Error creating project: {e}", file=sys.stderr)

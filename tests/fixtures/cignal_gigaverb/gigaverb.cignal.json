@@ -1,0 +1,61 @@
+{
+  "format": 1,
+  "name": "Gigaverb",
+  "c_name": "Gigaverb",
+  "header": "gigaverb.h",
+  "source": "gigaverb.c",
+  "sample_type": "float",
+  "n_inputs": 1,
+  "n_outputs": 2,
+  "params": [
+    {
+      "name": "roomsize",
+      "lo": 1.0,
+      "hi": 50.0,
+      "default": 10.0
+    },
+    {
+      "name": "revtime",
+      "lo": 0.1,
+      "hi": 60.0,
+      "default": 11.0
+    },
+    {
+      "name": "damping",
+      "lo": 0.0,
+      "hi": 1.0,
+      "default": 0.7
+    },
+    {
+      "name": "spread",
+      "lo": 0.0,
+      "hi": 100.0,
+      "default": 23.0
+    },
+    {
+      "name": "bandwidth",
+      "lo": 0.0,
+      "hi": 1.0,
+      "default": 0.5
+    },
+    {
+      "name": "dry",
+      "lo": 0.0,
+      "hi": 1.0,
+      "default": 1.0
+    },
+    {
+      "name": "early",
+      "lo": 0.0,
+      "hi": 1.0,
+      "default": 0.25
+    },
+    {
+      "name": "tail",
+      "lo": 0.0,
+      "hi": 1.0,
+      "default": 0.25
+    }
+  ],
+  "events": []
+}

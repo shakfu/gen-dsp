@@ -18,6 +18,7 @@ from gen_dsp.errors import ValidationError
 from gen_dsp.version import __version__
 
 if TYPE_CHECKING:
+    from gen_dsp.cignal import CignalKernel
     from gen_dsp.core.manifest import Manifest
     from gen_dsp.core.midi import MidiMapping
     from gen_dsp.graph.models import Graph
@@ -181,6 +182,7 @@ class ProjectGenerator:
         self.export_info: ExportInfo | None = export_info
         self.config = config
         self._graph: Graph | None = None
+        self._cignal: CignalKernel | None = None
         self._manifest: Manifest | None = None
         # Populated by generate() when config.tosc is set, so callers can
         # report exactly which files were written -- or, in tosc_skipped, why
@@ -206,7 +208,25 @@ class ProjectGenerator:
         instance.export_info = None
         instance.config = config
         instance._graph = graph
+        instance._cignal = None
         instance._manifest = generate_manifest_obj(graph)
+        instance.tosc_result = None
+        instance.tosc_skipped = None
+        return instance
+
+    @classmethod
+    def from_cignal(
+        cls, kernel: "CignalKernel", config: ProjectConfig
+    ) -> "ProjectGenerator":
+        """Create a ProjectGenerator from a kernel compiled by cignal (``gen_dsp.cignal``)."""
+        from gen_dsp.cignal import manifest_from_cignal
+
+        instance = cls.__new__(cls)
+        instance.export_info = None
+        instance.config = config
+        instance._graph = None
+        instance._cignal = kernel
+        instance._manifest = manifest_from_cignal(kernel)
         instance.tosc_result = None
         instance.tosc_skipped = None
         return instance
@@ -245,6 +265,8 @@ class ProjectGenerator:
 
         if self._graph is not None:
             return self._generate_from_graph(output_dir)
+        elif self._cignal is not None:
+            return self._generate_from_cignal(output_dir)
         else:
             return self._generate_from_export(output_dir)
 
@@ -317,22 +339,13 @@ class ProjectGenerator:
 
         return output_dir
 
-    def _generate_from_graph(self, output_dir: Path) -> Path:
-        """Generate project from a graph Graph.
+    def _midi_defines(self, manifest: "Manifest") -> str:
+        """Set ``config.midi_mapping`` from the manifest and return its compile definitions.
 
-        Delegates all platform-specific work to the target platform's
-        ``generate_from_graph`` method, keeping this layer free of any
-        per-platform branching or graph imports.
+        Shared by the graph and cignal paths; the export path also remaps inputs first.
         """
         from gen_dsp.core.midi import build_midi_defines, detect_midi_mapping
-        from gen_dsp.platforms import get_platform
 
-        assert self._graph is not None
-        assert self._manifest is not None
-        graph = self._graph
-        manifest = self._manifest
-
-        # Compute the MIDI mapping (shared, front-end-agnostic infrastructure).
         self.config.midi_mapping = detect_midi_mapping(
             manifest,
             no_midi=self.config.no_midi,
@@ -343,7 +356,22 @@ class ProjectGenerator:
         )
         if self.config.midi_mapping.enabled and self.config.num_voices > 1:
             self.config.midi_mapping.num_voices = self.config.num_voices
-        midi_defines = build_midi_defines(self.config.midi_mapping)
+        return build_midi_defines(self.config.midi_mapping)
+
+    def _generate_from_graph(self, output_dir: Path) -> Path:
+        """Generate project from a graph Graph.
+
+        Delegates all platform-specific work to the target platform's
+        ``generate_from_graph`` method, keeping this layer free of any
+        per-platform branching or graph imports.
+        """
+        from gen_dsp.platforms import get_platform
+
+        assert self._graph is not None
+        assert self._manifest is not None
+        graph = self._graph
+        manifest = self._manifest
+        midi_defines = self._midi_defines(manifest)
 
         # Generate the project for the target platform.
         platform_impl = get_platform(self.config.platform)
@@ -362,6 +390,26 @@ class ProjectGenerator:
         self._write_project_marker(output_dir)
         self._write_tosc(manifest, output_dir)
 
+        return output_dir
+
+    def _generate_from_cignal(self, output_dir: Path) -> Path:
+        """Generate project from a cignal kernel (``gen_dsp.cignal``)."""
+        from gen_dsp.cignal import generate_project
+
+        assert self._cignal is not None
+        assert self._manifest is not None
+        manifest = self._manifest
+        generate_project(
+            self._cignal,
+            manifest,
+            output_dir,
+            self.config.name,
+            self.config,
+            self._midi_defines(manifest),
+        )
+        (output_dir / "manifest.json").write_text(manifest.to_json(), encoding="utf-8")
+        self._write_project_marker(output_dir)
+        self._write_tosc(manifest, output_dir)
         return output_dir
 
     def _write_tosc(self, manifest: "Manifest", output_dir: Path) -> None:
