@@ -8,7 +8,6 @@ with an AudioWorkletProcessor wrapper for real-time browser audio.
 import json
 import shutil
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines_make
@@ -18,9 +17,6 @@ from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform
 from gen_dsp.templates import get_webaudio_templates_dir
 from gen_dsp.version import __version__
-
-if TYPE_CHECKING:
-    from gen_dsp.graph.models import Graph
 
 
 class WebAudioPlatform(Platform):
@@ -203,9 +199,8 @@ class WebAudioPlatform(Platform):
             num_outputs_array=num_outputs_array,
         )
 
-    def _write_graph_platform_files(
+    def _write_wrapped_platform_files(
         self,
-        graph: "Graph",
         manifest: Manifest,
         output_dir: Path,
         name: str,
@@ -218,7 +213,7 @@ class WebAudioPlatform(Platform):
             tmpl_dir / "gen_ext_webaudio.cpp.template",
             output_dir / "gen_ext_webaudio.cpp",
             lib_name=name,
-            gen_name=graph.name,
+            gen_name=manifest.gen_name,
             gendsp_version=__version__,
         )
 

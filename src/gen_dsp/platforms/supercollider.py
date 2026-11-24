@@ -120,6 +120,24 @@ class SuperColliderPlatform(CMakePlatform):
         # Create build directory
         (output_dir / "build").mkdir(exist_ok=True)
 
+    def _write_wrapped_platform_files(
+        self,
+        manifest: Manifest,
+        output_dir: Path,
+        name: str,
+        config: ProjectConfig,
+    ) -> None:
+        """Graph and cignal paths: the .sc class file, without which sclang cannot use the UGen."""
+        self._generate_sc_class(
+            output_dir,
+            name,
+            self.capitalize_first(name),
+            manifest.num_inputs,
+            manifest.num_outputs,
+            manifest.num_params,
+            manifest.params,
+        )
+
     def _generate_sc_class(
         self,
         output_dir: Path,

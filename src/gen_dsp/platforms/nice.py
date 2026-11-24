@@ -163,9 +163,8 @@ class NicePlatform(Platform):
         )
         self.write_crate(manifest, output_dir, lib_name, midi)
 
-    def _write_graph_platform_files(
+    def _write_wrapped_platform_files(
         self,
-        graph: object,
         manifest: Manifest,
         output_dir: Path,
         name: str,

@@ -312,9 +312,8 @@ class SspPlatform(CMakePlatform):
                 remap_defines=remap_defines,
             )
 
-    def _write_graph_platform_files(
+    def _write_wrapped_platform_files(
         self,
-        graph: "Graph",
         manifest: Manifest,
         output_dir: Path,
         name: str,

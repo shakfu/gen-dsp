@@ -28,7 +28,6 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from string import Template
-from typing import TYPE_CHECKING
 
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines_make
@@ -38,10 +37,6 @@ from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform, substitute_strict
 from gen_dsp.templates import get_daisy_templates_dir
 from gen_dsp.version import __version__
-
-if TYPE_CHECKING:
-    from gen_dsp.graph.models import Graph
-
 
 # libDaisy version (latest stable, well-tested)
 LIBDAISY_VERSION = "v7.1.0"
@@ -487,9 +482,8 @@ class DaisyPlatform(Platform):
         )
         output_path.write_text(content, encoding="utf-8")
 
-    def _write_graph_platform_files(
+    def _write_wrapped_platform_files(
         self,
-        graph: "Graph",
         manifest: Manifest,
         output_dir: Path,
         name: str,

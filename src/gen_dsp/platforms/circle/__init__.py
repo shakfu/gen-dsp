@@ -65,7 +65,6 @@ from gen_dsp.version import __version__
 
 if TYPE_CHECKING:
     from gen_dsp.core.graph import EdgeBuffer, GraphConfig, ResolvedChainNode
-    from gen_dsp.graph.models import Graph
 
 
 class CirclePlatform(Platform):
@@ -261,9 +260,8 @@ class CirclePlatform(Platform):
             audio_boot_config=_get_boot_config(board.audio_device),
         )
 
-    def _write_graph_platform_files(
+    def _write_wrapped_platform_files(
         self,
-        graph: "Graph",
         manifest: Manifest,
         output_dir: Path,
         name: str,

@@ -14,7 +14,7 @@ LV2 bundles contain:
 import shutil
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar
+from typing import ClassVar
 
 from gen_dsp.core.manifest import Manifest, ParamInfo, build_remap_defines
 from gen_dsp.core.midi import build_midi_defines
@@ -25,9 +25,6 @@ from gen_dsp.platforms.base import PluginCategory
 from gen_dsp.platforms.cmake_platform import CMakePlatform
 from gen_dsp.templates import get_lv2_templates_dir
 from gen_dsp.version import __version__
-
-if TYPE_CHECKING:
-    from gen_dsp.graph.models import Graph
 
 
 class Lv2Platform(CMakePlatform):
@@ -296,9 +293,8 @@ class Lv2Platform(CMakePlatform):
         content = "\n".join(lines) + "\n"
         (output_dir / f"{lib_name}.ttl").write_text(content, encoding="utf-8")
 
-    def _write_graph_platform_files(
+    def _write_wrapped_platform_files(
         self,
-        graph: "Graph",
         manifest: Manifest,
         output_dir: Path,
         name: str,

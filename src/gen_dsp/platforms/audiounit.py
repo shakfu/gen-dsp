@@ -9,7 +9,7 @@ required -- only system frameworks (AudioToolbox, CoreFoundation, CoreAudio).
 import platform as sys_platform
 import shutil
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar
+from typing import ClassVar
 
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines
@@ -21,9 +21,6 @@ from gen_dsp.platforms.base import PluginCategory
 from gen_dsp.platforms.cmake_platform import CMakePlatform
 from gen_dsp.templates import get_au_templates_dir
 from gen_dsp.version import __version__
-
-if TYPE_CHECKING:
-    from gen_dsp.graph.models import Graph
 
 
 class AudioUnitPlatform(CMakePlatform):
@@ -191,9 +188,8 @@ class AudioUnitPlatform(CMakePlatform):
             au_version=self._version_to_int(__version__),
         )
 
-    def _write_graph_platform_files(
+    def _write_wrapped_platform_files(
         self,
-        graph: "Graph",
         manifest: Manifest,
         output_dir: Path,
         name: str,

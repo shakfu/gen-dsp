@@ -28,7 +28,7 @@ import sys
 import urllib.request
 import zipfile
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar
+from typing import ClassVar
 
 from gen_dsp.core.builder import BuildResult
 from gen_dsp.core.manifest import Manifest, build_remap_defines_make
@@ -38,10 +38,6 @@ from gen_dsp.errors import BuildError, ProjectError
 from gen_dsp.platforms.base import Platform, PluginCategory
 from gen_dsp.templates import get_vcvrack_templates_dir
 from gen_dsp.version import __version__
-
-if TYPE_CHECKING:
-    from gen_dsp.graph.models import Graph
-
 
 # Rack SDK version and download URLs
 RACK_SDK_VERSION = "2.6.1"
@@ -359,9 +355,8 @@ class VcvRackPlatform(Platform):
         )
         output_path.write_text(svg)
 
-    def _write_graph_platform_files(
+    def _write_wrapped_platform_files(
         self,
-        graph: "Graph",
         manifest: Manifest,
         output_dir: Path,
         name: str,

@@ -30,8 +30,9 @@ MANIFEST_SUFFIX = ".cignal.json"
 MANIFEST_FORMAT = 1
 # Platforms built and run end to end from a cignal kernel. Each new one needs its build file to
 # compile the kernel's C source; see `_add_c_source`.
-# Build files whose plugin target is `${PROJECT_NAME}`, so the C source can be appended to it.
-_CMAKE_TARGET_PLATFORMS = frozenset({"clap", "vst3"})
+# CMake build files whose plugin target is `${PROJECT_NAME}`, so the C source can be appended.
+# Max is left out: its wrapper passes double buffers. SSP cross-compiles for one device.
+_CMAKE_TARGET_PLATFORMS = frozenset({"au", "clap", "lv2", "sc", "vst3"})
 SUPPORTED_PLATFORMS = _CMAKE_TARGET_PLATFORMS
 
 _IDENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
@@ -309,12 +310,6 @@ def generate_project(
             f"cignal kernels are not supported on {platform!r} yet; "
             f"supported: {', '.join(sorted(SUPPORTED_PLATFORMS))}"
         )
-    # The build-file generators live with the graph frontend, which imports pydantic.
-    from gen_dsp.graph.adapter import (
-        _copy_platform_templates,
-        _generate_buffer_header,
-        generate_graph_build_file,
-    )
     from gen_dsp.platforms import get_platform
 
     for f in (kernel.header, kernel.source):
@@ -322,22 +317,7 @@ def generate_project(
     (output_dir / f"_ext_{platform}.cpp").write_text(
         generate_adapter_cpp(kernel, platform), encoding="utf-8"
     )
-    _copy_platform_templates(output_dir, platform)
-    platform_impl = get_platform(platform)
-    if not (output_dir / f"_ext_{platform}.h").is_file():
-        platform_impl.generate_ext_header(output_dir, platform)
-    _generate_buffer_header(output_dir)
-    platform_impl.copy_voice_alloc_header(output_dir, config)
-    build_file = generate_graph_build_file(
-        output_dir=output_dir,
-        platform=platform,
-        lib_name=name,
-        gen_name=kernel.stem,
-        num_inputs=manifest.num_inputs,
-        num_outputs=manifest.num_outputs,
-        num_params=manifest.num_params,
-        gendsp_version=__version__,
-        shared_cache=config.shared_cache,
-        midi_defines=midi_defines,
+    build_file = get_platform(platform).generate_wrapped_project(
+        manifest, output_dir, name, config, midi_defines
     )
     _add_c_source(build_file, platform, kernel.source)

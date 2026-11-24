@@ -8,7 +8,7 @@ The 17 targets are PureData, Max/MSP, ChucK, AudioUnit (AUv2), AUv3, CLAP, VST3,
 
 gen-dsp also optionally provides its own alternative DSP DSL called GDSP, short for GRAPH DSP (`pip install gen-dsp[graph]`), another way to author DSP directly in gen-dsp as an alternative to gen~. You define a signal graph in purpose-built `.gdsp` files, and compile it to any of the 17 targets through the same pipeline -- no Max or gen~ export required. A graph can even be transpiled back to gen~ `codebox` source (experimental), so work started in GDSP can return to Max. The separate, optional [dsp-graph](https://github.com/shakfu/dsp-graph) package adds a web-based visual editor and debugger (React + FastAPI) for viewing and driving gen-dsp operations from a browser.
 
-gen-dsp can also wrap a kernel compiled by [cignal](https://github.com/shakfu/cignal), which turns static Python into C99. Pass the manifest that `cignal build --manifest` writes: `gen-dsp gigaverb.cignal.json -p clap,vst3`. CLAP and VST3 are supported so far.
+gen-dsp can also wrap a kernel compiled by [cignal](https://github.com/shakfu/cignal), which turns static Python into C99. Pass the manifest that `cignal build --manifest` writes: `gen-dsp gigaverb.cignal.json -p clap`. AU, CLAP, LV2, SuperCollider and VST3 are supported.
 
 This project is a friendly fork of Michael Spears' [gen_ext](https://github.com/samesimilar/gen_ext) which was originally created to "compile code exported from a Max gen~ object into an "external" object that can be loaded into a PureData patch."
 

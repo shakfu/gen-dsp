@@ -20,6 +20,7 @@ Usage:
 import argparse
 import json
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
@@ -74,7 +75,7 @@ Default command (auto-detects source type):
   gen-dsp <dir>           gen~ export directory
   gen-dsp <file.gdsp>     graph DSL file
   gen-dsp <file.json>     graph JSON file
-  gen-dsp <k.cignal.json> cignal kernel (`cignal build --manifest`); CLAP, VST3
+  gen-dsp <k.cignal.json> cignal kernel (`cignal build --manifest`); AU CLAP LV2 SC VST3
 
   -p, --platform PLATFORM   Target platform(s) (required): a name, a
                             comma-separated list (clap,vst3,au), or 'all'.
@@ -916,7 +917,6 @@ def _cmd_default_graph(args: argparse.Namespace, graph_path: Path) -> int:
     if perr:
         print(f"Error: {perr}", file=sys.stderr)
         return 1
-    multi = len(platforms) > 1
     serr = _ssp_name_error(args, platforms)
     if serr:
         print(f"Error: {serr}", file=sys.stderr)
@@ -927,79 +927,20 @@ def _cmd_default_graph(args: argparse.Namespace, graph_path: Path) -> int:
         print(f"Error: {verr}", file=sys.stderr)
         return 1
 
-    results: list[tuple[str, str]] = []
-    overall = 0
-    for platform in platforms:
-        if multi:
-            print(f"=== {platform} ===")
-
-        config = ProjectConfig(
-            name=args.name,
-            platform=platform,
-            **_ssp_options(args, platform),
-            buffers=[],
-            apply_patches=False,
-            shared_cache=not getattr(args, "no_shared_cache", False),
-            cache_dir=getattr(args, "cache_dir", None),
-            no_midi=args.no_midi,
-            midi_gate=args.midi_gate,
-            midi_freq=args.midi_freq,
-            midi_vel=args.midi_vel,
-            midi_freq_unit=args.midi_freq_unit,
-            num_voices=args.voices,
-            tosc=args.tosc,
-            tosc_options=_tosc_options_from_args(args),
-        )
-        config_errors = config.validate()
-        if config_errors:
-            print("Configuration errors:", file=sys.stderr)
-            for config_err in config_errors:
-                print(f"  - {config_err}", file=sys.stderr)
-            results.append((platform, "config error"))
-            overall = 1
-            continue
-
-        output_dir = _target_output_dir(args, args.name, platform, multi)
-
-        if args.dry_run:
-            print(f"Would create project at: {output_dir}")
-            print(f"  Source: graph ({graph_path.name})")
-            print(f"  Graph: {graph.name}")
-            print(f"  Platform: {platform}")
-            print(f"  Inputs: {len(graph.inputs)}")
-            print(f"  Outputs: {len(graph.outputs)}")
-            print(f"  Parameters: {len(graph.params)}")
-            if args.tosc:
-                print(f"  Would write TouchOSC surface: {args.name}.tosc")
-            if not args.no_build:
-                print("  Would build after creating")
-            results.append((platform, "dry-run"))
-            continue
-
-        try:
-            generator = ProjectGenerator.from_graph(graph, config)
-            project_dir = generator.generate(output_dir)
-            print(f"Project created at: {project_dir}")
-            print("  Source: graph")
-            print(f"  Platform: {platform}")
-            if graph.params:
-                print(f"  Parameters: {', '.join(p.name for p in graph.params)}")
-            _report_ssp_name(platform, config)
-            _report_tosc(generator)
-        except Exception as e:  # noqa: BLE001 -- report any failure, continue with next platform
-            print(f"Error creating project: {e}", file=sys.stderr)
-            results.append((platform, "generate error"))
-            overall = 1
-            continue
-
-        rc = _build_or_next_steps(args, platform, project_dir)
-        results.append((platform, "ok" if rc == 0 else "build failed"))
-        if rc != 0:
-            overall = 1
-
-    if multi:
-        _print_target_summary(results)
-    return overall
+    return _generate_wrapped_targets(
+        args,
+        platforms,
+        kind="graph",
+        source_name=graph_path.name,
+        details=[
+            ("Graph", graph.name),
+            ("Inputs", len(graph.inputs)),
+            ("Outputs", len(graph.outputs)),
+            ("Parameters", len(graph.params)),
+        ],
+        param_names=[p.name for p in graph.params],
+        make_generator=lambda config: ProjectGenerator.from_graph(graph, config),
+    )
 
 
 def _cmd_default_cignal(args: argparse.Namespace, manifest_path: Path) -> int:
@@ -1037,15 +978,48 @@ def _cmd_default_cignal(args: argparse.Namespace, manifest_path: Path) -> int:
             file=sys.stderr,
         )
 
+    return _generate_wrapped_targets(
+        args,
+        platforms,
+        kind="cignal",
+        source_name=manifest_path.name,
+        details=[
+            ("Kernel", kernel.name),
+            ("Inputs", kernel.n_inputs),
+            ("Outputs", kernel.n_outputs),
+            ("Parameters", len(kernel.params)),
+        ],
+        param_names=[p.name for p in kernel.params],
+        make_generator=lambda config: ProjectGenerator.from_cignal(kernel, config),
+    )
+
+
+def _generate_wrapped_targets(
+    args: argparse.Namespace,
+    platforms: list[str],
+    *,
+    kind: str,
+    source_name: str,
+    details: list[tuple[str, object]],
+    param_names: list[str],
+    make_generator: Callable[[ProjectConfig], ProjectGenerator],
+) -> int:
+    """Generate (and build) one project per platform for a graph or cignal source.
+
+    ``kind`` and ``source_name`` label the input; ``details`` are the dry-run lines, the
+    first printed before the platform.
+    """
     multi = len(platforms) > 1
     results: list[tuple[str, str]] = []
     overall = 0
     for platform in platforms:
         if multi:
             print(f"=== {platform} ===")
+
         config = ProjectConfig(
             name=args.name,
             platform=platform,
+            **_ssp_options(args, platform),
             buffers=[],
             apply_patches=False,
             shared_cache=not getattr(args, "no_shared_cache", False),
@@ -1069,25 +1043,31 @@ def _cmd_default_cignal(args: argparse.Namespace, manifest_path: Path) -> int:
             continue
 
         output_dir = _target_output_dir(args, args.name, platform, multi)
+
         if args.dry_run:
             print(f"Would create project at: {output_dir}")
-            print(f"  Source: cignal ({manifest_path.name})")
-            print(f"  Kernel: {kernel.name}")
+            print(f"  Source: {kind} ({source_name})")
+            for label, value in details[:1]:
+                print(f"  {label}: {value}")
             print(f"  Platform: {platform}")
-            print(f"  Inputs: {kernel.n_inputs}")
-            print(f"  Outputs: {kernel.n_outputs}")
-            print(f"  Parameters: {len(kernel.params)}")
+            for label, value in details[1:]:
+                print(f"  {label}: {value}")
+            if args.tosc:
+                print(f"  Would write TouchOSC surface: {args.name}.tosc")
+            if not args.no_build:
+                print("  Would build after creating")
             results.append((platform, "dry-run"))
             continue
 
         try:
-            generator = ProjectGenerator.from_cignal(kernel, config)
+            generator = make_generator(config)
             project_dir = generator.generate(output_dir)
             print(f"Project created at: {project_dir}")
-            print("  Source: cignal")
+            print(f"  Source: {kind}")
             print(f"  Platform: {platform}")
-            if kernel.params:
-                print(f"  Parameters: {', '.join(p.name for p in kernel.params)}")
+            if param_names:
+                print(f"  Parameters: {', '.join(param_names)}")
+            _report_ssp_name(platform, config)
             _report_tosc(generator)
         except Exception as e:  # noqa: BLE001 -- report any failure, continue with next platform
             print(f"Error creating project: {e}", file=sys.stderr)
