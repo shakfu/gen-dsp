@@ -48,6 +48,17 @@ def manifest_path(cignal_dir: Path) -> Path:
     return cignal_dir / "gigaverb.cignal.json"
 
 
+@pytest.fixture
+def synth_dir(fixtures_dir: Path) -> Path:
+    """cignal's synth fixture: no inputs, events note, off, hold and bend."""
+    return fixtures_dir / "cignal_synth"
+
+
+@pytest.fixture
+def synth_manifest(synth_dir: Path) -> Path:
+    return synth_dir / "synth.cignal.json"
+
+
 def _edited(tmp_path: Path, cignal_dir: Path, **changes: object) -> Path:
     """A copy of the fixture with top-level manifest fields replaced."""
     for f in cignal_dir.iterdir():
@@ -98,6 +109,13 @@ class TestManifest:
     ):
         path = _edited(tmp_path, cignal_dir, **changes)
         with pytest.raises(ValidationError, match=message):
+            load_cignal_manifest(path)
+
+    def test_rejects_bad_event_args(self, tmp_path: Path, cignal_dir: Path):
+        path = _edited(
+            tmp_path, cignal_dir, events=[{"name": "note", "args": ["string"]}]
+        )
+        with pytest.raises(ValidationError, match="args"):
             load_cignal_manifest(path)
 
     def test_rejects_invalid_json(self, tmp_path: Path):
@@ -162,6 +180,66 @@ class TestAdapter:
             ProjectGenerator.from_cignal(kernel, config).generate(tmp_path / "p")
 
 
+class TestNoteEvents:
+    """A kernel with note(pitch, velocity) and off(pitch) events takes MIDI notes."""
+
+    def test_events_parsed(self, synth_manifest: Path):
+        k = load_cignal_manifest(synth_manifest)
+        assert [(e.name, e.args) for e in k.events][:2] == [
+            ("note", ("i32", "f32")),
+            ("off", ("i32",)),
+        ]
+        assert k.note_event_indices() == (0, 1)
+
+    @pytest.mark.parametrize("platform", ["clap", "lv2", "vst3"])
+    def test_hooks_and_defines(
+        self, synth_manifest: Path, tmp_path: Path, platform: str
+    ):
+        kernel = load_cignal_manifest(synth_manifest)
+        config = ProjectConfig(name="synth", platform=platform)
+        out = ProjectGenerator.from_cignal(kernel, config).generate(tmp_path / "p")
+        adapter = (out / f"_ext_{platform}.cpp").read_text()
+        assert "Synth_event(&static_cast<State*>(state)->kernel, 0, args);" in adapter
+        assert "Synth_event(&static_cast<State*>(state)->kernel, 1, args);" in adapter
+        cmake = (out / "CMakeLists.txt").read_text()
+        assert "MIDI_ENABLED=1" in cmake and "WRAPPER_NOTE_EVENTS=1" in cmake
+        assert "wrapper_note_on" in (out / f"_ext_{platform}.h").read_text()
+        assert kernel.unreachable_events(platform) == ["hold", "bend"]
+
+    def test_lv2_declares_midi_port(self, synth_manifest: Path, tmp_path: Path):
+        kernel = load_cignal_manifest(synth_manifest)
+        config = ProjectConfig(name="synth", platform="lv2")
+        out = ProjectGenerator.from_cignal(kernel, config).generate(tmp_path / "p")
+        assert 'lv2:symbol "midi_in"' in (out / "synth.ttl").read_text()
+
+    def test_no_hooks_where_templates_lack_them(
+        self, synth_manifest: Path, tmp_path: Path
+    ):
+        kernel = load_cignal_manifest(synth_manifest)
+        config = ProjectConfig(name="synth", platform="sc")
+        out = ProjectGenerator.from_cignal(kernel, config).generate(tmp_path / "p")
+        assert "wrapper_note_on" not in (out / "_ext_sc.cpp").read_text()
+        assert kernel.unreachable_events("sc") == ["note", "off", "hold", "bend"]
+
+    def test_no_midi_skips_hooks(self, synth_manifest: Path, tmp_path: Path):
+        kernel = load_cignal_manifest(synth_manifest)
+        config = ProjectConfig(name="synth", platform="clap", no_midi=True)
+        out = ProjectGenerator.from_cignal(kernel, config).generate(tmp_path / "p")
+        assert "WRAPPER_NOTE_EVENTS" not in (out / "CMakeLists.txt").read_text()
+
+    def test_rejects_wrapper_polyphony(self, synth_manifest: Path, tmp_path: Path):
+        kernel = load_cignal_manifest(synth_manifest)
+        config = ProjectConfig(name="synth", platform="clap", num_voices=4)
+        with pytest.raises(ValidationError, match="allocates its own voices"):
+            ProjectGenerator.from_cignal(kernel, config).generate(tmp_path / "p")
+
+    def test_kernel_without_off_maps_parameters(self, tmp_path: Path, cignal_dir: Path):
+        path = _edited(
+            tmp_path, cignal_dir, events=[{"name": "note", "args": ["i32", "f32"]}]
+        )
+        assert load_cignal_manifest(path).note_event_indices() is None
+
+
 class TestCli:
     def test_dry_run(self, manifest_path: Path, capsys: pytest.CaptureFixture[str]):
         assert main([str(manifest_path), "-p", "clap,vst3", "--dry-run"]) == 0
@@ -177,10 +255,16 @@ class TestCli:
         assert "not supported on max" in capsys.readouterr().err
 
 
-def _build(manifest_path: Path, project_dir: Path, platform: str, cache: Path) -> Path:
+def _build(
+    manifest_path: Path,
+    project_dir: Path,
+    platform: str,
+    cache: Path,
+    name: str = "gigaverb",
+) -> Path:
     """Generate and build a cignal project; returns the build directory."""
     kernel = load_cignal_manifest(manifest_path)
-    config = ProjectConfig(name="gigaverb", platform=platform)
+    config = ProjectConfig(name=name, platform=platform)
     ProjectGenerator.from_cignal(kernel, config).generate(project_dir)
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
     for cmd in (
@@ -364,4 +448,104 @@ def test_lv2_matches_kernel(
         plugin.process(np.ascontiguousarray(x[None, pos : pos + out.shape[1]]), out)
         actual[:, pos : pos + out.shape[1]] = out
     assert not np.array_equal(expected[:, change:], 0.0)
+    assert np.array_equal(actual, expected), float(np.max(np.abs(actual - expected)))
+
+
+@pytest.mark.skipif(not _can_build, reason="cmake and C++ compiler required")
+def test_build_clap_synth(
+    synth_manifest: Path,
+    tmp_path: Path,
+    fetchcontent_cache: Path,
+    clap_validator: Path | None,
+):
+    """The CLAP template compiles with the note hooks, and validates."""
+    build_dir = _build(
+        synth_manifest, tmp_path / "p", "clap", fetchcontent_cache, "synth"
+    )
+    bundles = list(build_dir.glob("**/synth.clap"))
+    assert bundles
+    validate_clap(clap_validator, bundles[0])
+
+
+# The synth driven directly, with the notes the plugin test sends, applied at block starts as
+# the templates do. argv: out.f32
+_SYNTH_REFERENCE_MAIN = r"""
+#include <stdio.h>
+#include "synth.h"
+
+enum { B = 512, N = 24576 };
+static Synth k;
+static float y[N];
+
+int main(int argc, char **argv) {
+    if (argc != 2) return 2;
+    Synth_init(&k, 48000.0f);
+    for (int pos = 0, b = 0; pos < N; pos += B, b++) {
+        if (b == 0) { const float a[2] = {60.0f, 100 / 127.0f}; Synth_event(&k, 0, a); }
+        if (b == 10) { const float a[2] = {67.0f, 90 / 127.0f}; Synth_event(&k, 0, a); }
+        if (b == 30) { const float a[1] = {60.0f}; Synth_event(&k, 1, a); }
+        float *out[1] = {y + pos};
+        Synth_process(&k, NULL, out, B);
+    }
+    FILE *f = fopen(argv[1], "wb");
+    if (!f) return 1;
+    fwrite(y, 4, N, f);
+    fclose(f);
+    return 0;
+}
+"""
+
+
+@pytest.mark.skipif(not _can_build, reason="cmake and C++ compiler required")
+@pytest.mark.parametrize("platform", ["lv2", "vst3"])
+def test_notes_reach_kernel_events(
+    synth_manifest: Path,
+    synth_dir: Path,
+    tmp_path: Path,
+    fetchcontent_cache: Path,
+    platform: str,
+):
+    """MIDI notes through the plugin produce the kernel's output for the same events, bit for bit."""
+    minihost = pytest.importorskip("minihost")
+    build_dir = _build(
+        synth_manifest, tmp_path / "p", platform, fetchcontent_cache, "synth"
+    )
+    bundles = list(build_dir.glob(f"**/synth.{platform}"))
+    assert bundles
+
+    ref_exe = tmp_path / "reference"
+    main_c = tmp_path / "reference_main.c"
+    main_c.write_text(_SYNTH_REFERENCE_MAIN)
+    subprocess.run(
+        [
+            *_cmake_c_compiler(build_dir),
+            f"-I{synth_dir}",
+            str(main_c),
+            str(synth_dir / "synth.c"),
+            "-lm",
+            "-o",
+            str(ref_exe),
+        ],
+        check=True,
+    )
+    subprocess.run([str(ref_exe), str(tmp_path / "y.f32")], check=True)
+    expected = np.fromfile(tmp_path / "y.f32", dtype=np.float32)
+
+    block = 512
+    plugin = minihost.Plugin(
+        str(bundles[0]),
+        sample_rate=48000.0,
+        max_block_size=block,
+        in_channels=0,
+        out_channels=1,
+    )
+    notes = {0: [(0, 0x90, 60, 100)], 10: [(0, 0x90, 67, 90)], 30: [(0, 0x80, 60, 0)]}
+    actual = np.zeros_like(expected)
+    for b, pos in enumerate(range(0, len(expected), block)):
+        out = np.zeros((1, block), dtype=np.float32)
+        plugin.process_midi(
+            np.zeros((0, block), dtype=np.float32), out, notes.get(b, [])
+        )
+        actual[pos : pos + block] = out[0]
+    assert float(np.sum(expected**2)) > 1.0  # the notes sounded
     assert np.array_equal(actual, expected), float(np.max(np.abs(actual - expected)))

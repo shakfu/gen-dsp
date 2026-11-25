@@ -5,8 +5,11 @@ The input is the ``<stem>.cignal.json`` manifest that ``cignal build --manifest`
 
 The adapter implements the ``wrapper_*`` interface over cignal's C ABI. cignal kernels never
 allocate, so ``wrapper_create`` allocates the struct. cignal has no parameter getter, so the
-adapter keeps the last value set for ``wrapper_get_param``. cignal events (``@event``) have no
-``wrapper_*`` counterpart and are not reachable from the host.
+adapter keeps the last value set for ``wrapper_get_param``.
+
+A kernel with events ``note(pitch, velocity)`` and ``off(pitch)`` gets MIDI notes on the platforms
+in ``NOTE_EVENT_PLATFORMS``, through the optional ``wrapper_note_on``/``wrapper_note_off`` hooks.
+The kernel allocates its own voices. Other events have no host binding and are unreachable.
 """
 
 from __future__ import annotations
@@ -24,16 +27,18 @@ from gen_dsp.version import __version__
 
 if TYPE_CHECKING:
     from gen_dsp.core.manifest import Manifest
+    from gen_dsp.core.midi import MidiMapping
     from gen_dsp.core.project import ProjectConfig
 
 MANIFEST_SUFFIX = ".cignal.json"
 MANIFEST_FORMAT = 1
-# Platforms built and run end to end from a cignal kernel. Each new one needs its build file to
-# compile the kernel's C source; see `_add_c_source`.
 # CMake build files whose plugin target is `${PROJECT_NAME}`, so the C source can be appended.
 # Max is left out: its wrapper passes double buffers. SSP cross-compiles for one device.
 _CMAKE_TARGET_PLATFORMS = frozenset({"au", "clap", "lv2", "sc", "vst3"})
 SUPPORTED_PLATFORMS = _CMAKE_TARGET_PLATFORMS
+# Templates that call `wrapper_note_on`/`wrapper_note_off` under WRAPPER_NOTE_EVENTS.
+NOTE_EVENT_PLATFORMS = frozenset({"clap", "lv2", "vst3"})
+_EVENT_ARG_TYPES = frozenset({"i32", "f32", "f64", "bool"})
 
 _IDENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 _FILE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.-]*")
@@ -48,6 +53,12 @@ class CignalParam:
 
 
 @dataclass(frozen=True)
+class CignalEvent:
+    name: str
+    args: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class CignalKernel:
     """A kernel described by a cignal manifest; ``directory`` holds the header and source."""
 
@@ -58,12 +69,31 @@ class CignalKernel:
     n_inputs: int
     n_outputs: int
     params: tuple[CignalParam, ...]
-    events: tuple[str, ...]
+    events: tuple[CignalEvent, ...]
     directory: Path
 
     @property
     def stem(self) -> str:
         return Path(self.header).stem
+
+    def note_event_indices(self) -> tuple[int, int] | None:
+        """Indices of ``note(pitch, velocity)`` and ``off(pitch)``, if the kernel has both."""
+        index = {e.name: i for i, e in enumerate(self.events)}
+        note, off = index.get("note"), index.get("off")
+        if note is None or off is None:
+            return None
+        if len(self.events[note].args) != 2 or len(self.events[off].args) != 1:
+            return None
+        return note, off
+
+    def unreachable_events(self, platform: str) -> list[str]:
+        """Events no host can call on ``platform``."""
+        bound = (
+            {"note", "off"}
+            if platform in NOTE_EVENT_PLATFORMS and self.note_event_indices()
+            else set()
+        )
+        return [e.name for e in self.events if e.name not in bound]
 
 
 def is_cignal_manifest(path: Path) -> bool:
@@ -131,7 +161,17 @@ def load_cignal_manifest(path: Path) -> CignalKernel:
     for i, ev in enumerate(_field(data, "events", list)):
         if not isinstance(ev, dict):
             raise ValidationError(f"cignal manifest: events[{i}] must be an object")
-        events.append(_field(ev, "name", str))
+        args = _field(ev, "args", list)
+        if not all(isinstance(a, str) and a in _EVENT_ARG_TYPES for a in args):
+            raise ValidationError(
+                f"cignal manifest: events[{i}] args must be in {sorted(_EVENT_ARG_TYPES)}"
+            )
+        events.append(
+            CignalEvent(
+                name=_match(_IDENT, _field(ev, "name", str), f"events[{i}] name"),
+                args=tuple(args),
+            )
+        )
 
     kernel = CignalKernel(
         name=_match(_IDENT, _field(data, "name", str), "name"),
@@ -175,9 +215,54 @@ def manifest_from_cignal(kernel: CignalKernel) -> Manifest:
     )
 
 
-def generate_adapter_cpp(kernel: CignalKernel, platform: str) -> str:
-    """The ``_ext_{platform}.cpp`` that implements ``wrapper_*`` over the kernel's C ABI."""
+def note_mapping(kernel: CignalKernel, config: ProjectConfig) -> MidiMapping | None:
+    """The MIDI mapping that routes notes to the kernel's events, or None to map parameters.
+
+    Raises ``ValidationError`` for polyphony: a kernel with note events allocates its own voices.
+    """
+    from gen_dsp.core.midi import MidiMapping
+
+    if (
+        config.no_midi
+        or config.platform not in NOTE_EVENT_PLATFORMS
+        or kernel.note_event_indices() is None
+    ):
+        return None
+    if config.num_voices > 1:
+        raise ValidationError(
+            f"{kernel.name} allocates its own voices (note/off events); drop --voices"
+        )
+    return MidiMapping(enabled=True, note_events=True)
+
+
+def _note_hooks_cpp(kernel: CignalKernel) -> str:
+    indices = kernel.note_event_indices()
+    assert indices is not None
+    note, off = indices
     k = kernel.c_name
+    return f"""
+// MIDI notes call the kernel's `note` and `off` events; cignal converts each argument.
+void wrapper_note_on(GenState* state, int key, float velocity) {{
+    const float args[2] = {{(float)key, velocity}};
+    {k}_event(&static_cast<State*>(state)->kernel, {note}, args);
+}}
+
+void wrapper_note_off(GenState* state, int key) {{
+    const float args[1] = {{(float)key}};
+    {k}_event(&static_cast<State*>(state)->kernel, {off}, args);
+}}
+"""
+
+
+def generate_adapter_cpp(
+    kernel: CignalKernel, platform: str, note_events: bool = False
+) -> str:
+    """The ``_ext_{platform}.cpp`` that implements ``wrapper_*`` over the kernel's C ABI.
+
+    ``note_events`` adds the ``wrapper_note_*`` hooks; see ``note_mapping``.
+    """
+    k = kernel.c_name
+    hooks = _note_hooks_cpp(kernel) if note_events else ""
     return f"""\
 // _ext_{platform}.cpp -- cignal adapter for the gen-dsp {platform} backend
 // Generated by gen-dsp from {kernel.stem}{MANIFEST_SUFFIX}. Do not edit.
@@ -274,7 +359,7 @@ const char* wrapper_buffer_name(int index) {{
     (void)index;
     return "";
 }}
-
+{hooks}
 }}  // namespace WRAPPER_NAMESPACE
 """
 
@@ -314,8 +399,9 @@ def generate_project(
 
     for f in (kernel.header, kernel.source):
         shutil.copy2(kernel.directory / f, output_dir / f)
+    note_events = config.midi_mapping is not None and config.midi_mapping.note_events
     (output_dir / f"_ext_{platform}.cpp").write_text(
-        generate_adapter_cpp(kernel, platform), encoding="utf-8"
+        generate_adapter_cpp(kernel, platform, note_events), encoding="utf-8"
     )
     build_file = get_platform(platform).generate_wrapped_project(
         manifest, output_dir, name, config, midi_defines

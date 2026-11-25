@@ -37,6 +37,11 @@ float wrapper_get_param(GenState* state, int index);
 // Buffers
 int wrapper_num_buffers();
 const char* wrapper_buffer_name(int index);
+#ifdef WRAPPER_NOTE_EVENTS
+// Optional: wrapped DSP that takes notes itself (the cignal frontend defines these).
+void wrapper_note_on(GenState* state, int key, float velocity);
+void wrapper_note_off(GenState* state, int key);
+#endif
 
 } // namespace WRAPPER_NAMESPACE
 

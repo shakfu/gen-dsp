@@ -101,6 +101,11 @@ cmake_minimum_required(VERSION 3.19)
 set(PROJECT_NAME {lib_name})
 project(${{PROJECT_NAME}} VERSION {gendsp_version})
 
+# Optimize unless a build type was chosen; multi-config generators pick it at build time.
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -255,6 +260,11 @@ cmake_minimum_required(VERSION 3.19)
 
 set(PROJECT_NAME {lib_name})
 project(${{PROJECT_NAME}})
+
+# Optimize unless a build type was chosen; multi-config generators pick it at build time.
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -595,6 +605,11 @@ set(C74_LIBRARY_OUTPUT_DIRECTORY "${{CMAKE_CURRENT_SOURCE_DIR}}/externals")
 
 set(PROJECT_NAME {lib_name})
 project(${{PROJECT_NAME}})
+
+# Optimize unless a build type was chosen; multi-config generators pick it at build time.
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
 
 # Include max-sdk-base pre-target configuration
 include(${{CMAKE_CURRENT_SOURCE_DIR}}/max-sdk-base/script/max-pretarget.cmake)

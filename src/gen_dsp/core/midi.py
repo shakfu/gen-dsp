@@ -27,6 +27,9 @@ class MidiMapping:
         freq_idx: Parameter index for frequency (None if not mapped).
         vel_idx: Parameter index for velocity (None if not mapped).
         freq_unit: "hz" for mtof conversion, "midi" for raw note number.
+        num_voices: Voices allocated by the wrapper; 1 for monophonic.
+        note_events: The wrapped DSP takes notes itself through ``wrapper_note_on``
+            and ``wrapper_note_off``, in place of the parameter mapping.
     """
 
     enabled: bool
@@ -35,6 +38,7 @@ class MidiMapping:
     vel_idx: int | None = None
     freq_unit: str = "hz"
     num_voices: int = 1
+    note_events: bool = False
 
 
 def detect_midi_mapping(
@@ -128,6 +132,8 @@ def build_midi_defines(midi_mapping: MidiMapping | None) -> str:
         return ""
 
     defs = ["MIDI_ENABLED=1"]
+    if midi_mapping.note_events:
+        defs.append("WRAPPER_NOTE_EVENTS=1")
     if midi_mapping.gate_idx is not None:
         defs.append(f"MIDI_GATE_IDX={midi_mapping.gate_idx}")
     if midi_mapping.freq_idx is not None:

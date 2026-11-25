@@ -394,18 +394,25 @@ class ProjectGenerator:
 
     def _generate_from_cignal(self, output_dir: Path) -> Path:
         """Generate project from a cignal kernel (``gen_dsp.cignal``)."""
-        from gen_dsp.cignal import generate_project
+        from gen_dsp.cignal import generate_project, note_mapping
+        from gen_dsp.core.midi import build_midi_defines
 
         assert self._cignal is not None
         assert self._manifest is not None
         manifest = self._manifest
+        mapping = note_mapping(self._cignal, self.config)
+        if mapping is not None:
+            self.config.midi_mapping = mapping
+            midi_defines = build_midi_defines(mapping)
+        else:
+            midi_defines = self._midi_defines(manifest)
         generate_project(
             self._cignal,
             manifest,
             output_dir,
             self.config.name,
             self.config,
-            self._midi_defines(manifest),
+            midi_defines,
         )
         (output_dir / "manifest.json").write_text(manifest.to_json(), encoding="utf-8")
         self._write_project_marker(output_dir)

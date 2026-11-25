@@ -1,0 +1,57 @@
+{
+  "format": 1,
+  "name": "Synth",
+  "c_name": "Synth",
+  "header": "synth.h",
+  "source": "synth.c",
+  "sample_type": "float",
+  "n_inputs": 0,
+  "n_outputs": 1,
+  "params": [
+    {
+      "name": "cutoff",
+      "lo": 50.0,
+      "hi": 16000.0,
+      "default": 2000.0
+    },
+    {
+      "name": "attack",
+      "lo": 0.0005,
+      "hi": 2.0,
+      "default": 0.005
+    },
+    {
+      "name": "release",
+      "lo": 0.001,
+      "hi": 5.0,
+      "default": 0.05
+    }
+  ],
+  "events": [
+    {
+      "name": "note",
+      "args": [
+        "i32",
+        "f32"
+      ]
+    },
+    {
+      "name": "off",
+      "args": [
+        "i32"
+      ]
+    },
+    {
+      "name": "hold",
+      "args": [
+        "bool"
+      ]
+    },
+    {
+      "name": "bend",
+      "args": [
+        "f64"
+      ]
+    }
+  ]
+}

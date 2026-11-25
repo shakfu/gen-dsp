@@ -265,3 +265,33 @@ class TestCrossPlatformGeneration:
         content = buffer_h.read_text()
         assert "WRAPPER_BUFFER_COUNT 1" in content
         assert "WRAPPER_BUFFER_NAME_0 sample" in content
+
+
+# Single-config CMake platforms: without a default, a plain `cmake ..` builds at -O0.
+_CMAKE_SINGLE_CONFIG = ["au", "clap", "lv2", "max", "sc", "vst3"]
+
+
+@pytest.mark.parametrize("platform", _CMAKE_SINGLE_CONFIG)
+def test_export_cmakelists_default_to_release(platform: str, gigaverb_export, tmp_path):
+    config = ProjectConfig(name="gigaverb", platform=platform)
+    ProjectGenerator(GenExportParser(gigaverb_export).parse(), config).generate(
+        tmp_path / "p"
+    )
+    cmake = (tmp_path / "p" / "CMakeLists.txt").read_text()
+    assert "set(CMAKE_BUILD_TYPE Release" in cmake
+
+
+@pytest.mark.parametrize("platform", _CMAKE_SINGLE_CONFIG)
+def test_wrapper_cmakelists_default_to_release(platform: str, tmp_path):
+    """Graph and cignal projects get the same default."""
+    from gen_dsp.core.wrapper_build import generate_graph_build_file
+
+    path = generate_graph_build_file(
+        output_dir=tmp_path,
+        platform=platform,
+        lib_name="gigaverb",
+        gen_name="gigaverb",
+        num_inputs=1,
+        num_outputs=2,
+    )
+    assert "set(CMAKE_BUILD_TYPE Release" in path.read_text()

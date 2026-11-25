@@ -971,12 +971,14 @@ def _cmd_default_cignal(args: argparse.Namespace, manifest_path: Path) -> int:
     if verr:
         print(f"Error: {verr}", file=sys.stderr)
         return 1
-    if kernel.events:
-        print(
-            f"  Warning: events {', '.join(kernel.events)} have no gen-dsp host binding "
-            "and are unreachable",
-            file=sys.stderr,
-        )
+    for platform in platforms:
+        unreachable = kernel.unreachable_events(platform)
+        if unreachable:
+            print(
+                f"  Warning: on {platform}, events {', '.join(unreachable)} have no host "
+                "binding and are unreachable",
+                file=sys.stderr,
+            )
 
     return _generate_wrapped_targets(
         args,

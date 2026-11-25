@@ -24,6 +24,15 @@ using namespace WRAPPER_NAMESPACE;
 #ifdef MIDI_ENABLED
 #if NUM_VOICES > 1
 #include "voice_alloc.h"
+#elif defined(WRAPPER_NOTE_EVENTS)
+// The wrapped DSP takes notes itself, e.g. a cignal kernel's `note` and `off` events.
+static inline void handle_note_on(GenState* state, int key, float velocity) {
+    wrapper_note_on(state, key, velocity);
+}
+
+static inline void handle_note_off(GenState* state, int key) {
+    wrapper_note_off(state, key);
+}
 #else
 static inline float mtof(int note) {
     return 440.0f * powf(2.0f, (note - 69) / 12.0f);
@@ -46,7 +55,8 @@ static inline void handle_note_on(GenState* state, int key, float velocity) {
 #endif
 }
 
-static inline void handle_note_off(GenState* state) {
+static inline void handle_note_off(GenState* state, int key) {
+    (void)key;
 #ifdef MIDI_GATE_IDX
     wrapper_set_param(state, MIDI_GATE_IDX, 0.0f);
 #endif
@@ -303,7 +313,7 @@ static void params_flush(const clap_plugin_t* plugin,
 #if NUM_VOICES > 1
             voice_alloc_note_off(&plug->voiceAlloc, ev->key);
 #else
-            handle_note_off(plug->genState);
+            handle_note_off(plug->genState, ev->key);
 #endif
         }
 #endif
@@ -584,7 +594,7 @@ static clap_process_status clap_gen_process(const clap_plugin_t* plugin,
 #if NUM_VOICES > 1
             voice_alloc_note_off(&plug->voiceAlloc, ev->key);
 #else
-            handle_note_off(plug->genState);
+            handle_note_off(plug->genState, ev->key);
 #endif
         }
 #endif
