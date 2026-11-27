@@ -8,6 +8,8 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from gen_dsp.cignal import MANIFEST_SUFFIX as CIGNAL_MANIFEST_SUFFIX
+from gen_dsp.errors import ValidationError as GenDspValidationError
 from gen_dsp.graph.algebra import merge as _algebra_merge
 from gen_dsp.graph.algebra import parallel as _algebra_parallel
 from gen_dsp.graph.algebra import series as _algebra_series
@@ -51,6 +53,9 @@ from gen_dsp.graph.models import (
     BufSize,
     BufWrite,
     Change,
+    CignalKernel,
+    CignalOut,
+    CignalSpec,
     Clamp,
     Compare,
     Constant,
@@ -430,6 +435,7 @@ class Compiler:
 
         for stmt in ast_g.body:
             ctx.compile_stmt(stmt)
+        ctx.resolve_cignal_dots()
 
         sample_rate = float(ast_g.options.get("sr", 44100.0))
         control_interval = int(ast_g.options.get("control", 0))
@@ -464,6 +470,9 @@ class _GraphCtx:
     id_counter: _IDCounter = field(default_factory=_IDCounter)
     # Track history declarations for feedback write resolution
     histories: dict[str, int] = field(default_factory=dict)  # name -> node index
+    # cignal kernel id -> spec, and (kernel id, channel) -> CignalOut id
+    cignal_kernels: dict[str, CignalSpec] = field(default_factory=dict)
+    cignal_outs: dict[tuple[str, int], str] = field(default_factory=dict)
 
     def _err(self, msg: str, line: int = 0, col: int = 0) -> GDSPCompileError:
         return GDSPCompileError(msg, line=line, col=col, filename=self.filename)
@@ -723,6 +732,10 @@ class _GraphCtx:
 
         if isinstance(expr, ASTDotAccess):
             obj_ref = self._compile_expr(expr.obj)
+            if isinstance(obj_ref, str) and obj_ref in self.cignal_kernels:
+                return self._cignal_output(
+                    obj_ref, expr.field_name, expr.line, expr.col
+                )
             # Dot access on subgraph output: "subgraph_id.output_name"
             return f"{obj_ref}.{expr.field_name}"
 
@@ -825,6 +838,9 @@ class _GraphCtx:
 
     def _compile_import(self, stmt: ASTImportAssign) -> None:
         """Resolve an external import and emit it as a Subgraph node."""
+        if stmt.path.endswith(CIGNAL_MANIFEST_SUFFIX):
+            self._compile_cignal_import(stmt)
+            return
         sub_graph = self.compiler.resolve_import(stmt.path, stmt.graph_name, stmt.line)
         pos_args, kw_args = self._split_args(stmt.args)
         if pos_args:
@@ -839,6 +855,105 @@ class _GraphCtx:
             else f"import of '{stmt.path}'"
         )
         self._emit_subgraph(sub_graph, kw_args, stmt.target, label, stmt.line)
+
+    def _compile_cignal_import(self, stmt: ASTImportAssign) -> None:
+        """Emit a CignalKernel: inputs are ``in0``..., params go by name, unset params keep their defaults."""
+        if stmt.graph_name is not None:
+            raise self._err(
+                "a cignal manifest holds one kernel; drop the ':NAME'", stmt.line
+            )
+        path, _ = self.compiler._resolve_path(stmt.path, stmt.line)
+        try:
+            spec = CignalSpec.load(path)
+        except GenDspValidationError as e:
+            raise self._err(str(e), stmt.line) from e
+        pos_args, kw_args = self._split_args(stmt.args)
+        if pos_args:
+            raise self._err(
+                "cignal kernels take keyword arguments only (in0=..., <param>=...)",
+                stmt.line,
+            )
+        input_names = [f"in{j}" for j in range(spec.n_inputs)]
+        clash = set(input_names) & set(spec.params)
+        if clash:
+            raise self._err(
+                f"{spec.c_name}: params {sorted(clash)} share a name with its inputs",
+                stmt.line,
+            )
+        bound: dict[str, str | float] = {}
+        for k, v_expr in kw_args.items():
+            if k not in input_names and k not in spec.params:
+                raise self._err(
+                    f"{spec.c_name} has no input or param '{k}' "
+                    f"(inputs: {', '.join(input_names) or 'none'}; "
+                    f"params: {', '.join(spec.params) or 'none'})",
+                    stmt.line,
+                )
+            bound[k] = self._to_ref(self._compile_expr(v_expr))
+        missing = [n for n in input_names if n not in bound]
+        if missing:
+            raise self._err(f"{spec.c_name}: unconnected inputs {missing}", stmt.line)
+        self._add_node(
+            CignalKernel(
+                id=stmt.target,
+                spec=spec,
+                inputs=[bound[n] for n in input_names],
+                params=[
+                    bound.get(n, d)
+                    for n, d in zip(spec.params, spec.defaults, strict=True)
+                ],
+            )
+        )
+        self.cignal_kernels[stmt.target] = spec
+
+    def resolve_cignal_dots(self) -> None:
+        """Rewrite ``k.out<j>`` refs written before kernel ``k`` was imported."""
+        if not self.cignal_kernels:
+            return
+
+        def fix(v: object) -> object:
+            if isinstance(v, str):
+                head, dot, name = v.partition(".")
+                if dot and head in self.cignal_kernels:
+                    return self._cignal_output(head, name, 0, 0)
+            return v
+
+        self.outputs = [
+            o.model_copy(update={"source": fix(o.source)}) for o in self.outputs
+        ]
+        nodes = []
+        for node in self.nodes:
+            updates = {}
+            for k, v in node.__dict__.items():
+                new = [fix(x) for x in v] if isinstance(v, list) else fix(v)
+                if new != v:
+                    updates[k] = new
+            nodes.append(node.model_copy(update=updates) if updates else node)
+        # _cignal_output may have appended CignalOut nodes to self.nodes meanwhile.
+        self.nodes = nodes + self.nodes[len(nodes) :]
+
+    def _cignal_output(self, kernel_id: str, name: str, line: int, col: int) -> str:
+        """``k.out0`` is the kernel node itself; ``k.out<j>`` is a CignalOut, made once."""
+        spec = self.cignal_kernels[kernel_id]
+        digits = name[3:]
+        if (
+            not (name.startswith("out") and digits.isascii() and digits.isdigit())
+            or int(digits) >= spec.n_outputs
+        ):
+            raise self._err(
+                f"cignal kernel '{kernel_id}' has outputs out0..out{spec.n_outputs - 1}, not '{name}'",
+                line,
+                col,
+            )
+        channel = int(digits)
+        if channel == 0:
+            return kernel_id
+        key = (kernel_id, channel)
+        if key not in self.cignal_outs:
+            nid = self._auto_id(f"{kernel_id}_out{channel}")
+            self._add_node(CignalOut(id=nid, kernel=kernel_id, channel=channel))
+            self.cignal_outs[key] = nid
+        return self.cignal_outs[key]
 
     def _compile_subgraph_call(
         self,

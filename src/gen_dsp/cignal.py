@@ -364,7 +364,7 @@ const char* wrapper_buffer_name(int index) {{
 """
 
 
-def _add_c_source(build_file: Path, platform: str, source: str) -> None:
+def add_c_source(build_file: Path, platform: str, source: str) -> None:
     """Add the kernel's C source to a generated build file.
 
     The graph build files list only C++ sources. cignal emits C99 with compound literals and
@@ -406,4 +406,4 @@ def generate_project(
     build_file = get_platform(platform).generate_wrapped_project(
         manifest, output_dir, name, config, midi_defines
     )
-    _add_c_source(build_file, platform, kernel.source)
+    add_c_source(build_file, platform, kernel.source)

@@ -19,6 +19,8 @@ from gen_dsp.graph.models import (
     BufSize,
     BufWrite,
     Change,
+    CignalKernel,
+    CignalOut,
     Clamp,
     Compare,
     Constant,
@@ -180,6 +182,10 @@ def _node_attrs(node: object) -> tuple[str, str, str]:
         return "box", "#fff3cd", f"{node.id}\\ngate_out {node.channel}"
     if isinstance(node, Selector):
         return "box", "#fff3cd", f"{node.id}\\nselector"
+    if isinstance(node, CignalKernel):
+        return "box3d", "#d4edda", f"{node.id}\\ncignal {node.spec.c_name}"
+    if isinstance(node, CignalOut):
+        return "box", "#d4edda", f"{node.id}\\nout {node.channel}"
     if isinstance(node, Subgraph):
         n_in = len(node.graph.inputs)
         n_out = len(node.graph.outputs)

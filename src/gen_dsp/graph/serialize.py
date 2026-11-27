@@ -9,6 +9,8 @@ from gen_dsp.graph.models import (
     BufRead,
     BufSize,
     BufWrite,
+    CignalKernel,
+    CignalOut,
     Compare,
     Constant,
     Cycle,
@@ -321,6 +323,14 @@ def _node_to_expr(
     if isinstance(node, Selector):
         inputs_str = ", ".join(ref(i) for i in node.inputs)
         return f"selector({ref(node.index)}, {inputs_str})"
+
+    # cignal kernel: inputs in0..., then params by name
+    if isinstance(node, CignalKernel):
+        kw = [f"in{j}={ref(r)}" for j, r in enumerate(node.inputs)]
+        kw += [f"{n}={ref(r)}" for n, r in zip(node.spec.params, node.params)]
+        return f'import "{node.spec.manifest}"({", ".join(kw)})'
+    if isinstance(node, CignalOut):
+        return f"{node.kernel}.out{node.channel}"
 
     # GateRoute
     if isinstance(node, GateRoute):

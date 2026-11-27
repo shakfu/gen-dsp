@@ -18,6 +18,7 @@ from gen_dsp.graph.models import (
     BufSize,
     BufWrite,
     Change,
+    CignalKernel,
     Clamp,
     Compare,
     Constant,
@@ -104,6 +105,7 @@ _STATEFUL_TYPES = (
     Cycle,
     Wave,
     Lookup,
+    CignalKernel,
 )
 
 

@@ -39,6 +39,7 @@ from gen_dsp.graph.models import (
     BufSize,
     BufWrite,
     Change,
+    CignalKernel,
     Clamp,
     Compare,
     Constant,
@@ -99,6 +100,12 @@ class SimState:
         errors = validate_graph(graph)
         if errors:
             raise ValueError("Invalid graph: " + "; ".join(errors))
+        kernels = [n.id for n in graph.nodes if isinstance(n, CignalKernel)]
+        if kernels:
+            raise ValueError(
+                f"cannot simulate cignal kernels ({', '.join(kernels)}): "
+                "they run only as compiled C"
+            )
 
         self._graph = graph
         self.sr = sample_rate if sample_rate > 0.0 else graph.sample_rate

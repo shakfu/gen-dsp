@@ -14,7 +14,7 @@ from gen_dsp.graph.compile.common import (
     _to_pascal,
     _Writer,
 )
-from gen_dsp.graph.compile.nodes import _emit_node_compute
+from gen_dsp.graph.compile.nodes import _emit_node_compute, emit_cignal_param_sets
 from gen_dsp.graph.compile.state import (
     _emit_state_fields,
     _emit_state_init,
@@ -24,6 +24,7 @@ from gen_dsp.graph.compile.state import (
 )
 from gen_dsp.graph.models import (
     Buffer,
+    CignalKernel,
     DelayLine,
     DelayWrite,
     Graph,
@@ -106,6 +107,10 @@ def compile_graph(graph: Graph, lang: Lang = "cpp") -> str:
     # -- Includes
     for header in _INCLUDES[lang]:
         w(f"#include <{header}>")
+    for header in sorted(
+        {n.spec.header for n in sorted_nodes if isinstance(n, CignalKernel)}
+    ):
+        w(f'#include "{header}"')
     w("")
 
     # -- Struct; C needs the typedef to use the bare struct name as a type.
@@ -365,6 +370,7 @@ def _node_lines(
     param_names: set[str],
     history_nodes: list[History],
     delay_write_nodes: list[DelayWrite],
+    invariant_ids: set[str] | frozenset[str] = frozenset(),
 ) -> list[str]:
     """Emit one node's compute lines at 8-space indent.
 
@@ -373,7 +379,13 @@ def _node_lines(
     """
     lines: list[str] = []
     _emit_node_compute(
-        node, input_ids, param_names, lines.append, history_nodes, delay_write_nodes
+        node,
+        input_ids,
+        param_names,
+        lines.append,
+        history_nodes,
+        delay_write_nodes,
+        invariant_ids,
     )
     decl = re.compile(rf"^\s*float {re.escape(node.id)}\b")
     if node.id not in used and any(decl.match(line) for line in lines):
@@ -438,6 +450,19 @@ def _emit_perform(
                 else:
                     w(line)
 
+    # Kernel parameters fixed for the block are set once, before any frame runs.
+    for node in sorted_nodes:
+        if isinstance(node, CignalKernel):
+            emit_cignal_param_sets(
+                node,
+                lambda r: _emit_ref(r, input_ids, param_names),
+                True,
+                param_names,
+                invariant_ids,
+                w,
+                "    ",
+            )
+
     ctrl_interval = graph.control_interval
     ctrl_node_ids = set(graph.control_nodes) if ctrl_interval > 0 else set()
     ctrl_rate_ids = _classify_control_rate(sorted_nodes, ctrl_node_ids, invariant_ids)
@@ -499,7 +524,13 @@ def _emit_perform_single(
     for node in sorted_nodes:
         if node.id not in invariant_ids:
             for line in _node_lines(
-                node, used, input_ids, param_names, history_nodes, delay_write_nodes
+                node,
+                used,
+                input_ids,
+                param_names,
+                history_nodes,
+                delay_write_nodes,
+                invariant_ids,
             ):
                 w(line)
 
@@ -539,7 +570,7 @@ def _emit_perform_two_tier(
     for node in sorted_nodes:
         if node.id in ctrl_rate_ids:
             for line in _node_lines(
-                node, used, input_ids, param_names, ctrl_history, ctrl_dw
+                node, used, input_ids, param_names, ctrl_history, ctrl_dw, invariant_ids
             ):
                 w(line)
 
@@ -553,7 +584,13 @@ def _emit_perform_two_tier(
         if node.id not in invariant_ids and node.id not in ctrl_rate_ids:
             # Collect lines at standard 8-space indent, then add 4 more
             node_lines = _node_lines(
-                node, used, input_ids, param_names, audio_history, audio_dw
+                node,
+                used,
+                input_ids,
+                param_names,
+                audio_history,
+                audio_dw,
+                invariant_ids,
             )
             for line in node_lines:
                 w(_indent_line(line, 4))

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
@@ -566,6 +567,69 @@ class Selector(BaseModel):
     inputs: list[Ref]  # the N inputs to select from
 
 
+# ---------------------------------------------------------------------------
+# External kernels
+# ---------------------------------------------------------------------------
+
+# Spliced into generated C and file paths; the same rules as gen_dsp.cignal.
+_C_IDENT = r"^[A-Za-z_][A-Za-z0-9_]*$"
+_FILE_NAME = r"^[A-Za-z0-9_][A-Za-z0-9_.-]*$"
+
+
+class CignalSpec(BaseModel):
+    """What a graph needs from a ``<stem>.cignal.json`` manifest; header and source sit beside it."""
+
+    manifest: str
+    c_name: Annotated[str, Field(pattern=_C_IDENT)]
+    header: Annotated[str, Field(pattern=_FILE_NAME)]
+    source: Annotated[str, Field(pattern=_FILE_NAME)]
+    n_inputs: Annotated[int, Field(ge=0)]
+    n_outputs: Annotated[int, Field(ge=1)]
+    params: list[Annotated[str, Field(pattern=_C_IDENT)]] = []
+    defaults: list[float] = []
+
+    @classmethod
+    def load(cls, path: str | Path) -> CignalSpec:
+        """Read a manifest; raises ``gen_dsp.errors.ValidationError`` if it is malformed."""
+        from gen_dsp.cignal import load_cignal_manifest
+
+        k = load_cignal_manifest(Path(path))
+        return cls(
+            manifest=str(k.directory / Path(path).name),
+            c_name=k.c_name,
+            header=k.header,
+            source=k.source,
+            n_inputs=k.n_inputs,
+            n_outputs=k.n_outputs,
+            params=[p.name for p in k.params],
+            defaults=[p.default for p in k.params],
+        )
+
+    @property
+    def directory(self) -> Path:
+        return Path(self.manifest).parent
+
+
+class CignalKernel(BaseModel):
+    """A kernel compiled by cignal, called one sample at a time. Its value is output 0.
+
+    ``params`` are set through the kernel's setters, so they are clamped and may glide.
+    """
+
+    id: str
+    op: Literal["cignal"] = "cignal"
+    spec: CignalSpec
+    inputs: list[Ref] = []  # one per kernel input
+    params: list[Ref] = []  # one per kernel parameter, in manifest order
+
+
+class CignalOut(BaseModel):
+    id: str
+    op: Literal["cignal_out"] = "cignal_out"
+    kernel: str  # CignalKernel node ID
+    channel: int  # 0-based kernel output
+
+
 # Discriminated union of all node types
 Node = Annotated[
     BinOp
@@ -623,7 +687,9 @@ Node = Annotated[
     | Lookup
     | GateRoute
     | GateOut
-    | Selector,
+    | Selector
+    | CignalKernel
+    | CignalOut,
     Field(discriminator="op"),
 ]
 

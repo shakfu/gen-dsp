@@ -16,6 +16,7 @@ from gen_dsp.graph.models import (
     BufRead,
     BufWrite,
     Change,
+    CignalKernel,
     Counter,
     Cycle,
     DCBlock,
@@ -222,6 +223,22 @@ class _BufferState(_StateEmitter):
         ]
 
 
+class _CignalState(_StateEmitter):
+    """The kernel's struct, embedded; perform() passes its address, so nothing is loaded."""
+
+    def fields(self, node: Node) -> list[str]:
+        assert isinstance(node, CignalKernel)
+        return [f"    {node.spec.c_name} m_{node.id};"]
+
+    def init(self, node: Node) -> list[str]:
+        assert isinstance(node, CignalKernel)
+        return [f"    {node.spec.c_name}_init(&self->m_{node.id}, sr);"]
+
+    def reset(self, node: Node) -> list[str]:
+        assert isinstance(node, CignalKernel)
+        return [f"    {node.spec.c_name}_reset(&self->m_{node.id});"]
+
+
 def _history_init_value(node: Node) -> str:
     assert isinstance(node, History)
     return _float_lit(node.init)
@@ -296,6 +313,7 @@ _STATE_EMITTERS: dict[type, _StateEmitter] = {
         _StateField("_ptrig", "float", "0.0f", "0.0f"),
     ),
     Peek: _FieldState(_StateField("_value", "float", "0.0f", "0.0f")),
+    CignalKernel: _CignalState(),
 }
 
 

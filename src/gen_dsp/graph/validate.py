@@ -9,6 +9,8 @@ from gen_dsp.graph.models import (
     BufRead,
     BufSize,
     BufWrite,
+    CignalKernel,
+    CignalOut,
     Cycle,
     DelayLine,
     DelayRead,
@@ -53,6 +55,14 @@ class GraphValidationError(str):
             ``GateOut.gate`` references a non-existent ``GateRoute``.
         ``"gate_channel_range"``
             ``GateOut.channel`` is outside ``[1, gate_route.count]``.
+        ``"cignal_arity"``
+            A ``CignalKernel`` has a number of inputs or params other than its kernel's.
+        ``"missing_cignal_kernel"``
+            ``CignalOut.kernel`` references a non-existent ``CignalKernel``.
+        ``"cignal_channel_range"``
+            ``CignalOut.channel`` is outside ``[0, n_outputs)``.
+        ``"cignal_conflict"``
+            Two kernels share a C name but come from different manifests.
         ``"invalid_control_node"``
             An ID in ``Graph.control_nodes`` is not a node ID.
         ``"control_audio_dep"``
@@ -375,6 +385,59 @@ def validate_graph(
                             field_name="channel",
                         )
                     )
+
+    # 4d. cignal kernels -- arity matches the manifest, outputs in range, one manifest per C name
+    cignal_map = {n.id: n for n in graph.nodes if isinstance(n, CignalKernel)}
+    manifests: dict[str, str] = {}
+    for node in graph.nodes:
+        if isinstance(node, CignalKernel):
+            spec = node.spec
+            for field_name, got, want in (
+                ("inputs", len(node.inputs), spec.n_inputs),
+                ("params", len(node.params), len(spec.params)),
+            ):
+                if got != want:
+                    errors.append(
+                        GraphValidationError(
+                            "cignal_arity",
+                            f"cignal kernel '{node.id}' has {got} {field_name}; "
+                            f"{spec.c_name} takes {want}",
+                            node_id=node.id,
+                            field_name=field_name,
+                        )
+                    )
+            first = manifests.setdefault(spec.c_name, spec.manifest)
+            if first != spec.manifest:
+                errors.append(
+                    GraphValidationError(
+                        "cignal_conflict",
+                        f"cignal kernel '{node.id}': C name {spec.c_name} comes from "
+                        f"both {first} and {spec.manifest}",
+                        node_id=node.id,
+                        field_name="spec",
+                    )
+                )
+        elif isinstance(node, CignalOut):
+            kernel = cignal_map.get(node.kernel)
+            if kernel is None:
+                errors.append(
+                    GraphValidationError(
+                        "missing_cignal_kernel",
+                        f"CignalOut '{node.id}' references non-existent cignal kernel '{node.kernel}'",
+                        node_id=node.id,
+                        field_name="kernel",
+                    )
+                )
+            elif not 0 <= node.channel < kernel.spec.n_outputs:
+                errors.append(
+                    GraphValidationError(
+                        "cignal_channel_range",
+                        f"CignalOut '{node.id}' channel {node.channel} out of range "
+                        f"[0, {kernel.spec.n_outputs})",
+                        node_id=node.id,
+                        field_name="channel",
+                    )
+                )
 
     # 5. Control-rate consistency
     if graph.control_interval > 0 and graph.control_nodes:

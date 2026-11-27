@@ -458,6 +458,31 @@ The path must stay inside the root after symlinks are resolved. `parse_file` and
 
 **Cycle detection.** Imports that form a cycle -- directly (`a.gdsp` -> `a.gdsp`) or transitively (`a.gdsp` -> `b.gdsp` -> `a.gdsp`) -- raise a `GDSPCompileError` reporting the import chain, rather than recursing without bound.
 
+### cignal Kernels
+
+Importing a `<stem>.cignal.json` manifest (written by `cignal build --manifest`) adds the kernel as a `CignalKernel` node:
+
+```gdsp
+graph verb {
+    in x
+    out left = rev
+    out right = rev.out1
+    param room 1..50 = 20
+
+    rev = import "gigaverb.cignal.json"(in0=x, roomsize=room)
+}
+```
+
+- Inputs are `in0`, `in1`, ...; every input must be connected. Parameters go by their manifest names; unset ones keep their defaults.
+
+- `rev` and `rev.out0` are output 0; `rev.out1` and higher are `CignalOut` nodes.
+
+- Parameters go through the kernel's setter, so they are clamped to the manifest range and may glide. One whose value is fixed for the block (a literal, a graph param, or a loop-invariant node) is set once per block; any other is set every sample.
+
+- The kernel runs one frame per call, so feedback through it has one sample of delay. Its `control()` then runs every sample, not every block: Gigaverb, whose `control()` calls `pow` nine times, costs 130 ns/frame in a graph against 15 ns/frame alone (clang `-O2`, arm64). Lowpass costs 8.6 against 5.0.
+
+- Graphs with cignal kernels compile to C and C++ and build on AU, CLAP, LV2, SuperCollider and VST3. `simulate()` and the gen~ transpiler reject them. A manifest that changed after the graph was built is an error at project generation.
+
 ---
 
 ## Inline Composition

@@ -299,15 +299,31 @@ class Platform(ABC):
         Compiles the graph to C++ and emits its ``_ext_{platform}.cpp`` adapter,
         then hands over to ``generate_wrapped_project``.
         """
-        from gen_dsp.graph.adapter import generate_adapter_cpp
+        from gen_dsp import cignal
+        from gen_dsp.graph.adapter import (
+            cignal_specs,
+            copy_cignal_files,
+            generate_adapter_cpp,
+        )
         from gen_dsp.graph.compile import compile_graph
 
         platform = config.platform
+        specs = cignal_specs(graph)
+        if specs and platform not in cignal.SUPPORTED_PLATFORMS:
+            raise ProjectError(
+                f"graphs with cignal kernels are not supported on {platform!r} yet; "
+                f"supported: {', '.join(sorted(cignal.SUPPORTED_PLATFORMS))}"
+            )
         (output_dir / f"{graph.name}.cpp").write_text(compile_graph(graph))
         (output_dir / f"_ext_{platform}.cpp").write_text(
             generate_adapter_cpp(graph, platform)
         )
-        self.generate_wrapped_project(manifest, output_dir, name, config, midi_defines)
+        sources = copy_cignal_files(specs, output_dir)
+        build_file = self.generate_wrapped_project(
+            manifest, output_dir, name, config, midi_defines
+        )
+        for source in sources:
+            cignal.add_c_source(build_file, platform, source)
 
     def generate_wrapped_project(
         self,

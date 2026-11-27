@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math as _math
+from collections.abc import Callable
 
 from gen_dsp.graph.compile.common import _emit_ref, _float_lit, _Writer
 from gen_dsp.graph.models import (
@@ -17,6 +18,8 @@ from gen_dsp.graph.models import (
     BufSize,
     BufWrite,
     Change,
+    CignalKernel,
+    CignalOut,
     Clamp,
     Compare,
     Constant,
@@ -144,6 +147,7 @@ def _emit_node_compute(
     w: _Writer,
     history_nodes: list[History],
     delay_write_nodes: list[DelayWrite],
+    invariant_ids: frozenset[str] | set[str] = frozenset(),
 ) -> None:
     def ref(r: str | float) -> str:
         return _emit_ref(r, input_ids, param_names)
@@ -830,6 +834,12 @@ def _emit_node_compute(
             f"        float {nid} = (_{gate}_idx == {node.channel}) ? _{gate}_val : 0.0f;"
         )
 
+    elif isinstance(node, CignalKernel):
+        _emit_cignal_tick(node, ref, param_names, invariant_ids, w)
+
+    elif isinstance(node, CignalOut):
+        w(f"        float {node.id} = _{node.kernel}_y[{node.channel}];")
+
     elif isinstance(node, Selector):
         nid = node.id
         idx = ref(node.index)
@@ -843,6 +853,62 @@ def _emit_node_compute(
             input_ref = ref(node.inputs[i - 1])
             expr = f"_{nid}_idx == {i} ? {input_ref} : {expr}"
         w(f"        float {nid} = {expr};")
+
+
+# ---------------------------------------------------------------------------
+# cignal kernels
+# ---------------------------------------------------------------------------
+
+
+def cignal_param_is_block_constant(
+    r: str | float, param_names: set[str], invariant_ids: frozenset[str] | set[str]
+) -> bool:
+    """Whether a kernel parameter's ref is fixed for a block, so it is set once before the loop."""
+    return isinstance(r, float) or r in param_names or r in invariant_ids
+
+
+def emit_cignal_param_sets(
+    node: CignalKernel,
+    ref: Callable[[str | float], str],
+    block_constant: bool,
+    param_names: set[str],
+    invariant_ids: frozenset[str] | set[str],
+    w: _Writer,
+    indent: str,
+) -> None:
+    """Set the parameters whose refs are (or are not) block-constant."""
+    k = node.spec.c_name
+    for j, r in enumerate(node.params):
+        if (
+            cignal_param_is_block_constant(r, param_names, invariant_ids)
+            == block_constant
+        ):
+            w(f"{indent}{k}_set_param(&self->m_{node.id}, {j}, {ref(r)});")
+
+
+def _emit_cignal_tick(
+    node: CignalKernel,
+    ref: Callable[[str | float], str],
+    param_names: set[str],
+    invariant_ids: frozenset[str] | set[str],
+    w: _Writer,
+) -> None:
+    """One frame through the kernel's block call; cignal's output does not depend on block size."""
+    nid, k = node.id, node.spec.c_name
+    n_in, n_out = node.spec.n_inputs, node.spec.n_outputs
+    ins = "(const float* const*)0"
+    if n_in:
+        xs = ", ".join(ref(r) for r in node.inputs)
+        ptrs = ", ".join(f"&_{nid}_x[{j}]" for j in range(n_in))
+        w(f"        float _{nid}_x[{n_in}] = {{{xs}}};")
+        w(f"        const float* _{nid}_ins[{n_in}] = {{{ptrs}}};")
+        ins = f"_{nid}_ins"
+    ptrs = ", ".join(f"&_{nid}_y[{j}]" for j in range(n_out))
+    w(f"        float _{nid}_y[{n_out}];")
+    w(f"        float* _{nid}_outs[{n_out}] = {{{ptrs}}};")
+    emit_cignal_param_sets(node, ref, False, param_names, invariant_ids, w, "        ")
+    w(f"        {k}_process(&self->m_{nid}, {ins}, _{nid}_outs, 1);")
+    w(f"        float {nid} = _{nid}_y[0];")
 
 
 # ---------------------------------------------------------------------------

@@ -14,9 +14,11 @@ from typing import TYPE_CHECKING
 # Re-exported (documented API); the build-file generators live in a module without the
 # pydantic dependency, so the cignal frontend can use them.
 from gen_dsp.core.wrapper_build import generate_graph_build_file
+from gen_dsp.errors import ProjectError
 from gen_dsp.graph.compile import compile_graph
 from gen_dsp.graph.compile.common import _to_pascal
-from gen_dsp.graph.models import Buffer, Graph
+from gen_dsp.graph.models import Buffer, CignalKernel, CignalSpec, Graph
+from gen_dsp.graph.subgraph import expand_subgraphs
 from gen_dsp.version import __version__
 
 if TYPE_CHECKING:
@@ -24,7 +26,9 @@ if TYPE_CHECKING:
 
 __all__ = [
     "SUPPORTED_PLATFORMS",
+    "cignal_specs",
     "compile_for_gen_dsp",
+    "copy_cignal_files",
     "generate_adapter_cpp",
     "generate_graph_build_file",
     "generate_manifest",
@@ -53,6 +57,38 @@ _PLATFORM_INFO: dict[str, tuple[str, str]] = {
 }
 
 SUPPORTED_PLATFORMS = set(_PLATFORM_INFO.keys())
+
+
+def cignal_specs(graph: Graph) -> list[CignalSpec]:
+    """The distinct cignal kernels in ``graph``, subgraphs included, one per C name."""
+    specs: dict[str, CignalSpec] = {}
+    for node in expand_subgraphs(graph).nodes:
+        if isinstance(node, CignalKernel):
+            specs.setdefault(node.spec.c_name, node.spec)
+    return list(specs.values())
+
+
+def copy_cignal_files(specs: list[CignalSpec], output_dir: Path) -> list[str]:
+    """Copy each kernel's header and source into ``output_dir``; return the sources.
+
+    Re-reads each manifest: a kernel rebuilt since the graph was made would no
+    longer match the calls compiled into it.
+    """
+    import shutil
+
+    seen: dict[str, str] = {}
+    for spec in specs:
+        if CignalSpec.load(spec.manifest) != spec:
+            raise ProjectError(
+                f"{spec.manifest} changed since the graph was built; rebuild the graph"
+            )
+        for f in (spec.header, spec.source):
+            if seen.setdefault(f, spec.c_name) != spec.c_name:
+                raise ProjectError(
+                    f"cignal kernels {seen[f]} and {spec.c_name} both need a file named {f}"
+                )
+            shutil.copy2(spec.directory / f, output_dir / f)
+    return [spec.source for spec in specs]
 
 
 def generate_adapter_cpp(graph: Graph, platform: str) -> str:
@@ -297,6 +333,7 @@ def compile_for_gen_dsp(
 
     code = compile_graph(graph)
     (out / f"{graph.name}.cpp").write_text(code)
+    copy_cignal_files(cignal_specs(graph), out)
 
     adapter = generate_adapter_cpp(graph, platform)
     (out / f"_ext_{platform}.cpp").write_text(adapter)
