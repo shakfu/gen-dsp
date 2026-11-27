@@ -112,6 +112,9 @@ class SimState:
         self._sorted_nodes = toposort(graph)
         self._params: dict[str, float] = {p.name: p.default for p in graph.params}
         self._state: dict[str, Any] = {}
+        # Samples left in the current control block, and the values it holds.
+        self._ctl_left = 0
+        self._ctl_held: dict[str, float] = {}
         self._init_state()
 
     def _init_state(self) -> None:
@@ -175,6 +178,7 @@ class SimState:
     def reset(self) -> None:
         """Reset all state to initial values, mirroring compile.py:_emit_state_reset."""
         self._params = {p.name: p.default for p in self._graph.params}
+        self._ctl_left = 0
         for node in self._sorted_nodes:
             nid = node.id
             if isinstance(node, History):
@@ -352,8 +356,8 @@ def simulate(
     ctrl_sorted = [n for n in sorted_nodes if n.id in ctrl_set]
     audio_sorted = [n for n in sorted_nodes if n.id not in ctrl_set]
 
-    # Persistent vals dict for holding control-rate values across samples
-    held_vals: dict[str, float] = {}
+    # Control-rate values persist across samples and across simulate() calls
+    held_vals = state._ctl_held
 
     # Sample loop
     for i in range(n_samples):
@@ -377,7 +381,11 @@ def simulate(
                 vals[node.id] = float(state._state[node.id])
 
         # Control-rate gating
-        is_ctrl_boundary = ctrl_interval > 0 and ctrl_set and i % ctrl_interval == 0
+        is_ctrl_boundary = bool(ctrl_interval > 0 and ctrl_set and state._ctl_left == 0)
+        if is_ctrl_boundary:
+            state._ctl_left = ctrl_interval
+        if ctrl_interval > 0 and ctrl_set:
+            state._ctl_left -= 1
 
         # Inject held control-rate values for non-boundary samples only
         if ctrl_interval > 0 and ctrl_set and not is_ctrl_boundary:

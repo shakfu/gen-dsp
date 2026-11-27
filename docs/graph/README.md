@@ -133,18 +133,25 @@ graph = Graph(
 )
 ```
 
-When `control_interval > 0`, the generated C++ uses a two-tier loop structure:
+When `control_interval > 0`, the generated C++ uses a two-tier loop structure. The position in the control block and the values it holds live in the state struct, so control frames fall every 64 samples whatever the host block size:
 
 ```cpp
-for (int _cb = 0; _cb < n; _cb += 64) {
-    int _block_end = (_cb + 64 < n) ? _cb + 64 : n;
-    // Control-rate nodes (once per block)
-    float smoother = ...;
+int _ctl_left = self->m__ctl_left;
+float smoother = self->m__ctl_smoother;
+for (int _cb = 0; _cb < n; ) {
+    if (_ctl_left == 0) {
+        // Control-rate nodes (once per control block)
+        smoother = ...;
+        _ctl_left = 64;
+    }
+    int _block_end = (_ctl_left < n - _cb) ? _cb + _ctl_left : n;
+    _ctl_left -= _block_end - _cb;
     for (int i = _cb; i < _block_end; i++) {
         // Audio-rate nodes (per sample)
         float scaled = in0[i] * smoother;
         out0[i] = scaled;
     }
+    _cb = _block_end;
 }
 ```
 

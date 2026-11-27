@@ -226,12 +226,12 @@ class TestOptimize:
 class TestCompile:
     def test_params_set_once_per_block_when_fixed(self, manifest: Path) -> None:
         code = compile_graph(parse(_reverb_source(manifest)))
-        before, loop = code.split("for (int i = 0; i < n; i++) {", 1)
+        before, loop = code.split("for (int _c0 = 0; _c0 < n; _c0 += 64) {", 1)
         assert "Gigaverb_set_param(&self->m_rev, 0, room);" in before
         assert "Gigaverb_set_param(&self->m_rev, 2, _add_0);" in before
         assert "Gigaverb_set_param(&self->m_rev, 7, 0.25f);" in before
         assert "Gigaverb_set_param" not in loop
-        assert "Gigaverb_process(&self->m_rev, _rev_ins, _rev_outs, 1);" in loop
+        assert "Gigaverb_process(&self->m_rev, _rev_ins, _rev_outs, _cn);" in loop
         assert '#include "gigaverb.h"' in code
 
     def test_signal_rate_param_is_set_per_sample(self, manifest: Path) -> None:
@@ -258,7 +258,7 @@ graph g {{
         code = compile_graph(outer)
         assert "    Gigaverb m_sg__rev;" in code
         assert (
-            "Gigaverb_process(&self->m_sg__rev, _sg__rev_ins, _sg__rev_outs, 1);"
+            "Gigaverb_process(&self->m_sg__rev, _sg__rev_ins, _sg__rev_outs, _cn);"
             in code
         )
 
@@ -319,7 +319,7 @@ int main(void) {
 
 @pytest.mark.skipif(shutil.which("cc") is None, reason="needs a C compiler")
 def test_matches_kernel_run_alone(manifest: Path, tmp_path: Path) -> None:
-    """One frame per call gives the kernel's own block output, bit for bit."""
+    """Chunk calls from 64-frame host blocks give the kernel's own output, bit for bit."""
     compile_graph_to_file(parse(_reverb_source(manifest)), tmp_path, "c")
     (tmp_path / "driver.c").write_text(_DRIVER)
     kdir = manifest.parent

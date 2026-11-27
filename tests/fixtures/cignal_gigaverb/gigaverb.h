@@ -30,12 +30,25 @@ typedef struct Damper {
     float y;
 } Damper;
 
-typedef struct Diffuser {
-    float sample_rate;
-    float coeff;
-    int32_t length;
-    struct { float buf[9412]; int32_t pos; } line;
-} Diffuser;
+typedef struct Damper_x4 {
+    float sample_rate[4];
+    float damping[4];
+    float y[4];
+} Damper_x4;
+
+typedef struct Diffuser_x3 {
+    float sample_rate[3];
+    float coeff[3];
+    int32_t length[3];
+    struct { float buf[9412]; int32_t pos; } line[3];
+} Diffuser_x3;
+
+typedef struct Diffuser_x4 {
+    float sample_rate[4];
+    float coeff[4];
+    int32_t length[4];
+    struct { float buf[9412]; int32_t pos; } line[4];
+} Diffuser_x4;
 
 typedef struct Gigaverb {
     float sample_rate;
@@ -48,17 +61,18 @@ typedef struct Gigaverb {
     float early;
     float tail;
     Damper input_damper;
-    Damper fdn_dampers[4];
+    Damper_x4 fdn_dampers;
     struct { float buf[14119]; int32_t pos; } fdn_lines[4];
     int32_t fdn_lens[4];
     float fdn_gains[4];
     struct { float buf[7065]; int32_t pos; } tap_line;
     int32_t taps[4];
     float tap_gains[4];
-    Diffuser ldifs[4];
-    Diffuser rdifs[3];
+    Diffuser_x4 ldifs;
+    Diffuser_x3 rdifs;
     float u[4];
     float d[4];
+    bool cignal_stale; /* control has not run since a setter, event or reset */
 } Gigaverb;
 
 enum { Gigaverb_N_INPUTS = 1, Gigaverb_N_OUTPUTS = 2, Gigaverb_N_PARAMS = 8,
@@ -70,6 +84,7 @@ void Gigaverb_init(Gigaverb *self, float sample_rate);
 void Gigaverb_reset(Gigaverb *self);
 void Gigaverb_process(Gigaverb *self, const float *const *in, float *const *out, int n);
 void Gigaverb_set_param(Gigaverb *self, int index, float value);
+void Gigaverb_set_param_immediate(Gigaverb *self, int index, float value);
 void Gigaverb_set_roomsize(Gigaverb *self, float value);
 void Gigaverb_set_revtime(Gigaverb *self, float value);
 void Gigaverb_set_damping(Gigaverb *self, float value);

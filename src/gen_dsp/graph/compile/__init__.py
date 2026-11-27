@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Literal
 
 from gen_dsp.core.identifiers import is_reserved_word
+from gen_dsp.graph.compile import staging as _staging
 from gen_dsp.graph.compile.common import (
     _C_ID_RE,
     _emit_ref,
@@ -25,8 +26,10 @@ from gen_dsp.graph.compile.state import (
 from gen_dsp.graph.models import (
     Buffer,
     CignalKernel,
+    CignalOut,
     DelayLine,
     DelayWrite,
+    GateOut,
     Graph,
     History,
     Node,
@@ -124,6 +127,11 @@ def compile_graph(graph: Graph, lang: Lang = "cpp") -> str:
     # State fields from nodes
     for node in sorted_nodes:
         _emit_state_fields(node, w)
+    tier = _control_tier(graph, sorted_nodes, input_ids, param_names)
+    if tier is not None:
+        w("    int m__ctl_left;")
+        for hid in tier[1]:
+            w(f"    float m__ctl_{hid};")
     w("};")
     w("")
 
@@ -150,7 +158,7 @@ def compile_graph(graph: Graph, lang: Lang = "cpp") -> str:
     w("")
 
     # -- reset()
-    _emit_reset(graph, sorted_nodes, name, struct_name, w)
+    _emit_reset(graph, sorted_nodes, input_ids, param_names, name, struct_name, w)
     w("")
 
     # -- perform()
@@ -260,6 +268,8 @@ def compile_graph_to_file(
 def _emit_reset(
     graph: Graph,
     sorted_nodes: list[Node],
+    input_ids: set[str],
+    param_names: set[str],
     name: str,
     struct_name: str,
     w: _Writer,
@@ -272,6 +282,8 @@ def _emit_reset(
     # Reset node state
     for node in sorted_nodes:
         _emit_state_reset(node, w)
+    if _control_tier(graph, sorted_nodes, input_ids, param_names) is not None:
+        w("    self->m__ctl_left = 0;")
     w("}")
 
 
@@ -338,17 +350,42 @@ def _classify_loop_invariance(
     return invariant_ids
 
 
-def _classify_control_rate(
+def _control_tier(
+    graph: Graph,
     sorted_nodes: list[Node],
-    control_node_ids: set[str],
-    invariant_ids: set[str],
-) -> set[str]:
-    """Return node IDs that should run at control rate.
+    input_ids: set[str],
+    param_names: set[str],
+) -> tuple[set[str], list[str]] | None:
+    """Return (control-rate IDs, held IDs), or None when perform needs no control tier.
 
-    Nodes listed in control_node_ids that are already invariant stay hoisted
-    (they don't need to be in the control-rate tier).
+    Invariant control nodes stay hoisted. A GateOut or CignalOut of a control-rate
+    node runs at control rate too: it reads locals that exist only in the control
+    step. Held IDs are the control-rate values read outside the control step (at
+    audio rate, or by a History write-back); they persist in the state struct,
+    since a control block can span perform() calls. A History already does.
     """
-    return control_node_ids - invariant_ids
+    if graph.control_interval <= 0:
+        return None
+    invariant_ids = _classify_loop_invariance(sorted_nodes, input_ids, param_names)
+    ctrl = set(graph.control_nodes) - invariant_ids
+    if not ctrl:
+        return None
+    for node in sorted_nodes:
+        if (isinstance(node, GateOut) and node.gate in ctrl) or (
+            isinstance(node, CignalOut) and node.kernel in ctrl
+        ):
+            ctrl.add(node.id)
+    audio = [n for n in sorted_nodes if n.id not in ctrl and n.id not in invariant_ids]
+    read = _referenced_ids(graph, audio)
+    read.update(
+        n.input for n in sorted_nodes if isinstance(n, History) and n.id in ctrl
+    )
+    held = [
+        n.id
+        for n in sorted_nodes
+        if n.id in ctrl and n.id in read and not isinstance(n, History)
+    ]
+    return ctrl, held
 
 
 def _referenced_ids(graph: Graph, nodes: list[Node]) -> set[str]:
@@ -463,21 +500,26 @@ def _emit_perform(
                 "    ",
             )
 
-    ctrl_interval = graph.control_interval
-    ctrl_node_ids = set(graph.control_nodes) if ctrl_interval > 0 else set()
-    ctrl_rate_ids = _classify_control_rate(sorted_nodes, ctrl_node_ids, invariant_ids)
-
-    if ctrl_interval > 0 and ctrl_rate_ids:
+    tier = _control_tier(graph, sorted_nodes, input_ids, param_names)
+    if tier is not None:
         _emit_perform_two_tier(
             graph,
             sorted_nodes,
             input_ids,
             param_names,
             invariant_ids,
-            ctrl_rate_ids,
-            ctrl_interval,
+            tier[0],
+            tier[1],
             used,
             w,
+        )
+    elif (
+        plan := _staging.plan(graph, sorted_nodes, invariant_ids, param_names)
+        if CIGNAL_BLOCK_CALLS
+        else None
+    ) is not None:
+        _emit_perform_staged(
+            graph, sorted_nodes, input_ids, param_names, invariant_ids, plan, used, w
         )
     else:
         _emit_perform_single(
@@ -495,6 +537,132 @@ def _emit_perform(
         _emit_state_save(node, w)
 
     w("}")
+
+
+# Call a cignal kernel once per chunk where the graph allows it (staging.py). Tests turn it off
+# to compare against one frame per call.
+CIGNAL_BLOCK_CALLS = True
+
+
+def _loop_refs(node: Node, loop_ids: set[str]) -> set[str]:
+    """IDs of sample-loop values a node reads."""
+    refs: set[str] = set()
+    for field_name, value in node.__dict__.items():
+        if field_name in _NON_REF_FIELDS:
+            continue
+        for v in value if isinstance(value, list) else [value]:
+            if isinstance(v, str) and v in loop_ids:
+                refs.add(v)
+    return refs
+
+
+def _emit_perform_staged(
+    graph: Graph,
+    sorted_nodes: list[Node],
+    input_ids: set[str],
+    param_names: set[str],
+    invariant_ids: set[str],
+    plan: _staging.Staging,
+    used: set[str],
+    w: _Writer,
+) -> None:
+    """Emit the perform body as chunks of stage loops, with kernel calls between them."""
+    chunk = _staging.CHUNK
+    stage = plan.stage
+    block = {k.id: k for k in plan.block}
+    # A chunk-called kernel and its CignalOuts -> (kernel, output buffer)
+    buffered = {k: (k, f"_{k}_o0") for k in block}
+    for node in sorted_nodes:
+        if isinstance(node, CignalOut) and node.kernel in block:
+            buffered[node.id] = (node.kernel, f"_{node.kernel}_o{node.channel}")
+
+    def ready(v: str) -> int:
+        """The first stage that may read `v`."""
+        return stage[buffered[v][0]] + 1 if v in buffered else stage[v]
+
+    loop_nodes = [n for n in sorted_nodes if n.id in stage and n.id not in buffered]
+    needs: dict[int, set[str]] = {t: set() for t in range(plan.last + 1)}
+    for node in loop_nodes:
+        needs[stage[node.id]] |= _loop_refs(node, set(stage))
+    sources = {o.source for o in graph.outputs if o.source in stage}
+    needs[plan.last] |= sources
+    # Values a later stage reads, stored per frame where they are computed
+    crossing = sorted(
+        {v for t, vs in needs.items() for v in vs if v not in buffered and ready(v) < t}
+    )
+
+    def value(v: str) -> str:
+        return f"{buffered[v][1]}[_j]" if v in buffered else f"_{v}_b[_j]"
+
+    for v in crossing:
+        w(f"    float _{v}_b[{chunk}];")
+    for k in plan.block:
+        for j in range(k.spec.n_inputs):
+            w(f"    float _{k.id}_i{j}[{chunk}];")
+        for c in range(k.spec.n_outputs):
+            w(f"    float _{k.id}_o{c}[{chunk}];")
+    w(f"    for (int _c0 = 0; _c0 < n; _c0 += {chunk}) {{")
+    w(f"        const int _cn = (n - _c0 < {chunk}) ? n - _c0 : {chunk};")
+    for t in range(plan.last + 1):
+        w("        for (int _j = 0; _j < _cn; _j++) {")
+        w("            const int i = _c0 + _j;")
+        w("            (void)i;")
+        # Node consumers get a local; outputs read the buffer directly (a History local
+        # of the same name would be shadowed).
+        node_needs = set().union(
+            *(_loop_refs(n, set(stage)) for n in loop_nodes if stage[n.id] == t)
+        )
+        for v in sorted(node_needs):
+            if v in buffered or ready(v) < t:
+                w(f"            float {v} = {value(v)};")
+        history: list[History] = []
+        dws: list[DelayWrite] = []
+        for node in loop_nodes:
+            if stage[node.id] != t or node.id in block:
+                continue
+            for line in _node_lines(
+                node, used, input_ids, param_names, history, dws, invariant_ids
+            ):
+                w(_indent_line(line, 4))
+        for v in crossing:
+            if ready(v) == t:
+                w(f"            _{v}_b[_j] = {v};")
+        for k in plan.block:
+            if stage[k.id] == t:
+                for j, r in enumerate(k.inputs):
+                    ref = _emit_ref(r, input_ids, param_names)
+                    w(f"            _{k.id}_i{j}[_j] = {ref};")
+        for h in history:
+            ref = _emit_ref(h.input, input_ids, param_names)
+            w(f"            {h.id} = {ref};")
+        if t == plan.last:
+            for out in graph.outputs:
+                src = out.source
+                expr = (
+                    value(src)
+                    if src in stage and (src in buffered or ready(src) < t)
+                    else _emit_ref(src, input_ids, param_names)
+                )
+                w(f"            {out.id}[i] = {expr};")
+        w("        }")
+        for k in plan.block:
+            if stage[k.id] != t:
+                continue
+            ins = "(const float* const*)0"
+            w("        {")
+            if k.spec.n_inputs:
+                ptrs = ", ".join(f"_{k.id}_i{j}" for j in range(k.spec.n_inputs))
+                w(
+                    f"            const float* _{k.id}_ins[{k.spec.n_inputs}] = {{{ptrs}}};"
+                )
+                ins = f"_{k.id}_ins"
+            ptrs = ", ".join(f"_{k.id}_o{c}" for c in range(k.spec.n_outputs))
+            w(f"            float* _{k.id}_outs[{k.spec.n_outputs}] = {{{ptrs}}};")
+            w(
+                f"            {k.spec.c_name}_process(&self->m_{k.id}, {ins}, _{k.id}_outs, _cn);"
+            )
+            w("        }")
+    w("    }")
 
 
 def _emit_perform_single(
@@ -553,26 +721,40 @@ def _emit_perform_two_tier(
     param_names: set[str],
     invariant_ids: set[str],
     ctrl_rate_ids: set[str],
-    ctrl_interval: int,
+    held_ids: list[str],
     used: set[str],
     w: _Writer,
 ) -> None:
-    """Emit the two-tier (control-rate / audio-rate) perform body."""
-    # Outer loop: control blocks
-    w(f"    for (int _cb = 0; _cb < n; _cb += {ctrl_interval}) {{")
-    w(
-        f"        int _block_end = (_cb + {ctrl_interval} < n) ? _cb + {ctrl_interval} : n;"
-    )
+    """Emit the two-tier (control-rate / audio-rate) perform body.
 
-    # Control-rate nodes (8-space indent = inside outer loop)
+    The control step runs when the current control block is used up, so control
+    frames fall every control_interval samples whatever the host block size.
+    """
+    ctrl_interval = graph.control_interval
+    held = set(held_ids)
+    w("    int _ctl_left = self->m__ctl_left;")
+    for hid in held_ids:
+        w(f"    float {hid} = self->m__ctl_{hid};")
+    w("    for (int _cb = 0; _cb < n; ) {")
+    w("        if (_ctl_left == 0) {")
+
+    # Control-rate nodes (12-space indent). A held value assigns the outer local.
     ctrl_history: list[History] = []
     ctrl_dw: list[DelayWrite] = []
     for node in sorted_nodes:
         if node.id in ctrl_rate_ids:
-            for line in _node_lines(
+            lines = _node_lines(
                 node, used, input_ids, param_names, ctrl_history, ctrl_dw, invariant_ids
-            ):
-                w(line)
+            )
+            if node.id in held:
+                decl = re.compile(rf"^(\s*)float ({re.escape(node.id)}\b)")
+                lines = [decl.sub(r"\1\2", line, count=1) for line in lines]
+            for line in lines:
+                w(_indent_line(line, 4))
+    w(f"            _ctl_left = {ctrl_interval};")
+    w("        }")
+    w("        int _block_end = (_ctl_left < n - _cb) ? _cb + _ctl_left : n;")
+    w("        _ctl_left -= _block_end - _cb;")
 
     # Inner loop: audio-rate per-sample
     w("        for (int i = _cb; i < _block_end; i++) {")
@@ -582,8 +764,7 @@ def _emit_perform_two_tier(
     audio_dw: list[DelayWrite] = []
     for node in sorted_nodes:
         if node.id not in invariant_ids and node.id not in ctrl_rate_ids:
-            # Collect lines at standard 8-space indent, then add 4 more
-            node_lines = _node_lines(
+            for line in _node_lines(
                 node,
                 used,
                 input_ids,
@@ -591,29 +772,30 @@ def _emit_perform_two_tier(
                 audio_history,
                 audio_dw,
                 invariant_ids,
-            )
-            for line in node_lines:
+            ):
                 w(_indent_line(line, 4))
 
-    # Audio-rate History write-backs (12-space indent)
     for h in audio_history:
         ref = _emit_ref(h.input, input_ids, param_names)
         w(f"            {h.id} = {ref};")
 
-    # Output assignments (12-space indent)
     for out in graph.outputs:
         w(f"            {out.id}[i] = {out.source};")
 
-    # Close inner loop
     w("        }")
 
-    # Control-rate History write-backs (8-space indent)
-    for h in ctrl_history:
-        ref = _emit_ref(h.input, input_ids, param_names)
-        w(f"        {h.id} = {ref};")
-
-    # Close outer loop
+    # Control-rate History write-backs, once the control block is complete
+    if ctrl_history:
+        w("        if (_ctl_left == 0) {")
+        for h in ctrl_history:
+            ref = _emit_ref(h.input, input_ids, param_names)
+            w(f"            {h.id} = {ref};")
+        w("        }")
+    w("        _cb = _block_end;")
     w("    }")
+    w("    self->m__ctl_left = _ctl_left;")
+    for hid in held_ids:
+        w(f"    self->m__ctl_{hid} = {hid};")
 
 
 # ---------------------------------------------------------------------------

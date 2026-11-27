@@ -24,24 +24,24 @@ typedef struct {
 } cignal_kernel_info;
 #endif
 
-typedef struct Voice {
-    float sample_rate;
-    int32_t note;
-    int32_t age;
-    bool sustained;
-    double freq;
-    double phase;
-    float gate;
-    float env;
-    float y;
-} Voice;
+typedef struct Voice_x4 {
+    float sample_rate[4];
+    int32_t note[4];
+    int32_t age[4];
+    bool sustained[4];
+    double freq[4];
+    double phase[4];
+    float gate[4];
+    float env[4];
+    float y[4];
+} Voice_x4;
 
 typedef struct Synth {
     float sample_rate;
     float cutoff;
     float attack;
     float release;
-    Voice voices[4];
+    Voice_x4 voices;
     double bend;
     bool held;
     float period;
@@ -49,6 +49,7 @@ typedef struct Synth {
     float a;
     float ka;
     float kr;
+    bool cignal_stale; /* control has not run since a setter, event or reset */
 } Synth;
 
 enum { Synth_N_INPUTS = 0, Synth_N_OUTPUTS = 1, Synth_N_PARAMS = 3,
@@ -60,6 +61,7 @@ void Synth_init(Synth *self, float sample_rate);
 void Synth_reset(Synth *self);
 void Synth_process(Synth *self, const float *const *in, float *const *out, int n);
 void Synth_set_param(Synth *self, int index, float value);
+void Synth_set_param_immediate(Synth *self, int index, float value);
 void Synth_set_cutoff(Synth *self, float value);
 void Synth_set_attack(Synth *self, float value);
 void Synth_set_release(Synth *self, float value);

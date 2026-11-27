@@ -7,15 +7,20 @@ static inline int32_t cignal_add_i32(int32_t a, int32_t b) {
     return (int32_t)((uint32_t)a + (uint32_t)b);
 }
 
-static inline int32_t cignal_event_i32(double v) {
+#define CIGNAL_STR_(x) #x
+#define CIGNAL_STR(x) CIGNAL_STR_(x)
+double cignal_libm_pow(double, double) __asm__(CIGNAL_STR(__USER_LABEL_PREFIX__) "pow");
+float cignal_libm_powf(float, float) __asm__(CIGNAL_STR(__USER_LABEL_PREFIX__) "powf");
+
+static inline int32_t cignal_sub_i32(int32_t a, int32_t b) {
+    return (int32_t)((uint32_t)a - (uint32_t)b);
+}
+
+static inline int32_t cignal_to_i32(double v) {
     if (isnan(v)) return 0;
     if (v <= -2147483648.0) return INT32_MIN;
     if (v >= 2147483647.0) return INT32_MAX;
     return (int32_t)v;
-}
-
-static inline int32_t cignal_sub_i32(int32_t a, int32_t b) {
-    return (int32_t)((uint32_t)a - (uint32_t)b);
 }
 
 #ifndef CIGNAL_UNROLL
@@ -27,52 +32,52 @@ static inline int32_t cignal_sub_i32(int32_t a, int32_t b) {
 #endif
 #endif
 
-static inline void Voice_start(Voice *self, int32_t note, double freq, float velocity) {
-    self->note = note;
-    self->age = 0;
-    self->freq = freq;
-    self->gate = velocity;
-    self->env = 0.0f;
+static inline void Voice_x4_start(Voice_x4 *self, int32_t cignal_lane, int32_t note, double freq, float velocity) {
+    self->note[cignal_lane] = note;
+    self->age[cignal_lane] = 0;
+    self->freq[cignal_lane] = freq;
+    self->gate[cignal_lane] = velocity;
+    self->env[cignal_lane] = 0.0f;
 }
 
-static inline void Voice_release(Voice *self) {
-    self->note = -1;
-    self->gate = 0.0f;
-    self->sustained = false;
+static inline void Voice_x4_release(Voice_x4 *self, int32_t cignal_lane) {
+    self->note[cignal_lane] = -1;
+    self->gate[cignal_lane] = 0.0f;
+    self->sustained[cignal_lane] = false;
 }
 
-static inline float Voice_play(Voice *self, double period, double bend, float attack, float release, float a) {
-    float rate = self->gate > self->env ? attack : release;
-    self->env = self->env + rate * (self->gate - self->env);
-    self->phase = self->phase + self->freq * bend * period;
-    if (self->phase >= 1.0) {
-        self->phase = self->phase - 1.0;
+static inline float Voice_x4_play(Voice_x4 *self, int32_t cignal_lane, double period, double bend, float attack, float release, float a) {
+    float rate = self->gate[cignal_lane] > self->env[cignal_lane] ? attack : release;
+    self->env[cignal_lane] = self->env[cignal_lane] + rate * (self->gate[cignal_lane] - self->env[cignal_lane]);
+    self->phase[cignal_lane] = self->phase[cignal_lane] + self->freq[cignal_lane] * bend * period;
+    if (self->phase[cignal_lane] >= 1.0) {
+        self->phase[cignal_lane] = self->phase[cignal_lane] - 1.0;
     }
-    self->y = self->y + a * ((float)(2.0 * self->phase - 1.0) - self->y);
-    return self->y * self->env;
+    self->y[cignal_lane] = self->y[cignal_lane] + a * ((float)(2.0 * self->phase[cignal_lane] - 1.0) - self->y[cignal_lane]);
+    return self->y[cignal_lane] * self->env[cignal_lane];
 }
 
-static void Voice_init(Voice *self, float sample_rate) {
-    self->note = -1;
-    self->age = 0;
-    self->sustained = false;
-    self->freq = 0.0;
-    self->phase = 0.0;
-    self->gate = 0.0f;
-    self->env = 0.0f;
-    self->y = 0.0f;
-    self->sample_rate = sample_rate;
+static void Voice_x4_init(Voice_x4 *self, int32_t cignal_lane, float sample_rate) {
+    self->note[cignal_lane] = -1;
+    self->age[cignal_lane] = 0;
+    self->sustained[cignal_lane] = false;
+    self->freq[cignal_lane] = 0.0;
+    self->phase[cignal_lane] = 0.0;
+    self->gate[cignal_lane] = 0.0f;
+    self->env[cignal_lane] = 0.0f;
+    self->y[cignal_lane] = 0.0f;
+    self->sample_rate[cignal_lane] = sample_rate;
 }
 
-static void Voice_reset(Voice *self) {
-    self->note = -1;
-    self->age = 0;
-    self->sustained = false;
-    self->freq = 0.0;
-    self->phase = 0.0;
-    self->gate = 0.0f;
-    self->env = 0.0f;
-    self->y = 0.0f;
+static void Voice_x4_reset(Voice_x4 *self, int32_t cignal_lane) {
+    self->note[cignal_lane] = -1;
+    self->age[cignal_lane] = 0;
+    self->sustained[cignal_lane] = false;
+    self->freq[cignal_lane] = 0.0;
+    self->phase[cignal_lane] = 0.0;
+    self->gate[cignal_lane] = 0.0f;
+    self->env[cignal_lane] = 0.0f;
+    self->y[cignal_lane] = 0.0f;
 }
 
 static inline void Synth_init_body(Synth *self) {
@@ -87,16 +92,17 @@ static inline void Synth_control(Synth *self) {
 }
 
 void Synth_on_note(Synth *self, int32_t note, float velocity) {
+    self->cignal_stale = true;
     int32_t score = 0;
     int32_t pick = 0;
     int32_t best = -1;
     CIGNAL_UNROLL(4) for (int32_t i = 0; i < 4; i++) {
-        self->voices[i].age = cignal_add_i32(self->voices[i].age, 1);
-        score = self->voices[i].age;
-        if (self->voices[i].note < 0) {
+        self->voices.age[i] = cignal_add_i32(self->voices.age[i], 1);
+        score = self->voices.age[i];
+        if (self->voices.note[i] < 0) {
             score = cignal_add_i32(score, 1000000);
         }
-        if (self->voices[i].note == note) {
+        if (self->voices.note[i] == note) {
             score = cignal_add_i32(score, 2000000);
         }
         if (score > best) {
@@ -104,40 +110,50 @@ void Synth_on_note(Synth *self, int32_t note, float velocity) {
             pick = i;
         }
     }
-    Voice_start(&self->voices[pick], note, 440.0 * pow(2.0, (double)cignal_sub_i32(note, 69) / 12.0), velocity);
+    Voice_x4_start(&self->voices, pick, note, 440.0 * cignal_libm_pow(2.0, (double)cignal_sub_i32(note, 69) / 12.0), velocity);
 }
 
 void Synth_on_off(Synth *self, int32_t note) {
+    self->cignal_stale = true;
     CIGNAL_UNROLL(4) for (int32_t i = 0; i < 4; i++) {
-        if (self->voices[i].note == note) {
+        if (self->voices.note[i] == note) {
             if (self->held) {
-                self->voices[i].sustained = true;
+                self->voices.sustained[i] = true;
             } else {
-                Voice_release(&self->voices[i]);
+                Voice_x4_release(&self->voices, i);
             }
         }
     }
 }
 
 void Synth_on_hold(Synth *self, bool down) {
+    self->cignal_stale = true;
     self->held = down;
     if (!down) {
         CIGNAL_UNROLL(4) for (int32_t i = 0; i < 4; i++) {
-            if (self->voices[i].sustained) {
-                Voice_release(&self->voices[i]);
+            if (self->voices.sustained[i]) {
+                Voice_x4_release(&self->voices, i);
             }
         }
     }
 }
 
 void Synth_on_bend(Synth *self, double semitones) {
-    self->bend = pow(2.0, semitones / 12.0);
+    self->cignal_stale = true;
+    self->bend = cignal_libm_pow(2.0, semitones / 12.0);
 }
 
 static inline float Synth_tick(Synth *self) {
     float acc = 0.0f;
     CIGNAL_UNROLL(4) for (int32_t i = 0; i < 4; i++) {
-        acc = acc + Voice_play(&self->voices[i], self->period64, self->bend, self->ka, self->kr, self->a);
+        const float cignal_t0 = acc;
+        const double cignal_t1 = self->period64;
+        const double cignal_t2 = self->bend;
+        const float cignal_t3 = self->ka;
+        const float cignal_t4 = self->kr;
+        const float cignal_t5 = self->a;
+        const float cignal_t6 = Voice_x4_play(&self->voices, i, cignal_t1, cignal_t2, cignal_t3, cignal_t4, cignal_t5);
+        acc = cignal_t0 + cignal_t6;
     }
     return acc * 0.25f;
 }
@@ -154,7 +170,8 @@ void Synth_init(Synth *self, float sample_rate) {
     self->ka = 0.0f;
     self->kr = 0.0f;
     self->sample_rate = sample_rate;
-    for (int32_t k = 0; k < 4; k++) Voice_init(&self->voices[k], sample_rate);
+    self->cignal_stale = true;
+    for (int32_t k = 0; k < 4; k++) Voice_x4_init(&self->voices, k, sample_rate);
     Synth_init_body(self);
 }
 
@@ -166,25 +183,34 @@ void Synth_reset(Synth *self) {
     self->a = 0.0f;
     self->ka = 0.0f;
     self->kr = 0.0f;
-    for (int32_t k = 0; k < 4; k++) Voice_reset(&self->voices[k]);
+    self->cignal_stale = true;
+    for (int32_t k = 0; k < 4; k++) Voice_x4_reset(&self->voices, k);
     Synth_init_body(self);
 }
 
 void Synth_process(Synth *restrict self, const float *const *in, float *const *out, int n) {
     (void)in;
-    Synth_control(self);
+    if (self->cignal_stale) {
+        self->cignal_stale = false;
+        Synth_control(self);
+    }
     for (int i = 0; i < n; i++) {
         out[0][i] = Synth_tick(self);
     }
 }
 
 void Synth_set_param(Synth *self, int index, float value) {
+    self->cignal_stale = true;
     switch (index) {
-    case 0: self->cutoff = value < 50.0f ? 50.0f : (value > 16000.0f ? 16000.0f : value); break;
-    case 1: self->attack = value < 0.0005f ? 0.0005f : (value > 2.0f ? 2.0f : value); break;
-    case 2: self->release = value < 0.001f ? 0.001f : (value > 5.0f ? 5.0f : value); break;
+    case 0: self->cutoff = !(value >= 50.0f) ? 50.0f : (value > 16000.0f ? 16000.0f : value); break;
+    case 1: self->attack = !(value >= 0.0005f) ? 0.0005f : (value > 2.0f ? 2.0f : value); break;
+    case 2: self->release = !(value >= 0.001f) ? 0.001f : (value > 5.0f ? 5.0f : value); break;
     default: break;
     }
+}
+
+void Synth_set_param_immediate(Synth *self, int index, float value) {
+    Synth_set_param(self, index, value);
 }
 
 void Synth_set_cutoff(Synth *self, float value) {
@@ -203,8 +229,8 @@ static const cignal_param_info Synth_params[] = {{"cutoff", 50.0, 16000.0, 2000.
 
 void Synth_event(Synth *self, int index, const float *args) {
     switch (index) {
-    case 0: Synth_on_note(self, cignal_event_i32((double)args[0]), args[1]); break;
-    case 1: Synth_on_off(self, cignal_event_i32((double)args[0])); break;
+    case 0: Synth_on_note(self, cignal_to_i32((double)args[0]), args[1]); break;
+    case 1: Synth_on_off(self, cignal_to_i32((double)args[0])); break;
     case 2: Synth_on_hold(self, args[0] != 0); break;
     case 3: Synth_on_bend(self, (double)args[0]); break;
     default: break;

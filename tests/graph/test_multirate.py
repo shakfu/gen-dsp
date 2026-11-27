@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 pydantic = __import__("pytest").importorskip("pydantic")
+import shutil
+import subprocess
+from pathlib import Path
+
 import numpy as np
 import pytest
 
 from gen_dsp.graph import (
+    Accum,
     AudioInput,
     AudioOutput,
     BinOp,
@@ -22,6 +27,7 @@ from gen_dsp.graph import (
     optimize_graph,
     validate_graph,
 )
+from gen_dsp.graph.compile import compile_graph_to_file
 from gen_dsp.graph.simulate import simulate
 
 # ---------------------------------------------------------------------------
@@ -221,11 +227,22 @@ class TestCompileTwoTier:
 
     def test_outer_loop_present(self, two_tier_graph):
         code = compile_graph(two_tier_graph)
-        assert "for (int _cb = 0; _cb < n; _cb += 64)" in code
+        assert "for (int _cb = 0; _cb < n; ) {" in code
+        assert "if (_ctl_left == 0) {" in code
+        assert "_ctl_left = 64;" in code
 
     def test_block_end_calculation(self, two_tier_graph):
         code = compile_graph(two_tier_graph)
-        assert "int _block_end = (_cb + 64 < n) ? _cb + 64 : n;" in code
+        assert "int _block_end = (_ctl_left < n - _cb) ? _cb + _ctl_left : n;" in code
+        assert "_ctl_left -= _block_end - _cb;" in code
+
+    def test_control_phase_and_held_values_in_state(self, two_tier_graph):
+        code = compile_graph(two_tier_graph)
+        assert "int m__ctl_left;" in code
+        assert "float m__ctl_smoother;" in code
+        assert "float smoother = self->m__ctl_smoother;" in code
+        assert "self->m__ctl_smoother = smoother;" in code
+        assert "self->m__ctl_left = 0;" in code  # reset()
 
     def test_inner_loop_present(self, two_tier_graph):
         code = compile_graph(two_tier_graph)
@@ -237,7 +254,7 @@ class TestCompileTwoTier:
         outer_pos = code.index("for (int _cb = 0;")
         inner_pos = code.index("for (int i = _cb;")
         # smoother computation should be between outer and inner
-        smoother_pos = code.index("float smoother =")
+        smoother_pos = code.index("smoother = (1.0f - gain)")
         assert outer_pos < smoother_pos < inner_pos
 
     def test_audio_node_inside_inner_loop(self, two_tier_graph):
@@ -741,7 +758,8 @@ class TestEdgeCases:
             ],
         )
         code = compile_graph(g)
-        assert "for (int _cb = 0; _cb < n; _cb += 1)" in code
+        assert "for (int _cb = 0; _cb < n; ) {" in code
+        assert "_ctl_left = 1;" in code
 
     def test_generator_no_inputs_with_control_rate(self):
         """Generator (no audio inputs) with control-rate nodes should work."""
@@ -860,6 +878,134 @@ class TestControlRatePromotion:
         code = compile_graph(opt_graph)
         outer_pos = code.index("for (int _cb = 0;")
         inner_pos = code.index("for (int i = _cb;")
-        inv_vol_pos = code.index("float inv_vol =")
+        inv_vol_pos = code.index("inv_vol = 1.0f - smoother;")
         # inv_vol should be emitted between outer and inner loops (control-rate)
         assert outer_pos < inv_vol_pos < inner_pos
+
+
+_PHASE_DRIVER = r"""
+#include <stdio.h>
+#include "ctl.h"
+#define N 384
+static float a[N], b[N];
+static void run(float* y, int block) {
+    CtlState* g = ctl_create(48000.0f);
+    for (int i = 0; i < N; i += block) {
+        float* outs[1] = {y + i};
+        ctl_perform(g, NULL, outs, block);
+    }
+    ctl_destroy(g);
+}
+int main(void) {
+    run(a, 64);
+    run(b, 48);
+    for (int i = 0; i < N; i++)
+        if (a[i] != b[i]) { printf("%d\n", i); return 0; }
+    printf("-1\n");
+    return 0;
+}
+"""
+
+
+@pytest.mark.skipif(shutil.which("cc") is None, reason="needs a C compiler")
+def test_control_rate_independent_of_host_block(tmp_path: Path) -> None:
+    graph = Graph(
+        name="ctl",
+        control_interval=64,
+        control_nodes=["count"],
+        outputs=[AudioOutput(id="y", source="count")],
+        nodes=[Accum(id="count", incr=1.0, reset=0.0)],
+    )
+    compile_graph_to_file(graph, tmp_path, "c")
+    (tmp_path / "run.c").write_text(_PHASE_DRIVER)
+    exe = tmp_path / "run"
+    subprocess.run(
+        [
+            "cc",
+            "-std=c99",
+            f"-I{tmp_path}",
+            str(tmp_path / "ctl.c"),
+            str(tmp_path / "run.c"),
+            "-lm",
+            "-o",
+            str(exe),
+        ],
+        check=True,
+    )
+    first_diff = subprocess.run(
+        [str(exe)], check=True, capture_output=True, text=True
+    ).stdout.strip()
+    assert first_diff == "-1"
+
+
+def test_simulated_control_rate_independent_of_call_size() -> None:
+    graph = Graph(
+        name="ctl",
+        control_interval=64,
+        control_nodes=["count"],
+        outputs=[AudioOutput(id="y", source="count")],
+        nodes=[Accum(id="count", incr=1.0, reset=0.0)],
+    )
+    whole = simulate(graph, n_samples=384).outputs["y"]
+    state = None
+    parts = []
+    for _ in range(8):
+        r = simulate(graph, n_samples=48, state=state)
+        state = r.state
+        parts.append(r.outputs["y"])
+    np.testing.assert_array_equal(np.concatenate(parts), whole)
+    assert whole[383] == 6.0
+    state.reset()
+    np.testing.assert_array_equal(
+        simulate(graph, n_samples=384, state=state).outputs["y"], whole
+    )
+
+
+_HIST_DRIVER = r"""
+#include <stdio.h>
+#include "hc.h"
+int main(void) {
+    static float y[384];
+    HcState* g = hc_create(48000.0f);
+    for (int i = 0; i < 384; i += 48) {
+        float* outs[1] = {y + i};
+        hc_perform(g, NULL, outs, 48);
+    }
+    for (int i = 0; i < 384; i++) printf("%.9g\n", y[i]);
+    hc_destroy(g);
+    return 0;
+}
+"""
+
+
+@pytest.mark.skipif(shutil.which("cc") is None, reason="needs a C compiler")
+def test_control_history_matches_simulation_across_calls(tmp_path: Path) -> None:
+    """A control-rate History, read at audio rate, updates when its block ends."""
+    graph = Graph(
+        name="hc",
+        control_interval=64,
+        control_nodes=["h", "count"],
+        outputs=[AudioOutput(id="y", source="mix")],
+        nodes=[
+            History(id="h", init=0.0, input="count"),
+            Accum(id="count", incr=1.0, reset=0.0),
+            BinOp(id="scaled", op="mul", a="h", b=10.0),
+            Accum(id="ramp", incr=1.0, reset=0.0),
+            BinOp(id="sum", op="add", a="scaled", b="count"),
+            BinOp(id="mix", op="add", a="sum", b="ramp"),
+        ],
+    )
+    compile_graph_to_file(graph, tmp_path, "c")
+    (tmp_path / "run.c").write_text(_HIST_DRIVER)
+    exe = tmp_path / "run"
+    subprocess.run(
+        ["cc", "-std=c99", "-Wall", "-Wextra", "-Wshadow", "-Werror", f"-I{tmp_path}"]
+        + [str(tmp_path / "hc.c"), str(tmp_path / "run.c"), "-lm", "-o", str(exe)],
+        check=True,
+    )
+    out = subprocess.run([str(exe)], check=True, capture_output=True, text=True)
+    compiled = np.array(out.stdout.split(), dtype=np.float32)
+    simulated = simulate(graph, n_samples=384).outputs["y"]
+    np.testing.assert_array_equal(compiled, simulated)
+    # Block 2 (samples 128..191) sees h from block 1's write-back and count = 3.
+    assert compiled[130] == 10.0 * 2.0 + 3.0 + 131.0

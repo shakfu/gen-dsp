@@ -479,7 +479,7 @@ graph verb {
 
 - Parameters go through the kernel's setter, so they are clamped to the manifest range and may glide. One whose value is fixed for the block (a literal, a graph param, or a loop-invariant node) is set once per block; any other is set every sample.
 
-- The kernel runs one frame per call, so feedback through it has one sample of delay. Its `control()` then runs every sample, not every block: Gigaverb, whose `control()` calls `pow` nine times, costs 130 ns/frame in a graph against 15 ns/frame alone (clang `-O2`, arm64). Lowpass costs 8.6 against 5.0.
+- A kernel is called once per chunk of up to 64 frames when nothing feeds its output back to its input and all its parameters are fixed for the block. The sample loop then splits at the kernel. Otherwise it runs one frame per call, and feedback through it has one sample of delay. Both give the same output, since a cignal kernel's output does not depend on block size. Gigaverb costs 15 ns/frame in a graph per chunk, 25 per frame, and 12.6 alone; Lowpass costs 4.9, 8.4 and 4.9 (clang `-O2`, arm64). Graphs with `control=N` keep one frame per call.
 
 - Graphs with cignal kernels compile to C and C++ and build on AU, CLAP, LV2, SuperCollider and VST3. `simulate()` and the gen~ transpiler reject them. A manifest that changed after the graph was built is an error at project generation.
 

@@ -38,6 +38,18 @@ static inline void cignal_delay_write_float(float *buf, int32_t n, int32_t *pos,
     if (*pos == n) *pos = 0;
 }
 
+#define CIGNAL_STR_(x) #x
+#define CIGNAL_STR(x) CIGNAL_STR_(x)
+double cignal_libm_pow(double, double) __asm__(CIGNAL_STR(__USER_LABEL_PREFIX__) "pow");
+float cignal_libm_powf(float, float) __asm__(CIGNAL_STR(__USER_LABEL_PREFIX__) "powf");
+
+static inline int32_t cignal_to_i32(double v) {
+    if (isnan(v)) return 0;
+    if (v <= -2147483648.0) return INT32_MIN;
+    if (v >= 2147483647.0) return INT32_MAX;
+    return (int32_t)v;
+}
+
 #ifndef CIGNAL_UNROLL
 #if defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 8
 #define CIGNAL_PRAGMA(x) _Pragma(#x)
@@ -63,60 +75,98 @@ static void Damper_reset(Damper *self) {
     self->y = 0.0f;
 }
 
-static inline float Diffuser_tick(Diffuser *self, float x) {
-    float old = cignal_delay_read_float(self->line.buf, 9412, self->line.pos, self->length);
-    float w = x - old * self->coeff;
-    cignal_delay_write_float(self->line.buf, 9412, &self->line.pos, w);
-    return old + w * self->coeff;
+static inline float Damper_x4_tick(Damper_x4 *self, int32_t cignal_lane, float x) {
+    self->y[cignal_lane] = x * (1.0f - self->damping[cignal_lane]) + self->y[cignal_lane] * self->damping[cignal_lane];
+    return self->y[cignal_lane];
 }
 
-static void Diffuser_init(Diffuser *self, float sample_rate) {
-    self->coeff = 0.75f;
-    self->length = 1;
-    cignal_delay_clear_float(self->line.buf, 9412, &self->line.pos);
-    self->sample_rate = sample_rate;
+static void Damper_x4_init(Damper_x4 *self, int32_t cignal_lane, float sample_rate) {
+    self->damping[cignal_lane] = 0.5f;
+    self->y[cignal_lane] = 0.0f;
+    self->sample_rate[cignal_lane] = sample_rate;
 }
 
-static void Diffuser_reset(Diffuser *self) {
-    self->coeff = 0.75f;
-    self->length = 1;
-    cignal_delay_clear_float(self->line.buf, 9412, &self->line.pos);
+static void Damper_x4_reset(Damper_x4 *self, int32_t cignal_lane) {
+    self->damping[cignal_lane] = 0.5f;
+    self->y[cignal_lane] = 0.0f;
+}
+
+static inline float Diffuser_x3_tick(Diffuser_x3 *self, int32_t cignal_lane, float x) {
+    float old = cignal_delay_read_float(self->line[cignal_lane].buf, 9412, self->line[cignal_lane].pos, self->length[cignal_lane]);
+    float w = x - old * self->coeff[cignal_lane];
+    cignal_delay_write_float(self->line[cignal_lane].buf, 9412, &self->line[cignal_lane].pos, w);
+    return old + w * self->coeff[cignal_lane];
+}
+
+static void Diffuser_x3_init(Diffuser_x3 *self, int32_t cignal_lane, float sample_rate) {
+    self->coeff[cignal_lane] = 0.75f;
+    self->length[cignal_lane] = 1;
+    cignal_delay_clear_float(self->line[cignal_lane].buf, 9412, &self->line[cignal_lane].pos);
+    self->sample_rate[cignal_lane] = sample_rate;
+}
+
+static void Diffuser_x3_reset(Diffuser_x3 *self, int32_t cignal_lane) {
+    self->coeff[cignal_lane] = 0.75f;
+    self->length[cignal_lane] = 1;
+    cignal_delay_clear_float(self->line[cignal_lane].buf, 9412, &self->line[cignal_lane].pos);
+}
+
+static inline float Diffuser_x4_tick(Diffuser_x4 *self, int32_t cignal_lane, float x) {
+    float old = cignal_delay_read_float(self->line[cignal_lane].buf, 9412, self->line[cignal_lane].pos, self->length[cignal_lane]);
+    float w = x - old * self->coeff[cignal_lane];
+    cignal_delay_write_float(self->line[cignal_lane].buf, 9412, &self->line[cignal_lane].pos, w);
+    return old + w * self->coeff[cignal_lane];
+}
+
+static void Diffuser_x4_init(Diffuser_x4 *self, int32_t cignal_lane, float sample_rate) {
+    self->coeff[cignal_lane] = 0.75f;
+    self->length[cignal_lane] = 1;
+    cignal_delay_clear_float(self->line[cignal_lane].buf, 9412, &self->line[cignal_lane].pos);
+    self->sample_rate[cignal_lane] = sample_rate;
+}
+
+static void Diffuser_x4_reset(Diffuser_x4 *self, int32_t cignal_lane) {
+    self->coeff[cignal_lane] = 0.75f;
+    self->length[cignal_lane] = 1;
+    cignal_delay_clear_float(self->line[cignal_lane].buf, 9412, &self->line[cignal_lane].pos);
 }
 
 static inline void Gigaverb_init_body(Gigaverb *self) {
-    self->ldifs[2].coeff = 0.625f;
-    self->ldifs[3].coeff = 0.625f;
-    self->rdifs[1].coeff = 0.625f;
-    self->rdifs[2].coeff = 0.625f;
+    self->ldifs.coeff[2] = 0.625f;
+    self->ldifs.coeff[3] = 0.625f;
+    self->rdifs.coeff[1] = 0.625f;
+    self->rdifs.coeff[2] = 0.625f;
 }
 
 static inline cignal_tuple_int32_int32_int32 Gigaverb_spread_lengths(Gigaverb *self, float r1, float r2, float scale) {
     float c = 369.0f + self->spread * r1;
     float d = 931.0f + 3.0f * self->spread * r2;
-    return (cignal_tuple_int32_int32_int32){(int32_t)(scale * (c - 210.0f)), (int32_t)(scale * (d - c)), (int32_t)(scale * (1341.0f - d))};
+    return (cignal_tuple_int32_int32_int32){cignal_to_i32((double)(scale * (c - 210.0f))), cignal_to_i32((double)(scale * (d - c))), cignal_to_i32((double)(scale * (1341.0f - d)))};
 }
 
 static inline void Gigaverb_control(Gigaverb *self) {
     float largest = self->sample_rate * self->roomsize / 340.0f;
-    double alpha = pow(0.001, 1.0 / ((double)self->sample_rate * (double)self->revtime));
+    double alpha = cignal_libm_pow(0.001, 1.0 / ((double)self->sample_rate * (double)self->revtime));
     CIGNAL_UNROLL(4) for (int32_t i = 0; i < 4; i++) {
-        self->fdn_lens[i] = (int32_t)(cignal_const_FDN_RATIOS[i] * largest + 0.5f);
-        self->fdn_gains[i] = (float)(-pow(alpha, (double)self->fdn_lens[i]));
-        self->taps[i] = cignal_add_i32(5, (int32_t)(cignal_const_TAP_RATIOS[i] * largest + 0.5f));
-        self->tap_gains[i] = (float)pow(alpha, (double)self->taps[i]);
-        self->fdn_dampers[i].damping = self->damping;
+        self->fdn_lens[i] = cignal_to_i32((double)(cignal_const_FDN_RATIOS[i] * largest + 0.5f));
+        self->fdn_gains[i] = (float)(-cignal_libm_pow(alpha, (double)self->fdn_lens[i]));
+        self->taps[i] = cignal_add_i32(5, cignal_to_i32((double)(cignal_const_TAP_RATIOS[i] * largest + 0.5f)));
+        self->tap_gains[i] = (float)cignal_libm_pow(alpha, (double)self->taps[i]);
+        self->fdn_dampers.damping[i] = self->damping;
     }
     self->input_damper.damping = 1.0f - self->bandwidth;
     float scale = (float)self->fdn_lens[3] / 1341.0f;
-    self->ldifs[0].length = (int32_t)(scale * 210.0f);
-    cignal_tuple_int32_int32_int32 cignal_t0 = Gigaverb_spread_lengths(self, 0.125541f, 0.854046f, scale);
-    self->ldifs[1].length = cignal_t0.v0;
-    self->ldifs[2].length = cignal_t0.v1;
-    self->ldifs[3].length = cignal_t0.v2;
-    cignal_tuple_int32_int32_int32 cignal_t1 = Gigaverb_spread_lengths(self, -0.568366f, -0.126815f, scale);
-    self->rdifs[0].length = cignal_t1.v0;
-    self->rdifs[1].length = cignal_t1.v1;
-    self->rdifs[2].length = cignal_t1.v2;
+    self->ldifs.length[0] = cignal_to_i32((double)(scale * 210.0f));
+    const cignal_tuple_int32_int32_int32 cignal_t0 = Gigaverb_spread_lengths(self, 0.125541f, 0.854046f, scale);
+    cignal_tuple_int32_int32_int32 cignal_t1 = cignal_t0;
+    self->ldifs.length[1] = cignal_t1.v0;
+    self->ldifs.length[2] = cignal_t1.v1;
+    self->ldifs.length[3] = cignal_t1.v2;
+    const cignal_tuple_int32_int32_int32 cignal_t2 = Gigaverb_spread_lengths(self, -0.568366f, -0.126815f, scale);
+    cignal_tuple_int32_int32_int32 cignal_t3 = cignal_t2;
+    self->rdifs.length[0] = cignal_t3.v0;
+    self->rdifs.length[1] = cignal_t3.v1;
+    self->rdifs.length[2] = cignal_t3.v2;
 }
 
 static inline cignal_tuple_float_float Gigaverb_tick(Gigaverb *self, float x) {
@@ -124,13 +174,19 @@ static inline cignal_tuple_float_float Gigaverb_tick(Gigaverb *self, float x) {
     if (s != s || fabsf(s) > 100000.0f) {
         s = 0.0f;
     }
-    float z = Diffuser_tick(&self->ldifs[0], Damper_tick(&self->input_damper, s));
+    const float cignal_t0 = Damper_tick(&self->input_damper, s);
+    const float cignal_t1 = Diffuser_x4_tick(&self->ldifs, 0, cignal_t0);
+    float z = cignal_t1;
     CIGNAL_UNROLL(4) for (int32_t i = 0; i < 4; i++) {
         self->u[i] = self->tap_gains[i] * cignal_delay_read_float(self->tap_line.buf, 7065, self->tap_line.pos, self->taps[i]);
     }
     cignal_delay_write_float(self->tap_line.buf, 7065, &self->tap_line.pos, z);
     CIGNAL_UNROLL(4) for (int32_t i = 0; i < 4; i++) {
-        self->d[i] = Damper_tick(&self->fdn_dampers[i], self->fdn_gains[i] * cignal_delay_read_float(self->fdn_lines[i].buf, 14119, self->fdn_lines[i].pos, self->fdn_lens[i]));
+        const float cignal_t2 = self->fdn_gains[i];
+        const int32_t cignal_t3 = self->fdn_lens[i];
+        const float cignal_t4 = cignal_delay_read_float(self->fdn_lines[i].buf, 14119, self->fdn_lines[i].pos, cignal_t3);
+        const float cignal_t5 = Damper_x4_tick(&self->fdn_dampers, i, cignal_t2 * cignal_t4);
+        self->d[i] = cignal_t5;
     }
     float acc = s * self->early;
     float sign = 1.0f;
@@ -142,17 +198,21 @@ static inline cignal_tuple_float_float Gigaverb_tick(Gigaverb *self, float x) {
     float d1 = self->d[1];
     float d2 = self->d[2];
     float d3 = self->d[3];
-    cignal_delay_write_float(self->fdn_lines[0].buf, 14119, &self->fdn_lines[0].pos, self->u[0] + 0.5f * (d0 + d1 - d2 - d3));
-    cignal_delay_write_float(self->fdn_lines[1].buf, 14119, &self->fdn_lines[1].pos, self->u[1] + 0.5f * (d0 - d1 - d2 + d3));
-    cignal_delay_write_float(self->fdn_lines[2].buf, 14119, &self->fdn_lines[2].pos, self->u[2] + 0.5f * (-d0 + d1 - d2 + d3));
-    cignal_delay_write_float(self->fdn_lines[3].buf, 14119, &self->fdn_lines[3].pos, self->u[3] + 0.5f * (d0 + d1 + d2 + d3));
+    const float cignal_t6 = self->u[0];
+    cignal_delay_write_float(self->fdn_lines[0].buf, 14119, &self->fdn_lines[0].pos, cignal_t6 + 0.5f * (d0 + d1 - d2 - d3));
+    const float cignal_t7 = self->u[1];
+    cignal_delay_write_float(self->fdn_lines[1].buf, 14119, &self->fdn_lines[1].pos, cignal_t7 + 0.5f * (d0 - d1 - d2 + d3));
+    const float cignal_t8 = self->u[2];
+    cignal_delay_write_float(self->fdn_lines[2].buf, 14119, &self->fdn_lines[2].pos, cignal_t8 + 0.5f * (-d0 + d1 - d2 + d3));
+    const float cignal_t9 = self->u[3];
+    cignal_delay_write_float(self->fdn_lines[3].buf, 14119, &self->fdn_lines[3].pos, cignal_t9 + 0.5f * (d0 + d1 + d2 + d3));
     float left = acc;
     float right = acc;
     CIGNAL_UNROLL(3) for (int32_t i = 1; i < 4; i++) {
-        left = Diffuser_tick(&self->ldifs[i], left);
+        left = Diffuser_x4_tick(&self->ldifs, i, left);
     }
     CIGNAL_UNROLL(3) for (int32_t i = 0; i < 3; i++) {
-        right = Diffuser_tick(&self->rdifs[i], right);
+        right = Diffuser_x3_tick(&self->rdifs, i, right);
     }
     return (cignal_tuple_float_float){x * self->dry + left, x * self->dry + right};
 }
@@ -175,10 +235,11 @@ void Gigaverb_init(Gigaverb *self, float sample_rate) {
     for (int32_t k = 0; k < 4; k++) self->u[k] = 0.0f;
     for (int32_t k = 0; k < 4; k++) self->d[k] = 0.0f;
     self->sample_rate = sample_rate;
+    self->cignal_stale = true;
     Damper_init(&self->input_damper, sample_rate);
-    for (int32_t k = 0; k < 4; k++) Damper_init(&self->fdn_dampers[k], sample_rate);
-    for (int32_t k = 0; k < 4; k++) Diffuser_init(&self->ldifs[k], sample_rate);
-    for (int32_t k = 0; k < 3; k++) Diffuser_init(&self->rdifs[k], sample_rate);
+    for (int32_t k = 0; k < 4; k++) Damper_x4_init(&self->fdn_dampers, k, sample_rate);
+    for (int32_t k = 0; k < 4; k++) Diffuser_x4_init(&self->ldifs, k, sample_rate);
+    for (int32_t k = 0; k < 3; k++) Diffuser_x3_init(&self->rdifs, k, sample_rate);
     Gigaverb_init_body(self);
 }
 
@@ -191,15 +252,19 @@ void Gigaverb_reset(Gigaverb *self) {
     for (int32_t k = 0; k < 4; k++) self->tap_gains[k] = 0.0f;
     for (int32_t k = 0; k < 4; k++) self->u[k] = 0.0f;
     for (int32_t k = 0; k < 4; k++) self->d[k] = 0.0f;
+    self->cignal_stale = true;
     Damper_reset(&self->input_damper);
-    for (int32_t k = 0; k < 4; k++) Damper_reset(&self->fdn_dampers[k]);
-    for (int32_t k = 0; k < 4; k++) Diffuser_reset(&self->ldifs[k]);
-    for (int32_t k = 0; k < 3; k++) Diffuser_reset(&self->rdifs[k]);
+    for (int32_t k = 0; k < 4; k++) Damper_x4_reset(&self->fdn_dampers, k);
+    for (int32_t k = 0; k < 4; k++) Diffuser_x4_reset(&self->ldifs, k);
+    for (int32_t k = 0; k < 3; k++) Diffuser_x3_reset(&self->rdifs, k);
     Gigaverb_init_body(self);
 }
 
 void Gigaverb_process(Gigaverb *restrict self, const float *const *in, float *const *out, int n) {
-    Gigaverb_control(self);
+    if (self->cignal_stale) {
+        self->cignal_stale = false;
+        Gigaverb_control(self);
+    }
     for (int i = 0; i < n; i++) {
         const float in0 = in[0][i];
         const cignal_tuple_float_float r = Gigaverb_tick(self, in0);
@@ -209,17 +274,22 @@ void Gigaverb_process(Gigaverb *restrict self, const float *const *in, float *co
 }
 
 void Gigaverb_set_param(Gigaverb *self, int index, float value) {
+    self->cignal_stale = true;
     switch (index) {
-    case 0: self->roomsize = value < 1.0f ? 1.0f : (value > 50.0f ? 50.0f : value); break;
-    case 1: self->revtime = value < 0.1f ? 0.1f : (value > 60.0f ? 60.0f : value); break;
-    case 2: self->damping = value < 0.0f ? 0.0f : (value > 1.0f ? 1.0f : value); break;
-    case 3: self->spread = value < 0.0f ? 0.0f : (value > 100.0f ? 100.0f : value); break;
-    case 4: self->bandwidth = value < 0.0f ? 0.0f : (value > 1.0f ? 1.0f : value); break;
-    case 5: self->dry = value < 0.0f ? 0.0f : (value > 1.0f ? 1.0f : value); break;
-    case 6: self->early = value < 0.0f ? 0.0f : (value > 1.0f ? 1.0f : value); break;
-    case 7: self->tail = value < 0.0f ? 0.0f : (value > 1.0f ? 1.0f : value); break;
+    case 0: self->roomsize = !(value >= 1.0f) ? 1.0f : (value > 50.0f ? 50.0f : value); break;
+    case 1: self->revtime = !(value >= 0.1f) ? 0.1f : (value > 60.0f ? 60.0f : value); break;
+    case 2: self->damping = !(value >= 0.0f) ? 0.0f : (value > 1.0f ? 1.0f : value); break;
+    case 3: self->spread = !(value >= 0.0f) ? 0.0f : (value > 100.0f ? 100.0f : value); break;
+    case 4: self->bandwidth = !(value >= 0.0f) ? 0.0f : (value > 1.0f ? 1.0f : value); break;
+    case 5: self->dry = !(value >= 0.0f) ? 0.0f : (value > 1.0f ? 1.0f : value); break;
+    case 6: self->early = !(value >= 0.0f) ? 0.0f : (value > 1.0f ? 1.0f : value); break;
+    case 7: self->tail = !(value >= 0.0f) ? 0.0f : (value > 1.0f ? 1.0f : value); break;
     default: break;
     }
+}
+
+void Gigaverb_set_param_immediate(Gigaverb *self, int index, float value) {
+    Gigaverb_set_param(self, index, value);
 }
 
 void Gigaverb_set_roomsize(Gigaverb *self, float value) {

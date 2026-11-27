@@ -909,6 +909,7 @@ def _emit_cignal_tick(
     emit_cignal_param_sets(node, ref, False, param_names, invariant_ids, w, "        ")
     w(f"        {k}_process(&self->m_{nid}, {ins}, _{nid}_outs, 1);")
     w(f"        float {nid} = _{nid}_y[0];")
+    w(f"        (void){nid};")  # a graph may read only its other outputs
 
 
 # ---------------------------------------------------------------------------

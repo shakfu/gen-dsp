@@ -5,6 +5,7 @@
   "header": "synth.h",
   "source": "synth.c",
   "sample_type": "float",
+  "layout": "soa",
   "n_inputs": 0,
   "n_outputs": 1,
   "params": [

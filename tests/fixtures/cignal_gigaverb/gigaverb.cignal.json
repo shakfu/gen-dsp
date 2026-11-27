@@ -5,6 +5,7 @@
   "header": "gigaverb.h",
   "source": "gigaverb.c",
   "sample_type": "float",
+  "layout": "soa",
   "n_inputs": 1,
   "n_outputs": 2,
   "params": [

@@ -76,8 +76,9 @@ def _au_registry_unreachable() -> str | None:
     ]
     if not _has_auval or not installed:
         return None
+    # `auval -a` scans every installed component: 53 s idle on one machine, over 120 s under a full test run.
     result = subprocess.run(
-        ["auval", "-a"], capture_output=True, text=True, timeout=120, check=False
+        ["auval", "-a"], capture_output=True, text=True, timeout=600, check=False
     )
     if _lists_third_party(result.stdout):
         return None
