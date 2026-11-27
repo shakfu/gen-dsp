@@ -474,9 +474,26 @@ Param names and node ids that collide with a gen~ reserved word or operator (e.g
 
 This feature is experimental. The emitted GenExpr is checked in CI against the Python `simulate()` reference (bit-exact across a broad node corpus); validating gen-dsp's semantics against Cycling '74's actual gen~ still requires Max in the loop.
 
+### cignal Kernels in Graphs
+
+A graph can import a kernel compiled by [cignal](https://github.com/shakfu/cignal) from the manifest that `cignal build --manifest` writes:
+
+```gdsp
+graph verb {
+    in x
+    out left = rev
+    out right = rev.out1
+    param room 1..50 = 20
+
+    rev = import "gigaverb.cignal.json"(in0=x, roomsize=room)
+}
+```
+
+The kernel runs once per 64-frame chunk where nothing feeds its output back to its input, and one frame per call otherwise; both give the same output. Gigaverb costs 15 ns/frame in a graph against 12.6 alone. Such graphs build for AU, CLAP, LV2, SuperCollider and VST3; `simulate()` rejects them. Details are in [`docs/graph/dsl.md`](docs/graph/dsl.md#cignal-kernels).
+
 ### Available Node Types
 
-54 built-in node types covering ~89% of gen~ operators: `BinOp` (add/sub/mul/div/pow/mod/min/max/rsub/rdiv/rmod/absdiff/hypot/atan2/step/and/or/xor/gtp/ltp/gtep/ltep/eqp/neqp/fastpow), `UnaryOp` (abs/neg/sqrt/exp/log/sin/cos/tan/tanh/floor/ceil/round/sign/atan/asin/acos/not/bool/exp2/log2/log10/sinh/cosh/asinh/acosh/atanh/trunc/fract/atodb/dbtoa/ftom/mtof/phasewrap/degrees/radians/mstosamps/sampstoms/t60/t60time/fixdenorm/fixnan/isdenorm/isnan/fastsin/fastcos/fasttan/fastexp), `SinOsc`, `SawOsc`, `PulseOsc`, `TriOsc`, `Phasor`, `Noise`, `OnePole`, `Biquad`, `SVF`, `Allpass`, `DCBlock`, `History`, `DelayLine`/`DelayRead`/`DelayWrite`, `Buffer`/`BufRead`/`BufWrite`/`BufSize`/`Splat`/`Peek`, `Cycle`, `Wave`, `Lookup`, `ADSR`, `Accum`, `Counter`, `MulAccum`, `Clamp`, `Wrap`, `Fold`, `Scale`, `Mix`, `Smoothstep`, `Select`, `Compare`, `GateRoute`/`GateOut`, `Selector`, `Change`, `Delta`, `Latch`, `SampleHold`, `Slide`, `Elapsed`, `RateDiv`, `SmoothParam`, `Constant`, `NamedConstant`, `SampleRate`, `Pass`, `Subgraph`.
+58 built-in node types covering ~89% of gen~ operators: `BinOp` (add/sub/mul/div/pow/mod/min/max/rsub/rdiv/rmod/absdiff/hypot/atan2/step/and/or/xor/gtp/ltp/gtep/ltep/eqp/neqp/fastpow), `UnaryOp` (abs/neg/sqrt/exp/log/sin/cos/tan/tanh/floor/ceil/round/sign/atan/asin/acos/not/bool/exp2/log2/log10/sinh/cosh/asinh/acosh/atanh/trunc/fract/atodb/dbtoa/ftom/mtof/phasewrap/degrees/radians/mstosamps/sampstoms/t60/t60time/fixdenorm/fixnan/isdenorm/isnan/fastsin/fastcos/fasttan/fastexp), `SinOsc`, `SawOsc`, `PulseOsc`, `TriOsc`, `Phasor`, `Noise`, `OnePole`, `Biquad`, `SVF`, `Allpass`, `DCBlock`, `History`, `DelayLine`/`DelayRead`/`DelayWrite`, `Buffer`/`BufRead`/`BufWrite`/`BufSize`/`Splat`/`Peek`, `Cycle`, `Wave`, `Lookup`, `ADSR`, `Accum`, `Counter`, `MulAccum`, `Clamp`, `Wrap`, `Fold`, `Scale`, `Mix`, `Smoothstep`, `Select`, `Compare`, `GateRoute`/`GateOut`, `Selector`, `Change`, `Delta`, `Latch`, `SampleHold`, `Slide`, `Elapsed`, `RateDiv`, `SmoothParam`, `Constant`, `NamedConstant`, `SampleRate`, `Pass`, `Subgraph`, `CignalKernel`/`CignalOut`.
 
 ## Features
 
