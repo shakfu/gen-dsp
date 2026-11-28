@@ -46,4 +46,4 @@ The key design constraint: gen~'s compiled code is untouched. The remapping happ
 
 ## Supported platforms
 
-All 15 platforms support `--inputs-as-params`. CMake-based platforms (CLAP, VST3, AU, AUv3, LV2, SC, Max) pass remap defines via `target_compile_definitions()`. Make-based platforms (ChucK, VCV Rack, PD, Daisy, Circle, Web Audio, Standalone, Csound) pass them via compiler flags (`FLAGS`, `CFLAGS`/`CPPFLAGS`, or `cflags` depending on platform).
+All 17 platforms support `--inputs-as-params`. CMake-based platforms (CLAP, VST3, AU, AUv3, LV2, SC, Max, SSP) pass remap defines via `target_compile_definitions()`. Make-based platforms (ChucK, VCV Rack, PD, Daisy, Circle, Web Audio, Standalone, Csound) pass them via compiler flags (`FLAGS`, `CFLAGS`/`CPPFLAGS`, or `cflags` depending on platform). NICE passes them as `.define()` calls in its generated `build.rs`.

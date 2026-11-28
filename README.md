@@ -6,7 +6,7 @@ gen-dsp turns Max/MSP gen~ code exports into complete, buildable audio plugin pr
 
 The 17 targets are PureData, Max/MSP, ChucK, AudioUnit (AUv2), AUv3, CLAP, VST3, LV2, SuperCollider, VCV Rack, Daisy, Circle, Percussa SSP, Web Audio (WASM), Standalone (miniaudio), Csound, and nice-plug (a Rust CLAP/VST3 crate) -- spanning desktop plugin formats, embedded firmware, and the browser.
 
-gen-dsp also optionally provides its own alternative DSP DSL called GDSP, short for GRAPH DSP (`pip install gen-dsp[graph]`), another way to author DSP directly in gen-dsp as an alternative to gen~. You define a signal graph in purpose-built `.gdsp` files, and compile it to any of the 17 targets through the same pipeline -- no Max or gen~ export required. A graph can even be transpiled back to gen~ `codebox` source (experimental), so work started in GDSP can return to Max. The separate, optional [dsp-graph](https://github.com/shakfu/dsp-graph) package adds a web-based visual editor and debugger (React + FastAPI) for viewing and driving gen-dsp operations from a browser.
+gen-dsp also optionally provides its own alternative DSP DSL called GDSP, short for GRAPH DSP (`pip install gen-dsp[graph]`), another way to author DSP directly in gen-dsp as an alternative to gen~. You define a signal graph in purpose-built `.gdsp` files, and compile it to 16 of the 17 targets (all but AUv3) through the same pipeline -- no Max or gen~ export required. A graph can even be transpiled back to gen~ `codebox` source (experimental), so work started in GDSP can return to Max. The separate, optional [dsp-graph](https://github.com/shakfu/dsp-graph) package adds a web-based visual editor and debugger (React + FastAPI) for viewing and driving gen-dsp operations from a browser.
 
 gen-dsp can also wrap a kernel compiled by [cignal](https://github.com/shakfu/cignal), which turns static Python into C99. Pass the manifest that `cignal build --manifest` writes: `gen-dsp gigaverb.cignal.json -p clap`. AU, CLAP, LV2, SuperCollider and VST3 are supported.
 
@@ -104,7 +104,7 @@ Each platform has a detailed guide covering prerequisites, build details, SDK co
 
 - **Platform registry**: To make it easy to discover new backends
 
-- **graph frontend** (optional): Define DSP signal-processing graphs in the [GDSP DSL](docs/graph/dsl.md), Python, or JSON using 54 built-in node types (oscillators, filters, delays, buffers, math ops, etc.), then compile to C++ and generate buildable plugin projects. Primary purpose is to enable testing gen-dsp's platform backends without gen~ exports. Includes graph validation, optimization (dead-code elimination, constant folding), FAUST-style algebra combinators (`series`, `parallel`, `split`, `merge`), Graphviz visualization, and numpy-based simulation. Covers ~89% of gen~ operators.
+- **graph frontend** (optional): Define DSP signal-processing graphs in the [GDSP DSL](docs/graph/dsl.md), Python, or JSON using 58 built-in node types (oscillators, filters, delays, buffers, math ops, etc.), then compile to C++ and generate buildable plugin projects. Primary purpose is to enable testing gen-dsp's platform backends without gen~ exports. Includes graph validation, optimization (dead-code elimination, constant folding), FAUST-style algebra combinators (`series`, `parallel`, `split`, `merge`), Graphviz visualization, and numpy-based simulation. Covers ~90% of gen~ operators.
 
 ## Installation
 
@@ -351,6 +351,8 @@ To generate a platform project from a graph, use the default command: `gen-dsp m
 
 The optional graph subpackage (`pip install gen-dsp[graph]`) provides a way to test gen-dsp's platform backends without needing to create and export gen~ patches. It defines DSP graphs in the GDSP DSL, Python, or JSON and compiles them to C++, generating buildable plugin projects through the same platform backends. While not intended to replace gen~, it may evolve into a useful frontend in its own right. For a visual editing experience, see the companion [dsp-graph](https://github.com/shakfu/dsp-graph) project -- a web-based graph editor and debugger built on top of this subpackage.
 
+Graph nodes come from three sources: built-in node types, other graphs, and compiled cignal kernels. See [Node Sources](docs/graph/dsl.md#node-sources).
+
 ### Quick Start (GDSP)
 
 The GDSP DSL is a concise, line-oriented language for defining DSP graphs. It borrows idioms from Gen~ codebox, Faust, and SuperCollider. See the [full specification](docs/graph/dsl.md) for details.
@@ -493,7 +495,7 @@ The kernel runs once per 64-frame chunk where nothing feeds its output back to i
 
 ### Available Node Types
 
-58 built-in node types covering ~89% of gen~ operators: `BinOp` (add/sub/mul/div/pow/mod/min/max/rsub/rdiv/rmod/absdiff/hypot/atan2/step/and/or/xor/gtp/ltp/gtep/ltep/eqp/neqp/fastpow), `UnaryOp` (abs/neg/sqrt/exp/log/sin/cos/tan/tanh/floor/ceil/round/sign/atan/asin/acos/not/bool/exp2/log2/log10/sinh/cosh/asinh/acosh/atanh/trunc/fract/atodb/dbtoa/ftom/mtof/phasewrap/degrees/radians/mstosamps/sampstoms/t60/t60time/fixdenorm/fixnan/isdenorm/isnan/fastsin/fastcos/fasttan/fastexp), `SinOsc`, `SawOsc`, `PulseOsc`, `TriOsc`, `Phasor`, `Noise`, `OnePole`, `Biquad`, `SVF`, `Allpass`, `DCBlock`, `History`, `DelayLine`/`DelayRead`/`DelayWrite`, `Buffer`/`BufRead`/`BufWrite`/`BufSize`/`Splat`/`Peek`, `Cycle`, `Wave`, `Lookup`, `ADSR`, `Accum`, `Counter`, `MulAccum`, `Clamp`, `Wrap`, `Fold`, `Scale`, `Mix`, `Smoothstep`, `Select`, `Compare`, `GateRoute`/`GateOut`, `Selector`, `Change`, `Delta`, `Latch`, `SampleHold`, `Slide`, `Elapsed`, `RateDiv`, `SmoothParam`, `Constant`, `NamedConstant`, `SampleRate`, `Pass`, `Subgraph`, `CignalKernel`/`CignalOut`.
+58 built-in node types covering ~90% of gen~ operators: `BinOp` (add/sub/mul/div/pow/mod/min/max/rsub/rdiv/rmod/absdiff/hypot/atan2/step/and/or/xor/gtp/ltp/gtep/ltep/eqp/neqp/fastpow), `UnaryOp` (abs/neg/sqrt/exp/log/sin/cos/tan/tanh/floor/ceil/round/sign/atan/asin/acos/not/bool/exp2/log2/log10/sinh/cosh/asinh/acosh/atanh/trunc/fract/atodb/dbtoa/ftom/mtof/phasewrap/degrees/radians/mstosamps/sampstoms/t60/t60time/fixdenorm/fixnan/isdenorm/isnan/fastsin/fastcos/fasttan/fastexp), `SinOsc`, `SawOsc`, `PulseOsc`, `TriOsc`, `Phasor`, `Train`, `Noise`, `OnePole`, `Biquad`, `SVF`, `Allpass`, `DCBlock`, `History`, `DelayLine`/`DelayRead`/`DelayWrite`, `Buffer`/`BufRead`/`BufWrite`/`BufSize`/`Splat`/`Peek`, `Cycle`, `Wave`, `Lookup`, `ADSR`, `Accum`, `Counter`, `MulAccum`, `Clamp`, `Wrap`, `Fold`, `Scale`, `Mix`, `Interp`, `Smoothstep`, `Select`, `Compare`, `GateRoute`/`GateOut`, `Selector`, `Change`, `Delta`, `Latch`, `SampleHold`, `Slide`, `Elapsed`, `RateDiv`, `SmoothParam`, `Constant`, `NamedConstant`, `SampleRate`, `Pass`, `Subgraph`, `CignalKernel`/`CignalOut`.
 
 ## Features
 
@@ -509,7 +511,7 @@ gen-dsp ./fm_bells -p clap --inputs-as-params
 gen-dsp ./fm_bells -p clap --inputs-as-params carrier "c/m ratio"
 ```
 
-This turns a 2-input effect into a 0-input generator/instrument with 2 additional parameters. Works on all 15 platforms. See [docs/inputs_as_params.md](docs/inputs_as_params.md) for details.
+This turns a 2-input effect into a 0-input generator/instrument with 2 additional parameters. Works on all 17 platforms. See [docs/inputs_as_params.md](docs/inputs_as_params.md) for details.
 
 ### TouchOSC Surfaces
 

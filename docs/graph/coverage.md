@@ -10,7 +10,7 @@ Coverage is not a subset relation, and "close the gap" should not be read as "re
 
 Two asymmetries matter:
 
-- The graph is a pure dataflow DAG; gen~ / GenExpr is an imperative language. The whole pipeline (`toposort`, `simulate`, `optimize`, `transpile`, and the 11 backends) depends on the acyclic scalar-dataflow invariant. Some gaps are cheap node additions; others cannot be expressed without breaking that invariant (see "Structural / semantic gaps" below).
+- The graph is a pure dataflow DAG; gen~ / GenExpr is an imperative language. The whole pipeline (`toposort`, `simulate`, `optimize`, `transpile`, and the 16 graph backends) depends on the acyclic scalar-dataflow invariant. Some gaps are cheap node additions; others cannot be expressed without breaking that invariant (see "Structural / semantic gaps" below).
 
 - gen-dsp is not strictly narrower than gen~. It adds higher-level DSP blocks that gen~ has no primitive for (`Biquad`, `SVF`, `OnePole`, `Allpass`, `ADSR`, and the `SinOsc`/`TriOsc`/`SawOsc`/`PulseOsc` family). So the frontend is a curated, higher-level DSP vocabulary: narrower on language expressiveness, wider on ready-made blocks.
 

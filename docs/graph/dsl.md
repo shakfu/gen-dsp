@@ -12,6 +12,14 @@ A line-oriented DSL for defining DSP graphs that compiles to `gen_dsp.graph.Grap
 
 4. **Concise but unambiguous** -- eliminate boilerplate without introducing ambiguity.
 
+## Node Sources
+
+A graph's nodes come from three sources:
+
+1. **Built-in node types**, reached through operators and function calls. See [Expression Language](#expression-language).
+2. **Other graphs**, defined in the same file, imported from another `.gdsp` file, or imported from the `std:` and user libraries. Each call becomes a `Subgraph` node. See [Multi-Graph Files and Subgraphs](#multi-graph-files-and-subgraphs).
+3. **Compiled cignal kernels**, imported from the manifest that `cignal build --manifest` writes. Each becomes a `CignalKernel` node. See [cignal Kernels](#cignal-kernels).
+
 ## Node Type Inference
 
 GDSP has no type annotations. Every node's type is inferred from how it is written:

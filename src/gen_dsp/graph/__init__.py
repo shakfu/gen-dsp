@@ -1,7 +1,7 @@
 """DSP signal graph DSL: define, validate, compile to C++, and optimize.
 
-Provides 45 node types (arithmetic, filters, oscillators, delays, buffers,
-state/timing, subgraph, utility), graph validation, topological sort, Graphviz
+Provides 58 node types (arithmetic, filters, oscillators, delays, buffers,
+state/timing, subgraph, cignal kernel, utility), graph validation, topological sort, Graphviz
 visualization, and a multi-pass optimizing compiler targeting standalone C++.
 
 Requires pydantic >= 2.0.  Install with::

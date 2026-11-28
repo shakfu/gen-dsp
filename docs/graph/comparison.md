@@ -4,7 +4,7 @@ Short version: `.gdsp` is **inspired by** gen~ but is **not** gen~. It is gen-ds
 
 ## They are two separate entry points to the same pipeline
 
-gen-dsp has two front-ends that both produce the same intermediate representation (`Manifest` / `Graph`) and feed the same 11 platform backends:
+gen-dsp has two front-ends that both produce the same intermediate representation (`Manifest` / `Graph`) and feed the same platform backends (all 17 for gen~ exports; 16 for graphs, which have no AUv3 build files):
 
 ```text
 gen~ export dir --> parser.py --> ExportInfo --+

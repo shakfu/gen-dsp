@@ -14,6 +14,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - **cignal kernels as graph nodes** -- `rev = import "gigaverb.cignal.json"(in0=x, roomsize=room)` adds a kernel to a graph as a `CignalKernel` node, with `CignalOut` for outputs past the first (`rev.out1`). Where nothing feeds a kernel's output back to its input and its parameters are fixed for the block, the sample loop splits at the kernel, which runs once per 64-frame chunk. Elsewhere it runs one frame per call, and feedback through it has one sample of delay. Both rely on cignal's guarantee that block size does not change output, so cignal's ABI is unchanged; tests match the kernel run alone, and chunk calls against frame calls at five host block sizes, bit for bit. Per chunk, Gigaverb costs 15 ns/frame in a graph against 12.6 alone; per frame, 25 (with cignal's `control` skip; 130 before it). Nodes that share state stay in one stage of the split: delay and buffer readers and writers, a History with its input and readers, a GateRoute with its outputs. Splitting at every kernel unconditionally was the alternative; it would delay feedback through the kernel by a chunk. Syntax and limits are in `docs/graph/dsl.md`.
 
+- **Design note for mdsp kernels as graph nodes** -- `docs/dev/mdsp-kernels.md` proposes an `MdspKernel` node, modelled on `CignalKernel`, for kernels from [mdsp](https://github.com/shakfu/mdsp). The note includes a prototype's findings: the kernels link without the Mojo runtime, match mdsp bit for bit, and give the same output at any block size. Nothing is implemented.
+
 - **MIDI notes to cignal events (CLAP, LV2, VST3)** -- A kernel with events `note(pitch, velocity)` and `off(pitch)` gets MIDI note-on and note-off as those events, so it allocates its own voices; `--voices` is rejected for it. The wrapper interface has two optional hooks, `wrapper_note_on` and `wrapper_note_off`, declared and called under `WRAPPER_NOTE_EVENTS`; without the define, gen~ and graph projects compile as before. A test sends notes to the cignal synth's LV2 and VST3 and matches the kernel driven with the same events, bit for bit. AU's MIDI handling and other events (the synth's `hold` and `bend`) are not wired up; gen-dsp names the unreachable events per platform.
 
 ### Changed
@@ -33,6 +35,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **AU build tests failed outside a GUI login session** -- A process outside the GUI (Aqua) launchd session cannot reach the per-user AudioComponentRegistrar. Under a detached terminal multiplexer, for example, `launchctl managername` reports `Background`. `auval` then lists only Apple's components and reports every installed bundle as not found. The AU build tests now skip validation, after building, when third-party components are installed but `auval -a` lists none; the skip reason names the session. The symptom decides the skip, not the session name, so a runner that reports `Background` but can reach the registrar still validates. With no third-party bundle installed, as on a clean CI runner, validation runs.
 
 - **`GENLIB_USE_FLOAT32` redefined on 32-bit ARM** -- On `__arm__`, the export's `genlib_platform.h` defines `GENLIB_USE_FLOAT32` with no guard. Every build file also passes `-DGENLIB_USE_FLOAT32`, so SSP, Daisy and Circle builds warned on each genlib include. A new patch, `float32_guard`, wraps the header's define in `#ifndef`. It runs with the other patches and is skipped under `--no-patch`. Guarding the header in one place was chosen over editing about 20 platform templates to pass a matching empty define.
+
+- **Stale counts in the docs** -- Counts in the README, `docs/graph/` and `docs/inputs_as_params.md` now match the code:
+  - 58 node types (the docs said 45, 54 or 55);
+  - 16 graph backends, all but AUv3 (they said 11, 14 or 17);
+  - 17 platforms supporting `--inputs-as-params` (they said 15);
+  - ~90% gen~ coverage (they said ~89%).
+
+  `docs/graph/dsl.md` gains a "Node Sources" section listing where graph nodes come from: built-in types, other graphs, and cignal kernels.
 
 ## [0.6.1]
 

@@ -9,7 +9,7 @@ Python (Pydantic models)  -->  JSON (intermediate)  -->  C++ (compiled output)
       build graph              .model_dump_json()         compile_graph()
 ```
 
-The graph is the single source of truth. JSON serialization allows storage, diffing, and machine transformation. The C++ compiler produces a self-contained file that follows gen-dsp's `wrapper_*` interface, plugging into 14 of the platform backends (every target except AUv3, which the graph path does not yet generate build files for).
+The graph is the single source of truth. JSON serialization allows storage, diffing, and machine transformation. The C++ compiler produces a self-contained file that follows gen-dsp's `wrapper_*` interface, plugging into 16 of the 17 platform backends (every target except AUv3, which the graph path does not yet generate build files for).
 
 ## Core Models
 
@@ -398,7 +398,7 @@ code = compile_graph(graph)  # complete C++ string
 | IR format | C++ (opaque) | JSON (inspectable, transformable) |
 | Compiler | gen~ (closed source) | `gen_dsp.graph` (open, extensible) |
 | Host wrappers | gen-dsp platform backends | Same gen-dsp platform backends |
-| Operator set | gen~ vocabulary | 55 node types (~90% gen~ coverage) |
+| Operator set | gen~ vocabulary | 58 node types (~90% gen~ coverage) |
 | Simulation | N/A | Python/numpy (`simulate()`) |
 
-The JSON IR is the key artifact: it's diffable, version-controllable, and machine-transformable. Both paths produce the same `wrapper_*` C++ interface, so all 11 gen-dsp platform backends work identically regardless of which frontend was used.
+The JSON IR is the key artifact: it's diffable, version-controllable, and machine-transformable. Both paths produce the same `wrapper_*` C++ interface, so the 16 backends the graph path supports work identically with either frontend.
